@@ -10,12 +10,14 @@ use App\Services\Chat\UserPresence;
 /**
  * Снимок пользователей онлайн для системного монитора:
  * last_seen_at в окне UserPresence::ONLINE_WITHIN_SECONDS, все роли и партнёры.
+ * Зрителя (excludeUserId) в списке нет.
  */
 final class OnlineUsersMonitor
 {
     public const MISSING_PARTNER_TITLE = 'Без партнёра';
 
     /**
+     * @param  int|null  $excludeUserId  Id зрителя: в списке и в total его нет.
      * @return array{
      *     ok: bool,
      *     online_within_seconds: int,
@@ -23,17 +25,23 @@ final class OnlineUsersMonitor
      *     partners: list<array{id: int|null, title: string, count: int, users: list<array{id: int, name: string}>}>
      * }
      */
-    public static function snapshot(): array
+    public static function snapshot(?int $excludeUserId = null): array
     {
         $seconds = UserPresence::ONLINE_WITHIN_SECONDS;
         $since = now()->subSeconds($seconds);
 
-        $users = User::query()
+        $query = User::query()
             ->with(['partner' => static function ($query): void {
                 $query->withTrashed();
             }])
             ->whereNotNull('last_seen_at')
-            ->where('last_seen_at', '>=', $since)
+            ->where('last_seen_at', '>=', $since);
+
+        if ($excludeUserId !== null && $excludeUserId > 0) {
+            $query->where('id', '!=', $excludeUserId);
+        }
+
+        $users = $query
             ->orderBy('lastname')
             ->orderBy('name')
             ->orderBy('id')

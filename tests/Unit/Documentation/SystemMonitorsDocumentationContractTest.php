@@ -46,6 +46,8 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Без партнёра', $chunk);
         $this->assertStringContainsString('пустой список', $chunk);
         $this->assertStringContainsString('Без названия', $chunk);
+        $this->assertStringContainsString('Auth::id()', $chunk);
+        $this->assertStringContainsString('без зрителя', $chunk);
         $this->assertStringContainsString('/doc#online-users-overlay-index', $chunk);
         $this->assertStringContainsString('#js-ops-monitors', $chunk);
         $this->assertStringContainsString('/cabinet/system-monitors/ops', $chunk);
@@ -53,6 +55,9 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('OpsMonitorRequest', $chunk);
         $this->assertStringContainsString('OpsMonitor::snapshot()', $chunk);
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
+        $this->assertStringContainsString('last_message', $chunk);
+        $this->assertStringContainsString('вход — 72 ч', $chunk);
         $this->assertStringContainsString('KidsCrmTooltip', $chunk);
         $this->assertStringContainsString('sidebar-mini layout-fixed', $chunk);
         $this->assertStringContainsString('JSON-оверлея диагностики нет', $chunk);
@@ -102,7 +107,10 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('над</b> бейджем Reverb', $chunk);
         $this->assertStringContainsString('UserPresence::ONLINE_WITHIN_SECONDS', $chunk);
         $this->assertStringContainsString('current_partner', $chunk);
+        $this->assertStringContainsString('Auth::id()', $chunk);
+        $this->assertStringContainsString('Зрителя', $chunk);
         $this->assertStringContainsString('is_enabled=0', $chunk);
+        $this->assertStringNotContainsString('себя тоже', $chunk);
         $this->assertStringContainsString('Без партнёра', $chunk);
         $this->assertStringContainsString('Без названия', $chunk);
         $this->assertStringContainsString('#id', $chunk);
@@ -144,10 +152,23 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('KidsCrmTooltip', $chunk);
         $this->assertStringContainsString('#111827', $chunk);
         $this->assertStringContainsString('24 часа', $chunk);
+        $this->assertStringContainsString('72 часа', $chunk);
+        $this->assertStringContainsString('auth.recent_logins', $chunk);
+        $this->assertStringContainsString('auth.login_failed', $chunk);
         $this->assertStringContainsString('QueueStatusSnapshot::compact()', $chunk);
         $this->assertStringContainsString('Handler::report', $chunk);
         $this->assertStringContainsString('my_logs', $chunk);
         $this->assertStringContainsString('laravel.log', $chunk);
+        $this->assertStringContainsString('ViewException', $chunk);
+        $this->assertStringContainsString('getPrevious()', $chunk);
+        $this->assertStringContainsString('errors.recent', $chunk);
+        $this->assertStringContainsString('errors-last', $chunk);
+        $this->assertStringContainsString('last_message', $chunk);
+        $this->assertStringContainsString('getPathInfo()', $chunk);
+        $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
+        $this->assertStringContainsString('last_message', $chunk);
+        $this->assertStringContainsString('innerHTML', $chunk);
+        $this->assertStringContainsString('leftover', $chunk);
         $this->assertStringContainsString('current_partner', $chunk);
         $this->assertStringContainsString('OpsMonitor::snapshot()', $chunk);
         $this->assertStringContainsString('/cabinet/system-monitors/ops', $chunk);
@@ -163,6 +184,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('chat#ops-monitors-overlay', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsUxFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsAjaxContractFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsAuthAttemptsFeatureTest', $chunk);
         $this->assertStringNotContainsString('только текущий партнёр', $chunk);
         $this->assertStringNotContainsString('PartnerContext::isSuperAdmin()', $chunk);
         $this->assertStringNotContainsString('JSON-оверлея диагностики на <code>/cabinet</code> есть', $chunk);
@@ -200,14 +222,22 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('OpsMonitor::snapshot()', $chunk);
         $this->assertStringContainsString('/cabinet/system-monitors/ops', $chunk);
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
         $this->assertStringContainsString('KidsCrmTooltip', $chunk);
         $this->assertStringContainsString('/doc#kids-tooltip-contrast-index', $chunk);
         $this->assertStringContainsString('STATUS_FAILED', $chunk);
+        $this->assertStringContainsString('ViewException', $chunk);
+        $this->assertStringContainsString('getPrevious()', $chunk);
+        $this->assertStringContainsString('errors.recent', $chunk);
+        $this->assertStringContainsString('last_message', $chunk);
+        $this->assertStringContainsString('leftover', $chunk);
         $this->assertStringContainsString('SystemMonitors::shouldShow()', $chunk);
         $this->assertStringContainsString('JSON-оверлея на <code>/cabinet</code> нет', $chunk);
         $this->assertStringContainsString('пустой список', $chunk);
         $this->assertStringContainsString('Никого нет онлайн', $chunk);
         $this->assertStringContainsString('Без названия', $chunk);
+        $this->assertStringContainsString('Auth::id()', $chunk);
+        $this->assertStringContainsString('зрителя', $chunk);
         $this->assertStringContainsString('OnlineUsersMonitor', $chunk);
         $this->assertStringContainsString('/doc#online-users-overlay-index', $chunk);
         $this->assertStringContainsString('URI переключателя', $chunk);
@@ -226,6 +256,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOpsAjaxContractFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsNonAjaxSafetyNetFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsUxFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsAuthAttemptsFeatureTest', $html);
         $this->assertStringContainsString('KidsCrmTooltipContrastFeatureTest', $html);
         $this->assertStringContainsString('/cabinet/system-monitors', $chunk);
         $this->assertStringContainsString('settings.reverbOverlay.manage', $chunk);
@@ -244,6 +275,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('dashboard-cabinet#system-monitors', $html);
         $this->assertStringContainsString('/doc#online-users-overlay-index', $html);
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $html);
+        $this->assertStringContainsString('/doc#ops-errors-detail-index', $html);
         $this->assertStringContainsString('JSON-оверлея на <code>/cabinet</code> нет', $html);
         $this->assertStringContainsString('settings.reverbOverlay.manage', $html);
         $this->assertStringContainsString('SystemMonitorsPermissionCatalogFeatureTest', $html);
@@ -258,10 +290,35 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('оверлей Reverb', $controller);
         $this->assertStringContainsString('оверлей онлайн по партнёрам', $controller);
         $this->assertStringContainsString('оверлей Пульт', $controller);
+        $this->assertStringContainsString('last_message', $controller);
+        $this->assertStringContainsString('ViewException', $controller);
+        $this->assertStringContainsString('errors.recent', $controller);
         $this->assertStringContainsString('не точка чата', $controller);
         $this->assertStringNotContainsString('settings.reverbOverlay.manage', $controller);
         $this->assertStringNotContainsString('settings.cabinetDiagnostics.manage', $controller);
         $this->assertStringNotContainsString('диагностика консоли', $controller);
+    }
+
+    public function test_chat_ops_overlay_page_mentions_last_message_hover_and_recent(): void
+    {
+        $html = $this->docFile('chat.html');
+        $this->assertStringContainsString('id="ops-monitors-overlay"', $html);
+        $start = strpos($html, 'id="ops-monitors-overlay"');
+        $this->assertNotFalse($start);
+        $end = strpos($html, 'id="tests"');
+        $this->assertNotFalse($end);
+        $this->assertGreaterThan($start, $end);
+        $chunk = substr($html, $start, $end - $start);
+
+        $this->assertStringContainsString('#js-ops-monitors', $chunk);
+        $this->assertStringContainsString('без ссылок', $chunk);
+        $this->assertStringContainsString('last_message', $chunk);
+        $this->assertStringContainsString('innerHTML', $chunk);
+        $this->assertStringContainsString('ViewException', $chunk);
+        $this->assertStringContainsString('errors.recent', $chunk);
+        $this->assertStringContainsString('leftover', $chunk);
+        $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
     }
 
     private function docFile(string $name): string

@@ -177,7 +177,7 @@
       </tr>
       <tr>
         <td><b>Скрыть авторизации</b></td>
-        <td>Исключаются записи с <code>event = auth.login</code>.</td>
+        <td>Исключаются записи с <code>event</code> из <code>AuditEvent::loginEventValues()</code> (<code>auth.login</code>, <code>auth.login_failed</code>).</td>
       </tr>
       <tr>
         <td><b>Скрыть интеграции</b></td>

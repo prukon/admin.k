@@ -169,7 +169,38 @@ final class CustomPaymentsCrudAccessFeatureTest extends CrmTestCase
         }
     }
 
-    public function test_user_without_manual_paid_manage_gets_403_on_update_delete_manual_paid(): void
+    public function test_user_without_manual_paid_manage_can_update_amount_note_and_delete(): void
+    {
+        $actor = $this->createUserWithoutPermission('setPrices.manualPaid.manage', $this->partner);
+        $this->grantCustomPaymentsView($actor);
+        $this->actingAs($actor);
+
+        $payment = $this->createPayment(['amount' => '500.00', 'note' => 'Было']);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->putJson(route('admin.settingPrices.customPayments.update', ['id' => $payment->id]), [
+                'amount' => 600,
+                'note' => 'Стало',
+                'is_paid' => false,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $payment->refresh();
+        $this->assertSame(60000, (int) $payment->amount_cents);
+        $this->assertSame('Стало', $payment->note);
+        $this->assertFalse($payment->effective_is_paid);
+        $this->assertNull($payment->is_manual_paid);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->deleteJson(route('admin.settingPrices.customPayments.destroy', ['id' => $payment->id]))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseMissing('user_custom_payment', ['id' => $payment->id]);
+    }
+
+    public function test_user_without_manual_paid_manage_cannot_change_paid_status(): void
     {
         $actor = $this->createUserWithoutPermission('setPrices.manualPaid.manage', $this->partner);
         $this->grantCustomPaymentsView($actor);
@@ -177,21 +208,61 @@ final class CustomPaymentsCrudAccessFeatureTest extends CrmTestCase
 
         $payment = $this->createPayment();
 
-        foreach ($this->mutationEndpoints($payment) as $item) {
-            $response = $this->call(
-                $item['method'],
-                $item['url'],
-                $item['data'] ?? [],
-                [],
-                [],
-                array_merge(['HTTP_ACCEPT' => 'application/json'], $this->ajaxHeaders())
-            );
+        $this->withHeaders($this->ajaxHeaders())
+            ->putJson(route('admin.settingPrices.customPayments.update', ['id' => $payment->id]), [
+                'amount' => 500,
+                'note' => 'Попытка сменить статус',
+                'is_paid' => true,
+                'status_comment' => 'Оплатил наличными',
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('success', false)
+            ->assertJsonValidationErrors(['is_paid']);
 
-            $this->assertSame(
-                403,
-                $response->getStatusCode(),
-                "Без setPrices.manualPaid.manage: {$item['method']} {$item['url']} → {$response->getStatusCode()}"
-            );
+        $this->assertFalse($payment->fresh()->effective_is_paid);
+        $this->assertNull($payment->fresh()->is_manual_paid);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('setting-prices.custom-payments.manual-paid', ['id' => $payment->id]), [
+                'mode' => 'paid',
+                'comment' => 'Ручная отметка оплаты',
+            ])
+            ->assertForbidden();
+
+        $this->assertFalse($payment->fresh()->effective_is_paid);
+    }
+
+    public function test_index_page_shows_edit_and_hides_status_select_without_manual_paid(): void
+    {
+        $this->grantCustomPaymentsView($this->user);
+        $this->actingAs($this->user);
+
+        $html = $this->get(route('admin.settingPrices.customPayments'))
+            ->assertOk()
+            ->assertSee('window.__customPaymentsCanManualPaid = false', false)
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/id="custom-payment-edit-is-paid-wrap"[^>]*style="display:none;"/',
+            $html
+        );
+    }
+
+    public function test_js_shows_edit_button_and_gates_status_select_by_manual_paid(): void
+    {
+        $paths = [
+            resource_path('js/setting-prices-custom-payments.js'),
+            public_path('js/setting-prices-custom-payments.js'),
+        ];
+
+        foreach ($paths as $path) {
+            $this->assertFileExists($path);
+            $js = (string) file_get_contents($path);
+
+            $this->assertStringContainsString("data-custom-payment-action=\"edit\"", $js);
+            $this->assertStringNotContainsString('type !== \'display\' || !window.__customPaymentsCanManualPaid', $js);
+            $this->assertStringContainsString('custom-payment-edit-is-paid-wrap', $js);
+            $this->assertStringContainsString('window.__customPaymentsCanManualPaid', $js);
         }
     }
 

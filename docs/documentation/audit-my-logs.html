@@ -64,7 +64,8 @@
       <tr><td><code>schedule.slot_occurrence_skipped</code></td><td>Пропуск даты слота (legacy action 461)</td></tr>
     </tbody>
   </table>
-  <p>Примеры пользователей: <code>user.created</code> (legacy action 21), <code>user.updated</code> (22).</p>
+  <p>Примеры пользователей: <code>user.created</code> (legacy action 21), <code>user.updated</code> (22).
+    Auth: <code>auth.login</code> (успешный вход), <code>auth.login_failed</code> (неуспешный: email, IP, UA, без пароля).</p>
 
   <h2>2) Запись: <code>AuditLogger</code></h2>
   <pre>app(AuditLogger::class)->record(
@@ -89,7 +90,7 @@
       <tr><td><code>filter_action</code> = <code>domain.action</code></td><td><code>where event = …</code></td></tr>
       <tr><td><code>filter_action=unknown</code></td><td><code>event IS NULL</code>, пустой <code>event</code> или значение вне реестра <code>AuditEvent</code></td></tr>
       <tr><td><code>filter_level</code></td><td><code>where level = info|security|integration</code></td></tr>
-      <tr><td><code>hide_authorizations=1</code></td><td>исключить <code>event = auth.login</code></td></tr>
+      <tr><td><code>hide_authorizations=1</code></td><td>исключить события <code>isLoginEvent</code>: <code>auth.login</code>, <code>auth.login_failed</code></td></tr>
       <tr><td><code>hide_integrations=1</code></td><td>исключить <code>level = integration</code> и integration-<code>event</code></td></tr>
       <tr><td>Числовой <code>filter_action</code> (legacy-код)</td><td><b>игнорируется</b> (фильтр не применяется)</td></tr>
     </tbody>

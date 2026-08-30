@@ -7,6 +7,7 @@ use App\Enums\UserSex;
 use App\Http\Requests\User\FilterRequest;
 use App\Http\Requests\User\StoreRequest;
 use App\Http\Requests\User\UpdatePasswordRequest;
+use App\Models\ContractTemplate;
 use App\Models\ParentProfile;
 use App\Models\Role;
 use App\Models\SchoolLead;
@@ -109,8 +110,7 @@ class UserController extends AdminBaseController
             'users_index'
         );
 
-        // 6) Отдаём на view
-        return view('admin.user', compact(
+        $viewData = compact(
             'allTeams',
             'fields',
             'userFieldsPayload',
@@ -123,7 +123,20 @@ class UserController extends AdminBaseController
             'canManageUserDiscount',
             'studentRoleId',
             'usersPageLength'
-        ) + $this->usersSectionViewData('users'));
+        ) + $this->usersSectionViewData('users');
+
+        if ($canViewContracts && $partnerId) {
+            $viewData['contractCreatePartner'] = app('current_partner');
+            $viewData['contractTemplates'] = ContractTemplate::query()
+                ->forPartner((int) $partnerId)
+                ->active()
+                ->whereNotNull('current_version_id')
+                ->orderBy('title')
+                ->get(['id', 'title']);
+        }
+
+        // 6) Отдаём на view
+        return view('admin.user', $viewData);
     }
 
     public function data(Request $request)

@@ -37,17 +37,19 @@
     <thead><tr><th>Permission</th><th>Назначение</th></tr></thead>
     <tbody>
       <tr><td><code>setPrices.view</code></td><td>Родительский middleware раздела «Установка цен» (обязателен для всех URL вкладки)</td></tr>
-      <tr><td><code>setPrices.customPayments.view</code></td><td>Вкладка «Дополнительные платежи»; GET page/data/users-search/teams-for-user; POST store; блок доп. платежей на консоли (<code>/cabinet</code>)</td></tr>
-      <tr><td><code>setPrices.manualPaid.manage</code></td><td>PUT update, DELETE destroy, POST <code>…/{id}/manual-paid</code>; кнопка «Редактировать» в таблице (флаг <code>window.__customPaymentsCanManualPaid</code>)</td></tr>
+      <tr><td><code>setPrices.customPayments.view</code></td><td>Вкладка «Дополнительные платежи»; GET page/data/users-search/teams-for-user; POST store; PUT update (сумма/описание); DELETE destroy (неоплаченный); кнопка «Редактировать»; блок доп. платежей на консоли (<code>/cabinet</code>)</td></tr>
+      <tr><td><code>setPrices.manualPaid.manage</code></td><td>Селект «Статус оплаты» в модалке редактирования (флаг <code>window.__customPaymentsCanManualPaid</code>, блок <code>#custom-payment-edit-is-paid-wrap</code>); смена <code>is_paid</code> в PUT; POST <code>…/{id}/manual-paid</code>. Без права кнопка «Редактировать» видна</td></tr>
       <tr><td><code>setPrices.cabinetSeasons.view</code></td><td>Не относится к доп. платежам — только сезоны на консоли. См. <a href="/docs/documentation/dashboard-cabinet#cabinet-seasons-permission">dashboard-cabinet §2.1</a></td></tr>
     </tbody>
   </table>
   <div class="note">
     Право <code>setPrices.customPayments.view</code> <b>не</b> входит в базовый набор ролей <code>user</code>, <code>admin</code> и <code>trainer</code>
     (<code>config/role_base_permissions.php</code>) — для <b>новых</b> партнёров выдаётся вручную в матрице прав.
-    Существующих партнёров конфиг не меняет. Без права блок доп. платежей на <code>/cabinet</code> не показывается, даже если записи в БД есть.
+    Без права блок доп. платежей на <code>/cabinet</code> не показывается, даже если записи в БД есть.
+    Анонс на <code>/doc</code> —
+    <a href="/doc#custom-payments-edit-permission-index">кнопка «Редактировать» vs селект статуса</a>.
   </div>
-  <p>Гость — <b>302/401/403</b>. Без <code>setPrices.view</code> — <b>403</b> на раздел. Без <code>setPrices.customPayments.view</code> — <b>403</b> на page/data/store/search. Без <code>setPrices.manualPaid.manage</code> — <b>403</b> на update/delete/manual-paid. Успешные ответы — <b>200</b> / <b>422</b> / <b>404</b> (не <b>500</b>, не пустой <b>200</b>).</p>
+  <p>Гость — <b>302/401/403</b>. Без <code>setPrices.view</code> — <b>403</b> на раздел. Без <code>setPrices.customPayments.view</code> — <b>403</b> на page/data/store/search/update/delete. Без <code>setPrices.manualPaid.manage</code> — <b>403</b> на смену <code>is_paid</code> (PUT) и POST manual-paid; сумма/описание/удаление неоплаченного — <b>200</b>. Успешные ответы — <b>200</b> / <b>422</b> / <b>404</b> (не <b>500</b>, не пустой <b>200</b>).</p>
 
   <h2 id="endpoints">2) Endpoint'ы</h2>
   <table>
@@ -92,14 +94,14 @@
         <td>PUT</td>
         <td><code>/admin/setting-prices/custom-payments/{id}</code></td>
         <td><code>admin.settingPrices.customPayments.update</code></td>
-        <td><code>manualPaid.manage</code></td>
-        <td>JSON <code>{ success: true, custom_payment }</code>. Тело: <code>amount?</code>, <code>note?</code>, <code>is_paid</code>, <code>status_comment?</code>. Request: <code>UserCustomPaymentUpdateRequest</code>. Ответ всегда JSON</td>
+        <td><code>customPayments.view</code></td>
+        <td>JSON <code>{ success: true, custom_payment }</code>. Тело: <code>amount?</code>, <code>note?</code>, <code>is_paid</code>, <code>status_comment?</code>. Смена <code>is_paid</code> дополнительно требует <code>manualPaid.manage</code> (иначе <b>403</b> + <code>errors.is_paid</code>). Чужой партнёр / нет записи — <b>422</b> <code>errors.id</code> (<code>UserCustomPaymentUpdateRequest</code>). Ответ всегда JSON</td>
       </tr>
       <tr>
         <td>DELETE</td>
         <td><code>/admin/setting-prices/custom-payments/{id}</code></td>
         <td><code>admin.settingPrices.customPayments.destroy</code></td>
-        <td><code>manualPaid.manage</code></td>
+        <td><code>customPayments.view</code></td>
         <td>JSON <code>{ success: true }</code>. Если <code>effective_is_paid</code> — <b>422</b>. Чужой партнёр / нет записи — <b>404</b>. Ответ всегда JSON</td>
       </tr>
       <tr>
@@ -117,7 +119,7 @@
   <ul>
     <li>Таблица <code>#custom-payments-table</code> (KidsCrmDataTable): колонки <b>ID</b>, <b>Ученик</b>, <b>Группа</b>, <b>Сумма</b>, <b>Описание</b> (<code>note</code>), <b>Статус</b>, <b>Действия</b>.</li>
     <li>Колонки «Период» в UI <b>нет</b> (даты в БД по-прежнему nullable; в JSON data поле <code>period</code> может быть «—»).</li>
-    <li>В «Действия» при праве <code>manualPaid.manage</code> — только кнопка <b>«Редактировать»</b> (отдельных кнопок «Оплачено»/«Не оплачено» в таблице нет).</li>
+    <li>В «Действия» — кнопка <b>«Редактировать»</b> при <code>customPayments.view</code> (отдельных кнопок «Оплачено»/«Не оплачено» в таблице нет). Право <code>manualPaid.manage</code> кнопку не скрывает.</li>
     <li>JS: <code>resources/js/setting-prices-custom-payments.js</code> (на стенде без vite build может отдаваться из <code>public/js/setting-prices-custom-payments.js</code>).</li>
   </ul>
 
@@ -132,7 +134,7 @@
 
   <h3>3.3) Модалка редактирования</h3>
   <ul>
-    <li>Поля: сумма (readonly/disabled, если уже оплачен), статус оплаты, описание (<code>note</code>), при смене статуса — обязательное «Комментарий к изменению статуса оплаты» (<code>status_comment</code>, min 3).</li>
+    <li>Поля: сумма (readonly/disabled, если уже оплачен), описание (<code>note</code>), селект «Статус оплаты» — только при <code>manualPaid.manage</code> (блок <code>#custom-payment-edit-is-paid-wrap</code>; без права скрыт, в PUT уходит текущий статус). При смене статуса — обязательное «Комментарий к изменению статуса оплаты» (<code>status_comment</code>, min 3).</li>
     <li>Ученика и группу менять нельзя.</li>
     <li>Кнопка <b>«Удалить»</b> (слева в footer) видна только если <code>effective_is_paid === false</code>; подтверждение через <code>showConfirmDeleteModal</code>.</li>
     <li>Успех PUT: без reload, закрытие модалки, <code>dtApi.reload({ keepPage: true })</code>, toast <code>window.showToast('Изменения сохранены.', 'success')</code> (<code>#kidsMainToast</code>, не <code>#priceToast</code>, не <code>showSuccessModal</code>, не <code>alert</code>).</li>
@@ -151,7 +153,7 @@
         <li><code>note</code> nullable, max 255.</li>
       </ul>
     </li>
-    <li>При смене статуса пишутся <code>is_manual_paid</code>, <code>manual_paid_by</code>, <code>manual_paid_at</code>, <code>manual_paid_note</code>.</li>
+    <li>При смене статуса пишутся <code>is_manual_paid</code>, <code>manual_paid_by</code>, <code>manual_paid_at</code>, <code>manual_paid_note</code>. Без <code>manualPaid.manage</code> смена статуса — <b>403</b> <code>errors.is_paid</code>.</li>
   </ul>
 
   <h2 id="store-validation">4) Валидация store</h2>
@@ -203,18 +205,23 @@
   <ul>
     <li><code>CustomPaymentsTeamAccessFeatureTest</code> — доступ view/store, <code>teams-for-user</code>, store AJAX/non-AJAX JSON, валидация <code>team_id</code></li>
     <li><code>CustomPaymentsTeamColumnFeatureTest</code> — <code>team_label</code>, заголовки таблицы (Описание, без Период)</li>
-    <li><code>CustomPaymentsCrudAccessFeatureTest</code> — update/delete, статус + comment, запрет суммы у оплаченного, users-search только <code>user</code>, guest/403</li>
-    <li><code>SettingPricesSectionFullAccessFeatureTest</code> — матрица прав раздела, в т.ч. mutations + <code>manualPaid.manage</code></li>
-    <li><code>BladeInlineJsSyntaxTest</code> — inline JS вкладки + оба файла <code>setting-prices-custom-payments.js</code> (Vite-источник и <code>public/js</code>)</li>
+    <li><code>CustomPaymentsEditPermissionFeatureTest</code> — UX: кнопка «Редактировать» без <code>manualPaid.manage</code>, селект статуса скрыт; PUT/DELETE по view; смена <code>is_paid</code> — 403 <code>errors.is_paid</code>; вкладка <code>@can</code>; оба JS-пути</li>
+    <li><code>CustomPaymentsEditPermissionDocumentationContractTest</code> — анонс <code>/doc#custom-payments-edit-permission-index</code> совпадает с §1 и JS (кнопка edit не завязана на <code>manualPaid</code>)</li>
+    <li><code>CustomPaymentsCrudAccessFeatureTest</code> — update/delete по <code>customPayments.view</code>, смена статуса + comment только с <code>manualPaid.manage</code>, запрет суммы у оплаченного, users-search только <code>user</code>, guest/403</li>
+    <li><code>SettingPricesSectionFullAccessFeatureTest</code> — матрица прав раздела: update/delete по view, смена статуса + <code>manualPaid.manage</code></li>
+    <li><code>BladeInlineJsSyntaxTest</code> — inline JS вкладки + оба файла <code>setting-prices-custom-payments.js</code> (Vite-источник и <code>public/js</code>), кнопка edit не завязана на <code>manualPaid</code></li>
     <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — оба JS-пути: create «Дополнительный платеж успешно создан.», update «Изменения сохранены.», delete «Дополнительный платеж удалён.» через <code>window.showToast</code>; нет <code>showSuccessModal</code> / <code>#priceToast</code> / <code>alert(</code></li>
     <li><code>CustomPaymentsToastDocumentationContractTest</code> — анонс <code>/doc#success-toast-instead-of-modal-index</code> и §3.3 совпадают с JS (update-toast, без <code>#priceToast</code>)</li>
     <li><code>DebtsReportManualPaidFeatureTest</code> — manual-paid доп. платежа ↔ отчёт задолженностей</li>
     <li>Payments: <code>PayableTeamPaymentFlowTest</code>, <code>PayableTeamPaymentInitFeatureTest</code>, <code>PaymentAssignmentTeamBackfillTest</code></li>
   </ul>
-  <pre><code>php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsCrudAccessFeatureTest.php
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsEditPermissionFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsCrudAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamColumnFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php --filter=custom_payments_edit_js
 php artisan test --env=testing tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php --filter=custom_payment
+php artisan test --env=testing tests/Unit/Documentation/CustomPaymentsEditPermissionDocumentationContractTest.php
 php artisan test --env=testing tests/Unit/Documentation/CustomPaymentsToastDocumentationContractTest.php</code></pre>
 </div>
 </body>

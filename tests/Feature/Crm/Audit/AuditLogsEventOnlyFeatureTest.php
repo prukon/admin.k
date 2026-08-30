@@ -105,6 +105,9 @@ final class AuditLogsEventOnlyFeatureTest extends CrmTestCase
         $this->createEventLog(AuditEvent::AuthLogin, 'auth-hidden', [
             'target_label' => 'HideAuthEventOnly',
         ]);
+        $this->createEventLog(AuditEvent::AuthLoginFailed, 'auth-failed-hidden', [
+            'target_label' => 'HideAuthEventOnly',
+        ]);
         $this->createLegacyOnlyLog(4, 40, 'legacy-auth-without-event', [
             'target_label' => 'HideAuthEventOnly',
         ]);
@@ -120,6 +123,7 @@ final class AuditLogsEventOnlyFeatureTest extends CrmTestCase
 
         $this->assertContains('settings-visible', $descriptions);
         $this->assertNotContains('auth-hidden', $descriptions);
+        $this->assertNotContains('auth-failed-hidden', $descriptions);
         $this->assertContains('legacy-auth-without-event', $descriptions);
     }
 

@@ -122,6 +122,18 @@ class AuditEventTest extends TestCase
     }
 
     #[Test]
+    public function auth_login_failed_is_security_and_login_event(): void
+    {
+        $event = AuditEvent::AuthLoginFailed;
+
+        $this->assertSame(AuditLevel::Security, $event->level());
+        $this->assertTrue($event->isLoginEvent());
+        $this->assertSame('auth', $event->category());
+        $this->assertSame('Неуспешный вход', $event->label());
+        $this->assertContains(AuditEvent::AuthLoginFailed->value, AuditEvent::loginEventValues());
+    }
+
+    #[Test]
     public function payment_received_is_integration(): void
     {
         $this->assertSame(AuditLevel::Integration, AuditEvent::PaymentReceived->level());

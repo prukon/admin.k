@@ -129,7 +129,7 @@ final class KidsCrmDataTableColumnsMigrationIter1Iter2Test extends CrmTestCase
         $this->assertStringNotContainsString("name === 'receipt' || name === 'refund_action'", $paymentsHtml);
 
         $usersHtml = $this->get(route('admin.user1'))->assertOk()->getContent();
-        $this->assertColumnBlockUsesType($usersHtml, 'contract', 'icon');
+        $this->assertColumnBlockUsesType($usersHtml, 'contract', 'actions');
 
         $schoolLeadsHtml = $this->get(route('admin.school-leads'))->assertOk()->getContent();
         $this->assertColumnBlockUsesType($schoolLeadsHtml, 'status', 'inline-select');
@@ -211,7 +211,7 @@ final class KidsCrmDataTableColumnsMigrationIter1Iter2Test extends CrmTestCase
         $this->assertColumnBlockUsesType($usersHtml, 'avatar', 'image');
         $this->assertColumnBlockUsesType($usersHtml, 'name', 'link');
         $this->assertColumnBlockUsesType($usersHtml, 'status_label', 'badge');
-        $this->assertColumnBlockUsesType($usersHtml, 'contract', 'icon');
+        $this->assertColumnBlockUsesType($usersHtml, 'contract', 'actions');
 
         $this->grantTrainersViewForCurrentUser();
         $trainersHtml = $this->get(route('admin.trainers.index'))->assertOk()->getContent();

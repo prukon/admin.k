@@ -1423,14 +1423,14 @@
                 if (leadModalInstance && editLeadModalEl.classList.contains('show')) {
                     var onHidden = function() {
                         editLeadModalEl.removeEventListener('hidden.bs.modal', onHidden);
-                        window.KidsCrmContractCreate.openModal(preselected);
+                        window.KidsCrmContractCreate.openModal(preselected, { lockUser: true });
                     };
                     editLeadModalEl.addEventListener('hidden.bs.modal', onHidden);
                     leadModalInstance.hide();
                     return;
                 }
 
-                window.KidsCrmContractCreate.openModal(preselected);
+                window.KidsCrmContractCreate.openModal(preselected, { lockUser: true });
             }
 
             function setLeadModalReadOnly(isReadOnly) {

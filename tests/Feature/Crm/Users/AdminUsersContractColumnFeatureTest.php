@@ -122,6 +122,8 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewIs('admin.user')
             ->assertViewHas('canViewContracts', true)
+            ->assertViewHas('contractTemplates')
+            ->assertViewHas('contractCreatePartner')
             ->getContent();
 
         $parentPos = strpos($html, '>Родитель</th>');
@@ -137,10 +139,19 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         $this->assertStringContainsString('id="colContract"', $html);
         $this->assertStringContainsString('data-column-key="contract"', $html);
         $this->assertStringContainsString('canViewContracts = true', $html);
-        $this->assertStringContainsString("'#0d6efd'", $html);
-        $this->assertStringContainsString("'#6c757d'", $html);
+        $this->assertStringContainsString('#0d6efd', $html);
         $this->assertStringContainsString("'Статус: ' + statusLabel", $html);
         $this->assertStringContainsString('renderContractCell', $html);
+        $this->assertStringContainsString('id="users-signed-contract-hint-tpl"', $html);
+        $this->assertStringContainsString('data-kids-tooltip-hint', $html);
+        $this->assertStringContainsString('users-contract-signed-hint', $html);
+        $this->assertStringContainsString("KidsCrmTooltip.init(root, { scopes: ['hint'] })", $html);
+        $this->assertStringContainsString('js-open-create-contract-from-user', $html);
+        $this->assertStringContainsString('Создать договор', $html);
+        $this->assertStringContainsString('Посмотреть черновик', $html);
+        $this->assertStringContainsString('openCreateContractFromUser', $html);
+        $this->assertStringContainsString("KidsCrmContractCreate.openModal(preselected, { lockUser: true })", $html);
+        $this->assertStringContainsString('id="createContractModal"', $html);
         $this->assertStringContainsString('id="filter-contract"', $html);
         $this->assertStringContainsString('value="unsigned">Не подписан', $html);
     }
@@ -163,7 +174,10 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
             ->assertViewHas('canViewContracts', false)
             ->assertDontSee('>Договор</th>', false)
             ->assertDontSee('id="colContract"', false)
-            ->assertDontSee('data-column-key="contract"', false);
+            ->assertDontSee('data-column-key="contract"', false)
+            ->assertDontSee('id="createContractModal"', false)
+            ->assertDontSee('js-open-create-contract-from-user', false)
+            ->assertDontSee('id="users-signed-contract-hint-tpl"', false);
     }
 
     // --- JSON DataTables: latest_contract ---
@@ -659,7 +673,8 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         $this->get(route('admin.user1'))
             ->assertOk()
             ->assertViewHas('canViewContracts', false)
-            ->assertDontSee('>Договор</th>', false);
+            ->assertDontSee('>Договор</th>', false)
+            ->assertDontSee('id="createContractModal"', false);
 
         $row = collect($this->getJson('/admin/users/data?draw=1&start=0&length=50&name=ТолькоUsersView')
             ->assertOk()

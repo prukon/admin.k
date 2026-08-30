@@ -131,7 +131,7 @@
                         <div class="invalid-feedback d-block custom-payment-edit-field-error" data-field="amount" style="display:none;"></div>
                     </div>
 
-                    <div class="mb-3">
+                    <div class="mb-3" id="custom-payment-edit-is-paid-wrap" @cannot('setPrices.manualPaid.manage') style="display:none;" @endcannot>
                         <label class="form-label" for="custom-payment-edit-is-paid">Статус оплаты</label>
                         <select class="form-select" id="custom-payment-edit-is-paid" name="is_paid">
                             <option value="0">Не оплачено</option>

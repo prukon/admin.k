@@ -333,6 +333,23 @@
         </div>
 
         @include('includes.logModal')
+
+        @if ($canViewContracts)
+            <template id="users-signed-contract-hint-tpl">
+                @include('partials.ui.tooltip-hint', [
+                    'title' => 'Статус: Подписано',
+                    'placement' => 'top',
+                    'wrapperClass' => 'users-contract-signed-hint',
+                    'innerHtml' => '<i class="fa-solid fa-file-pdf" style="color:#0d6efd;" aria-hidden="true"></i>',
+                ])
+            </template>
+            @include('contracts.partials.create-modal', [
+                'partner' => $contractCreatePartner ?? app('current_partner'),
+                'contractTemplates' => $contractTemplates ?? collect(),
+                'preselectedUser' => null,
+                'shouldOpenCreateModal' => false,
+            ])
+        @endif
     </div>
 @endsection
 
@@ -346,28 +363,53 @@
             const canViewUserComment = @json((bool) $canViewUserComment);
             const defaultFilterStatus = 'active';
 
+            @if ($canViewContracts)
             function renderContractCell(row) {
                 if (!row.latest_contract || !row.latest_contract.url) {
-                    return '';
+                    return '<button type="button"'
+                        + ' class="btn btn-sm btn-primary text-nowrap js-open-create-contract-from-user"'
+                        + ' data-user-id="' + row.id + '">Создать договор</button>';
                 }
 
                 const contract = row.latest_contract;
-                const isSigned = contract.status === 'signed';
-                const iconColor = isSigned ? '#0d6efd' : '#6c757d';
-                const statusLabel = KidsCrmTooltip.escapeHtml(contract.status_label || '');
-                const tooltipText = 'Статус: ' + statusLabel;
                 const url = KidsCrmTooltip.escapeHtml(contract.url);
 
-                return '<a href="' + url + '" '
-                    + 'class="users-contract-icon-link js-dt-cell-ellipsis-tooltip" '
-                    + 'data-bs-toggle="tooltip" '
-                    + 'data-bs-placement="top" '
-                    + 'data-bs-custom-class="ulp-assignment-paid-tooltip" '
-                    + 'title="' + tooltipText + '" '
-                    + 'aria-label="' + tooltipText + '">'
-                    + '<i class="fa-solid fa-file-pdf" style="color:' + iconColor + ';"></i>'
-                    + '</a>';
+                if (contract.status !== 'signed') {
+                    return '<a href="' + url + '"'
+                        + ' class="btn btn-sm btn-outline-primary text-nowrap">'
+                        + 'Посмотреть черновик</a>';
+                }
+
+                const statusLabel = KidsCrmTooltip.escapeHtml(contract.status_label || '');
+                const tooltipText = 'Статус: ' + statusLabel;
+                let hintHtml = '';
+
+                if (typeof document !== 'undefined') {
+                    const tpl = document.getElementById('users-signed-contract-hint-tpl');
+                    if (tpl && tpl.content && tpl.content.firstElementChild) {
+                        const hint = tpl.content.firstElementChild.cloneNode(true);
+                        hint.setAttribute('title', tooltipText);
+                        hint.setAttribute('aria-label', tooltipText);
+                        hintHtml = hint.outerHTML;
+                    }
+                }
+
+                if (!hintHtml) {
+                    hintHtml = '<span class="kids-tooltip-hint d-inline-block users-contract-signed-hint"'
+                        + ' tabindex="0"'
+                        + ' data-kids-tooltip-hint'
+                        + ' data-bs-toggle="tooltip"'
+                        + ' data-bs-placement="top"'
+                        + ' data-bs-custom-class="ulp-assignment-paid-tooltip"'
+                        + ' title="' + tooltipText + '"'
+                        + ' aria-label="' + tooltipText + '">'
+                        + '<i class="fa-solid fa-file-pdf" style="color:#0d6efd;" aria-hidden="true"></i>'
+                        + '</span>';
+                }
+
+                return '<a href="' + url + '" class="users-contract-icon-link">' + hintHtml + '</a>';
             }
+            @endif
 
             function usersFilterParams() {
                 const params = {
@@ -473,12 +515,12 @@
                     { key: 'parent_phone', type: 'text', data: 'parent_phone', className: 'dt-col-text text-nowrap' },
                     ...(canViewContracts ? [{
                         key: 'contract',
-                        type: 'icon',
+                        type: 'actions',
                         data: 'latest_contract',
                         name: 'contract',
                         orderable: true,
                         searchable: false,
-                        className: 'dt-col-icon text-center',
+                        className: 'dt-col-text text-nowrap',
                         defaultContent: '',
                         sortKey: 'latest_contract',
                         render: function (data, type, row) {
@@ -549,6 +591,36 @@
 
             const table = dtApi.table;
 
+            @if ($canViewContracts)
+            function buildContractPreselectedUser(rowData) {
+                if (!rowData || !rowData.id) {
+                    return null;
+                }
+
+                return {
+                    id: rowData.id,
+                    text: rowData.name || ('Ученик #' + rowData.id),
+                    parent_full_name: rowData.parent || null,
+                };
+            }
+
+            function openCreateContractFromUser(rowData) {
+                const preselected = buildContractPreselectedUser(rowData);
+                if (!preselected || !window.KidsCrmContractCreate || typeof window.KidsCrmContractCreate.openModal !== 'function') {
+                    return;
+                }
+
+                window.KidsCrmContractCreate.openModal(preselected, { lockUser: true });
+            }
+
+            $('#users-table').on('click', '.js-open-create-contract-from-user', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                const rowData = table.row($(this).closest('tr')).data();
+                openCreateContractFromUser(rowData);
+            });
+            @endif
+
             function reloadUsersTable() {
                 dtApi.reload({ keepPage: true });
                 syncUsersFiltersCollapseState();
@@ -591,6 +663,33 @@
             if (typeof KidsCrmTooltip !== 'undefined' && typeof KidsCrmTooltip.bindDataTable === 'function') {
                 KidsCrmTooltip.bindDataTable(table, '.js-dt-cell-ellipsis-tooltip');
             }
+
+            @if ($canViewContracts)
+            function initUsersContractSignedHints() {
+                if (typeof KidsCrmTooltip === 'undefined' || typeof KidsCrmTooltip.init !== 'function') {
+                    return;
+                }
+                const root = (table && typeof table.table === 'function')
+                    ? table.table().body()
+                    : document.getElementById('users-table');
+                if (!root) {
+                    return;
+                }
+                requestAnimationFrame(function () {
+                    KidsCrmTooltip.init(root, { scopes: ['hint'] });
+                });
+            }
+
+            const usersTableNode = (table && typeof table.table === 'function')
+                ? table.table().node()
+                : document.getElementById('users-table');
+            if (usersTableNode) {
+                $(usersTableNode)
+                    .off('draw.dt.kidsCrmUsersContractHint')
+                    .on('draw.dt.kidsCrmUsersContractHint', initUsersContractSignedHints);
+            }
+            initUsersContractSignedHints();
+            @endif
 
             if (window.KidsCrmGenericMultiselectSelect2) {
                 KidsCrmGenericMultiselectSelect2.init($('#createStudentTeamIds'));

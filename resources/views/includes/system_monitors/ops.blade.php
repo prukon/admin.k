@@ -79,7 +79,7 @@
             ])
             <span class="ops-monitors__sep">·</span>
             @include('partials.ui.tooltip-hint', [
-                'title' => 'Класс последней 500. Сообщение без email/телефона, обрезка 80 символов — в JSON last_message',
+                'title' => 'Класс последней 500. После опроса здесь будет текст ошибки (без email/телефона, до 80 символов)',
                 'placement' => 'left',
                 'wrapperClass' => '',
                 'innerHtml' => '<span data-role="errors-last">…</span>',
@@ -146,14 +146,14 @@
         <span class="ops-monitors__label">Вход</span>
         <span class="ops-monitors__vals">
             @include('partials.ui.tooltip-hint', [
-                'title' => 'Неверный пароль при входе за 24 часа (email найден). IP и email в снимок не попадают',
+                'title' => 'Неверный пароль или неизвестный email за 72 часа. Ховер: введённые email/пароль, IP, время. Пароль только здесь, не в my_logs',
                 'placement' => 'left',
                 'wrapperClass' => '',
                 'innerHtml' => '<span data-role="auth-logins">…</span>',
             ])
             <span class="ops-monitors__sep">·</span>
             @include('partials.ui.tooltip-hint', [
-                'title' => 'Неверный код 2FA за 24 часа. Без user_id в JSON',
+                'title' => 'Неверный код 2FA за 72 часа. Ховер: email, введённый код, IP, время',
                 'placement' => 'left',
                 'wrapperClass' => '',
                 'innerHtml' => '<span data-role="auth-2fa">…</span>',
@@ -263,6 +263,69 @@
             }
         }
 
+        function setHint(role, extra) {
+            var node = el(role);
+            if (!node || typeof node.closest !== 'function') {
+                return;
+            }
+            var wrap = node.closest('[data-kids-tooltip-hint]');
+            if (!wrap) {
+                return;
+            }
+            if (!wrap.getAttribute('data-ops-hint-default')) {
+                var current = wrap.getAttribute('data-bs-original-title') || wrap.getAttribute('title') || '';
+                wrap.setAttribute('data-ops-hint-default', current);
+            }
+            var title = extra ? String(extra) : (wrap.getAttribute('data-ops-hint-default') || '');
+            var tip = (typeof bootstrap !== 'undefined' && bootstrap.Tooltip)
+                ? bootstrap.Tooltip.getInstance(wrap)
+                : null;
+            if (tip && typeof tip.dispose === 'function') {
+                tip.dispose();
+            }
+            wrap.setAttribute('title', title);
+            wrap.setAttribute('aria-label', title);
+            wrap.removeAttribute('data-bs-original-title');
+            var host = wrap.parentElement || wrap;
+            if (typeof window !== 'undefined' && window.KidsCrmTooltip && typeof window.KidsCrmTooltip.dispose === 'function') {
+                window.KidsCrmTooltip.dispose(host, { scopes: ['hint'] });
+            }
+            if (typeof window !== 'undefined' && window.KidsCrmTooltip && typeof window.KidsCrmTooltip.init === 'function') {
+                window.KidsCrmTooltip.init(host, { scopes: ['hint'] });
+            }
+        }
+
+        function formatAuthAt(ts) {
+            if (!ts || typeof ts !== 'number') {
+                return '—';
+            }
+            var d = new Date(ts * 1000);
+            if (isNaN(d.getTime())) {
+                return '—';
+            }
+            function pad(n) {
+                return n < 10 ? '0' + n : String(n);
+            }
+            return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + ' '
+                + pad(d.getHours()) + ':' + pad(d.getMinutes());
+        }
+
+        function formatAuthAttempts(rows, kind) {
+            if (!rows || !rows.length) {
+                return '';
+            }
+            return rows.map(function (row) {
+                var when = formatAuthAt(row && row.at);
+                var ident = (row && row.email) ? String(row.email) : '—';
+                var secret = kind === 'login'
+                    ? ((row && row.password) ? String(row.password) : '∅')
+                    : ((row && row.code) ? String(row.code) : '∅');
+                var ip = (row && row.ip) ? String(row.ip) : '—';
+                var extra = (kind === 'login' && row && row.user_found === false) ? ' · нет email' : '';
+                return when + '  ' + ident + '  ·  ' + secret + '  ·  ' + ip + extra;
+            }).join('\n');
+        }
+
         function formatAge(seconds) {
             if (seconds == null || typeof seconds !== 'number') {
                 return '—';
@@ -319,6 +382,7 @@
             setText('till-fiscal', '—', 'is-muted');
             setText('errors-count', '—', 'is-muted');
             setText('errors-last', '—', 'is-muted');
+            setHint('errors-last', '');
             setText('errors-top', '—', 'is-muted');
             setText('gw-tinkoff-ok', '—', 'is-muted');
             setText('gw-tinkoff-fail', '—', 'is-muted');
@@ -327,7 +391,9 @@
             setText('gw-cloudkassir-ok', '—', 'is-muted');
             setText('gw-cloudkassir-fail', '—', 'is-muted');
             setText('auth-logins', '—', 'is-muted');
+            setHint('auth-logins', '');
             setText('auth-2fa', '—', 'is-muted');
+            setHint('auth-2fa', '');
             setText('welcome-count', '—', 'is-muted');
             setText('welcome-user', '—', 'is-muted');
         }
@@ -354,6 +420,7 @@
             var errors = data.errors || {};
             setText('errors-count', String(errors.count == null ? '—' : errors.count), countTone(errors.count));
             setText('errors-last', shortClass(errors.last_class), errors.last_class ? 'is-bad' : 'is-muted');
+            setHint('errors-last', errors.last_message || '');
             setText('errors-top', shortClass(errors.top_class), errors.top_class ? 'is-warn' : 'is-muted');
 
             var gateways = data.gateways || {};
@@ -365,7 +432,9 @@
 
             var auth = data.auth || {};
             setText('auth-logins', String(auth.failed_logins == null ? '—' : auth.failed_logins), countTone(auth.failed_logins));
+            setHint('auth-logins', formatAuthAttempts(auth.recent_logins, 'login'));
             setText('auth-2fa', String(auth.failed_2fa == null ? '—' : auth.failed_2fa), countTone(auth.failed_2fa));
+            setHint('auth-2fa', formatAuthAttempts(auth.recent_2fa, '2fa'));
 
             var welcome = data.welcome || {};
             setText('welcome-count', String(welcome.missing_count == null ? '—' : welcome.missing_count), countTone(welcome.missing_count));

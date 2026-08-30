@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Cabinet;
 
+use App\Support\OpsMonitor;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use RuntimeException;
 
 /**
  * P1: доступ к GET /cabinet/system-monitors/ops и видимости оверлея «Пульт».
@@ -133,5 +135,20 @@ final class SystemMonitorsOpsAccessFeatureTest extends SystemMonitorsTestCase
         $middleware = $route->gatherMiddleware();
         $this->assertContains('can:settings.systemMonitors.view', $middleware);
         $this->assertContains('auth', $middleware);
+    }
+
+    public function test_admin_without_permission_does_not_see_cached_last_message(): void
+    {
+        $this->asSuperadmin();
+        OpsMonitor::recordException(new RuntimeException('ops-forbidden-leak'));
+
+        $this->asAdmin();
+        $this->user->forceFill(['system_monitors' => true])->save();
+
+        $json = $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders());
+        $json->assertForbidden();
+        $this->assertStringNotContainsString('ops-forbidden-leak', (string) $json->getContent());
+        $this->assertArrayNotHasKey('errors', $json->json() ?? []);
     }
 }

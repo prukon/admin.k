@@ -10,18 +10,29 @@ use App\Models\OutgoingEmailLog;
 use App\Models\PaymentIntent;
 use App\Models\SchoolLead;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\View\ViewException;
 use Throwable;
 
 /**
  * Операционный снимок «Пульт»: счётчики за 24 часа и last-ok/last-fail шлюзов.
- * Персональные данные в JSON не кладём (email / phone / password / PAN).
+ * Исключения / шлюзы: email / phone / password / PAN в JSON не кладём.
+ * Строка «Вход»: за 72 часа в JSON есть введённые email/пароль/код 2FA и IP (только cache, не my_logs).
  */
 final class OpsMonitor
 {
     public const WINDOW_HOURS = 24;
 
+    public const AUTH_WINDOW_HOURS = 72;
+
     public const MESSAGE_LIMIT = 80;
+
+    public const RECENT_LIMIT = 20;
+
+    public const AUTH_RECENT_LIMIT = 40;
+
+    public const AUTH_SECRET_LIMIT = 80;
 
     public const GATEWAY_TINKOFF = 'tinkoff';
 
@@ -30,6 +41,8 @@ final class OpsMonitor
     public const GATEWAY_CLOUDKASSIR = 'cloudkassir';
 
     private const CACHE_TTL_HOURS = 26;
+
+    private const AUTH_CACHE_TTL_HOURS = 74;
 
     private const GATEWAY_TTL_DAYS = 7;
 
@@ -75,8 +88,11 @@ final class OpsMonitor
                 self::GATEWAY_CLOUDKASSIR => self::gatewaySnapshot(self::GATEWAY_CLOUDKASSIR),
             ],
             'auth' => [
-                'failed_logins' => self::sumHourlyInt('auth:login'),
-                'failed_2fa' => self::sumHourlyInt('auth:2fa'),
+                'window_hours' => self::AUTH_WINDOW_HOURS,
+                'failed_logins' => self::sumHourlyInt('auth:login', self::AUTH_WINDOW_HOURS),
+                'failed_2fa' => self::sumHourlyInt('auth:2fa', self::AUTH_WINDOW_HOURS),
+                'recent_logins' => self::authRecentSnapshot('login'),
+                'recent_2fa' => self::authRecentSnapshot('2fa'),
             ],
             'welcome' => self::welcomeSnapshot($since),
         ];
@@ -85,14 +101,16 @@ final class OpsMonitor
     public static function recordException(Throwable $e): void
     {
         try {
-            $class = $e::class;
-            $short = class_basename($class);
+            $payload = self::resolveExceptionPayload($e);
+            $short = $payload['class'];
+            $message = self::sanitizeMessage($payload['message']);
             self::bumpHourly('errors', $short);
             Cache::put('ops:errors:last', [
                 'class' => $short,
-                'message' => self::sanitizeMessage($e->getMessage()),
+                'message' => $message,
                 'at' => now()->timestamp,
             ], now()->addHours(self::CACHE_TTL_HOURS));
+            self::pushRecent($short, $message);
         } catch (Throwable) {
             // пульт не должен ломать report()
         }
@@ -125,18 +143,45 @@ final class OpsMonitor
         }
     }
 
-    public static function recordFailedLogin(): void
+    /**
+     * @param array{email?: string|null, password?: string|null, ip?: string|null, user_found?: bool}|null $attempt
+     */
+    public static function recordFailedLogin(?array $attempt = null): void
     {
-        self::incrementHourlyInt('auth:login');
-    }
+        self::incrementHourlyInt('auth:login', self::AUTH_CACHE_TTL_HOURS);
+        if ($attempt === null) {
+            return;
+        }
 
-    public static function recordFailedTwoFactor(): void
-    {
-        self::incrementHourlyInt('auth:2fa');
+        self::pushAuthRecent('login', [
+            'email' => self::clipPlain((string) ($attempt['email'] ?? ''), 191),
+            'password' => self::clipPlain((string) ($attempt['password'] ?? ''), self::AUTH_SECRET_LIMIT),
+            'ip' => self::clipPlain((string) ($attempt['ip'] ?? ''), 45),
+            'user_found' => (bool) ($attempt['user_found'] ?? false),
+            'at' => now()->timestamp,
+        ]);
     }
 
     /**
-     * @return array{count: int, last_class: string|null, last_message: string|null, top_class: string|null}
+     * @param array{email?: string|null, code?: string|null, ip?: string|null}|null $attempt
+     */
+    public static function recordFailedTwoFactor(?array $attempt = null): void
+    {
+        self::incrementHourlyInt('auth:2fa', self::AUTH_CACHE_TTL_HOURS);
+        if ($attempt === null) {
+            return;
+        }
+
+        self::pushAuthRecent('2fa', [
+            'email' => self::clipPlain((string) ($attempt['email'] ?? ''), 191),
+            'code' => self::clipPlain((string) ($attempt['code'] ?? ''), 16),
+            'ip' => self::clipPlain((string) ($attempt['ip'] ?? ''), 45),
+            'at' => now()->timestamp,
+        ]);
+    }
+
+    /**
+     * @return array{count: int, last_class: string|null, last_message: string|null, top_class: string|null, recent: list<array{class: string|null, message: string|null, route: string|null, path: string|null, at: int}>}
      */
     private static function errorSnapshot(): array
     {
@@ -174,6 +219,7 @@ final class OpsMonitor
             'last_class' => $lastClass,
             'last_message' => $lastMessage,
             'top_class' => $topClass,
+            'recent' => self::recentSnapshot(),
         ];
     }
 
@@ -275,6 +321,141 @@ final class OpsMonitor
         ];
     }
 
+    /**
+     * ViewException / Ignition-обёртка → класс причины. Сообщение оставляем
+     * с путём blade, абсолютный base_path режем.
+     *
+     * @return array{class: string, message: string}
+     */
+    private static function resolveExceptionPayload(Throwable $e): array
+    {
+        $message = $e->getMessage();
+        $target = $e;
+        while (self::isViewExceptionWrapper($target) && $target->getPrevious() instanceof Throwable) {
+            $target = $target->getPrevious();
+        }
+
+        if (self::isViewExceptionWrapper($e) && str_contains($e->getMessage(), '(View:')) {
+            $message = $e->getMessage();
+        }
+
+        return [
+            'class' => class_basename($target::class),
+            'message' => self::relativizeViewPaths($message),
+        ];
+    }
+
+    private static function isViewExceptionWrapper(Throwable $e): bool
+    {
+        if ($e instanceof ViewException) {
+            return true;
+        }
+
+        $short = class_basename($e::class);
+
+        return $short === 'ViewException' || $short === 'ViewExceptionWithSolution';
+    }
+
+    private static function relativizeViewPaths(string $message): string
+    {
+        $bases = [];
+        foreach ([base_path(), realpath(base_path())] as $base) {
+            if (! is_string($base) || $base === '' || $base === '/') {
+                continue;
+            }
+            $bases[] = rtrim($base, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+            $bases[] = rtrim(str_replace('\\', '/', $base), '/').'/';
+        }
+
+        return str_replace(array_values(array_unique($bases)), '', $message);
+    }
+
+    /**
+     * @return list<array{class: string|null, message: string|null, route: string|null, path: string|null, at: int}>
+     */
+    private static function recentSnapshot(): array
+    {
+        $raw = Cache::get('ops:errors:recent');
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $since = now()->subHours(self::WINDOW_HOURS)->timestamp;
+        $out = [];
+        foreach ($raw as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $at = (int) ($row['at'] ?? 0);
+            if ($at < $since) {
+                continue;
+            }
+            $out[] = [
+                'class' => self::nullableString($row['class'] ?? null),
+                'message' => self::nullableString($row['message'] ?? null),
+                'route' => self::nullableString($row['route'] ?? null),
+                'path' => self::nullableString($row['path'] ?? null),
+                'at' => $at,
+            ];
+            if (count($out) >= self::RECENT_LIMIT) {
+                break;
+            }
+        }
+
+        return $out;
+    }
+
+    private static function pushRecent(string $class, string $message): void
+    {
+        $ctx = self::currentHttpContext();
+        $item = [
+            'class' => $class !== '' ? $class : null,
+            'message' => $message !== '' ? $message : null,
+            'route' => $ctx['route'],
+            'path' => $ctx['path'],
+            'at' => now()->timestamp,
+        ];
+        $list = Cache::get('ops:errors:recent', []);
+        if (! is_array($list)) {
+            $list = [];
+        }
+        array_unshift($list, $item);
+        $list = array_slice(array_values($list), 0, self::RECENT_LIMIT);
+        Cache::put('ops:errors:recent', $list, now()->addHours(self::CACHE_TTL_HOURS));
+    }
+
+    /**
+     * @return array{route: string|null, path: string|null}
+     */
+    private static function currentHttpContext(): array
+    {
+        try {
+            $request = request();
+            if (! $request instanceof Request) {
+                return ['route' => null, 'path' => null];
+            }
+
+            $route = self::nullableString($request->route()?->getName());
+            if ($route !== null) {
+                $route = self::sanitizeMessage($route);
+            }
+
+            $path = $request->getPathInfo();
+            if (! is_string($path) || trim($path) === '') {
+                return ['route' => $route, 'path' => null];
+            }
+
+            $cleanPath = self::sanitizeMessage($path);
+
+            return [
+                'route' => $route,
+                'path' => $cleanPath !== '' ? $cleanPath : null,
+            ];
+        } catch (Throwable) {
+            return ['route' => null, 'path' => null];
+        }
+    }
+
     private static function bumpHourly(string $bucket, string $class): void
     {
         $key = 'ops:'.$bucket.':hour:'.now()->format('YmdH');
@@ -291,21 +472,97 @@ final class OpsMonitor
         Cache::put($key, $data, now()->addHours(self::CACHE_TTL_HOURS));
     }
 
-    private static function incrementHourlyInt(string $bucket): void
+    /**
+     * @param array<string, mixed> $item
+     */
+    private static function pushAuthRecent(string $kind, array $item): void
+    {
+        try {
+            $key = 'ops:auth:'.$kind.':recent';
+            $list = Cache::get($key, []);
+            if (! is_array($list)) {
+                $list = [];
+            }
+            array_unshift($list, $item);
+            $list = array_slice(array_values($list), 0, self::AUTH_RECENT_LIMIT);
+            Cache::put($key, $list, now()->addHours(self::AUTH_CACHE_TTL_HOURS));
+        } catch (Throwable) {
+        }
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private static function authRecentSnapshot(string $kind): array
+    {
+        $raw = Cache::get('ops:auth:'.$kind.':recent');
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $since = now()->subHours(self::AUTH_WINDOW_HOURS)->timestamp;
+        $out = [];
+        foreach ($raw as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $at = (int) ($row['at'] ?? 0);
+            if ($at < $since) {
+                continue;
+            }
+            if ($kind === 'login') {
+                $password = $row['password'] ?? '';
+                $out[] = [
+                    'email' => self::nullableString($row['email'] ?? null),
+                    'password' => is_string($password) ? $password : '',
+                    'ip' => self::nullableString($row['ip'] ?? null),
+                    'user_found' => (bool) ($row['user_found'] ?? false),
+                    'at' => $at,
+                ];
+            } else {
+                $code = $row['code'] ?? '';
+                $out[] = [
+                    'email' => self::nullableString($row['email'] ?? null),
+                    'code' => is_string($code) ? $code : '',
+                    'ip' => self::nullableString($row['ip'] ?? null),
+                    'at' => $at,
+                ];
+            }
+            if (count($out) >= self::AUTH_RECENT_LIMIT) {
+                break;
+            }
+        }
+
+        return $out;
+    }
+
+    private static function clipPlain(string $value, int $limit): string
+    {
+        $clean = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $value) ?? $value;
+        $clean = str_replace(["\r", "\n", "\t"], ' ', $clean);
+        $clean = trim(preg_replace('/\s+/', ' ', $clean) ?? $clean);
+        if ($limit > 0 && mb_strlen($clean) > $limit) {
+            $clean = mb_substr($clean, 0, $limit);
+        }
+
+        return $clean;
+    }
+
+    private static function incrementHourlyInt(string $bucket, int $ttlHours = self::CACHE_TTL_HOURS): void
     {
         try {
             $key = 'ops:'.$bucket.':hour:'.now()->format('YmdH');
-            Cache::add($key, 0, now()->addHours(self::CACHE_TTL_HOURS));
+            Cache::add($key, 0, now()->addHours($ttlHours));
             Cache::increment($key);
         } catch (Throwable) {
         }
     }
 
-    private static function sumHourlyInt(string $bucket): int
+    private static function sumHourlyInt(string $bucket, int $hours = self::WINDOW_HOURS): int
     {
         $total = 0;
         $now = now();
-        for ($i = 0; $i < self::WINDOW_HOURS; $i++) {
+        for ($i = 0; $i < $hours; $i++) {
             $total += (int) (Cache::get('ops:'.$bucket.':hour:'.$now->copy()->subHours($i)->format('YmdH'), 0) ?: 0);
         }
 

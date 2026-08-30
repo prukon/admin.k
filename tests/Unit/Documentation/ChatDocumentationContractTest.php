@@ -202,8 +202,11 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('id="reverb-overlay"', $html);
         $this->assertStringContainsString('id="online-users-overlay"', $html);
         $this->assertStringContainsString('/doc#online-users-overlay-index', $html);
+        $this->assertStringContainsString('Auth::id()', $html);
+        $this->assertStringContainsString('зрителя в списке нет', $html);
         $this->assertStringContainsString('id="ops-monitors-overlay"', $html);
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $html);
+        $this->assertStringContainsString('/doc#ops-errors-detail-index', $html);
         $this->assertStringContainsString('/doc#chat-index', $html);
         $this->assertStringNotContainsString('доступ по Form Request только у superadmin', $html);
         $this->assertStringNotContainsString('не-superadmin 403', $html);

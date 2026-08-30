@@ -15,7 +15,11 @@ class SystemMonitorsController extends Controller
 {
     public function onlineUsers(OnlineUsersMonitorRequest $request): JsonResponse
     {
-        return response()->json(OnlineUsersMonitor::snapshot());
+        $viewer = $request->user();
+
+        return response()->json(OnlineUsersMonitor::snapshot(
+            $viewer !== null ? (int) $viewer->id : null
+        ));
     }
 
     public function ops(OpsMonitorRequest $request): JsonResponse

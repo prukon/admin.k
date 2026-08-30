@@ -48,7 +48,8 @@
     · порядок списка: <a href="/doc#chat-inbox-sort-index">/doc#chat-inbox-sort-index</a>
     · оверлей Reverb: <a href="/doc#reverb-status-overlay-index">/doc#reverb-status-overlay-index</a>
     · оверлей «Онлайн»: <a href="/doc#online-users-overlay-index">/doc#online-users-overlay-index</a>
-    · оверлей «Пульт»: <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a></div>
+    · оверлей «Пульт»: <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a>
+    · ховер 500 пульта: <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a></div>
 
   <div class="ok">
     <b>Кратко.</b> Личные диалоги 1-на-1 внутри текущей школы плюс одна
@@ -1066,37 +1067,45 @@
   <p>Анонс на главной: <a href="/doc#online-users-overlay-index">/doc#online-users-overlay-index</a>.
     Не путать с §<a href="#presence">2.1</a> (точка в списке диалогов, подзаголовок шапки, карточка):
     то же окно <code>last_seen_at</code> 120 с и тот же ping, но другой UI и другая выборка
-    (все партнёры, не только текущая школа чата).</p>
+    (все партнёры, не только текущая школа чата; зрителя в списке нет).</p>
   <ol>
     <li>Стек <code>#system-monitors-stack</code> в <code>admin2</code>:
       <code>#js-online-users</code> над <code>#js-reverb-status</code>.
       Право и флаг как у Reverb (<code>SystemMonitors::shouldShow()</code>).
       Без права разметки нет. Без флага разметка есть, скрыта CSS.</li>
     <li><code>GET /cabinet/system-monitors/online-users</code>: JSON <code>ok</code> /
-      <code>total</code> / <code>partners[]</code>. Гость 302/401, без права 403,
+      <code>total</code> / <code>partners[]</code>. Зрителя (<code>Auth::id()</code>) нет.
+      Гость 302/401, без права 403,
       мутации 405. Нативный GET — JSON. Флаг GET не закрывает.</li>
     <li>Клиент опрашивает раз в 3 с только при включённом переключателе.
       Первый кадр без имён. Сбой fetch очищает список («Никого нет онлайн»).</li>
   </ol>
 
   <h2 id="ops-monitors-overlay">5.3) Оверлей «Пульт» (системные мониторы)</h2>
-  <p>Анонс на главной: <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a>.
+  <p>Анонс на главной: <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a>,
+    ховер 500 / ViewException / ring —
+    <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a>.
     Не путать с §<a href="#online-users-overlay">5.2</a> (список людей) и §<a href="#reverb-overlay">5.1</a> (бейдж процесса/сокета).</p>
   <ol>
     <li>Стек <code>#system-monitors-stack</code>:
       <code>#js-ops-monitors</code> над <code>#js-online-users</code> над
       <code>#js-reverb-status</code>. Право и флаг как у Reverb.
       Шесть строк цифр, <code>KidsCrmTooltip</code> (непрозрачный пузырёк), без ссылок.
+      Ховер последней 500 — <code>last_message</code> (не innerHTML).
+      <code>ViewException</code> разворачивается до причины; JSON <code>errors.recent</code>
+      до 20 (path без query), на экране списка нет.
       Контраст — <a href="/doc#kids-tooltip-contrast-index">/doc#kids-tooltip-contrast-index</a>.</li>
     <li><code>GET /cabinet/system-monitors/ops</code>: JSON <code>ok</code> /
       <code>window_hours</code> / <code>queue</code> / <code>till</code> /
       <code>errors</code> / <code>gateways</code> / <code>auth</code> /
       <code>welcome</code>. Гость 302/401, без права 403, мутации 405.
-      Нативный GET — JSON. Флаг GET не закрывает. Окно 24 ч, все партнёры.
-      Неизвестный email и истёкший 2FA не считают. 4xx/CSRF не в 500.</li>
+      Нативный GET — JSON. Флаг GET не закрывает. Окно 24 ч (вход — 72 ч), все партнёры.
+      Неизвестный email считается. Истёкший 2FA не считает. Ховер входа —
+      <code>auth.recent_logins</code> / <code>auth.recent_2fa</code>. 4xx/CSRF не в 500.</li>
     <li>Клиент опрашивает раз в 5 с только при включённом переключателе.
       Первый кадр «…» во всех <code>data-role</code>. Сбой <code>refresh()</code>
-      (сеть / 403) ставит «—», не leftover.</li>
+      (сеть / 403) ставит «—» и откатывает ховер <code>last_message</code>
+      и пароль/код входа, не leftover.
   </ol>
 
   <h2 id="tests">6) Тесты</h2>

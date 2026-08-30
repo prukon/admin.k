@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Cabinet;
 
+use App\Support\OpsMonitor;
+use RuntimeException;
+
 /**
  * P1: нативный GET /cabinet/system-monitors/ops — JSON, не белая страница.
  *
@@ -51,6 +54,30 @@ final class SystemMonitorsOpsNonAjaxSafetyNetFeatureTest extends SystemMonitorsT
         );
         $this->assertStringNotContainsString('<html', strtolower((string) $response->getContent()));
         $this->assertStringNotContainsString('id="js-ops-monitors"', (string) $response->getContent());
+    }
+
+    public function test_native_get_includes_recent_errors_and_is_not_blank_200(): void
+    {
+        $this->asSuperadmin();
+        OpsMonitor::recordException(new RuntimeException('native-recent-ops'));
+
+        $response = $this->from(route('dashboard'))
+            ->actingAs($this->user)
+            ->get($this->opsUrl());
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $response
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('errors.last_class', 'RuntimeException')
+            ->assertJsonPath('errors.recent.0.class', 'RuntimeException');
+        $this->assertStringContainsString('native-recent-ops', (string) $response->json('errors.last_message'));
+        $this->assertStringContainsString('native-recent-ops', (string) $response->json('errors.recent.0.message'));
+        $this->assertStringContainsString(
+            'json',
+            strtolower((string) $response->headers->get('content-type'))
+        );
+        $this->assertStringNotContainsString('<html', strtolower((string) $response->getContent()));
     }
 
     public function test_native_mutating_methods_are_not_empty_200(): void

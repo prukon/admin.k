@@ -294,6 +294,7 @@
             const createModalEl = document.getElementById('createContractModal');
             let suppressCreateModalReset = false;
             let activePreselectedUser = preselectedUser;
+            let lockPreselectedUser = false;
 
             function getContractCreateFieldInput(fieldName) {
                 if (fieldName === 'creation_mode') {
@@ -418,6 +419,27 @@
                 return valid;
             }
 
+            function setContractUserSelectLocked(locked) {
+                const $userSelect = $('#user_id');
+                if (!$userSelect.length) {
+                    return;
+                }
+
+                $userSelect.prop('disabled', !!locked);
+
+                const $existingHidden = $('#user_id_locked');
+                if (locked) {
+                    if (!$existingHidden.length) {
+                        $userSelect.after('<input type="hidden" name="user_id" id="user_id_locked">');
+                    }
+                    $('#user_id_locked').val($userSelect.val() || '');
+                    $userSelect.removeAttr('name');
+                } else {
+                    $existingHidden.remove();
+                    $userSelect.attr('name', 'user_id');
+                }
+            }
+
             function destroyContractUserSelect2() {
                 const $userSelect = $('#user_id');
                 if ($userSelect.data('select2')) {
@@ -492,7 +514,7 @@
                     width: '100%',
                     placeholder: $userSelect.data('placeholder') || '',
                     language: @include('partials.select2.ru'),
-                    allowClear: true,
+                    allowClear: !lockPreselectedUser,
                     minimumInputLength: 0,
                     dropdownParent: $('#createContractModal'),
                     ajax: {
@@ -639,6 +661,9 @@
                 });
                 $(form).data('precheckDone', false);
 
+                setContractUserSelectLocked(false);
+                lockPreselectedUser = false;
+
                 destroyContractUserSelect2();
 
                 activePreselectedUser = null;
@@ -700,6 +725,7 @@
                     suppressCreateModalReset = false;
                     initContractUserSelect2();
                     applyPreselectedStudent();
+                    setContractUserSelectLocked(lockPreselectedUser);
                     toggleCreationMode();
                     applyServerContractCreateFieldErrors();
                 });
@@ -735,7 +761,7 @@
                 }
 
                 window.KidsCrmContractCreate = window.KidsCrmContractCreate || {};
-                window.KidsCrmContractCreate.openModal = function (userData) {
+                window.KidsCrmContractCreate.openModal = function (userData, options) {
                     if (!createModalEl) {
                         return;
                     }
@@ -743,6 +769,7 @@
                     suppressCreateModalReset = false;
                     resetCreateContractForm();
                     activePreselectedUser = userData || null;
+                    lockPreselectedUser = !!(options && options.lockUser) && !!activePreselectedUser;
                     bootstrap.Modal.getOrCreateInstance(createModalEl).show();
                 };
             });

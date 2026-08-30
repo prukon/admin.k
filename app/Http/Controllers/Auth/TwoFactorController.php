@@ -138,7 +138,11 @@ class TwoFactorController extends Controller
         }
         if (!Hash::check($request->input('code'), $user->two_factor_code)) {
             Log::warning('2FA verify: wrong code', ['user_id' => $user->id]);
-            OpsMonitor::recordFailedTwoFactor();
+            OpsMonitor::recordFailedTwoFactor([
+                'email' => (string) ($user->email ?? ''),
+                'code' => (string) $request->input('code', ''),
+                'ip' => $request->ip(),
+            ]);
             return back()->withErrors(['code' => 'Неверный код.']);
         }
 

@@ -91,7 +91,20 @@
         if (deleteBtn) {
             deleteBtn.style.display = paid ? 'none' : '';
         }
-        syncEditStatusCommentVisibility();
+
+        var canManual = !!window.__customPaymentsCanManualPaid;
+        var paidWrap = document.getElementById('custom-payment-edit-is-paid-wrap');
+        if (paidWrap) {
+            paidWrap.style.display = canManual ? '' : 'none';
+        }
+        if (!canManual) {
+            var commentWrap = document.getElementById('custom-payment-edit-status-comment-wrap');
+            if (commentWrap) {
+                commentWrap.style.display = 'none';
+            }
+        } else {
+            syncEditStatusCommentVisibility();
+        }
 
         var modalEl = document.getElementById('customPaymentEditModal');
         if (modalEl && window.bootstrap && bootstrap.Modal) {
@@ -203,7 +216,7 @@
                         type: 'actions',
                         className: 'dt-col-actions text-nowrap text-end',
                         render: function (data, type, row) {
-                            if (type !== 'display' || !window.__customPaymentsCanManualPaid) {
+                            if (type !== 'display') {
                                 return '';
                             }
 
@@ -297,7 +310,10 @@
 
                 var amountEl = document.getElementById('custom-payment-edit-amount');
                 var initialPaid = document.getElementById('custom-payment-edit-initial-is-paid')?.value === '1';
-                var isPaid = document.getElementById('custom-payment-edit-is-paid')?.value === '1';
+                var canManual = !!window.__customPaymentsCanManualPaid;
+                var isPaid = canManual
+                    ? (document.getElementById('custom-payment-edit-is-paid')?.value === '1')
+                    : initialPaid;
 
                 var payload = {
                     note: document.getElementById('custom-payment-edit-note')?.value || '',
@@ -308,7 +324,7 @@
                     payload.amount = amountEl.value;
                 }
 
-                if (isPaid !== initialPaid) {
+                if (canManual && isPaid !== initialPaid) {
                     payload.status_comment = document.getElementById('custom-payment-edit-status-comment')?.value || '';
                 }
 

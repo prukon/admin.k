@@ -732,7 +732,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <p class="small">
     «Последний договор» — по <code>created_at</code> (затем <code>id</code>) среди записей <code>contracts</code> с <code>school_id = partner_id</code> и <code>user_id</code> ученика.
     Сервис: <code>App\Services\SchoolLeads\LatestUserContractLookup</code>. Подпись статуса — из <code>Contract::$STATUS_RU</code> (любой статус: Черновик, Отправлено, Подписано и т.д.).
-    На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> тот же lookup, но другой UI: колонка и фильтр «Договор» только при <code>contracts.view</code>, иконка PDF с tooltip «Статус: …», сортировка по статусу последнего договора; без кнопки «Создать договор».
+    На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> тот же lookup, другой UI: колонка только при <code>contracts.view</code>; нет договора — «Создать договор» (встроенная модалка); неподписанный последний — «Посмотреть черновик»; подписанный — иконка PDF. См. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>, анонс <a href="/doc#users-contract-create-index">/doc</a>.
   </p>
 
   <h3>5.7) Создание клиента из заявки (лид → ученик)</h3>
@@ -774,8 +774,8 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <h3 id="school-lead-contract-inline">5.8) Создание договора без ухода со страницы заявок</h3>
   <ul>
     <li>При <code>contracts.view</code> на страницу заявок подключается partial <code>contracts/partials/create-modal.blade.php</code> (тот же UI, что на <code>/client-contracts</code>).</li>
-    <li>Кнопки «Создать договор» в колонке таблицы и в read-only модалке лида — <code>type="button"</code>, класс <code>js-open-create-contract-from-lead</code>; вызывают <code>openCreateContractFromLead(rowData)</code> → <code>window.KidsCrmContractCreate.openModal(preselectedUser)</code>. Страница <b>не меняется</b>.</li>
-    <li>Предзаполнение ученика (<code>preselectedUser</code>) собирается из строки DataTables: <code>user_id</code>, ФИО ученика, <code>team_id</code> / <code>team_title</code>, <code>parent_full_name</code>. При открытии из модалки лида она сначала закрывается, затем открывается модалка договора.</li>
+    <li>Кнопки «Создать договор» в колонке таблицы и в read-only модалке лида — <code>type="button"</code>, класс <code>js-open-create-contract-from-lead</code>; вызывают <code>openCreateContractFromLead(rowData)</code> → <code>window.KidsCrmContractCreate.openModal(preselectedUser, { lockUser: true })</code>. Страница <b>не меняется</b>.</li>
+    <li>Предзаполнение ученика (<code>preselectedUser</code>) собирается из строки DataTables: <code>user_id</code>, ФИО ученика, <code>team_id</code> / <code>team_title</code>, <code>parent_full_name</code>. При открытии из модалки лида она сначала закрывается, затем открывается модалка договора. Поле «Ученик» задисейблено (<code>lockUser</code>).</li>
     <li>В JSON data по-прежнему отдаётся <code>create_contract_url</code> = <code>route('contracts.index', ['user_id' => …])</code> для совместимости и прямых ссылок; прямой <code>GET /client-contracts?user_id=…</code> по-прежнему открывает модалку на странице договоров (§<a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a>).</li>
     <li><b>Списание с баланса</b> — только при <code>POST /client-contracts</code> из модалки (предварительно <code>POST /client-contracts/check-balance</code>), не при открытии модалки.</li>
     <li>Связь «заявка ↔ договор» в БД <b>не дублируется</b>: договор ищется по <code>user_id</code> ученика, привязанного к лиду (<code>LatestUserContractLookup</code>).</li>
@@ -809,7 +809,8 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     (в т.ч. workflow admin: store пользователя + create договора → 200).
     Фильтр статусов и API: <code>SchoolLeadsFilterMultiselectFeatureTest</code>.
     Inline UI и цветные бейджи: <code>SchoolLeadsInlineStatusUiFeatureTest</code>.
-    Модалка «Редактирование лида»: <code>SchoolLeadEditModalFeatureTest</code>, <code>SchoolLeadEditModalFullFeatureTest</code>, <code>SchoolLeadCreateClientFullFeatureTest</code>.
+    Модалка договора: <code>SchoolLeadEditModalFeatureTest</code>, <code>SchoolLeadEditModalFullFeatureTest</code>, <code>SchoolLeadCreateClientFullFeatureTest</code>,
+    <code>AdminUsersContractCreateUxFeatureTest</code> (оба JS-пути <code>lockUser: true</code> на заявках + тулбар /client-contracts без lock).
     Статус у лида с клиентом: <code>SchoolLeadLinkedStatusFeatureTest</code>, <code>SchoolLeadLinkedStatusFullAccessFeatureTest</code>, <code>SchoolLeadLinkedStatusWorkflowFeatureTest</code> [P2].
     Non-AJAX safety-net PUT/CRUD статусов: <code>SchoolLeadUpdateAndStatusesNonAjaxSafetyNetFeatureTest</code>.
     Колонки таблицы (§5.5.3): <code>SchoolLeadsTableColumnsFeatureTest</code>, <code>SchoolLeadsTableColumnsFullAccessFeatureTest</code>, <code>SchoolLeadsTableColumnsAjaxContractFeatureTest</code>, <code>SchoolLeadsTableColumnsNonAjaxSafetyNetFeatureTest</code>; клик по ФИО / <code>user_id</code>: <code>SchoolLeadsActionsColumnFeatureTest</code>.

@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\AuditEvent;
 use App\Http\Controllers\Controller;
-use App\Support\OpsMonitor;
 use App\Models\Setting;
-use App\Providers\RouteServiceProvider;
+use App\Models\User;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
+use App\Support\OpsMonitor;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\Request;
+use Throwable;
 
 class LoginController extends Controller
 {
@@ -50,23 +55,60 @@ class LoginController extends Controller
         ));
     }
 
-    protected function sendFailedLoginResponse(\Illuminate\Http\Request $request)
+    protected function sendFailedLoginResponse(Request $request)
     {
-        $user = \App\Models\User::where('email', $request->email)->first();
+        $email = trim((string) $request->input('email', ''));
+        $password = (string) $request->input('password', '');
+        $user = User::query()->where('email', $request->email)->first();
 
-        // Если пользователь с таким email не найден
-        if (!$user) {
+        OpsMonitor::recordFailedLogin([
+            'email' => $email,
+            'password' => $password,
+            'ip' => $request->ip(),
+            'user_found' => $user !== null,
+        ]);
+        $this->recordFailedLoginAudit($request, $user, $email);
+
+        if (! $user) {
             return back()->withInput()->withErrors([
                 'email' => 'Такой email не найден.',
             ]);
         }
 
-        // Если пользователь найден, но пароль неверный
-        OpsMonitor::recordFailedLogin();
-
         return back()->withInput()->withErrors([
             'password' => 'Неправильный пароль.',
         ]);
+    }
+
+    private function recordFailedLoginAudit(Request $request, ?User $user, string $email): void
+    {
+        try {
+            $reason = $user === null ? 'email не найден' : 'неверный пароль';
+            $emailLabel = $email !== '' ? $email : '—';
+            $ip = (string) ($request->ip() ?? '—');
+            $ua = trim((string) $request->userAgent());
+            if (mb_strlen($ua) > 200) {
+                $ua = mb_substr($ua, 0, 199).'…';
+            }
+            if ($ua === '') {
+                $ua = '—';
+            }
+
+            $description = "Неуспешный вход ({$reason}). Email: {$emailLabel}. IP: {$ip}. UA: {$ua}";
+            if ($user !== null) {
+                $description .= '. Пользователь #'.$user->id;
+            }
+
+            $context = AuditContext::make($description);
+            if ($user !== null) {
+                $context = $context
+                    ->withUser($user)
+                    ->withPartnerId($user->partner_id !== null ? (int) $user->partner_id : null);
+            }
+
+            app(AuditLogger::class)->record(AuditEvent::AuthLoginFailed, $context);
+        } catch (Throwable) {
+        }
     }
 
 

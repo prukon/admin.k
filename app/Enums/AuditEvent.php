@@ -89,6 +89,7 @@ enum AuditEvent: string
 
     // --- auth (legacy type 4) ---
     case AuthLogin = 'auth.login';
+    case AuthLoginFailed = 'auth.login_failed';
 
     // --- payment ---
     case PaymentReceived = 'payment.received';
@@ -224,6 +225,7 @@ enum AuditEvent: string
             self::ContractTemplateEmailUpdated => 'Изменение письма шаблона договора',
 
             self::AuthLogin => 'Авторизация',
+            self::AuthLoginFailed => 'Неуспешный вход',
 
             self::PaymentReceived => 'Платежи',
             self::PaymentPayoutScheduleChanged => 'Перенос запланированного времени выплаты',
@@ -300,6 +302,7 @@ enum AuditEvent: string
             self::SchoolLeadDeleted,
             self::ContractRevoked,
             self::AuthLogin,
+            self::AuthLoginFailed,
             self::RoleCreated,
             self::RoleUpdated,
             self::RoleDeleted,
@@ -393,7 +396,8 @@ enum AuditEvent: string
             self::ContractTemplateUpdated,
             self::ContractTemplateEmailUpdated => 'contract_template',
 
-            self::AuthLogin => 'auth',
+            self::AuthLogin,
+            self::AuthLoginFailed => 'auth',
 
             self::PaymentReceived,
             self::PaymentPayoutScheduleChanged => 'payment',
@@ -526,7 +530,8 @@ enum AuditEvent: string
             self::ContractTemplateUpdated,
             self::ContractTemplateEmailUpdated => 501,
 
-            self::AuthLogin => 4,
+            self::AuthLogin,
+            self::AuthLoginFailed => 4,
 
             self::PaymentReceived => 5,
 
@@ -657,6 +662,7 @@ enum AuditEvent: string
             self::ContractTemplateEmailUpdated => 5013,
 
             self::AuthLogin => 40,
+            self::AuthLoginFailed => 41,
 
             self::PaymentReceived => 50,
 
@@ -722,7 +728,22 @@ enum AuditEvent: string
      */
     public function isLoginEvent(): bool
     {
-        return $this === self::AuthLogin;
+        return $this === self::AuthLogin || $this === self::AuthLoginFailed;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function loginEventValues(): array
+    {
+        $values = [];
+        foreach (self::cases() as $case) {
+            if ($case->isLoginEvent()) {
+                $values[] = $case->value;
+            }
+        }
+
+        return $values;
     }
 
     public static function tryFromString(?string $event): ?self
@@ -918,6 +939,7 @@ enum AuditEvent: string
             5013 => self::ContractTemplateEmailUpdated,
 
             40 => self::AuthLogin,
+            41 => self::AuthLoginFailed,
 
             50 => self::PaymentReceived,
 

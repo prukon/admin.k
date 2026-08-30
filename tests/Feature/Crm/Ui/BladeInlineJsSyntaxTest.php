@@ -34,6 +34,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'districts index modals' => ['admin/districts/index.blade.php'];
         yield 'sport types index modals' => ['admin/sport-types/index.blade.php'];
         yield 'admin users page' => ['admin/user.blade.php'];
+        yield 'contract create modal' => ['contracts/partials/create-modal.blade.php'];
         yield 'admin users parent form ajax handlers' => ['admin/users/_parent_form.blade.php'];
         yield 'admin trainers create welcome email ajax' => ['admin/trainers/index.blade.php'];
         yield 'admin role staff create welcome email ajax' => ['admin/role_staff/index.blade.php'];
@@ -2373,6 +2374,26 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("setText('queue-worker'", $content);
         $this->assertStringContainsString("setText('welcome-user'", $content);
         $this->assertStringContainsString("welcome.last_user_id", $content);
+        $this->assertStringContainsString('function setHint(', $content);
+        $this->assertStringContainsString("setHint('errors-last'", $content);
+        $this->assertStringContainsString("setHint('auth-logins'", $content);
+        $this->assertStringContainsString("setHint('auth-2fa'", $content);
+        $this->assertStringContainsString('function formatAuthAttempts(', $content);
+        $this->assertStringContainsString('function formatAuthAt(', $content);
+        $this->assertStringContainsString('auth.recent_logins', $content);
+        $this->assertStringContainsString('auth.recent_2fa', $content);
+        $this->assertStringContainsString('user_found === false', $content);
+        $this->assertStringContainsString('нет email', $content);
+        $this->assertStringContainsString("'∅'", $content);
+        $this->assertStringContainsString('errors.last_message', $content);
+        $this->assertStringContainsString('data-ops-hint-default', $content);
+        $this->assertStringContainsString('KidsCrmTooltip.init', $content);
+        $this->assertStringContainsString('node.closest', $content);
+        $this->assertStringContainsString("setAttribute('title'", $content);
+        $this->assertStringContainsString('KidsCrmTooltip.dispose', $content);
+        $this->assertStringNotContainsString('wrap.innerHTML', $content);
+        $this->assertStringNotContainsString('errors.recent', $content);
+        $this->assertStringNotContainsString('data-role="errors-recent"', $content);
         $this->assertStringNotContainsString('href="/admin/settings/queues"', $content);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
@@ -3810,6 +3831,101 @@ final class BladeInlineJsSyntaxTest extends TestCase
             $usersTableScriptFound,
             'В admin/user.blade.php не найден script с users-table и parent_phone'
         );
+    }
+
+    /**
+     * P1: /admin/users — колонка «Договор»: создать / черновик / иконка signed, lockUser.
+     */
+    public function test_admin_users_contract_create_js_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/user.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("@include('contracts.partials.create-modal'", $content);
+        $this->assertStringContainsString('js-open-create-contract-from-user', $content);
+        $this->assertStringContainsString('Создать договор', $content);
+        $this->assertStringContainsString('Посмотреть черновик', $content);
+        $this->assertStringContainsString('openCreateContractFromUser', $content);
+        $this->assertStringContainsString('{ lockUser: true }', $content);
+        $this->assertStringContainsString("type: 'actions'", $content);
+        $this->assertStringContainsString("contract.status !== 'signed'", $content);
+        $this->assertStringContainsString("@include('partials.ui.tooltip-hint'", $content);
+        $this->assertStringContainsString('id="users-signed-contract-hint-tpl"', $content);
+        $this->assertStringContainsString('data-kids-tooltip-hint', $content);
+        $this->assertStringContainsString("KidsCrmTooltip.init(root, { scopes: ['hint'] })", $content);
+        $this->assertStringContainsString('draw.dt.kidsCrmUsersContractHint', $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'js-open-create-contract-from-user',
+            'blade-js-users-contract-create'
+        );
+
+        $modalPath = resource_path('views/contracts/partials/create-modal.blade.php');
+        $this->assertFileExists($modalPath);
+        $modal = (string) file_get_contents($modalPath);
+        $this->assertStringContainsString('setContractUserSelectLocked', $modal);
+        $this->assertStringContainsString('user_id_locked', $modal);
+        $this->assertStringContainsString('options.lockUser', $modal);
+        $this->assertStringContainsString('allowClear: !lockPreselectedUser', $modal);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $modalPath,
+            'setContractUserSelectLocked',
+            'blade-js-contract-create-lock-user'
+        );
+    }
+
+    /**
+     * P1: lockUser на заявках (оба JS-пути), тулбар /client-contracts без lock,
+     * resetCreateContractForm снимает lock, пустая ячейка — кнопка «Создать», не return ''.
+     */
+    public function test_contract_create_lock_user_paths_and_empty_cell_are_valid_javascript(): void
+    {
+        $leadsPath = resource_path('views/admin/school-leads/tabs/leads.blade.php');
+        $this->assertFileExists($leadsPath);
+        $leads = (string) file_get_contents($leadsPath);
+        $this->assertSame(
+            2,
+            substr_count($leads, 'KidsCrmContractCreate.openModal(preselected, { lockUser: true })')
+        );
+        $this->assertStringNotContainsString(
+            'KidsCrmContractCreate.openModal(preselected);',
+            $leads
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $leadsPath,
+            'lockUser: true',
+            'blade-js-school-leads-lock-user'
+        );
+
+        $indexPath = resource_path('views/contracts/index.blade.php');
+        $this->assertFileExists($indexPath);
+        $index = (string) file_get_contents($indexPath);
+        $this->assertStringContainsString('data-bs-target="#createContractModal"', $index);
+        $this->assertStringNotContainsString('lockUser: true', $index);
+
+        $modalPath = resource_path('views/contracts/partials/create-modal.blade.php');
+        $modal = (string) file_get_contents($modalPath);
+        $this->assertStringContainsString('function resetCreateContractForm()', $modal);
+        $this->assertStringContainsString('setContractUserSelectLocked(false)', $modal);
+        $this->assertStringContainsString('lockPreselectedUser = false', $modal);
+        $this->assertStringContainsString('allowClear: !lockPreselectedUser', $modal);
+
+        $usersPath = resource_path('views/admin/user.blade.php');
+        $users = (string) file_get_contents($usersPath);
+        $cellStart = strpos($users, 'function renderContractCell(row)');
+        $this->assertNotFalse($cellStart);
+        $cell = substr($users, $cellStart, 3200);
+        $this->assertStringContainsString('js-open-create-contract-from-user', $cell);
+        $this->assertStringContainsString('Создать договор', $cell);
+        $this->assertStringNotContainsString("return '';", $cell);
+        $this->assertStringContainsString("contract.status !== 'signed'", $cell);
+        $this->assertStringContainsString('users-signed-contract-hint-tpl', $users);
+        $this->assertStringContainsString('kids-tooltip-hint', $cell);
+        $this->assertStringNotContainsString('js-dt-cell-ellipsis-tooltip', $cell);
+        $this->assertStringContainsString('event.preventDefault()', $users);
     }
 
     /**
@@ -5271,6 +5387,64 @@ final class BladeInlineJsSyntaxTest extends TestCase
             'scrollIntoView',
             'blade-js-in-app-index'
         );
+    }
+
+    /**
+     * UX-баг: кнопка «Редактировать» доп. платежа пряталась по setPrices.manualPaid.manage.
+     * Право должно скрывать только селект статуса. Оба JS-пути + node --check.
+     */
+    public function test_custom_payments_edit_js_does_not_hide_edit_button_behind_manual_paid(): void
+    {
+        $blade = resource_path('views/admin/SettingPrices/custom-payments.blade.php');
+        $this->assertFileExists($blade);
+        $bladeContent = (string) file_get_contents($blade);
+        $this->assertStringContainsString("window.__customPaymentsCanManualPaid = @json(auth()->user()?->can('setPrices.manualPaid.manage') ?? false);", $bladeContent);
+        $this->assertStringContainsString('@cannot(\'setPrices.manualPaid.manage\')', $bladeContent);
+        $this->assertStringContainsString('id="custom-payment-edit-is-paid-wrap"', $bladeContent);
+        $this->assertStringContainsString('id="custom-payment-edit-form" novalidate', $bladeContent);
+        $this->assertStringContainsString("asset('js/setting-prices-custom-payments.js')", $bladeContent);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $blade,
+            'initCustomPaymentUserSelect2',
+            'blade-js-custom-payments-select2'
+        );
+
+        $paths = [
+            resource_path('js/setting-prices-custom-payments.js'),
+            public_path('js/setting-prices-custom-payments.js'),
+        ];
+        $this->assertSame(
+            (string) file_get_contents($paths[0]),
+            (string) file_get_contents($paths[1]),
+            'public/js должен совпадать с resources/js (страница грузит public/js)'
+        );
+
+        foreach ($paths as $path) {
+            $this->assertFileExists($path);
+            $js = (string) file_get_contents($path);
+
+            $actionsStart = strpos($js, "key: 'actions'");
+            $this->assertNotFalse($actionsStart, $path);
+            $actionsBlock = substr($js, $actionsStart, 700);
+            $this->assertStringContainsString('data-custom-payment-action="edit"', $actionsBlock, $path);
+            $this->assertStringNotContainsString('__customPaymentsCanManualPaid', $actionsBlock, $path);
+            $this->assertStringContainsString("paidWrap.style.display = canManual ? '' : 'none'", $js, $path);
+            $this->assertStringContainsString('var isPaid = canManual', $js, $path);
+            $this->assertStringContainsString(': initialPaid;', $js, $path);
+            $this->assertStringContainsString('if (canManual && isPaid !== initialPaid)', $js, $path);
+            $this->assertStringContainsString('e.preventDefault()', $js, $path);
+            $this->assertStringContainsString('setEditFieldErrors', $js, $path);
+            $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $js, $path);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+            $this->assertSame(
+                0,
+                $exitCode,
+                "JS syntax error in {$path}:\n".implode("\n", $output)
+            );
+        }
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

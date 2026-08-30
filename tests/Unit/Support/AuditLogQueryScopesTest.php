@@ -26,6 +26,14 @@ class AuditLogQueryScopesTest extends CrmTestCase
         ]);
 
         MyLog::query()->create([
+            'event' => AuditEvent::AuthLoginFailed->value,
+            'level' => AuditEvent::AuthLoginFailed->level()->value,
+            'partner_id' => $this->partner->id,
+            'description' => 'event-login-failed',
+            'created_at' => now(),
+        ]);
+
+        MyLog::query()->create([
             'event' => AuditEvent::SettingsUpdated->value,
             'level' => AuditEvent::SettingsUpdated->level()->value,
             'partner_id' => $this->partner->id,
@@ -41,6 +49,7 @@ class AuditLogQueryScopesTest extends CrmTestCase
 
         $this->assertContains('settings-log', $visible);
         $this->assertNotContains('event-login', $visible);
+        $this->assertNotContains('event-login-failed', $visible);
     }
 
     #[Test]

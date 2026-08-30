@@ -113,6 +113,7 @@ final class SchoolLeadEditModalFullFeatureTest extends CrmTestCase
             ->assertViewHas('contractCreatePartner')
             ->assertSee('id="createContractModal"', false)
             ->assertSee('KidsCrmContractCreate.openModal', false)
+            ->assertSee('{ lockUser: true }', false)
             ->assertSee('openCreateContractFromLead', false)
             ->assertSee('js-open-create-contract-from-lead', false)
             ->assertSee('buildContractPreselectedUser', false);

@@ -32,7 +32,8 @@
     Вкладка «<b>Клиенты</b>» в разделе CRM «Пользователи» — это <b>только ученики</b> (<code>roles.name = user</code>, UI-label «Клиент»).
     Тренеры, администраторы и кастомные роли — на отдельных вкладках (<a href="/docs/documentation/admin-users-section">обзор</a>, <a href="/docs/documentation/admin-trainers">тренеры</a>, <a href="/docs/documentation/admin-role-staff">администраторы и кастомные роли</a>).
     Анонс на <code>/doc</code>: <a href="/doc#users-client-naming-index">нейминг «Клиенты»</a>,
-    <a href="/doc#users-import-parent-fill-index">дозапись родителя при импорте Excel</a>.
+    <a href="/doc#users-import-parent-fill-index">дозапись родителя при импорте Excel</a>,
+    <a href="/doc#users-contract-create-index">создать договор со списка клиентов</a>.
   </div>
 
   <h2 id="user-client-naming">Нейминг: «Клиенты» vs «Пользователи»</h2>
@@ -346,7 +347,7 @@
   <div class="note">
     Договоры: <code>parent_full_name</code> (именительный) в модалке «Создать договор» (только просмотр) и предзаполнение подписанта на карточке — см. <a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a> и <a href="/docs/documentation/contracts#contract-parent">§2–3</a>.
     Плейсхолдер <code>{{parent_full_name_genitive}}</code> — из <code>parents.full_name_genitive</code> (§<a href="#user-parent-genitive">2.1.6</a>).<br>
-    Быстрый переход к последнему договору ученика из списка пользователей — колонка «Договор» (§<a href="#user-contract-column">2.3</a>).<br>
+    Быстрый переход к последнему договору ученика и создание нового — колонка «Договор» (§<a href="#user-contract-column">2.3</a>).<br>
     Личный кабинет ученика: блок «Данные родителя» (общая карточка <code>parents</code> для всех детей с тем же <code>parent_id</code>), право <code>account.user.parent.update</code> — см. <a href="/docs/documentation/parents-and-family-cabinet#account-parent">parents-and-family-cabinet §4</a>.
   </div>
 
@@ -409,7 +410,8 @@
     Колонка в таблице <code>/admin/users</code> сразу после «Телефон родителя». Показывается только если у актора есть <code>contracts.view</code>
     (в Blade: <code>$canViewContracts</code>, в JS: <code>canViewContracts</code>).<br>
     <b>Отличие от заявок с сайта:</b> на <a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> колонка «Договор» видна при <code>users.view</code> <b>или</b> <code>contracts.view</code>. Без клиента в ячейке «—»; после создания клиента из модалки §<a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">5.5.2</a> — ссылка на договор или кнопка «Создать договор» (встроенная модалка, §<a href="/docs/documentation/school-leads-widget#school-lead-contract-inline">5.8</a>).
-    На <code>/admin/users</code> — только иконка последнего договора и только при <code>contracts.view</code>; кнопки «Создать договор» в ячейке <b>нет</b>.
+    На <code>/admin/users</code> колонка только при <code>contracts.view</code>: нет договора — «Создать договор»; неподписанный последний — «Посмотреть черновик»; подписанный — иконка PDF. Модалка создания — та же, что на заявках (§<a href="#user-contract-create">2.3.9</a>).
+    Анонс — <a href="/doc#users-contract-create-index">/doc</a>.
   </div>
 
   <h3>2.3.1) Права и доступ</h3>
@@ -438,12 +440,28 @@
   </p>
 
   <h3>2.3.2) UI ячейки</h3>
+  <p>Состояние берётся по <b>последнему</b> договору текущего партнёра (тот же lookup, что в JSON §2.3.3).</p>
+  <table>
+    <thead>
+      <tr><th>Последний договор</th><th>Что в ячейке</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Нет ни одного договора партнёра</td>
+        <td>Кнопка <b>«Создать договор»</b> (<code>btn btn-sm btn-primary</code>, класс <code>js-open-create-contract-from-user</code>) — открывает встроенную модалку на этой же странице (§<a href="#user-contract-create">2.3.9</a>), без перехода на <code>/client-contracts</code>.</td>
+      </tr>
+      <tr>
+        <td>Есть договор, статус <b>не</b> <code>signed</code> (черновик, отправлено, ожидает заполнения и т.д.)</td>
+        <td>Кнопка-ссылка <b>«Посмотреть черновик»</b> (<code>btn btn-sm btn-outline-primary</code>) → <code>GET /client-contracts/{id}</code> (карточка этого договора).</td>
+      </tr>
+      <tr>
+        <td>Последний договор в статусе <code>signed</code></td>
+        <td>Ссылка с иконкой <code>&lt;i class="fa-solid fa-file-pdf"&gt;</code> цвета <code>#0d6efd</code> на карточку договора. Ховер — <code>@include('partials.ui.tooltip-hint')</code> (клон <code>#users-signed-contract-hint-tpl</code>, scope <code>hint</code>, класс <code>ulp-assignment-paid-tooltip</code>), текст «Статус: Подписано». Не ellipsis.</td>
+      </tr>
+    </tbody>
+  </table>
   <ul>
-    <li>Если у ученика <b>нет</b> договора текущего партнёра — ячейка <b>пустая</b> (иконка не выводится).</li>
-    <li>Если договор есть — ссылка с иконкой <code>&lt;i class="fa-solid fa-file-pdf"&gt;</code> на <code>route('contracts.show', $id)</code>.</li>
-    <li>Цвет иконки: при <code>status === 'signed'</code> — <code>#0d6efd</code>; для любого другого статуса — <code>#6c757d</code>.</li>
-    <li>При наведении — Bootstrap Tooltip с классом <code>ulp-assignment-paid-tooltip</code>; текст — <code>Статус: {status_label}</code> (например «Статус: Подписано», «Статус: Черновик»). Tooltip показывается <b>всегда</b> (иконка без класса <code>dt-cell-ellipsis</code>, не зависит от обрезки текста — см. <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §2</a>).</li>
-    <li>Колонка DataTables: тип <code>icon</code> (<code>className: dt-col-icon text-center</code>), свой <code>render</code> — <code>renderContractCell(row)</code> в <code>admin/user.blade.php</code>. Инициализация tooltip — через <code>KidsCrmTooltip.bindDataTable</code> на <code>draw.dt</code>.</li>
+    <li>Колонка DataTables: тип <code>actions</code> (<code>className: dt-col-text text-nowrap</code>), свой <code>render</code> — <code>renderContractCell(row)</code> в <code>admin/user.blade.php</code> (функция и обработчик клика рендерятся только при <code>contracts.view</code>). Иконка signed: клон <code>#users-signed-contract-hint-tpl</code> (<code>@include('partials.ui.tooltip-hint')</code>), после <code>draw.dt</code> — <code>KidsCrmTooltip.init(..., { scopes: ['hint'] })</code>. Ellipsis-tooltip колонок ФИО — по-прежнему <code>KidsCrmTooltip.bindDataTable</code>.</li>
     <li>Колонка сортируется по статусу последнего договора (§2.3.5).</li>
   </ul>
 
@@ -458,7 +476,7 @@
     <li><b>Последний договор</b> — максимальный <code>created_at</code>, затем <code>id</code> среди <code>contracts</code> с <code>school_id = current_partner</code> и <code>user_id</code> ученика (сервис <code>App\Services\SchoolLeads\LatestUserContractLookup</code>, тот же lookup, что в заявках).</li>
     <li><code>status_label</code> — из <code>Contract::$STATUS_RU</code> / аксессора <code>status_ru</code> (в UI подписанный статус отображается как «Подписано», константа <code>Contract::STATUS_SIGNED</code>).</li>
     <li>Договор другого партнёра (<code>school_id</code> ≠ текущий) в выборку не попадает — ячейка пустая.</li>
-    <li>Поля <code>create_contract_url</code> в JSON списка пользователей <b>нет</b> (создание — только из раздела «Договоры» или заявок).</li>
+    <li>Поля <code>create_contract_url</code> в JSON списка пользователей <b>нет</b> (создание — встроенная модалка на странице, §<a href="#user-contract-create">2.3.9</a>; альтернатива — раздел «Договоры»).</li>
   </ul>
 
   <h3>2.3.4) Фильтр «Договор»</h3>
@@ -485,27 +503,58 @@
 
   <h3>2.3.7) Связанные файлы</h3>
   <ul class="small">
-    <li><code>app/Http/Controllers/Admin/UserController.php</code> — <code>data()</code>: валидация <code>contract</code>, фильтр, сортировка col=4, <code>canViewContracts</code> в <code>index()</code></li>
+    <li><code>app/Http/Controllers/Admin/UserController.php</code> — <code>index()</code>: <code>canViewContracts</code>, шаблоны и партнёр для модалки создания; <code>data()</code>: валидация <code>contract</code>, фильтр, сортировка col=4</li>
     <li><code>app/Services/SchoolLeads/LatestUserContractLookup.php</code> — <code>forUserIds</code>, <code>applyUsersListContractFilter</code>, <code>applyUsersListSortByLatestContractStatus</code>, <code>latestContractsSubquery</code></li>
-    <li><code>resources/views/admin/user.blade.php</code> — колонка, фильтр <code>#filter-contract</code>, <code>renderContractCell</code>, tooltip, AJAX-параметр <code>contract</code></li>
+    <li><code>resources/views/admin/user.blade.php</code> — колонка, фильтр <code>#filter-contract</code>, <code>renderContractCell</code>, встроенная модалка, tooltip, AJAX-параметр <code>contract</code></li>
+    <li><code>resources/views/contracts/partials/create-modal.blade.php</code> — общая модалка «Создать договор» (<code>KidsCrmContractCreate.openModal</code>, <code>lockUser</code>)</li>
   </ul>
 
-  <h3>2.3.8) Feature-тесты</h3>
-  <p>Файл: <code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.</p>
+  <h3 id="user-contract-column-tests">2.3.8) Feature-тесты</h3>
+  <p>Колонка, фильтр, сортировка: <code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.</p>
+  <p>Создание договора со списка клиентов (§<a href="#user-contract-create">2.3.9</a>):</p>
+  <ul class="small">
+    <li><code>AdminUsersContractCreateUxFeatureTest.php</code> — три состояния ячейки (создать / черновик / PDF signed), latest unsigned, lockUser + hidden <code>user_id</code>, оба пути на заявках, тулбар /client-contracts без lock</li>
+    <li><code>AdminUsersContractCreateAccessFeatureTest.php</code> — гость 302/401, без <code>users.view</code> 403, только <code>users.view</code> без модалки и lookup 403, оба права → 200</li>
+    <li><code>AdminUsersContractCreateFullAccessFeatureTest.php</code> — admin/viewer 200 на страницу, data, users-search, user-group, check-balance, карточку черновика; PUT/PATCH/DELETE → 404/405</li>
+    <li><code>AdminUsersContractCreateAjaxContractFeatureTest.php</code> — JSON users-search / user-group / check-balance 200 или 422 с <code>message</code> / <code>errors[field]</code></li>
+    <li><code>AdminUsersContractCreateNonAjaxSafetyNetFeatureTest.php</code> — native POST <code>/client-contracts</code> со страницы клиентов → 302 на карточку и строка в БД; ошибки валидации → 302 на <code>/client-contracts?create=1</code> с <code>errors.pdf</code> / <code>errors.user_id</code> (не пустой 200)</li>
+  </ul>
   <table>
     <thead>
       <tr><th>Группа</th><th>Что проверяется</th></tr>
     </thead>
     <tbody>
-      <tr><td>UI</td><td>Колонка и фильтр при <code>contracts.view</code>; скрытие без права; иконка PDF, цвета <code>#0d6efd</code> / <code>#6c757d</code>, tooltip «Статус: …»</td></tr>
+      <tr><td>UI колонки</td><td>Колонка и фильтр при <code>contracts.view</code>; скрытие без права; «Создать договор» / «Посмотреть черновик» / иконка PDF подписанного (<code>#0d6efd</code>); встроенная модалка; tooltip «Статус: …» у иконки</td></tr>
       <tr><td>JSON <code>latest_contract</code></td><td>signed/unsigned payload, несколько договоров → последний, изоляция <code>school_id</code>, пустая ячейка</td></tr>
       <tr><td>Фильтр <code>contract</code></td><td><code>with</code>, <code>without</code>, <code>signed</code>, <code>unsigned</code>; игнор без <code>contracts.view</code>; 422 на invalid; signed/unsigned по последнему договору</td></tr>
       <tr><td>Сортировка</td><td>col=4 по статусу договора; col=5 по группе при наличии колонки «Договор»</td></tr>
       <tr><td>Доступ 200</td><td>Гость → redirect/401; <code>users.view</code> + <code>contracts.view</code> — страница, data, все фильтры, CRUD, logs; только <code>users.view</code> — без полей договора</td></tr>
       <tr><td>Доступ 403</td><td>Без <code>users.view</code> (в т.ч. data с <code>contract</code> и сортировкой col=4)</td></tr>
+      <tr><td>Создание из строки</td><td>Кнопка вместо пустой ячейки; lockUser; disabled Select2 + hidden <code>#user_id_locked</code>; native POST 302 на show; AJAX lookup 200/422</td></tr>
     </tbody>
   </table>
-  <p class="small">Запуск: <code>php artisan test tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code></p>
+  <p class="small">Запуск колонки: <code>php artisan test --env=testing tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.
+    Создание со списка: <code>php artisan test --env=testing --filter=AdminUsersContractCreate</code>.
+    Также <code>KidsCrmDataTableAbcdFeatureTest::test_users_page_contract_column_uses_actions_renderer</code>,
+    JS-синтаксис — <code>BladeInlineJsSyntaxTest</code> (<code>admin/user.blade.php</code>, <code>contracts/partials/create-modal.blade.php</code>, оба пути lockUser на заявках).</p>
+
+  <h3 id="user-contract-create">2.3.9) Создание договора со списка клиентов</h3>
+  <div class="note">
+    При <code>contracts.view</code> на <code>/admin/users</code> подключается тот же partial
+    <code>contracts/partials/create-modal.blade.php</code>, что на <code>/client-contracts</code> и <code>/admin/school-leads</code>.
+    Кнопка «Создать договор» в колонке вызывает <code>openCreateContractFromUser(row)</code> →
+    <code>window.KidsCrmContractCreate.openModal(preselectedUser, { lockUser: true })</code>.
+    Страница <b>не меняется</b> до submit. После успешного <code>POST /client-contracts</code> — редирект на карточку договора.
+    Анонс — <a href="/doc#users-contract-create-index">/doc</a>.
+  </div>
+  <ul>
+    <li>Предзаполнение ученика из строки DataTables: <code>id</code>, <code>name</code> → <code>text</code>, <code>parent</code> → <code>parent_full_name</code>. Группы подгружаются AJAX <code>GET /client-contracts/user-group</code>.</li>
+    <li><code>lockUser: true</code> — поле «Ученик» выбрано и задисейблено (Select2 <code>disabled</code>, <code>allowClear: false</code>, hidden <code>#user_id_locked</code> с <code>name="user_id"</code> для submit). Тот же флаг на заявках при клике по строке лида. На <code>/client-contracts</code> по кнопке «Создать» без контекста строки поиск ученика остаётся свободным.</li>
+    <li>Списание с баланса — только при submit модалки (<code>POST /client-contracts/check-balance</code> → <code>POST /client-contracts</code>), не при открытии.</li>
+    <li>Без <code>contracts.view</code> partial и JS кнопки на страницу не попадают.</li>
+    <li>Ошибки валидации <code>POST /client-contracts</code> (в т.ч. со страницы клиентов, native POST без JSON) всегда редиректят на <code>/client-contracts?create=1</code> с <code>errors</code> по полям — не JSON 422 и не пустой 200. Успех — 302 на карточку договора.</li>
+    <li>Тесты: <code>AdminUsersContractCreateUxFeatureTest</code>, <code>…Access…</code>, <code>…FullAccess…</code>, <code>…AjaxContract…</code>, <code>…NonAjaxSafetyNet…</code> (§<a href="#user-contract-column-tests">2.3.8</a>).</li>
+  </ul>
 
   <h2 id="user-health">2.2) Сведения об ученике (мед./особенности)</h2>
   <div class="note">
@@ -1389,7 +1438,8 @@
       <li><code>tests/Feature/Crm/Users/UsersImportChildFullNameGenitivePermissionFeatureTest.php</code> — импорт Excel колонка только при <code>users.full_name_genitive</code></li>
       <li><code>tests/Feature/Crm/Contracts/ContractChildFullNameGenitivePrefillFeatureTest.php</code>, <code>ContractStudentProfileSyncTest.php</code> — prefill/sync <code>{{child_full_name_genitive}}</code></li>
       <li><code>tests/Feature/Crm/Users/UsersImportFeatureTest.php</code>, <code>UsersImportParentDirectoryFillFeatureTest.php</code>, <code>UsersImportParentDirectoryFillFullAccessFeatureTest.php</code>, <code>UsersImportPreviewDiffFeatureTest.php</code>, <code>UsersImportAccessFeatureTest.php</code>, <code>UsersImportAjaxContractFeatureTest.php</code>, <code>UsersImportNonAjaxSafetyNetFeatureTest.php</code>, <code>tests/Unit/Services/Users/UsersImportParentDirectoryTest.php</code>, <code>tests/Unit/Documentation/UsersImportParentDirectoryDocumentationContractTest.php</code> — импорт из Excel §<a href="#user-import">8</a> / preview-diff §<a href="#user-import-preview-diff">8.5</a> / дозапись родителя</li>
-      <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — полное покрытие §<a href="#user-contract-column">2.3</a> (колонка, фильтр, сортировка, доступ); см. §2.3.8</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — полное покрытие §<a href="#user-contract-column">2.3</a> (колонка, фильтр, сортировка, доступ); см. §<a href="#user-contract-column-tests">2.3.8</a></li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersContractCreateUxFeatureTest.php</code>, <code>AdminUsersContractCreateAccessFeatureTest.php</code>, <code>AdminUsersContractCreateFullAccessFeatureTest.php</code>, <code>AdminUsersContractCreateAjaxContractFeatureTest.php</code>, <code>AdminUsersContractCreateNonAjaxSafetyNetFeatureTest.php</code> — создание договора со списка клиентов §<a href="#user-contract-create">2.3.9</a>: UX ячейки и lockUser, guest/403/200, AJAX lookup, native POST 302</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingFeatureTest.php</code>, <code>AdminUsersClientNamingAjaxContractFeatureTest.php</code>, <code>AdminUsersClientNamingNonAjaxSafetyNetFeatureTest.php</code>, <code>AdminUsersClientNamingFullAccessFeatureTest.php</code> — нейминг «Клиенты»/«Клиент» vs зонтик «Пользователи»: HTML (сайдбар, h4, вкладка, h1, модалки), JSON 200/422, non-AJAX 302, guest/403, оба JS-пути editUser; см. <a href="/docs/documentation/admin-users-section">admin-users-section §6</a></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPageFeatureTest.php</code> — toolbar, фильтры, smoke 200 endpoint’ов раздела</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersTablePreloaderRegressionFeatureTest.php</code> — список без table-preloader: guest/403/200, тулбар снаружи таблицы, AdminLTE <code>.wrapper</code> не размазан, PUT/PATCH/DELETE → 404/405</li>
@@ -1438,7 +1488,8 @@
       <li><code>tests/Feature/Crm/Users/UsersPageLengthFullAccessFeatureTest.php</code> — §2.0 доступ: гость / без <code>users.view</code> / viewer / admin; PUT/PATCH/DELETE → 404/405</li>
       <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code>, <code>TrainerSyncAndTeamsFeatureTest.php</code> — роль trainer</li>
     </ul>
-    Запуск колонки «Договор»: <code>php artisan test tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.
+    Запуск колонки «Договор»: <code>php artisan test --env=testing tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.
+    Создание договора со списка клиентов: <code>php artisan test --env=testing --filter=AdminUsersContractCreate</code>.
     Колонка «Телефон родителя»: <code>php artisan test tests/Feature/Crm/Users/AdminUsersParentPhoneColumnFeatureTest.php</code>.
     Родитель и доступ: <code>php artisan test --filter=AdminUsersParent</code>.
     Directory FIO / AJAX / non-AJAX: <code>php artisan test --filter='AdminUsersParentDirectoryFio|AdminUsersParentAjaxContract|AdminUsersParentNonAjax'</code>.

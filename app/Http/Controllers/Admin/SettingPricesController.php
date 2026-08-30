@@ -553,7 +553,7 @@ class SettingPricesController extends AdminBaseController
     public function updateCustomPayment(int $id, UserCustomPaymentUpdateRequest $request)
     {
         $partnerId = $this->requirePartnerId();
-        if (! request()->user()?->can('setPrices.manualPaid.manage')) {
+        if (! request()->user()?->can('setPrices.customPayments.view')) {
             abort(403);
         }
 
@@ -568,6 +568,17 @@ class SettingPricesController extends AdminBaseController
         $data = $request->validated();
         $wantPaid = (bool) $data['is_paid'];
         $wasPaid = $row->effective_is_paid;
+
+        if ($wantPaid !== $wasPaid && ! request()->user()?->can('setPrices.manualPaid.manage')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Нет права менять статус оплаты дополнительного платежа.',
+                'errors' => [
+                    'is_paid' => ['Нет права менять статус оплаты дополнительного платежа.'],
+                ],
+            ], 403);
+        }
+
         $authorId = auth()->id();
 
         DB::transaction(function () use ($row, $data, $wantPaid, $wasPaid, $authorId) {
@@ -602,7 +613,7 @@ class SettingPricesController extends AdminBaseController
     public function destroyCustomPayment(int $id)
     {
         $partnerId = $this->requirePartnerId();
-        if (! request()->user()?->can('setPrices.manualPaid.manage')) {
+        if (! request()->user()?->can('setPrices.customPayments.view')) {
             abort(403);
         }
 

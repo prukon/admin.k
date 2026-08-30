@@ -119,7 +119,7 @@
     <tbody>
       <tr><td><code>setPrices.view</code></td><td>Доступ к разделу «Установка цен» (middleware на все URL вкладок monthly/users)</td></tr>
       <tr><td><code>lessonPackages.type.postpay</code></td><td>Выбор абонемента типа «Постоплата» в select (скрытое; не в базовых ролях) — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a></td></tr>
-      <tr><td><code>setPrices.manualPaid.manage</code></td><td>Карандаш ручной оплаты месяца (<code>POST …/manual-paid</code>). У бывших участников UI скрывает карандаш; API всё равно требует текущее членство → <b>422</b></td></tr>
+      <tr><td><code>setPrices.manualPaid.manage</code></td><td>Карандаш ручной оплаты месяца (<code>POST …/manual-paid</code>). У бывших участников UI скрывает карандаш; API всё равно требует текущее членство → <b>422</b>. На вкладке доп. платежей то же право скрывает только селект статуса, не кнопку «Редактировать» — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>, <a href="/doc#custom-payments-edit-permission-index">/doc</a></td></tr>
       <tr><td><code>setPrices.customPayments.view</code></td><td>Не относится к этим вкладкам — см. <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a></td></tr>
     </tbody>
   </table>

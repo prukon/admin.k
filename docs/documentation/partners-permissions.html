@@ -123,7 +123,8 @@
   <div class="note">
     В <code>config/role_base_permissions.php</code> для роли <code>admin</code> при создании партнёра <strong>не проставляются</strong> (нужно включить вручную в «Права и роли» / superadmin):
     <ul>
-      <li><code>setPrices.customPayments.view</code> — доп. платежи (вкладка + консоль); у <code>user</code> тоже не в базовом наборе — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments</a>;</li>
+      <li><code>setPrices.customPayments.view</code> — доп. платежи: вкладка, консоль, создание, редактирование суммы/описания, удаление неоплаченного; у <code>user</code> тоже не в базовом наборе — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments</a>, <a href="/doc#custom-payments-edit-permission-index">/doc</a>;</li>
+      <li><code>setPrices.manualPaid.manage</code> — ручная отметка оплаты месяца (карандаш на «По месяцам» / «По ученикам») и селект статуса доп. платежа (не кнопка «Редактировать»); не в базовых ролях — <a href="/docs/documentation/setting-prices-monthly-users#permissions">setting-prices-monthly-users</a>;</li>
       <li><code>inAppNotifications.manage</code> — зарезервировано под создание in-app рассылок админом школы
         (v1 UI формы нет: создаёт только superadmin). Скрытое; не в базовых ролях.
         Просмотр колокольчика — <code>inAppNotifications.view</code>, оно <b>в</b> базовых ролях —

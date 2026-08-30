@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Cabinet;
 
+use App\Enums\AuditEvent;
 use App\Exceptions\Handler;
 use App\Mail\ClientWelcomeCredentialsMail;
 use App\Models\FiscalReceipt;
+use App\Models\MyLog;
 use App\Models\OutgoingEmailLog;
 use App\Models\Partner;
 use App\Models\PaymentIntent;
@@ -18,12 +20,14 @@ use App\Services\SmsRuService;
 use App\Services\Tinkoff\TinkoffApiClient;
 use App\Support\OpsMonitor;
 use App\Support\SchedulerHeartbeat;
+use ErrorException;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\ViewException;
 use InvalidArgumentException;
 use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -31,7 +35,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * P1: JSON-контракт GET /cabinet/system-monitors/ops —
- * шесть блоков, окно 24 ч, все партнёры, без PII.
+ * шесть блоков, окно 24 ч (вход — 72 ч), все партнёры.
+ * 500/шлюзы без PII; auth.recent_* содержит введённые email/пароль/код и IP.
  *
  * @see \Tests\Feature\Crm\Teams\TeamControllerTest::test_store_non_ajax_redirects_and_creates_team
  */
@@ -61,8 +66,12 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->assertJsonPath('till.failed_intents', 0)
             ->assertJsonPath('till.fiscal_errors', 0)
             ->assertJsonPath('errors.count', 0)
+            ->assertJsonPath('errors.recent', [])
             ->assertJsonPath('auth.failed_logins', 0)
             ->assertJsonPath('auth.failed_2fa', 0)
+            ->assertJsonPath('auth.window_hours', 72)
+            ->assertJsonPath('auth.recent_logins', [])
+            ->assertJsonPath('auth.recent_2fa', [])
             ->assertJsonPath('welcome.missing_count', 0)
             ->assertJsonPath('welcome.last_user_id', null)
             ->assertJsonStructure([
@@ -70,13 +79,13 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
                 'window_hours',
                 'queue' => ['worker', 'scheduler', 'jobs', 'failed_jobs', 'overdue_payouts'],
                 'till' => ['overdue_payouts', 'failed_intents', 'fiscal_errors'],
-                'errors' => ['count', 'last_class', 'last_message', 'top_class'],
+                'errors' => ['count', 'last_class', 'last_message', 'top_class', 'recent'],
                 'gateways' => [
                     'tinkoff' => ['last_ok_at', 'last_fail_at', 'last_fail_message', 'last_ok_age_seconds', 'last_fail_age_seconds'],
                     'smsru' => ['last_ok_at', 'last_fail_at', 'last_fail_message', 'last_ok_age_seconds', 'last_fail_age_seconds'],
                     'cloudkassir' => ['last_ok_at', 'last_fail_at', 'last_fail_message', 'last_ok_age_seconds', 'last_fail_age_seconds'],
                 ],
-                'auth' => ['failed_logins', 'failed_2fa'],
+                'auth' => ['window_hours', 'failed_logins', 'failed_2fa', 'recent_logins', 'recent_2fa'],
                 'welcome' => ['missing_count', 'last_user_id'],
             ]);
     }
@@ -103,6 +112,10 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
         $this->assertLessThanOrEqual(OpsMonitor::MESSAGE_LIMIT, mb_strlen($message));
         $this->assertStringContainsString('[email]', $message);
         $this->assertStringContainsString('[secret]', $message);
+        $this->assertIsArray($response->json('errors.recent'));
+        $this->assertNotEmpty($response->json('errors.recent'));
+        $this->assertStringNotContainsString('secret-ops@example.test', (string) $response->json('errors.recent.0.message'));
+        $this->assertStringNotContainsString('hunter2', (string) $response->json('errors.recent.0.message'));
     }
 
     public function test_failed_intents_and_fiscal_errors_use_24h_window(): void
@@ -184,6 +197,8 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->assertJsonPath('errors.top_class', 'RuntimeException');
 
         $this->assertStringContainsString('ops-handler-boom', (string) $response->json('errors.last_message'));
+        $this->assertSame('RuntimeException', $response->json('errors.recent.0.class'));
+        $this->assertStringContainsString('ops-handler-boom', (string) $response->json('errors.recent.0.message'));
     }
 
     public function test_gateway_and_auth_cache_counters_appear_in_snapshot(): void
@@ -199,7 +214,9 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->getJson($this->opsUrl(), $this->ajaxHeaders())
             ->assertOk()
             ->assertJsonPath('auth.failed_logins', 2)
-            ->assertJsonPath('auth.failed_2fa', 1);
+            ->assertJsonPath('auth.failed_2fa', 1)
+            ->assertJsonPath('auth.recent_logins', [])
+            ->assertJsonPath('auth.recent_2fa', []);
 
         $this->assertNotNull($response->json('gateways.tinkoff.last_ok_at'));
         $this->assertSame(0, $response->json('gateways.tinkoff.last_ok_age_seconds'));
@@ -261,10 +278,10 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->assertJsonPath('welcome.last_user_id', null);
     }
 
-    public function test_auth_hourly_bucket_outside_24h_is_ignored(): void
+    public function test_auth_hourly_bucket_outside_72h_is_ignored(): void
     {
         $this->asSuperadmin();
-        $this->travelTo(now()->subHours(25));
+        $this->travelTo(now()->subHours(73));
         OpsMonitor::recordFailedLogin();
         $this->travelBack();
 
@@ -274,38 +291,75 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->assertJsonPath('auth.failed_logins', 0);
     }
 
+    public function test_auth_hourly_bucket_inside_72h_is_counted(): void
+    {
+        $this->asSuperadmin();
+        $this->travelTo(now()->subHours(25));
+        OpsMonitor::recordFailedLogin();
+        $this->travelBack();
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('auth.failed_logins', 1);
+    }
+
     public function test_wrong_password_increments_failed_logins(): void
     {
         $this->asSuperadmin();
         Auth::logout();
+        $typedPassword = 'wrong-password-for-ops';
 
         $this->from(route('login'))->post(route('login'), [
             'email' => $this->user->email,
-            'password' => 'wrong-password-for-ops',
+            'password' => $typedPassword,
         ])->assertSessionHasErrors('password');
 
         $this->actingAs($this->user)
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
             ->getJson($this->opsUrl(), $this->ajaxHeaders())
             ->assertOk()
-            ->assertJsonPath('auth.failed_logins', 1);
+            ->assertJsonPath('auth.failed_logins', 1)
+            ->assertJsonPath('auth.recent_logins.0.email', $this->user->email)
+            ->assertJsonPath('auth.recent_logins.0.password', $typedPassword)
+            ->assertJsonPath('auth.recent_logins.0.user_found', true);
+
+        $this->assertNotNull($this->getJson($this->opsUrl(), $this->ajaxHeaders())->json('auth.recent_logins.0.ip'));
+        $this->assertNotNull($this->getJson($this->opsUrl(), $this->ajaxHeaders())->json('auth.recent_logins.0.at'));
+
+        $log = MyLog::query()->where('event', AuditEvent::AuthLoginFailed->value)->latest('id')->first();
+        $this->assertNotNull($log);
+        $this->assertStringContainsString($this->user->email, (string) $log->description);
+        $this->assertStringNotContainsString($typedPassword, (string) $log->description);
+        $this->assertSame((int) $this->user->id, (int) $log->user_id);
     }
 
-    public function test_unknown_email_does_not_count_as_failed_password(): void
+    public function test_unknown_email_counts_as_failed_login_and_keeps_typed_credentials(): void
     {
         $this->asSuperadmin();
         Auth::logout();
+        $typedEmail = 'nobody-ops@example.test';
+        $typedPassword = 'whatever-password';
 
         $this->from(route('login'))->post(route('login'), [
-            'email' => 'nobody-ops@example.test',
-            'password' => 'whatever-password',
+            'email' => $typedEmail,
+            'password' => $typedPassword,
         ])->assertSessionHasErrors('email');
 
         $this->actingAs($this->user)
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
             ->getJson($this->opsUrl(), $this->ajaxHeaders())
             ->assertOk()
-            ->assertJsonPath('auth.failed_logins', 0);
+            ->assertJsonPath('auth.failed_logins', 1)
+            ->assertJsonPath('auth.recent_logins.0.email', $typedEmail)
+            ->assertJsonPath('auth.recent_logins.0.password', $typedPassword)
+            ->assertJsonPath('auth.recent_logins.0.user_found', false);
+
+        $log = MyLog::query()->where('event', AuditEvent::AuthLoginFailed->value)->latest('id')->first();
+        $this->assertNotNull($log);
+        $this->assertStringContainsString($typedEmail, (string) $log->description);
+        $this->assertStringNotContainsString($typedPassword, (string) $log->description);
+        $this->assertNull($log->user_id);
     }
 
     public function test_wrong_two_factor_code_increments_failed_2fa(): void
@@ -327,7 +381,9 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
             ->getJson($this->opsUrl(), $this->ajaxHeaders())
             ->assertOk()
-            ->assertJsonPath('auth.failed_2fa', 1);
+            ->assertJsonPath('auth.failed_2fa', 1)
+            ->assertJsonPath('auth.recent_2fa.0.email', $this->user->email)
+            ->assertJsonPath('auth.recent_2fa.0.code', '000000');
     }
 
     public function test_expired_two_factor_code_does_not_count_as_failed_2fa(): void
@@ -532,6 +588,232 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
         $message = (string) $response->json('errors.last_message');
         $this->assertSame(OpsMonitor::MESSAGE_LIMIT, mb_strlen($message));
         $this->assertTrue(str_ends_with($message, '…'));
+        $this->assertCount(5, $response->json('errors.recent'));
+        $this->assertSame('RuntimeException', $response->json('errors.recent.0.class'));
+    }
+
+    public function test_view_exception_unwraps_to_previous_class_and_relativizes_view_path(): void
+    {
+        $this->asSuperadmin();
+        $inner = new ErrorException('Undefined variable $demo');
+        $absolute = base_path('resources/views/ops-demo.blade.php');
+        $view = new ViewException(
+            $inner->getMessage().' (View: '.$absolute.')',
+            0,
+            1,
+            $inner->getFile() ?: __FILE__,
+            $inner->getLine() ?: 1,
+            $inner
+        );
+        OpsMonitor::recordException($view);
+
+        $response = $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('errors.count', 1)
+            ->assertJsonPath('errors.last_class', 'ErrorException')
+            ->assertJsonPath('errors.top_class', 'ErrorException')
+            ->assertJsonPath('errors.recent.0.class', 'ErrorException');
+
+        $message = (string) $response->json('errors.last_message');
+        $this->assertStringContainsString('Undefined variable $demo', $message);
+        $this->assertStringContainsString('resources/views/ops-demo.blade.php', $message);
+        $this->assertStringNotContainsString(base_path(), $message);
+        $this->assertStringNotContainsString('ViewException', (string) $response->json('errors.last_class'));
+        $this->assertSame($message, $response->json('errors.recent.0.message'));
+    }
+
+    public function test_ignition_view_exception_wrapper_unwraps_to_previous_class(): void
+    {
+        $this->asSuperadmin();
+        $inner = new ErrorException('Undefined variable $ignition');
+        $mapped = new \Spatie\LaravelIgnition\Exceptions\ViewException(
+            $inner->getMessage(),
+            0,
+            1,
+            $inner->getFile() ?: __FILE__,
+            $inner->getLine() ?: 1,
+            $inner
+        );
+        OpsMonitor::recordException($mapped);
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('errors.last_class', 'ErrorException')
+            ->assertJsonPath('errors.recent.0.class', 'ErrorException');
+    }
+
+    public function test_recent_ring_keeps_newest_20(): void
+    {
+        $this->asSuperadmin();
+        for ($i = 1; $i <= 21; $i++) {
+            OpsMonitor::recordException(new RuntimeException('n'.$i));
+        }
+
+        $response = $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk();
+
+        $recent = $response->json('errors.recent');
+        $this->assertIsArray($recent);
+        $this->assertCount(OpsMonitor::RECENT_LIMIT, $recent);
+        $this->assertSame('n21', $recent[0]['message']);
+        $this->assertSame('n2', $recent[19]['message']);
+        foreach ($recent as $row) {
+            $this->assertArrayHasKey('class', $row);
+            $this->assertArrayHasKey('message', $row);
+            $this->assertArrayHasKey('route', $row);
+            $this->assertArrayHasKey('path', $row);
+            $this->assertArrayHasKey('at', $row);
+        }
+    }
+
+    public function test_recent_drops_entries_older_than_24h(): void
+    {
+        $this->asSuperadmin();
+        $now = now();
+        $this->travelTo($now->copy()->subHours(25));
+        OpsMonitor::recordException(new RuntimeException('too-old'));
+        $this->travelTo($now);
+        OpsMonitor::recordException(new RuntimeException('fresh'));
+
+        $response = $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk();
+
+        $recent = $response->json('errors.recent');
+        $this->assertCount(1, $recent);
+        $this->assertSame('fresh', $recent[0]['message']);
+    }
+
+    public function test_recent_path_is_request_path_without_query_string(): void
+    {
+        $this->asSuperadmin();
+        $this->actingAs($this->user)
+            ->get(route('dashboard', ['email' => 'secret-ops@example.test', 'token' => 'abc123']));
+
+        OpsMonitor::recordException(new RuntimeException('from-dashboard'));
+
+        $response = $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('errors.recent.0.class', 'RuntimeException');
+
+        $path = (string) $response->json('errors.recent.0.path');
+        $route = (string) $response->json('errors.recent.0.route');
+        $raw = (string) $response->getContent();
+        $this->assertNotSame('', $path);
+        $this->assertStringNotContainsString('?', $path);
+        $this->assertStringNotContainsString('secret-ops@example.test', $path);
+        $this->assertStringNotContainsString('secret-ops@example.test', $raw);
+        $this->assertStringNotContainsString('token=', $path);
+        $this->assertSame('dashboard', $route);
+    }
+
+    public function test_handler_report_unwraps_view_exception_to_cause_and_relative_view(): void
+    {
+        $this->asSuperadmin();
+        $inner = new ErrorException('Undefined variable $handlerView');
+        $view = new ViewException(
+            $inner->getMessage().' (View: '.base_path('resources/views/handler-ops.blade.php').')',
+            0,
+            1,
+            $inner->getFile() ?: __FILE__,
+            $inner->getLine() ?: 1,
+            $inner
+        );
+        $this->app->make(Handler::class)->report($view);
+
+        $response = $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('errors.count', 1)
+            ->assertJsonPath('errors.last_class', 'ErrorException')
+            ->assertJsonPath('errors.recent.0.class', 'ErrorException');
+
+        $message = (string) $response->json('errors.last_message');
+        $this->assertStringContainsString('Undefined variable $handlerView', $message);
+        $this->assertStringContainsString('resources/views/handler-ops.blade.php', $message);
+        $this->assertStringNotContainsString(base_path(), $message);
+        $this->assertStringNotContainsString('ViewException', (string) $response->json('errors.last_class'));
+    }
+
+    public function test_view_exception_without_previous_keeps_view_exception_class(): void
+    {
+        $this->asSuperadmin();
+        OpsMonitor::recordException(new ViewException('plain view boom', 0, 1, __FILE__, __LINE__));
+
+        $response = $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('errors.last_class', 'ViewException')
+            ->assertJsonPath('errors.recent.0.class', 'ViewException');
+
+        $this->assertStringContainsString('plain view boom', (string) $response->json('errors.last_message'));
+    }
+
+    public function test_nested_view_exception_unwraps_to_root_cause(): void
+    {
+        $this->asSuperadmin();
+        $inner = new ErrorException('Undefined variable $nested');
+        $mid = new ViewException(
+            $inner->getMessage().' (View: '.base_path('resources/views/nested-mid.blade.php').')',
+            0,
+            1,
+            __FILE__,
+            1,
+            $inner
+        );
+        $outer = new ViewException($mid->getMessage(), 0, 1, __FILE__, 1, $mid);
+        OpsMonitor::recordException($outer);
+
+        $response = $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('errors.last_class', 'ErrorException');
+
+        $message = (string) $response->json('errors.last_message');
+        $this->assertStringContainsString('Undefined variable $nested', $message);
+        $this->assertStringContainsString('resources/views/nested-mid.blade.php', $message);
+        $this->assertStringNotContainsString(base_path(), $message);
+    }
+
+    public function test_broken_error_cache_does_not_turn_ops_into_500(): void
+    {
+        $this->asSuperadmin();
+        Cache::put('ops:errors:recent', 'not-an-array', now()->addHour());
+        Cache::put('ops:errors:last', 15, now()->addHour());
+        Cache::put('ops:errors:hour:'.now()->format('YmdH'), 'nope', now()->addHour());
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('errors.count', 0)
+            ->assertJsonPath('errors.last_class', null)
+            ->assertJsonPath('errors.last_message', null)
+            ->assertJsonPath('errors.recent', []);
+    }
+
+    public function test_student_with_permission_sees_recent_without_pii(): void
+    {
+        $student = $this->createUserWithRole('user', $this->partner);
+        $this->grantSystemMonitorsView($student);
+        OpsMonitor::recordException(new RuntimeException(
+            'student-ops secret-ops@example.test password=hunter2'
+        ));
+
+        $response = $this->actingInCurrentPartner($student)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('errors.recent.0.class', 'RuntimeException');
+
+        $raw = (string) $response->getContent();
+        $this->assertStringNotContainsString('secret-ops@example.test', $raw);
+        $this->assertStringNotContainsString('hunter2', $raw);
+        $this->assertIsArray($response->json('errors.recent'));
     }
 
     public function test_failed_intents_and_fiscal_of_other_partner_are_counted_despite_session(): void

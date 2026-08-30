@@ -107,16 +107,24 @@ final class KidsCrmDataTableAbcdFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString("type: 'custom'", $html);
     }
 
-    public function test_users_page_contract_column_uses_icon_renderer(): void
+    public function test_users_page_contract_column_uses_actions_renderer(): void
     {
         $this->asSuperadmin();
 
         $html = $this->get(route('admin.user1'))->assertOk()->getContent();
 
         $this->assertStringContainsString("key: 'contract'", $html);
-        $this->assertStringContainsString("type: 'icon'", $html);
         $this->assertStringContainsString('renderContractCell', $html);
         $this->assertStringContainsString('fa-file-pdf', $html);
+        $this->assertStringContainsString('js-open-create-contract-from-user', $html);
+        $this->assertStringContainsString('Создать договор', $html);
+        $this->assertStringContainsString('Посмотреть черновик', $html);
+
+        $contractKeyPos = strpos($html, "key: 'contract'");
+        $this->assertNotFalse($contractKeyPos);
+        $contractChunk = substr($html, $contractKeyPos, 700);
+        $this->assertStringContainsString("type: 'actions'", $contractChunk);
+        $this->assertStringNotContainsString("type: 'icon'", $contractChunk);
     }
 
     public function test_teams_page_month_price_uses_money_preset(): void

@@ -26,7 +26,8 @@
 <div class="wrap">
   <p class="small"><a href="/doc">← Документация</a></p>
   <h1>Договоры (клиентские)</h1>
-  <div class="small">Файл: <code>/docs/documentation/contracts.html</code> · раздел CRM: <code>/client-contracts</code> · оглавление: <a href="/doc">/doc</a></div>
+  <div class="small">Файл: <code>/docs/documentation/contracts.html</code> · раздел CRM: <code>/client-contracts</code> · оглавление: <a href="/doc">/doc</a>
+    · создание со списка клиентов: <a href="/doc#users-contract-create-index">анонс</a></div>
 
   <h2>1) Назначение и доступ</h2>
   <div class="note">
@@ -215,7 +216,8 @@
     <li>Валидный <code>user_id</code> своего партнёра (<code>is_enabled = 1</code>) → <code>preselectedUser</code>: <code>id</code>, <code>text</code>, <code>team_ids</code>, <code>team_id</code> (первая группа), <code>team_title</code>, <code>groups[]</code>, <code>parent_full_name</code> (или <code>null</code>).</li>
     <li>Чужой партнёр / несуществующий id — <code>preselectedUser = null</code>, модалка всё равно может открыться по query.</li>
     <li>Переход из заявок (прямая ссылка): <code>GET /client-contracts?user_id=…</code> или legacy <code>GET /client-contracts/create?user_id=…</code> → redirect на index с теми же параметрами. Основной UX на странице заявок — встроенная модалка без смены страницы (§<a href="/docs/documentation/school-leads-widget#school-lead-contract-inline">school-leads-widget §5.8</a>).</li>
-    <li>JS API: <code>window.KidsCrmContractCreate.openModal(preselectedUser)</code> — используется на <code>/admin/school-leads</code> и на <code>/client-contracts</code>.</li>
+    <li>JS API: <code>window.KidsCrmContractCreate.openModal(preselectedUser, options?)</code> — используется на <code>/admin/school-leads</code>, <code>/admin/users</code> и на <code>/client-contracts</code>.
+      Опция <code>{ lockUser: true }</code> (клик по строке клиента/лида): ученик предзаполнен, Select2 задисейблен, без очистки; в форму уходит hidden <code>#user_id_locked</code>. Без опции (кнопка «Создать» на списке договоров, query <code>?user_id=</code>) поле остаётся редактируемым.</li>
   </ul>
 
   <h3>5.4) Сохранение и оплата</h3>
@@ -227,9 +229,9 @@
 
   <h2>6) Заявки с сайта и создание договора</h2>
   <ul>
-    <li>После привязки ученика к заявке — кнопка «Создать договор» в колонке «Договор» (после «Телефон родителя» на <code>/admin/school-leads</code>, §5.5.3 / §5.6) и в read-only модалке лида открывает ту же модалку создания <b>на странице заявок</b> (<code>KidsCrmContractCreate.openModal</code>). Альтернатива — прямой переход <code>GET /client-contracts?user_id={id}</code>.</li>
-    <li>Ученик и ФИО родителя предзаполняются в модалке, если у ученика есть запись в <code>parents</code>.</li>
-    <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — колонка и фильтр «Договор» (только при <code>contracts.view</code>): иконка PDF последнего договора с tooltip «Статус: …», сортировка по статусу; без кнопки «Создать договор».</li>
+    <li>После привязки ученика к заявке — кнопка «Создать договор» в колонке «Договор» (после «Телефон родителя» на <code>/admin/school-leads</code>, §5.5.3 / §5.6) и в read-only модалке лида открывает ту же модалку создания <b>на странице заявок</b> (<code>KidsCrmContractCreate.openModal(..., { lockUser: true })</code>). Альтернатива — прямой переход <code>GET /client-contracts?user_id={id}</code>.</li>
+    <li>Ученик и ФИО родителя предзаполняются в модалке, если у ученика есть запись в <code>parents</code>. При открытии из строки лида/клиента поле «Ученик» задисейблено (§5.3, <code>lockUser</code>).</li>
+    <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — колонка и фильтр «Договор» (только при <code>contracts.view</code>): нет договора — «Создать договор» (встроенная модалка, <code>lockUser</code>); неподписанный последний — «Посмотреть черновик»; подписанный — иконка PDF. См. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>.</li>
     <li>Полный сценарий лид → клиент → договор: <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5.2–5.8).</li>
   </ul>
 
@@ -280,7 +282,8 @@
     <ul>
       <li><code>ContractsAuditLogsFeatureTest.php</code> — endpoint «История», created/revoke/email/send/resend audit, logs-data</li>
       <li><code>ContractsPageFullAccessFeatureTest.php</code> — гость/403 без права, 200 для всех endpoint'ов <code>/client-contracts</code> при <code>contracts.view</code></li>
-      <li><code>ContractCreateModalFeatureTest.php</code> — модалка, redirect <code>/create</code>, store PDF</li>
+      <li><code>ContractCreateModalFeatureTest.php</code> — модалка, redirect <code>/create</code>, store PDF, lockUser helpers</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersContractCreate*FeatureTest.php</code> — создание со списка клиентов: UX ячейки, lockUser, guest/403, AJAX lookup, native POST 302; см. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a></li>
       <li><code>ContractCreateModalParentFeatureTest.php</code> — «ФИО родителя», <code>users-search</code>, preselectedUser</li>
       <li><code>ContractCreateTemplateModeModalFeatureTest.php</code> — режим template, баланс, foreign student 422</li>
       <li><code>ContractStoreTemplateModeTest.php</code> — store template, redirect show, fill_expires_at; блок/успех при <code>legal_entity_*</code></li>

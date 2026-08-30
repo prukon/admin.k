@@ -104,7 +104,7 @@ final class SystemMonitorsOnlineUsersAjaxContractFeatureTest extends SystemMonit
         $this->assertSame('Свежий Юзер', $response->json('partners.0.users.0.name'));
     }
 
-    public function test_snapshot_includes_current_user_and_users_from_other_partners(): void
+    public function test_snapshot_excludes_viewer_and_includes_users_from_other_partners(): void
     {
         $this->asSuperadmin();
         $this->user->forceFill([
@@ -125,15 +125,64 @@ final class SystemMonitorsOnlineUsersAjaxContractFeatureTest extends SystemMonit
                 '2fa:passed' => true,
             ])
             ->getJson($this->onlineUsersUrl(), $this->ajaxHeaders())
-            ->assertOk();
+            ->assertOk()
+            ->assertJsonPath('total', 1);
 
+        $ids = collect($response->json('partners'))
+            ->flatMap(fn ($group) => $group['users'])
+            ->pluck('id')
+            ->all();
         $names = collect($response->json('partners'))
             ->flatMap(fn ($group) => $group['users'])
             ->pluck('name')
             ->all();
-        $this->assertContains('Супер Админ', $names);
+        $this->assertNotContains($this->user->id, $ids);
+        $this->assertNotContains('Супер Админ', $names);
         $this->assertContains('Гость Школы', $names);
-        $this->assertContains($peer->id, collect($response->json('partners'))->flatMap(fn ($g) => $g['users'])->pluck('id')->all());
+        $this->assertContains($peer->id, $ids);
+    }
+
+    public function test_snapshot_is_empty_when_only_the_viewer_is_online(): void
+    {
+        $this->asSuperadmin();
+        $this->user->forceFill([
+            'lastname' => 'Супер',
+            'name' => 'Админ',
+            'last_seen_at' => now(),
+        ])->save();
+
+        $this->actingAs($this->user)
+            ->getJson($this->onlineUsersUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('total', 0)
+            ->assertJsonPath('partners', []);
+    }
+
+    public function test_snapshot_excludes_viewer_from_same_partner_count(): void
+    {
+        $this->asSuperadmin();
+        $this->user->forceFill([
+            'lastname' => 'Супер',
+            'name' => 'Админ',
+            'partner_id' => $this->partner->id,
+            'last_seen_at' => now(),
+        ])->save();
+        $peer = $this->createUserWithRole('user', $this->partner, [
+            'lastname' => 'Коллега',
+            'name' => 'Онлайн',
+            'last_seen_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson($this->onlineUsersUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('partners.0.count', 1)
+            ->assertJsonPath('partners.0.users.0.name', 'Коллега Онлайн');
+
+        $this->assertSame($peer->id, (int) $response->json('partners.0.users.0.id'));
+        $this->assertNotSame($this->user->id, (int) $response->json('partners.0.users.0.id'));
     }
 
     public function test_empty_names_and_partner_title_use_fallbacks(): void

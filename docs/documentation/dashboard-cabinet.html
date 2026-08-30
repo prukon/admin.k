@@ -53,7 +53,9 @@
     персональный флаг <code>users.system_monitors</code> — §<a href="#system-monitors">8</a>,
     анонс переключателя <a href="/doc#system-monitors-index">/doc</a>,
     анонс списка <a href="/doc#online-users-overlay-index">оверлей «Онлайн»</a>,
-    анонс пульта <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>.
+    анонс пульта <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>,
+    ховер 500 / ViewException / ring
+    <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a>.
     JSON-оверлея на <code>/cabinet</code> нет.
   </div>
 
@@ -434,9 +436,12 @@
     (<code>lastname</code> + <code>name</code>). Окно онлайна — 120 секунд
     (<code>last_seen_at</code> / <code>UserPresence::ONLINE_WITHIN_SECONDS</code>),
     все партнёры и роли, включая отключённых; soft-deleted пользователей нет.
+    Зрителя (<code>Auth::id()</code>) в снимке нет: <code>total</code> и блоки без него;
+    другой оператор его видит. Если онлайн только зритель — пустой список.
     Без партнёра — «Без партнёра» (последним). Пустое название — «Без названия».
     Пустое ФИО — <code>#id</code>. Снимок:
-    <code>App\Support\OnlineUsersMonitor::snapshot()</code>.
+    <code>App\Support\OnlineUsersMonitor::snapshot()</code>
+    (<code>excludeUserId</code> — id зрителя).
     GET <code>/cabinet/system-monitors/online-users</code> всегда JSON
     (и без <code>X-Requested-With</code>). Снимок доступен при выключенном персональном флаге
     (оверлей тогда скрыт CSS). Первый HTML оверлея — пустой список и «…»;
@@ -455,14 +460,23 @@
     <code>QueueStatusSnapshot::compact()</code> (вкладка «Очереди» — <code>full()</code>,
     для не-superadmin по-прежнему режет выплаты текущим партнёром; пульт — все школы).
     GET <code>/cabinet/system-monitors/ops</code>, Form Request
-    <code>OpsMonitorRequest</code>. Окно 24 ч (просроченные выплаты — без окна).
-    Неизвестный email и истёкший код 2FA в auth не пишутся.
+    <code>OpsMonitorRequest</code>. Окно 24 ч (просроченные выплаты — без окна;
+    строка «Вход» — 72 ч). Неизвестный email считается. Истёкший код 2FA в auth не пишется.
+    Ховер входа: email / пароль или код 2FA / IP / время из
+    <code>auth.recent_logins</code> и <code>auth.recent_2fa</code>
+    (пароль только в cache, не в <code>my_logs</code>; журнал —
+    <code>auth.login_failed</code>).
     HTTP 4xx / CSRF в 500 не пишутся. Welcome <code>STATUS_FAILED</code>
     всё ещё missing. 500 пишутся из <code>Handler::report</code> в cache, не из <code>my_logs</code>
-    и не из <code>laravel.log</code>. Нативный GET — JSON. Первый HTML — «…»
+    и не из <code>laravel.log</code>. <code>ViewException</code> разворачивается до причины
+    (<code>getPrevious()</code>); ховер последней 500 — <code>last_message</code>.
+    JSON <code>errors.recent</code> (до 20, route/path без query) — без списка на экране
+    и без страницы. Нативный GET — JSON. Первый HTML — «…»
     во всех <code>data-role</code>; опрос раз в 5 с; сбой <code>refresh()</code>
-    (сеть / 403) ставит «—».
-    <a href="/doc#ops-monitors-overlay-index">анонс оверлея «Пульт»</a>.</p>
+    (сеть / 403) ставит «—» и откатывает ховер <code>last_message</code>
+    и пароль/код входа, не leftover.
+    <a href="/doc#ops-monitors-overlay-index">анонс оверлея «Пульт»</a>,
+    <a href="/doc#ops-errors-detail-index">анонс ховера 500</a>.</p>
 
   <h2>9) Feature-тесты</h2>
   <div class="note">
@@ -498,14 +512,15 @@
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsUxFeatureTest.php</code> — слева от колокольчика; первый заход <code>data-on=0</code> / без <code>system-monitors-on</code>; селект партнёра <code>#js-partner-switch</code> класс <code>system-monitor</code> при праве мониторов; флаг без права оверлеи не показывает; второй суперадмин не видит чужие оверлеи; 422 откатывает switch и body class; скрытый оверлей не опрашивает <code>/chat/api/reverb-status</code></li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersFeatureTest.php</code> — GET онлайн: гость/403/200, группировка по партнёру, 120 с, ученик/тренер/отключённый, «Без партнёра», оверлей над Reverb, опрос только при включённом флаге</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersAccessFeatureTest.php</code> — гость 302/401, admin HTML/JSON 403, со скрытым правом 200 и оверлей в DOM, тренер с выданным правом 200</li>
-      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersAjaxContractFeatureTest.php</code> — пустой снимок, без email/password, окно ровно 120 с, себя и чужой партнёр, «Без названия» / «#id», soft-deleted партнёр, «Без партнёра» последним, GET при выключенном флаге</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersAjaxContractFeatureTest.php</code> — пустой снимок, без email/password, окно ровно 120 с, без зрителя и чужой партнёр, «Без названия» / «#id», soft-deleted партнёр, «Без партнёра» последним, GET при выключенном флаге</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersNonAjaxSafetyNetFeatureTest.php</code> — нативный GET JSON не HTML-страница, POST/PATCH/DELETE HTML и JSON 405</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersUxFeatureTest.php</code> — первый кадр с пустым списком (и при выкл. флаге); cabinet/чат/настройки; XSS-экранирование ФИО; ошибка fetch / 403 снимает людей; повторное включение не плодит второй poller</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsFeatureTest.php</code> — GET пульта: гость/403/200, стек над онлайном и Reverb, опрос только при включённом флаге</li>
-      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAccessFeatureTest.php</code> — гость 302/401, admin HTML/JSON 403, со скрытым правом 200 и оверлей в DOM, ученик/тренер с выданным правом 200, без права 403 не пустой 200</li>
-      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAjaxContractFeatureTest.php</code> — JSON без email/password/PAN, окно 24 ч, все партнёры, Handler 500 vs 4xx/CSRF, cache шлюзов на Http::fake, неизвестный email, неверный/истёкший 2FA, welcome без/с письмом и STATUS_FAILED, compact vs full overdue</li>
-      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsNonAjaxSafetyNetFeatureTest.php</code> — нативный GET JSON не HTML (dashboard и чат), POST/PATCH/DELETE 405</li>
-      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsUxFeatureTest.php</code> — первый кадр все data-role «…»; cabinet/чат/настройки; флаг выкл; чужой суперадмин; ошибка refresh() (сеть/403) ставит «—»; один poller; XSS через textContent; жив/cron/возраст/#id</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAjaxContractFeatureTest.php</code> — JSON 500/шлюзы без email/password/PAN; вход 72 ч, <code>auth.recent_logins</code> с введёнными email/паролем/IP; <code>auth.login_failed</code> без пароля; окно 24 ч остальное, все партнёры, Handler 500 vs 4xx/CSRF, <code>ViewException</code> unwrap / без previous / вложенная / Ignition, ring <code>errors.recent</code> (20, 24 ч, path без query), битый cache не 500, ученик с правом видит recent без PII в 500, cache шлюзов на Http::fake, неизвестный email считается, неверный/истёкший 2FA, welcome без/с письмом и STATUS_FAILED, compact vs full overdue</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAuthAttemptsFeatureTest</code> — неуспешный вход/2FA: 302 <code>errors.password</code> / <code>errors.email</code>, AJAX не пустой 200, пустые поля 422 без счётчика, успешный вход не считает, гость 2FA не считает, 422 <code>errors.code</code>, пароль только в JSON пульта, не в <code>my_logs</code>; 403 без утечки пароля; нативный GET recent; ring 40 / 72 ч; hide_authorizations</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsNonAjaxSafetyNetFeatureTest.php</code> — нативный GET JSON не HTML (dashboard и чат), recent в JSON, POST/PATCH/DELETE 405</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsUxFeatureTest.php</code> — первый кадр все data-role «…» и подсказки 72 ч; cached last_message и typed password не в HTML; строка 500 без ссылок; cabinet/чат/настройки; флаг выкл; чужой суперадмин; ошибка refresh() (сеть/403) ставит «—» и откатывает ховер last_message и пароля входа; пустой last_message / пустой recent_logins не leftover; ховер errors-last и auth-logins/auth-2fa через title; XSS пароля в title не innerHTML; «нет email» только если user_found=false; один poller; XSS через textContent / title не innerHTML; жив/cron/возраст/#id</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAccessFeatureTest.php</code> — гость 302/401, admin HTML/JSON 403 без утечки last_message, со скрытым правом 200 и оверлей в DOM, ученик/тренер с выданным правом 200, без права 403 не пустой 200</li>
       <li><code>tests/Feature/Crm/Ui/KidsCrmTooltipContrastFeatureTest.php</code> — непрозрачный пузырёк KidsCrmTooltip (opacity 1, #111827 / #fff, z-index 20050) на /cabinet вместе с пультом</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetDiagnosticsFeatureTest.php</code> — на <code>/cabinet</code> нет JSON-оверлея даже у superadmin; бейдж Reverb при включённом флаге; JSON <code>get-user-details</code> без ключа <code>cabinet_diagnostics</code></li>
       <li><code>tests/Feature/Crm/Chat/ChatReverbOverlayFeatureTest.php</code> — бейдж Reverb в <code>admin2</code> (dashboard / чат / настройки) только у superadmin при включённом флаге</li>

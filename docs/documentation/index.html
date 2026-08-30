@@ -28,6 +28,140 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="ops-errors-detail-index">Пульт: ховер текста 500, ViewException, ring-буфер (2026‑08)</h2>
+  <div class="note">
+    В оверлее <b>Пульт</b> (<code>#js-ops-monitors</code>) строка <b>500</b> — три поля
+    за 24 часа reportable-исключений из <code>Handler::report</code>
+    (не HTTP-статус текущей страницы, не <code>my_logs</code>, не <code>laravel.log</code>):
+    счётчик · класс последней (<code>errors.last_class</code>) · самый частый
+    (<code>errors.top_class</code>). HTTP 4xx и CSRF (<code>TokenMismatchException</code>)
+    не пишутся. Окно строки «Вход» по-прежнему 72 часа — этот инкремент его не меняет.
+    <br><br>
+    1) <b>Ховер последней 500.</b> После опроса
+    <code>GET /cabinet/system-monitors/ops</code> у
+    <code>data-role="errors-last"</code> пузырёк <code>KidsCrmTooltip</code> показывает
+    <code>errors.last_message</code> (обрезка 80 символов, без email/телефона/PAN/password).
+    Пишется в <code>title</code> / <code>aria-label</code> через dispose+init, не innerHTML.
+    Первый HTML — подсказка «Класс последней 500…», кэш в разметку не попадает.
+    Пустой <code>last_message</code> и сбой <code>refresh()</code> (сеть / 403) откатывают
+    ховер к подсказке по умолчанию (не leftover). У <code>errors-top</code> текста ошибки нет.
+    Кликов и ссылок на строке 500 нет, отдельной страницы нет.
+    <br>
+    2) <b>ViewException.</b> Laravel Blade и Ignition (<code>ViewException</code> /
+    <code>ViewExceptionWithSolution</code>) разворачиваются по <code>getPrevious()</code>
+    до причины: в last_class/top_class и в ring — класс причины, не обёртка.
+    Если previous нет — остаётся <code>ViewException</code>. Сообщение с
+    <code>(View: …)</code> берём с обёртки, абсолютный <code>base_path</code> режем.
+    Запись в cache — в <code>Handler::report</code> до Ignition-map.
+    <br>
+    3) <b>Ring-буфер.</b> JSON <code>errors.recent</code> — до 20 записей за те же 24 ч
+    (новее сверху): <code>class</code>, <code>message</code>, <code>route</code>,
+    <code>path</code> (<code>getPathInfo()</code> без query), <code>at</code>.
+    Cache <code>ops:errors:recent</code>. Оверлей список <b>не</b> рисует
+    (JS не читает <code>errors.recent</code>). Данные для будущего списка по клику,
+    без страницы сейчас.
+    <br><br>
+    Родительский анонс — <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>,
+    контраст пузырька — <a href="/doc#kids-tooltip-contrast-index">KidsCrmTooltip</a>,
+    подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
+    чат — <a href="/docs/documentation/chat#ops-monitors-overlay">chat §пульт</a>.
+    Тесты: <code>SystemMonitorsOpsAjaxContractFeatureTest</code>,
+    <code>SystemMonitorsOpsUxFeatureTest</code>,
+    <code>SystemMonitorsOpsAccessFeatureTest</code>,
+    <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>SystemMonitorsDocumentationContractTest</code>,
+    <code>OpsErrorsDetailDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="custom-payments-edit-permission-index">Доп. платежи: редактирование без manualPaid.manage (2026‑08)</h2>
+  <div class="note">
+    На <code>/admin/setting-prices/custom-payments</code> право
+    <code>setPrices.manualPaid.manage</code> больше <b>не</b> прячет кнопку
+    <b>«Редактировать»</b>. Оно скрывает только селект «Статус оплаты» в модалке
+    (блок <code>#custom-payment-edit-is-paid-wrap</code>, флаг
+    <code>window.__customPaymentsCanManualPaid</code>).
+    <br><br>
+    1) <b>С <code>setPrices.customPayments.view</code></b> (плюс родительский
+    <code>setPrices.view</code>): вкладка, список, создание, кнопка «Редактировать»,
+    PUT суммы и описания, DELETE неоплаченного. В базовые роли
+    <code>user</code> / <code>admin</code> / <code>trainer</code> <b>не</b> входит.
+    <br>
+    2) <b>Без <code>setPrices.manualPaid.manage</code></b> селект статуса и поле
+    комментария скрыты; в PUT уходит текущий статус. Подмена <code>is_paid</code>
+    в запросе → <b>403</b> <code>errors.is_paid</code>. Legacy
+    <code>POST …/custom-payments/{id}/manual-paid</code> по-прежнему только с этим правом.
+    <br>
+    3) <b>Вкладки «По месяцам» / «По ученикам» не менялись:</b> то же право по-прежнему
+    открывает карандаш / селект ручной оплаты месяца
+    (<code>POST /admin/setting-prices/manual-paid</code>).
+    <br>
+    4) <b>Ответы.</b> PUT/DELETE всегда JSON (в т.ч. без <code>X-Requested-With</code>), не пустой 200.
+    Чужой платёж на PUT — <b>422</b> <code>errors.id</code>. Страница грузит
+    <code>public/js/setting-prices-custom-payments.js</code> (копия Vite-источника).
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>,
+    UI модалки —
+    <a href="/docs/documentation/setting-prices-custom-payments#ui">§3</a>,
+    ежемесячные вкладки —
+    <a href="/docs/documentation/setting-prices-monthly-users#permissions">setting-prices-monthly-users §1</a>.
+    Тесты: <code>CustomPaymentsEditPermissionFeatureTest</code>,
+    <code>CustomPaymentsCrudAccessFeatureTest</code>,
+    <code>SettingPricesSectionFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (<code>custom_payments_edit_js</code>),
+    <code>CustomPaymentsEditPermissionDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="users-contract-create-index">Клиенты: создать договор со списка /admin/users (2026‑08)</h2>
+  <div class="note">
+    На вкладке «Клиенты» (<code>/admin/users</code>) при <code>contracts.view</code>
+    колонка «Договор» — не только просмотр, а создание с этой же страницы.
+    Модалка та же, что на <code>/client-contracts</code> и заявках
+    (<code>contracts/partials/create-modal.blade.php</code>).
+    <br><br>
+    1) <b>Три состояния ячейки</b> по <b>последнему</b> договору партнёра
+    (<code>LatestUserContractLookup</code>): нет договора — кнопка
+    <b>«Создать договор»</b> (<code>js-open-create-contract-from-user</code>, встроенная модалка,
+    страница не меняется); последний статус не <code>signed</code> (черновик, отправлено,
+    ожидает заполнения, отозван и т.д.) — <b>«Посмотреть черновик»</b> →
+    <code>GET /client-contracts/{id}</code>; <code>signed</code> — иконка PDF
+    <code>#0d6efd</code> и ховер <code>@include('partials.ui.tooltip-hint')</code>
+    («Статус: …», scope <code>hint</code>). Пустой ячейки больше нет.
+    <br>
+    2) <b>Из строки клиента</b> ученик предзаполнен и <b>заперт</b>:
+    <code>KidsCrmContractCreate.openModal(preselected, { lockUser: true })</code>.
+    Disabled Select2 не уходит в POST — hidden <code>#user_id_locked</code> с
+    <code>name="user_id"</code>. Тот же <code>lockUser</code> на заявках
+    (оба JS-пути: колонка и модалка лида). Тулбар «Создать» на
+    <code>/client-contracts</code> и query <code>?user_id=</code> поле
+    <b>не</b> запирают.
+    <br>
+    3) <b>После submit</b> успешный <code>POST /client-contracts</code> — 302 на карточку.
+    Ошибки валидации (в т.ч. native POST со страницы клиентов) — 302 на
+    <code>/client-contracts?create=1</code> с <code>errors</code> по полям, не JSON 422
+    и не пустой 200. Списание с баланса — только при успешном store, не при открытии модалки.
+    <br>
+    4) <b>Не путать с заявками.</b> На <code>/admin/school-leads</code> колонка видна при
+    <code>users.view</code> <b>или</b> <code>contracts.view</code>; в JSON лида есть
+    <code>create_contract_url</code>. На <code>/admin/users</code> колонка только при
+    <code>contracts.view</code>; ключа <code>create_contract_url</code> в JSON списка
+    учеников нет. Тип колонки DataTables — <code>actions</code>, не <code>icon</code>.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>,
+    колонка — <a href="/docs/documentation/admin-users#user-contract-column">§2.3</a>,
+    модалка — <a href="/docs/documentation/contracts#contract-create-modal">contracts §5.3</a>,
+    заявки — <a href="/docs/documentation/school-leads-widget#school-lead-contract-inline">school-leads-widget §5.8</a>.
+    Тесты: <code>AdminUsersContractCreateUxFeatureTest</code>,
+    <code>AdminUsersContractCreateAccessFeatureTest</code>,
+    <code>AdminUsersContractCreateFullAccessFeatureTest</code>,
+    <code>AdminUsersContractCreateAjaxContractFeatureTest</code>,
+    <code>AdminUsersContractCreateNonAjaxSafetyNetFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>UsersContractCreateDocumentationContractTest</code>.
+  </div>
+
   <h2 id="kids-tooltip-contrast-index">KidsCrmTooltip: непрозрачный ховер, читаемый текст (2026‑08)</h2>
   <div class="note">
     Пузырёк <code>KidsCrmTooltip</code> (класс <code>ulp-assignment-paid-tooltip</code>:
@@ -108,7 +242,9 @@
     (<code>UserPresence::ONLINE_WITHIN_SECONDS</code>, ровно 120 ещё онлайн, 121 — нет).
     Тот же heartbeat, что у чата: <code>POST /presence/ping</code>.
     Все роли (ученик / тренер / admin / superadmin), все партнёры
-    (сессия <code>current_partner</code> снимок <b>не</b> режет), себя тоже.
+    (сессия <code>current_partner</code> снимок <b>не</b> режет).
+    Зрителя (<code>Auth::id()</code>) в списке нет: <code>total</code> и блоки партнёров без него;
+    другой оператор его видит. Если онлайн только зритель — пустой список («Никого нет онлайн»).
     <code>is_enabled=0</code> входит, если ping свежий. Soft-deleted пользователь — нет.
     Soft-deleted партнёр всё ещё группирует живых (eager <code>withTrashed()</code>).
     <br>
@@ -171,7 +307,8 @@
     <code>/cabinet</code> нет. Не парсим <code>laravel.log</code>.
     <br><br>
     1) <b>Окно.</b> 24 часа для Init <code>failed</code>, чеков
-    <code>error</code>, 500, неверного пароля / 2FA, лида без welcome.
+    <code>error</code>, 500, лида без welcome.
+    Строка «Вход» (неверный пароль / неизвестный email / неверный 2FA) — 72 часа.
     Просроченные выплаты T‑Bank — «уже просрочены», без окна.
     <br>
     2) <b>Строки.</b> Очередь: воркер / cron / <code>jobs</code> /
@@ -182,9 +319,24 @@
     500: reportable-исключения в cache из <code>Handler::report</code>
     (не <code>my_logs</code>): count, last_class, top_class;
     <code>last_message</code> обрезка 80 символов, без email/телефона/PAN.
+    <code>ViewException</code> (и Ignition-обёртка) разворачивается до
+    <code>getPrevious()</code> — в last_class/top_class класс причины, путь blade
+    в сообщении без <code>base_path</code>.
+    Ховер <code>errors-last</code> после опроса показывает <code>last_message</code>
+    (<code>title</code> / <code>KidsCrmTooltip</code> dispose+init, не innerHTML).
+    Ring-буфер <code>errors.recent</code> до 20 записей (class, message, route, path, at),
+    в JSON есть, на экране списка нет, без ссылок и без отдельной страницы.
+    path — <code>getPathInfo()</code> без query.
+    Инкремент ховера / unwrap / ring —
+    <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a>.
     Шлюзы: last ok / last fail T‑Bank, sms.ru, CloudKassir
-    (пометки в cache на HTTP). Вход: неверный пароль, неверный код 2FA.
-    Неизвестный email не считает. Истёкший или не сгенерированный код 2FA
+    (пометки в cache на HTTP). Вход за 72 ч: неверный пароль и неизвестный email,
+    неверный код 2FA. Ховер — последние попытки
+    (<code>auth.recent_logins</code> / <code>auth.recent_2fa</code>:
+    email, пароль или код, IP, время); пароль и код только в cache пульта,
+    не в <code>my_logs</code>. Неуспешный вход в журнал —
+    <code>auth.login_failed</code> (email, IP, UA, без пароля).
+    Истёкший или не сгенерированный код 2FA
     не считает. HTTP 4xx и CSRF (<code>TokenMismatchException</code>)
     в счётчик 500 не пишутся.
     Welcome: лид → клиент за 24 ч без
@@ -210,8 +362,12 @@
     Первый HTML — «…» во всех <code>data-role</code> (и при выключенном флаге).
     Опрос раз в 5 с, только пока переключатель включён.
     Сбой fetch / HTTP не-ok (в том числе 403) через реальный
-    <code>refresh()</code> очищает цифры («—»), не оставляет прошлые.
-    Числа через <code>textContent</code>.
+    <code>refresh()</code> очищает цифры («—») и ховер <code>errors-last</code>
+    / <code>auth-logins</code> / <code>auth-2fa</code>
+    (не leftover <code>last_message</code> и не leftover пароля/кода).
+    Числа через <code>textContent</code>, ховер — <code>title</code> не innerHTML.
+    JSON <code>errors.recent</code> клиент не рисует. Первый HTML пульта
+    не печатает cache пароля.
     <br><br>
     Подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
     очереди — <a href="/docs/documentation/queues-monitoring">queues-monitoring</a>,
@@ -219,6 +375,7 @@
     Тесты: <code>SystemMonitorsOpsFeatureTest</code>,
     <code>SystemMonitorsOpsAccessFeatureTest</code>,
     <code>SystemMonitorsOpsAjaxContractFeatureTest</code>,
+    <code>SystemMonitorsOpsAuthAttemptsFeatureTest</code>,
     <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code>,
     <code>SystemMonitorsOpsUxFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest</code>.
@@ -1154,7 +1311,8 @@
     Form Request <code>OnlineUsersMonitorRequest</code>).
     Онлайн = <code>users.last_seen_at</code> не старше 120 секунд
     (<code>UserPresence::ONLINE_WITHIN_SECONDS</code>), все роли,
-    все партнёры, в том числе <code>is_enabled=0</code>, без soft-deleted.
+    все партнёры, в том числе <code>is_enabled=0</code>, без soft-deleted,
+    без зрителя (<code>Auth::id()</code>).
     JSON: <code>ok</code>, <code>total</code>, <code>partners[]</code>
     (<code>title</code> + <code>count</code> + <code>users[].name</code> — фамилия имя).
     Без <code>partner_id</code> — блок «Без партнёра». Гость — редирект/401,
@@ -1170,7 +1328,9 @@
     <code>/cabinet/system-monitors/ops</code>
     (<code>cabinet.system-monitors.ops</code>,
     Form Request <code>OpsMonitorRequest</code>,
-    <code>OpsMonitor::snapshot()</code>). Окно 24 ч. Все партнёры.
+    <code>OpsMonitor::snapshot()</code>). Окно 24 ч (вход — 72 ч). Все партнёры.
+    Ховер последней 500 — <code>last_message</code>
+    (<a href="/doc#ops-errors-detail-index">анонс ховера / ViewException / ring</a>).
     Опрос раз в 5 с. Подробно — <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>.
     <br><br>
     Подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
@@ -3929,7 +4089,9 @@
     <code>user</code> / <code>admin</code> / <code>trainer</code>
     (<code>config/role_base_permissions.php</code>). Уже выданные строки в <code>permission_role</code> у существующих
     партнёров <b>не снимаются</b>. Без права нет вкладки/API доп. платежей и блока на
-    <code>/cabinet</code>. Подробно —
+    <code>/cabinet</code>. Редактирование суммы/описания и удаление неоплаченного — тоже это право;
+    <code>setPrices.manualPaid.manage</code> на этой вкладке скрывает только селект статуса
+    (<a href="/doc#custom-payments-edit-permission-index">анонс</a>). Подробно —
     <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>.
     <br><br>
     2) <b><code>setPrices.packageAssignments.view</code></b> — новое невидимое право (<code>is_visible = 0</code>,
@@ -4396,7 +4558,7 @@
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
-    <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
+    <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, <b>автособытие «ученик добавил группу»</b> (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer школы; <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
     <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
@@ -4439,13 +4601,13 @@
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата)</a></li>
-    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
+    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
-    <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
-    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
+    <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
+    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы (<code>lockUser</code>, на клиентах — <a href="/doc#users-contract-create-index">анонс</a>), <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
     <li><a href="/docs/documentation/tests-standards">Требования к единообразию Feature‑тестов (партнёр, авторизация, права, <b>фикстуры юр. лиц T‑Bank/CloudKassir</b>, <b>лог последнего PHPUnit</b> — <a href="/doc#phpunit-last-log-index">анонс</a>)</a></li>

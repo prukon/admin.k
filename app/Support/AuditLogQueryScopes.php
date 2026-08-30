@@ -21,13 +21,15 @@ final class AuditLogQueryScopes
     }
 
     /**
-     * Исключить входы в систему (auth.login).
+     * Исключить входы в систему (auth.login, auth.login_failed).
      */
     public static function applyHideAuthorizations(Builder $query): void
     {
-        $query->where(function (Builder $keep) {
+        $loginEvents = AuditEvent::loginEventValues();
+
+        $query->where(function (Builder $keep) use ($loginEvents) {
             $keep->whereNull('my_logs.event')
-                ->orWhere('my_logs.event', '!=', AuditEvent::AuthLogin->value);
+                ->orWhereNotIn('my_logs.event', $loginEvents);
         });
     }
 

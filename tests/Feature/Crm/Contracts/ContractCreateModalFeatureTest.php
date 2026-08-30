@@ -39,6 +39,9 @@ class ContractCreateModalFeatureTest extends ContractsFeatureTestCase
             ->assertSee('id="contractCreateHowItWorks"', false)
             ->assertSee('theme: \'bootstrap-5\'', false)
             ->assertSee('name="creation_mode"', false)
+            ->assertSee('setContractUserSelectLocked', false)
+            ->assertSee('lockUser', false)
+            ->assertSee('id="user_id_locked"', false)
             ->assertDontSee('form-check-inline', false);
     }
 
