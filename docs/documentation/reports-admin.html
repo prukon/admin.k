@@ -578,12 +578,14 @@
     Журнал исходящих писем CRM. <b>Superadmin</b> видит все партнёры (+ опциональный фильтр <code>partner_id</code>); остальные с <code>reports.emails.view</code> — только свой партнёр (фильтр скрыт). Паритет с чеками / payment intents — см. <a href="#partner-filter-cross-report">§2.4</a>.
     С <b>2026‑07</b> — модалка просмотра без ухода со списка, колонки «Создано»/«Отправлено» в формате <code>datetime</code>, кликабельная колонка «Кому», HTML-тело в iframe (не экранированный исходник).
     Welcome-письма ученикам (<code>ClientWelcomeCredentialsMail</code>) попадают сюда после конвертации лида и resend — см. <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>.
+    Пульт Welcome читает этот журнал: нужен <code>mailable_class</code> или (у старых строк без класса) тема «Доступ в личный кабинет…» —
+    <a href="/doc#ops-welcome-mailable-index">анонс /doc#ops-welcome-mailable-index</a>.
   </div>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/emails</code> (вкладка <code>activeTab=emails</code> в <code>admin/report/index.blade.php</code>; middleware <code>can:reports.emails.view</code>)</li>
     <li><b>DataTables</b>: <code>GET /admin/reports/emails/data</code> — только AJAX (<code>X-Requested-With</code> или <code>$request-&gt;ajax()</code>); без AJAX → <b>404</b>. UI: <code>KidsCrmDataTable.create('#emails-table')</code></li>
     <li><b>Счётчики</b>: <code>GET /admin/reports/emails/total</code> (JSON: <code>total_*</code>, <code>sent_*</code>, <code>failed_*</code> по тому же partner-scope и фильтрам, что таблица)</li>
-    <li><b>Источник записей</b>: листенер <code>App\Listeners\LogOutgoingEmail</code> на <code>MessageSending</code> / <code>MessageSent</code>; <code>partner_id</code> — из заголовка <code>X-Partner-Id</code> на Mailable (приоритет) или из <code>PartnerContext</code> в web-запросе. Таблица БД: <code>outgoing_email_logs</code>.</li>
+    <li><b>Источник записей</b>: листенер <code>App\Listeners\LogOutgoingEmail</code> на <code>MessageSending</code> / <code>MessageSent</code>; <code>partner_id</code> — из заголовка <code>X-Partner-Id</code> на Mailable (приоритет) или из <code>PartnerContext</code> в web-запросе. <code>mailable_class</code> для Mailable — из <code>__laravel_mailable</code> (<code>Mailable::buildViewDataUsing</code> в <code>EventServiceProvider</code>; Laravel 10 сам ключ не ставит) или из заголовка <code>X-Mailable-Class</code>. <code>Mail::raw</code> без заголовка — <code>mailable_class</code> null. Старые строки без класса не бэкфиллим. Таблица БД: <code>outgoing_email_logs</code>. Колонка «Класс» в таблице берёт это поле (плюс <code>notification_class</code> в сортировке/фильтре). Пульт Welcome: класс welcome <b>или</b> <code>NULL</code> + префикс темы — <a href="/doc#ops-welcome-mailable-index">анонс</a>.</li>
     <li><b>Select2</b>:
       <ul>
         <li><code>GET /admin/reports/emails/partners-search</code> → <code>{ results: [{id, text}] }</code> (Request <code>PaymentsReportSelect2SearchRequest</code>)</li>
@@ -720,7 +722,8 @@
     <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php</code> — §1.1 персональный page_length на payments / monthly / LTV / intents / fiscal / payouts; UX повторного открытия и открытия с фильтрами; вложенные LTV/monthly остаются на 10 после сохранения N; N одной таблицы не течёт в другую; 422/302 по полям; гость/403; debts/emails без opt-in</li>
     <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFullAccessFeatureTest.php</code> — гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405</li>
     <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code> — фильтр <code>filter_location_id</code> и доступ (monthly, LTV, debts)</li>
-    <li><code>tests/Feature/Crm/Reports/OutgoingEmailReportTest.php</code> — permission, totals/data с partner_id, columns-settings, show (modal partial, HTML iframe), listener</li>
+    <li><code>tests/Feature/Crm/Reports/OutgoingEmailReportTest.php</code> — permission, totals/data с partner_id, columns-settings, show (modal partial, HTML iframe), listener (raw без класса; Mailable пишет <code>mailable_class</code>)</li>
+    <li><code>tests/Feature/Crm/Reports/LogOutgoingEmailMailableClassFeatureTest.php</code> — тип письма в журнале: welcome / sibling / payment, <code>Mail::raw</code>, заголовок <code>X-Mailable-Class</code></li>
     <li><code>tests/Feature/Crm/Reports/OutgoingEmailsPageFullAccessFeatureTest.php</code> — guest/403/smoke всех endpoint'ов (в т.ч. partners-search), UI фильтра/колонки partner, datetime/link, foreign log 403 для admin, data без AJAX 404</li>
     <li><code>tests/Feature/Crm/Reports/OutgoingEmailsNonAjaxSafetyNetFeatureTest.php</code> — columns-settings non-AJAX/AJAX, partners-search 422/JSON, validation 302/422, modal show contract</li>
     <li><code>tests/Feature/Crm/Reports/FiscalReceiptsPageFullAccessFeatureTest.php</code> — guest/403/smoke чеков, UI фильтра partner, columns-settings AJAX/non-AJAX</li>

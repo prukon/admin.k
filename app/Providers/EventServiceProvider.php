@@ -5,7 +5,7 @@ namespace App\Providers;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Illuminate\Support\Facades\Event;
+use Illuminate\Mail\Mailable;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -36,7 +36,13 @@ class EventServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Laravel 10 не кладёт класс Mailable в MessageSending::$data.
+        // Без этого outgoing_email_logs.mailable_class всегда null — пульт Welcome врёт.
+        Mailable::buildViewDataUsing(static function (Mailable $mailable): array {
+            return [
+                '__laravel_mailable' => $mailable::class,
+            ];
+        });
     }
 
     /**

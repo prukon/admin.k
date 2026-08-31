@@ -81,6 +81,19 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * Сессия / login / 403: login и errors/403 без AJAX-submit; admin2 — leftover inline.
+     * Пустой набор script не провал (в отличие от criticalModalBladePathsProvider).
+     *
+     * @return iterable<string, array{0: string}>
+     */
+    public static function sessionLifetimeBladePathsProvider(): iterable
+    {
+        yield 'login page remember checkbox' => ['auth/login.blade.php'];
+        yield 'forbidden page guest layout' => ['errors/403.blade.php'];
+        yield 'admin2 layout leftover inline scripts' => ['layouts/admin2.blade.php'];
+    }
+
+    /**
      * P1: модалка «Добавить группу» в ЛК — AJAX-контракт (preventDefault, fetch, errors.team_id, reload).
      */
     public function test_admin_and_landing_layouts_do_not_embed_fontawesome_kit_and_inline_scripts_are_valid(): void
@@ -110,6 +123,50 @@ final class BladeInlineJsSyntaxTest extends TestCase
             'showModalQueued',
             'blade-js-landing-modals'
         );
+
+        $admin2 = (string) file_get_contents(resource_path('views/layouts/admin2.blade.php'));
+        $this->assertStringContainsString('auth()->user()?->role?->label', $admin2);
+        $this->assertStringNotContainsString('optional(auth()->user()->role)', $admin2);
+    }
+
+    public function test_login_blade_remember_default_is_not_forced_after_old_input_and_is_not_ajax_submit(): void
+    {
+        $path = resource_path('views/auth/login.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="remember"', $content);
+        $this->assertStringContainsString('name="remember"', $content);
+        $this->assertStringContainsString(
+            "session()->hasOldInput() ? (old('remember') ? 'checked' : '') : 'checked'",
+            $content
+        );
+        $this->assertStringNotContainsString("old('remember', true)", $content);
+        $this->assertStringContainsString('method="POST"', $content);
+        $this->assertStringContainsString("route('login')", $content);
+        $this->assertStringNotContainsString('preventDefault', $content);
+        $this->assertStringNotContainsString('$.ajax', $content);
+        $this->assertStringNotContainsString('fetch(', $content);
+        $this->assertSame(1, substr_count($content, 'id="remember"'));
+        $this->assertSame(1, substr_count($content, "form method=\"POST\""));
+    }
+
+    public function test_forbidden_page_blade_guest_layout_contract_has_no_ajax_submit(): void
+    {
+        $path = resource_path('views/errors/403.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString(
+            "@extends(auth()->check() ? 'layouts.admin2' : 'layouts.app')",
+            $content
+        );
+        $this->assertStringContainsString("route('login')", $content);
+        $this->assertStringContainsString('Войти', $content);
+        $this->assertStringContainsString('На главную', $content);
+        $this->assertStringNotContainsString('preventDefault', $content);
+        $this->assertStringNotContainsString('$.ajax', $content);
+        $this->assertStringNotContainsString('fetch(', $content);
     }
 
     public function test_cabinet_attach_team_modal_ajax_contract_and_valid_javascript(): void
@@ -2368,12 +2425,20 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("ops-monitors__label\">Шлюзы", $content);
         $this->assertStringContainsString("ops-monitors__label\">Вход", $content);
         $this->assertStringContainsString("ops-monitors__label\">Welcome", $content);
+        $this->assertStringContainsString("data-role=\"welcome-count\"", $content);
+        $this->assertStringContainsString("data-role=\"welcome-user\"", $content);
         $this->assertStringContainsString('function workerLabel(', $content);
         $this->assertStringContainsString('function schedulerLabel(', $content);
         $this->assertStringContainsString('function formatAge(', $content);
         $this->assertStringContainsString("setText('queue-worker'", $content);
+        $this->assertStringContainsString("setText('welcome-count'", $content);
         $this->assertStringContainsString("setText('welcome-user'", $content);
+        $this->assertStringContainsString('countTone(welcome.missing_count)', $content);
         $this->assertStringContainsString("welcome.last_user_id", $content);
+        $this->assertStringContainsString("welcome.last_user_id ? ('#' + welcome.last_user_id) : '—'", $content);
+        $this->assertStringNotContainsString('welcome.email', $content);
+        $this->assertStringContainsString("setText('welcome-count', '—', 'is-muted')", $content);
+        $this->assertStringContainsString("setText('welcome-user', '—', 'is-muted')", $content);
         $this->assertStringContainsString('function setHint(', $content);
         $this->assertStringContainsString("setHint('errors-last'", $content);
         $this->assertStringContainsString("setHint('auth-logins'", $content);
@@ -5444,6 +5509,48 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 $exitCode,
                 "JS syntax error in {$path}:\n".implode("\n", $output)
             );
+        }
+    }
+
+    #[DataProvider('sessionLifetimeBladePathsProvider')]
+    public function test_session_lifetime_blades_inline_scripts_have_valid_javascript_syntax(string $relativePath): void
+    {
+        $path = resource_path('views/'.$relativePath);
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+
+        if ($matches[1] === []) {
+            return;
+        }
+
+        foreach ($matches[1] as $index => $rawScript) {
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            if (trim($js) === '') {
+                continue;
+            }
+
+            $tempFile = sys_get_temp_dir().'/blade-js-session-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in %s, script block #%d:\n%s\n--- script preview ---\n%s",
+                        $relativePath,
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 500)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
         }
     }
 

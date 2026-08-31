@@ -467,7 +467,17 @@
     (пароль только в cache, не в <code>my_logs</code>; журнал —
     <code>auth.login_failed</code>).
     HTTP 4xx / CSRF в 500 не пишутся. Welcome <code>STATUS_FAILED</code>
-    всё ещё missing. 500 пишутся из <code>Handler::report</code> в cache, не из <code>my_logs</code>
+    всё ещё missing. Успешный welcome: <code>mailable_class</code> =
+    <code>ClientWelcomeCredentialsMail</code> или пустой класс + тема
+    «Доступ в личный кабинет» и email в <code>to_summary</code>
+    (старые логи без типа; бэкфилла нет).
+    <code>LogOutgoingEmail</code> пишет класс из <code>__laravel_mailable</code>
+    (<code>Mailable::buildViewDataUsing</code> в <code>EventServiceProvider</code>).
+    JSON <code>welcome</code> — <code>missing_count</code> / <code>last_user_id</code>, без email.
+    Sibling-письмо и чужой Mailable строку не закрывают.
+    Анонс учёта Welcome —
+    <a href="/doc#ops-welcome-mailable-index">/doc#ops-welcome-mailable-index</a>.
+    500 пишутся из <code>Handler::report</code> в cache, не из <code>my_logs</code>
     и не из <code>laravel.log</code>. <code>ViewException</code> разворачивается до причины
     (<code>getPrevious()</code>); ховер последней 500 — <code>last_message</code>.
     JSON <code>errors.recent</code> (до 20, route/path без query) — без списка на экране
@@ -476,7 +486,8 @@
     (сеть / 403) ставит «—» и откатывает ховер <code>last_message</code>
     и пароль/код входа, не leftover.
     <a href="/doc#ops-monitors-overlay-index">анонс оверлея «Пульт»</a>,
-    <a href="/doc#ops-errors-detail-index">анонс ховера 500</a>.</p>
+    <a href="/doc#ops-errors-detail-index">анонс ховера 500</a>,
+    <a href="/doc#ops-welcome-mailable-index">анонс Welcome / типа письма</a>.</p>
 
   <h2>9) Feature-тесты</h2>
   <div class="note">
@@ -516,7 +527,12 @@
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersNonAjaxSafetyNetFeatureTest.php</code> — нативный GET JSON не HTML-страница, POST/PATCH/DELETE HTML и JSON 405</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersUxFeatureTest.php</code> — первый кадр с пустым списком (и при выкл. флаге); cabinet/чат/настройки; XSS-экранирование ФИО; ошибка fetch / 403 снимает людей; повторное включение не плодит второй poller</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsFeatureTest.php</code> — GET пульта: гость/403/200, стек над онлайном и Reverb, опрос только при включённом флаге</li>
-      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAjaxContractFeatureTest.php</code> — JSON 500/шлюзы без email/password/PAN; вход 72 ч, <code>auth.recent_logins</code> с введёнными email/паролем/IP; <code>auth.login_failed</code> без пароля; окно 24 ч остальное, все партнёры, Handler 500 vs 4xx/CSRF, <code>ViewException</code> unwrap / без previous / вложенная / Ignition, ring <code>errors.recent</code> (20, 24 ч, path без query), битый cache не 500, ученик с правом видит recent без PII в 500, cache шлюзов на Http::fake, неизвестный email считается, неверный/истёкший 2FA, welcome без/с письмом и STATUS_FAILED, compact vs full overdue</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAjaxContractFeatureTest.php</code> — JSON 500/шлюзы без email/password/PAN; вход 72 ч, <code>auth.recent_logins</code> с введёнными email/паролем/IP; <code>auth.login_failed</code> без пароля; окно 24 ч остальное, все партнёры, Handler 500 vs 4xx/CSRF, <code>ViewException</code> unwrap / без previous / вложенная / Ignition, ring <code>errors.recent</code> (20, 24 ч, path без query), битый cache не 500, ученик с правом видит recent без PII в 500, cache шлюзов на Http::fake, неизвестный email считается, неверный/истёкший 2FA, welcome без/с письмом и STATUS_FAILED, sent без <code>mailable_class</code> по теме «Доступ в личный кабинет», чужой mailable / другая тема — missing, compact vs full overdue</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsWelcomeAccountingFeatureTest.php</code> — ложный «нет письма» у 9 клиентов с <code>sent</code> без типа; реально missing; SMTP sent без <code>notifiable_id</code>; «Имя &lt;email&gt;»; статус sending; last_user_id; чужая школа; create из лида AJAX и native POST → пульт 0; 403/гость без id и email</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsWelcomeAccountingUxFeatureTest.php</code> — первый кадр Welcome «…» не «9»; login без строки; paint 0 не #470; paint 9 + #id; 403 сбрасывает leftover 9; missing_count 0 рисует «0» не «—»</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest.php</code> — гость / 403 / 200 JSON и native GET welcome без email; trainer/ученик с правом; POST/PATCH/PUT/DELETE не пустой 200</li>
+      <li><code>tests/Feature/Crm/Reports/LogOutgoingEmailMailableClassFeatureTest.php</code> — welcome/sibling/payment пишут <code>mailable_class</code>; <code>Mail::raw</code> без типа; заголовок <code>X-Mailable-Class</code></li>
+      <li><code>tests/Unit/Documentation/OpsWelcomeMailableDocumentationContractTest.php</code> — анонс <code>/doc#ops-welcome-mailable-index</code> не противоречит коду</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAuthAttemptsFeatureTest</code> — неуспешный вход/2FA: 302 <code>errors.password</code> / <code>errors.email</code>, AJAX не пустой 200, пустые поля 422 без счётчика, успешный вход не считает, гость 2FA не считает, 422 <code>errors.code</code>, пароль только в JSON пульта, не в <code>my_logs</code>; 403 без утечки пароля; нативный GET recent; ring 40 / 72 ч; hide_authorizations</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsNonAjaxSafetyNetFeatureTest.php</code> — нативный GET JSON не HTML (dashboard и чат), recent в JSON, POST/PATCH/DELETE 405</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsUxFeatureTest.php</code> — первый кадр все data-role «…» и подсказки 72 ч; cached last_message и typed password не в HTML; строка 500 без ссылок; cabinet/чат/настройки; флаг выкл; чужой суперадмин; ошибка refresh() (сеть/403) ставит «—» и откатывает ховер last_message и пароля входа; пустой last_message / пустой recent_logins не leftover; ховер errors-last и auth-logins/auth-2fa через title; XSS пароля в title не innerHTML; «нет email» только если user_found=false; один poller; XSS через textContent / title не innerHTML; жив/cron/возраст/#id</li>

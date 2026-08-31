@@ -759,7 +759,10 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     Чекбокс <code>send_welcome_email</code> из ручного «Добавить» здесь <b>не</b> используется — см. <a href="/docs/documentation/admin-users#user-welcome-manual-create">admin-users §5.1.4</a>.
     Повторная отправка пароля уже созданному ученику с email — из модалки edit на <a href="/docs/documentation/admin-users#user-welcome-credentials">/admin/users</a>
     (успех — toast <code>window.showToast</code>, не <code>showSuccessModal</code>).
-    Письма попадают в отчёт <a href="/docs/documentation/reports-admin#reports-outgoing-emails">«Исходящие письма»</a>.
+    Письма попадают в отчёт <a href="/docs/documentation/reports-admin#reports-outgoing-emails">«Исходящие письма»</a>
+    с <code>mailable_class</code> (welcome или sibling). Пульт Welcome закрывает только credentials-письмо
+    (или старую тему «Доступ в личный кабинет» без типа) —
+    <a href="/doc#ops-welcome-mailable-index">анонс</a>; sibling-уведомление строку не закрывает.
     Backend: <code>FamilyStudentLoginResolver</code>, <code>ClientWelcomeCredentialsService</code>, <code>UserController::store</code>. Подробный контракт — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>.
   </div>
   <ul>
@@ -768,7 +771,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li>Если <code>parent_email</code> занят учёткой не из этой семьи (другой <code>parent_id</code> / не ученик) — 422 на <code>parent_email</code>.</li>
     <li>Ошибка отправки письма не откатывает создание ученика: <code>welcome_email_sent: false</code>, в <code>message</code> — предупреждение.</li>
   </ul>
-  <p class="small">Тесты: <code>SchoolLeadClientWelcomeCredentialsFeatureTest.php</code>, <code>FamilyStudentLoginOnCreateFeatureTest.php</code>, <code>ClientWelcomeCredentialsFullAccessFeatureTest.php</code>, <code>ClientWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code>; синтаксис JS — <code>BladeInlineJsSyntaxTest</code> (<code>leads.blade.php</code>).</p>
+    <p class="small">Тесты: <code>SchoolLeadClientWelcomeCredentialsFeatureTest.php</code>, <code>FamilyStudentLoginOnCreateFeatureTest.php</code>, <code>ClientWelcomeCredentialsFullAccessFeatureTest.php</code>, <code>ClientWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code>, <code>SystemMonitorsOpsWelcomeAccountingFeatureTest.php</code>; синтаксис JS — <code>BladeInlineJsSyntaxTest</code> (<code>leads.blade.php</code>).</p>
   <p class="small">Отдельного маршрута у заявок для создания клиента нет. Partial <code>includes/modal/createUser.blade.php</code> на странице заявок <b>не подключается</b> (используется только на <a href="/docs/documentation/admin-users">/admin/users</a>).</p>
 
   <h3 id="school-lead-contract-inline">5.8) Создание договора без ухода со страницы заявок</h3>

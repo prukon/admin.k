@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Сессия 30 дней, «Запомнить меня», страница 403</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Сессия 30 дней, «Запомнить меня», страница 403</h1>
+  <div class="small">Файл: <code>/docs/documentation/session-lifetime.html</code>
+    · анонс: <a href="/doc#session-lifetime-index">/doc</a></div>
+
+  <div class="note">
+    <b>Кратко.</b> Idle-сессия <code>SESSION_LIFETIME=43200</code> (30 суток), драйвер по-прежнему
+    <code>file</code>. На <code>/login</code> галка «Запомнить меня» включена с первого показа.
+    HTML <code>403</code> для гостя — <code>layouts.app</code>, не кабинетный <code>admin2</code>
+    (иначе <code>auth()->user()->role</code> на <code>null</code> превращал 403 в 500).
+    Redis/БД для сессий этот инкремент <b>не</b> вводит.
+  </div>
+
+  <h2 id="lifetime">1) Срок сессии</h2>
+  <ul>
+    <li><code>config/session.php</code>: <code>lifetime</code> = <code>(int) env('SESSION_LIFETIME', 43200)</code>.</li>
+    <li>43200 минут = 30 суток <b>бездействия</b>. Закрытие браузера сессию не убивает
+      (<code>expire_on_close</code> = <code>false</code>).</li>
+    <li>Пока открыта вкладка кабинета, <code>POST /presence/ping</code> раз в минуту сдвигает mtime файла сессии.</li>
+    <li>Драйвер <code>SESSION_DRIVER=file</code>, каталог <code>storage/framework/sessions</code>.
+      Сборщик лотереи <code>[2, 100]</code> без изменений.</li>
+  </ul>
+
+  <h2 id="remember">2) «Запомнить меня»</h2>
+  <ul>
+    <li>Форма <code>resources/views/auth/login.blade.php</code>, чекбокс <code>#remember</code> / <code>name="remember"</code>.</li>
+    <li>Первый GET <code>/login</code> — атрибут <code>checked</code> (без <code>old()</code>).</li>
+    <li>После редиректа с <code>withInput()</code> (<code>session()->hasOldInput()</code>):
+      галка как в POST. Сняли и ошиблись в пароле — остаётся снятой.
+      <code>old('remember')</code> без <code>hasOldInput()</code> снова включил бы галку.</li>
+    <li>Сервер: <code>AuthenticatesUsers</code> / <code>$request->boolean('remember')</code>.
+      Поля нет — remember-cookie не ставится. Поле есть — cookie recaller ~400 дней
+      (<code>SessionGuard</code> <code>rememberDuration</code> 576000 минут).</li>
+  </ul>
+
+  <h2 id="forbidden">3) Страница 403</h2>
+  <ul>
+    <li><code>resources/views/errors/403.blade.php</code>:
+      <code>@extends(auth()->check() ? 'layouts.admin2' : 'layouts.app')</code>.</li>
+    <li>Гость: лейаут логина, кнопка «Войти» на <code>route('login')</code>,
+      <code>noindex, nofollow</code> через <code>@push('meta')</code>.</li>
+    <li>Залогиненный: кабинетный лейаут, кнопка «На главную» на <code>/</code>.</li>
+    <li>Сайдбар <code>admin2</code>: <code>auth()->user()?->role?->label</code>
+      (не <code>optional(auth()->user()->role)</code> — тот всё равно читает <code>-&gt;role</code> у <code>null</code>).</li>
+    <li>Типичный продовый каскад до фикса: протухшая сессия →
+      <code>POST /broadcasting/auth</code> без пользователя →
+      <code>AccessDeniedHttpException</code> 403 → рендер HTML 403 через <code>admin2</code> →
+      <code>ErrorException</code> «Attempt to read property "role" on null» в пульт как 500.
+      HTTP 403 по-прежнему не пишется в строку 500 пульта (<code>Handler</code> режет 4xx).</li>
+  </ul>
+
+  <h2>4) Тесты</h2>
+  <ul>
+    <li><code>tests/Feature/Crm/Auth/SessionLifetimeFeatureTest.php</code> — дефолт <code>config/session.php</code> 43200, <code>expire_on_close=false</code>.</li>
+    <li><code>LoginRememberAccessFeatureTest</code> — гость видит форму; залогиненный → <code>/cabinet</code>; вход без CRM-права.</li>
+    <li><code>LoginRememberAjaxContractFeatureTest</code> — JSON: пустые поля 422 <code>errors.email</code>/<code>errors.password</code>; неверный email/пароль — ошибка поля (302 или 422); успех 204, не пустой 200.</li>
+    <li><code>LoginRememberNonAjaxSafetyNetFeatureTest</code> — native POST 302, сессия/recaller, <code>errors</code> по полям.</li>
+    <li><code>LoginRememberUxFeatureTest</code> — <code>#remember</code> checked с первого GET; после old input без галки не включается; ошибки под полями; порядок email → password → remember.</li>
+    <li><code>LoginRememberFullAccessFeatureTest</code> — матрица GET/POST/PATCH/PUT/DELETE /login и /logout, JSON и HTML.</li>
+    <li><code>Http403AccessFeatureTest</code> — гость <code>/broadcasting/auth</code> 403 (не редирект на логин); свой inbox 200; чужой 403; без <code>messages.view</code> свой канал всё равно 200.</li>
+    <li><code>Http403AjaxContractFeatureTest</code> — JSON 403 без HTML 500; свой канал 200 JSON.</li>
+    <li><code>Http403NonAjaxSafetyNetFeatureTest</code> — Echo-like POST без <code>Accept: application/json</code>: HTML 403, не пустой 200.</li>
+    <li><code>Http403UxFeatureTest</code> — гость <code>layouts.app</code>; залогиненный admin2; пульт <code>errors.count</code> не растёт; nullsafe <code>role</code>.</li>
+    <li><code>Http403FullAccessFeatureTest</code> — матрица методов /broadcasting/auth.</li>
+    <li><code>BladeInlineJsSyntaxTest</code> — <code>sessionLifetimeBladePathsProvider</code> (login, 403, admin2), контракт remember/403 без AJAX-submit.</li>
+    <li><code>tests/Unit/Documentation/SessionLifetimeDocumentationContractTest.php</code></li>
+  </ul>
+</div>
+</body>
+</html>

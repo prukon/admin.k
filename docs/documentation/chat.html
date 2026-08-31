@@ -1084,7 +1084,9 @@
   <h2 id="ops-monitors-overlay">5.3) Оверлей «Пульт» (системные мониторы)</h2>
   <p>Анонс на главной: <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a>,
     ховер 500 / ViewException / ring —
-    <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a>.
+    <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a>,
+    Welcome / тип письма —
+    <a href="/doc#ops-welcome-mailable-index">/doc#ops-welcome-mailable-index</a>.
     Не путать с §<a href="#online-users-overlay">5.2</a> (список людей) и §<a href="#reverb-overlay">5.1</a> (бейдж процесса/сокета).</p>
   <ol>
     <li>Стек <code>#system-monitors-stack</code>:
@@ -1098,10 +1100,15 @@
     <li><code>GET /cabinet/system-monitors/ops</code>: JSON <code>ok</code> /
       <code>window_hours</code> / <code>queue</code> / <code>till</code> /
       <code>errors</code> / <code>gateways</code> / <code>auth</code> /
-      <code>welcome</code>. Гость 302/401, без права 403, мутации 405.
+      <code>welcome</code> (<code>missing_count</code>, <code>last_user_id</code>, без email).
+      Гость 302/401, без права 403, мутации 405.
       Нативный GET — JSON. Флаг GET не закрывает. Окно 24 ч (вход — 72 ч), все партнёры.
       Неизвестный email считается. Истёкший 2FA не считает. Ховер входа —
-      <code>auth.recent_logins</code> / <code>auth.recent_2fa</code>. 4xx/CSRF не в 500.</li>
+      <code>auth.recent_logins</code> / <code>auth.recent_2fa</code>. 4xx/CSRF не в 500.
+      Welcome: успех — <code>STATUS_SENT</code> и класс
+      <code>ClientWelcomeCredentialsMail</code> или пустой класс + тема
+      «Доступ в личный кабинет»; <code>sending</code> / <code>STATUS_FAILED</code>
+      и sibling-письмо — missing. Первый кадр «…»; сбой refresh — «—», не leftover цифры.</li>
     <li>Клиент опрашивает раз в 5 с только при включённом переключателе.
       Первый кадр «…» во всех <code>data-role</code>. Сбой <code>refresh()</code>
       (сеть / 403) ставит «—» и откатывает ховер <code>last_message</code>

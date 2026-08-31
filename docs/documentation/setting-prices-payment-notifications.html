@@ -199,6 +199,7 @@
     <li>Фильтр UI «Категория» → <code>email_category=payment_notification</code>
       → <code>outgoing_email_logs.mailable_class = App\Mail\PaymentNotificationMail</code>.</li>
     <li>Нужно право <code>reports.emails.view</code> (отдельно от уведомлений).</li>
+    <li>Класс в журнале пишет листенер исходящих (не диспетчер уведомлений) — см. <a href="/doc#ops-welcome-mailable-index">анонс mailable_class</a>.</li>
     <li>Query: <code>/admin/reports/emails?email_category=payment_notification</code>.</li>
     <li>Подробно — <a href="/docs/documentation/reports-admin#reports-outgoing-emails-filters">reports-admin §8.1</a>.</li>
   </ul>

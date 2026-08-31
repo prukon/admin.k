@@ -56,6 +56,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('OpsMonitor::snapshot()', $chunk);
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $chunk);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
         $this->assertStringContainsString('last_message', $chunk);
         $this->assertStringContainsString('вход — 72 ч', $chunk);
         $this->assertStringContainsString('KidsCrmTooltip', $chunk);
@@ -77,6 +78,10 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOpsAjaxContractFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsNonAjaxSafetyNetFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsUxFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingUxFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest', $chunk);
+        $this->assertStringContainsString('LogOutgoingEmailMailableClassFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsPermissionCatalogFeatureTest', $chunk);
         $this->assertStringContainsString('DashboardCabinetDiagnosticsFeatureTest', $chunk);
         $this->assertStringContainsString('ChatReverbOverlayFeatureTest', $chunk);
@@ -166,6 +171,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('last_message', $chunk);
         $this->assertStringContainsString('getPathInfo()', $chunk);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
         $this->assertStringContainsString('last_message', $chunk);
         $this->assertStringContainsString('innerHTML', $chunk);
         $this->assertStringContainsString('leftover', $chunk);
@@ -178,12 +184,21 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('textContent', $chunk);
         $this->assertStringContainsString('ClientWelcomeCredentialsMail', $chunk);
         $this->assertStringContainsString('STATUS_FAILED', $chunk);
+        $this->assertStringContainsString('mailable_class', $chunk);
+        $this->assertStringContainsString('buildViewDataUsing', $chunk);
+        $this->assertStringContainsString('Доступ в личный кабинет', $chunk);
+        $this->assertStringContainsString('LogOutgoingEmail', $chunk);
+        $this->assertStringContainsString('EventServiceProvider', $chunk);
         $this->assertStringContainsString('TokenMismatchException', $chunk);
         $this->assertStringContainsString('data-role', $chunk);
         $this->assertStringContainsString('dashboard-cabinet#system-monitors', $chunk);
         $this->assertStringContainsString('chat#ops-monitors-overlay', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsUxFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsAjaxContractFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingUxFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest', $chunk);
+        $this->assertStringContainsString('LogOutgoingEmailMailableClassFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsAuthAttemptsFeatureTest', $chunk);
         $this->assertStringNotContainsString('только текущий партнёр', $chunk);
         $this->assertStringNotContainsString('PartnerContext::isSuperAdmin()', $chunk);
@@ -223,9 +238,13 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/cabinet/system-monitors/ops', $chunk);
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $chunk);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
         $this->assertStringContainsString('KidsCrmTooltip', $chunk);
         $this->assertStringContainsString('/doc#kids-tooltip-contrast-index', $chunk);
         $this->assertStringContainsString('STATUS_FAILED', $chunk);
+        $this->assertStringContainsString('mailable_class', $chunk);
+        $this->assertStringContainsString('Доступ в личный кабинет', $chunk);
+        $this->assertStringContainsString('buildViewDataUsing', $chunk);
         $this->assertStringContainsString('ViewException', $chunk);
         $this->assertStringContainsString('getPrevious()', $chunk);
         $this->assertStringContainsString('errors.recent', $chunk);
@@ -254,6 +273,10 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOpsFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsAccessFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsAjaxContractFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingUxFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest', $html);
+        $this->assertStringContainsString('LogOutgoingEmailMailableClassFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsNonAjaxSafetyNetFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsUxFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsAuthAttemptsFeatureTest', $html);
@@ -276,6 +299,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#online-users-overlay-index', $html);
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $html);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $html);
+        $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $html);
         $this->assertStringContainsString('JSON-оверлея на <code>/cabinet</code> нет', $html);
         $this->assertStringContainsString('settings.reverbOverlay.manage', $html);
         $this->assertStringContainsString('SystemMonitorsPermissionCatalogFeatureTest', $html);
@@ -293,6 +317,8 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('last_message', $controller);
         $this->assertStringContainsString('ViewException', $controller);
         $this->assertStringContainsString('errors.recent', $controller);
+        $this->assertStringContainsString('mailable_class', $controller);
+        $this->assertStringContainsString('Доступ в личный кабинет', $controller);
         $this->assertStringContainsString('не точка чата', $controller);
         $this->assertStringNotContainsString('settings.reverbOverlay.manage', $controller);
         $this->assertStringNotContainsString('settings.cabinetDiagnostics.manage', $controller);
@@ -319,6 +345,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('leftover', $chunk);
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $chunk);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
     }
 
     private function docFile(string $name): string

@@ -159,17 +159,32 @@ class LogOutgoingEmail
     }
 
     /**
-     * Извлекаем mailable_class из event.data, если событие порождено Mailable
-     * (Illuminate ставит туда ['__laravel_mailable' => Class::class] или подобное).
+     * Класс Mailable: EventServiceProvider кладёт __laravel_mailable в view data;
+     * запасной путь — заголовок X-Mailable-Class.
      */
     private function extractMailableClass(MessageSending|MessageSent $event): ?string
     {
         $data = (array) ($event->data ?? []);
         foreach (['__laravel_mailable', 'mailable_class', 'mailable'] as $k) {
-            if (isset($data[$k]) && is_string($data[$k]) && $data[$k] !== '') {
+            if (! isset($data[$k]) || $data[$k] === '' || $data[$k] === null) {
+                continue;
+            }
+            if (is_string($data[$k])) {
                 return $data[$k];
             }
+            if (is_object($data[$k])) {
+                return $data[$k]::class;
+            }
         }
+
+        $message = $event->message;
+        if ($message instanceof Email && $message->getHeaders()->has('X-Mailable-Class')) {
+            $raw = trim((string) $message->getHeaders()->get('X-Mailable-Class')?->getBodyAsString());
+            if ($raw !== '') {
+                return $raw;
+            }
+        }
+
         return null;
     }
 

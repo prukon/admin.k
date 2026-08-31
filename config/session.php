@@ -26,12 +26,13 @@ return [
     |--------------------------------------------------------------------------
     |
     | Here you may specify the number of minutes that you wish the session
-    | to be allowed to remain idle before it expires. If you want them
-    | to immediately expire on the browser closing, set that option.
+    | to be allowed to remain idle before it expires. Default is 43200
+    | (30 days). If you want them to immediately expire on the browser
+    | closing, set expire_on_close.
     |
     */
 
-    'lifetime' => env('SESSION_LIFETIME', 120),
+    'lifetime' => (int) env('SESSION_LIFETIME', 43200),
 
     'expire_on_close' => false,
 

@@ -35,6 +35,7 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="database"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <env name="SESSION_LIFETIME" value="43200" force="true"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
     </php>
 </phpunit>

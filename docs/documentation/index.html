@@ -28,6 +28,112 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="session-lifetime-index">Сессия 30 дней, «Запомнить меня», 403 без падения admin2 (2026‑08)</h2>
+  <div class="note">
+    Idle-сессия больше не 120 минут. <code>SESSION_LIFETIME=43200</code>
+    (30 суток бездействия), дефолт в <code>config/session.php</code> тот же.
+    <code>expire_on_close</code> по-прежнему <code>false</code>.
+    Драйвер <code>file</code>, redis/database этот инкремент <b>не</b> включает.
+    Подробно — <a href="/docs/documentation/session-lifetime">session-lifetime</a>.
+    <br><br>
+    1) <b>Логин.</b> На <code>/login</code> чекбокс <code>#remember</code>
+    с первого GET с <code>checked</code>. После ошибки входа
+    (<code>session()->hasOldInput()</code>) состояние как в POST:
+    снятая галка не включается снова через дефолт.
+    Сервер — <code>$request->boolean('remember')</code>, без поля cookie recaller нет.
+    <br>
+    2) <b>403.</b> <code>errors/403.blade.php</code> для гостя
+    <code>layouts.app</code> (кнопка «Войти»), для залогиненного
+    <code>layouts.admin2</code> (кнопка «На главную»).
+    Сайдбар: <code>auth()->user()?-&gt;role?-&gt;label</code>, не
+    <code>optional(auth()->user()->role)</code>.
+    Гостевой <code>POST /broadcasting/auth</code> остаётся HTTP 403, не 500
+    (пульт 4xx по-прежнему не считает).
+    <br><br>
+    Анонс пульта — <a href="/doc#ops-errors-detail-index">ховер 500</a>.
+    Тесты: <code>SessionLifetimeFeatureTest</code>,
+    <code>LoginRememberAccessFeatureTest</code>,
+    <code>LoginRememberAjaxContractFeatureTest</code>,
+    <code>LoginRememberNonAjaxSafetyNetFeatureTest</code>,
+    <code>LoginRememberUxFeatureTest</code>,
+    <code>LoginRememberFullAccessFeatureTest</code>,
+    <code>Http403AccessFeatureTest</code>,
+    <code>Http403AjaxContractFeatureTest</code>,
+    <code>Http403NonAjaxSafetyNetFeatureTest</code>,
+    <code>Http403UxFeatureTest</code>,
+    <code>Http403FullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (<code>sessionLifetimeBladePathsProvider</code>),
+    <code>SessionLifetimeDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="ops-welcome-mailable-index">Пульт Welcome: тип письма в журнале исходящих (2026‑08)</h2>
+  <div class="note">
+    Строка <b>Welcome</b> в оверлее «Пульт» (<code>#js-ops-monitors</code>) —
+    сколько лидов стали клиентами за 24 часа без успешного welcome-письма
+    и <code>#id</code> последнего такого ученика.
+    Письма уходили по SMTP, журнал писал <code>status=sent</code> и получателя,
+    но <b>тип письма не записывался</b>: Laravel 10 не кладёт
+    <code>__laravel_mailable</code> в <code>MessageSending::$data</code>
+    (только данные шаблона). Пульт требовал точный
+    <code>mailable_class = ClientWelcomeCredentialsMail</code> —
+    отправленные письма были невидимы, счётчик врал.
+    Старые строки не бэкфиллим.
+    <br><br>
+    1) <b>Журнал.</b> Листенер <code>LogOutgoingEmail</code> пишет
+    <code>outgoing_email_logs.mailable_class</code> из view data
+    (<code>__laravel_mailable</code>, затем <code>mailable_class</code> /
+    <code>mailable</code>; строка или объект). Класс в данные кладёт
+    <code>Mailable::buildViewDataUsing</code> в
+    <code>EventServiceProvider::boot</code>.
+    Запасной путь — заголовок <code>X-Mailable-Class</code>
+    (если Mailable нет, например <code>Mail::raw</code> с этим заголовком).
+    Обычный <code>Mail::raw</code> без заголовка — класс <code>null</code>.
+    Тема welcome: константа
+    <code>ClientWelcomeCredentialsMail::SUBJECT_PREFIX</code>
+    «Доступ в личный кабинет», в envelope «… — {название школы}».
+    Колонка в отчёте «Исходящие письма» заполняется тем же полем.
+    <br>
+    2) <b>Что закрывает строку.</b> Ученик из лида
+    (<code>school_leads.user_id</code>, <code>users.created_at</code> за 24 ч).
+    Ручное «Добавить» без лида в строку не попадает.
+    Успех только <code>STATUS_SENT</code> и:
+    класс = <code>ClientWelcomeCredentialsMail</code>
+    <b>или</b> класс <code>NULL</code> и тема начинается с префикса
+    (старые логи без типа). Получатель:
+    <code>notifiable_id</code> ученика <b>или</b> email ученика входит в
+    <code>to_summary</code> (в том числе «Имя &lt;email&gt;»; в старых логах
+    <code>notifiable_id</code> часто пустой).
+    Статусы <code>sending</code> и <code>STATUS_FAILED</code> — всё ещё missing.
+    Чужой Mailable с похожей темой — missing (класс уже не пустой, это не welcome).
+    <code>ClientSiblingAddedMail</code> («Новый ученик в семейном кабинете»)
+    строку Welcome <b>не</b> закрывает: это не credentials.
+    Все школы, сессия <code>current_partner</code> снимок не режет.
+    JSON <code>welcome</code> — только <code>missing_count</code> и
+    <code>last_user_id</code>, без email.
+    <br>
+    3) <b>Экран.</b> Первый HTML — «…» во всех <code>data-role</code>
+    (не leftover «9»). После опроса ноль рисуется как «0»
+    (тон <code>is-ok</code>), не «—». Last — «#id» или «—».
+    Сбой <code>refresh()</code> / HTTP не-ok (в том числе 403) ставит «—»,
+    не оставляет прошлую цифру. Гость — редирект / 401. Без права — 403
+    без ключей <code>welcome</code> / <code>last_user_id</code> и без email.
+    Login-страница строки Welcome не рендерит.
+    <br><br>
+    Родительский анонс — <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>,
+    подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
+    журнал — <a href="/docs/documentation/reports-admin#reports-outgoing-emails">reports-admin §8</a>,
+    письмо — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>,
+    заявки — <a href="/docs/documentation/school-leads-widget#school-lead-welcome-credentials">school-leads-widget §5.7.1</a>,
+    чат — <a href="/docs/documentation/chat#ops-monitors-overlay">chat §пульт</a>.
+    Тесты: <code>SystemMonitorsOpsWelcomeAccountingFeatureTest</code>,
+    <code>SystemMonitorsOpsWelcomeAccountingUxFeatureTest</code>,
+    <code>SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest</code>,
+    <code>LogOutgoingEmailMailableClassFeatureTest</code>,
+    <code>SystemMonitorsOpsAjaxContractFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>OpsWelcomeMailableDocumentationContractTest</code>.
+  </div>
+
   <h2 id="ops-errors-detail-index">Пульт: ховер текста 500, ViewException, ring-буфер (2026‑08)</h2>
   <div class="note">
     В оверлее <b>Пульт</b> (<code>#js-ops-monitors</code>) строка <b>500</b> — три поля
@@ -62,6 +168,7 @@
     без страницы сейчас.
     <br><br>
     Родительский анонс — <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>,
+    Welcome / тип письма — <a href="/doc#ops-welcome-mailable-index">/doc#ops-welcome-mailable-index</a>,
     контраст пузырька — <a href="/doc#kids-tooltip-contrast-index">KidsCrmTooltip</a>,
     подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
     чат — <a href="/docs/documentation/chat#ops-monitors-overlay">chat §пульт</a>.
@@ -343,6 +450,14 @@
     <code>ClientWelcomeCredentialsMail</code> <code>STATUS_SENT</code>
     (в том числе <code>STATUS_FAILED</code>); без лида и старше 24 ч — нет;
     last — только <code>#id</code> ученика.
+    Успех: <code>mailable_class</code> = welcome <b>или</b> пустой класс
+    + тема «Доступ в личный кабинет…» + email в <code>to_summary</code>
+    (старые логи; бэкфилла нет).
+    Класс пишет <code>LogOutgoingEmail</code> из <code>__laravel_mailable</code>
+    (<code>Mailable::buildViewDataUsing</code> в <code>EventServiceProvider</code>;
+    Laravel 10 сам ключ не ставит). <code>Mail::raw</code> — класс null.
+    Инкремент учёта Welcome / типа письма —
+    <a href="/doc#ops-welcome-mailable-index">/doc#ops-welcome-mailable-index</a>.
     Вкладка «Очереди» у не-superadmin режет просроченные выплаты текущим
     партнёром; пульт считает все школы.
     <br>
@@ -378,6 +493,11 @@
     <code>SystemMonitorsOpsAuthAttemptsFeatureTest</code>,
     <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code>,
     <code>SystemMonitorsOpsUxFeatureTest</code>,
+    <code>SystemMonitorsOpsWelcomeAccountingFeatureTest</code>,
+    <code>SystemMonitorsOpsWelcomeAccountingUxFeatureTest</code>,
+    <code>SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest</code>,
+    <code>LogOutgoingEmailMailableClassFeatureTest</code>,
+    <code>OpsWelcomeMailableDocumentationContractTest</code>,
     <code>BladeInlineJsSyntaxTest</code>.
   </div>
 
@@ -1331,6 +1451,7 @@
     <code>OpsMonitor::snapshot()</code>). Окно 24 ч (вход — 72 ч). Все партнёры.
     Ховер последней 500 — <code>last_message</code>
     (<a href="/doc#ops-errors-detail-index">анонс ховера / ViewException / ring</a>).
+    Welcome — <a href="/doc#ops-welcome-mailable-index">тип письма / тема «Доступ в личный кабинет»</a>.
     Опрос раз в 5 с. Подробно — <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>.
     <br><br>
     Подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
@@ -1355,6 +1476,10 @@
     <code>SystemMonitorsOpsAjaxContractFeatureTest</code>,
     <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code>,
     <code>SystemMonitorsOpsUxFeatureTest</code>,
+    <code>SystemMonitorsOpsWelcomeAccountingFeatureTest</code>,
+    <code>SystemMonitorsOpsWelcomeAccountingUxFeatureTest</code>,
+    <code>SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest</code>,
+    <code>LogOutgoingEmailMailableClassFeatureTest</code>,
     <code>DashboardCabinetDiagnosticsFeatureTest</code>,
     <code>ChatReverbOverlayFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest</code>.
@@ -4610,6 +4735,7 @@
     <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы (<code>lockUser</code>, на клиентах — <a href="/doc#users-contract-create-index">анонс</a>), <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
+    <li><a href="/docs/documentation/session-lifetime"><strong>Сессия 30 дней / «Запомнить меня» / 403</strong>: <code>SESSION_LIFETIME=43200</code>, галка на <code>/login</code> с первого GET, гостевой HTML 403 без <code>admin2</code> — <a href="/doc#session-lifetime-index">анонс</a></a></li>
     <li><a href="/docs/documentation/tests-standards">Требования к единообразию Feature‑тестов (партнёр, авторизация, права, <b>фикстуры юр. лиц T‑Bank/CloudKassir</b>, <b>лог последнего PHPUnit</b> — <a href="/doc#phpunit-last-log-index">анонс</a>)</a></li>
   </ul>
 

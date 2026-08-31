@@ -409,11 +409,11 @@
                     {{--                                </div> --}}
                     <div class="info text-light">
                         <a href="#" class="d-block"></a>
-                        <h6> Имя: {{ $sidebarPanelIdentity['name'] ?? (auth()->user()->full_name ?: auth()->user()->name) }}</h6>
+                        <h6> Имя: {{ $sidebarPanelIdentity['name'] ?? (auth()->user()?->full_name ?: auth()->user()?->name) }}</h6>
                         {{--                    <h6> Id: {{auth()->user()->id}}</h6> --}}
-                        <h6> Почта: {{ $sidebarPanelIdentity['email'] ?? auth()->user()->email }}</h6>
+                        <h6> Почта: {{ $sidebarPanelIdentity['email'] ?? auth()->user()?->email }}</h6>
                         {{--                    <h6> Роль: {{auth()->user()->role->label}}</h6> --}}
-                       <h6> Роль: {{ optional(auth()->user()->role)->label ?? 'Не указана' }} </h6>
+                       <h6> Роль: {{ auth()->user()?->role?->label ?? 'Не указана' }} </h6>
 
                         @include('includes.cabinet_attach_team')
 
@@ -534,7 +534,7 @@
     @include('includes.chat.echo')
     @include('includes.system_monitors_stack')
 
-    @if (auth()->check() && optional(auth()->user()->role)->name === 'admin' && !auth()->user()->offer_accepted)
+    @if (auth()->check() && auth()->user()?->role?->name === 'admin' && !auth()->user()->offer_accepted)
         <script>
             document.addEventListener("DOMContentLoaded", function() {
                 var modal = new bootstrap.Modal(document.getElementById('partnerOfferModal'));

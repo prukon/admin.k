@@ -954,6 +954,102 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->assertJsonPath('welcome.last_user_id', $student->id);
     }
 
+    public function test_sent_welcome_without_mailable_class_matched_by_subject(): void
+    {
+        $this->asSuperadmin();
+        $student = $this->createUserWithRole('user', $this->partner, [
+            'email' => 'welcome-legacy@example.test',
+            'created_at' => now()->subHour(),
+        ]);
+        SchoolLead::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Лид',
+            'phone' => '+7 900 000-00-05',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
+            'user_id' => $student->id,
+        ]);
+        OutgoingEmailLog::query()->create([
+            'partner_id' => $this->partner->id,
+            'status' => OutgoingEmailLog::STATUS_SENT,
+            'mailable_class' => null,
+            'notifiable_type' => null,
+            'notifiable_id' => null,
+            'to_summary' => 'welcome-legacy@example.test',
+            'subject' => ClientWelcomeCredentialsMail::SUBJECT_PREFIX.' — '.$this->partner->title,
+            'sent_at' => now(),
+        ]);
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('welcome.missing_count', 0)
+            ->assertJsonPath('welcome.last_user_id', null);
+    }
+
+    public function test_sent_other_mail_without_mailable_class_still_counts_as_missing_welcome(): void
+    {
+        $this->asSuperadmin();
+        $student = $this->createUserWithRole('user', $this->partner, [
+            'email' => 'welcome-other-subject@example.test',
+            'created_at' => now()->subHour(),
+        ]);
+        SchoolLead::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Лид',
+            'phone' => '+7 900 000-00-06',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
+            'user_id' => $student->id,
+        ]);
+        OutgoingEmailLog::query()->create([
+            'partner_id' => $this->partner->id,
+            'status' => OutgoingEmailLog::STATUS_SENT,
+            'mailable_class' => null,
+            'notifiable_type' => null,
+            'notifiable_id' => null,
+            'to_summary' => 'welcome-other-subject@example.test',
+            'subject' => 'Новая заявка с сайта — '.$this->partner->title,
+            'sent_at' => now(),
+        ]);
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('welcome.missing_count', 1)
+            ->assertJsonPath('welcome.last_user_id', $student->id);
+    }
+
+    public function test_sent_non_welcome_mailable_to_same_email_is_still_missing(): void
+    {
+        $this->asSuperadmin();
+        $student = $this->createUserWithRole('user', $this->partner, [
+            'email' => 'welcome-payment@example.test',
+            'created_at' => now()->subHour(),
+        ]);
+        SchoolLead::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Лид',
+            'phone' => '+7 900 000-00-07',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
+            'user_id' => $student->id,
+        ]);
+        OutgoingEmailLog::query()->create([
+            'partner_id' => $this->partner->id,
+            'status' => OutgoingEmailLog::STATUS_SENT,
+            'mailable_class' => \App\Mail\PaymentNotificationMail::class,
+            'notifiable_type' => User::class,
+            'notifiable_id' => $student->id,
+            'to_summary' => 'welcome-payment@example.test',
+            'subject' => ClientWelcomeCredentialsMail::SUBJECT_PREFIX.' — '.$this->partner->title,
+            'sent_at' => now(),
+        ]);
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('welcome.missing_count', 1)
+            ->assertJsonPath('welcome.last_user_id', $student->id);
+    }
+
     public function test_user_without_lead_and_lead_older_than_24h_are_not_missing_welcome(): void
     {
         $this->asSuperadmin();

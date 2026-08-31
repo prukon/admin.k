@@ -244,6 +244,10 @@ final class OpsMonitor
     }
 
     /**
+     * Лид → клиент за 24 ч без успешного welcome.
+     * Успех: STATUS_SENT и (mailable_class = ClientWelcomeCredentialsMail
+     * или пустой класс + тема «Доступ в личный кабинет…» — старые логи без типа).
+     *
      * @return array{missing_count: int, last_user_id: int|null}
      */
     private static function welcomeSnapshot(\DateTimeInterface $since): array
@@ -271,8 +275,14 @@ final class OpsMonitor
             ->values();
 
         $sentLogs = OutgoingEmailLog::query()
-            ->where('mailable_class', ClientWelcomeCredentialsMail::class)
             ->where('status', OutgoingEmailLog::STATUS_SENT)
+            ->where(function ($query): void {
+                $query->where('mailable_class', ClientWelcomeCredentialsMail::class)
+                    ->orWhere(function ($legacy): void {
+                        $legacy->whereNull('mailable_class')
+                            ->where('subject', 'like', ClientWelcomeCredentialsMail::SUBJECT_PREFIX.'%');
+                    });
+            })
             ->where(function ($query) use ($userIds, $emails): void {
                 $query->where(function ($inner) use ($userIds): void {
                     $inner->where('notifiable_type', User::class)

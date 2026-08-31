@@ -228,6 +228,7 @@ final class SchoolLeadClientWelcomeCredentialsFeatureTest extends CrmTestCase
         $this->assertNotNull($log);
         $this->assertStringContainsString($this->partner->title, (string) $log->subject);
         $this->assertStringContainsString('logged-lead@example.com', (string) $log->to_summary);
+        $this->assertSame(ClientWelcomeCredentialsMail::class, $log->mailable_class);
     }
 
     public function test_send_welcome_credentials_regenerates_password_and_sends_mail(): void

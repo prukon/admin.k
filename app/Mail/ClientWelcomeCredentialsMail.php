@@ -15,6 +15,8 @@ class ClientWelcomeCredentialsMail extends Mailable
     use Queueable;
     use SerializesModels;
 
+    public const SUBJECT_PREFIX = 'Доступ в личный кабинет';
+
     public function __construct(
         public User $student,
         public string $plainPassword,
@@ -27,7 +29,7 @@ class ClientWelcomeCredentialsMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Доступ в личный кабинет — ' . $this->partnerTitle,
+            subject: self::SUBJECT_PREFIX . ' — ' . $this->partnerTitle,
         );
     }
 

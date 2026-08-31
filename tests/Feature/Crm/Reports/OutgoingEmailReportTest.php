@@ -18,7 +18,8 @@ use Tests\Feature\Crm\CrmTestCase;
  *  - сохранение/чтение настроек колонок;
  *  - страница show доступна только для логов своего партнёра;
  *  - листенер LogOutgoingEmail (sending → sent) реально срабатывает
- *    и связывает запись с partner_id из X-Partner-Id или PartnerContext.
+ *    и связывает запись с partner_id из X-Partner-Id или PartnerContext;
+ *    Mailable пишет mailable_class, Mail::raw — нет.
  */
 class OutgoingEmailReportTest extends CrmTestCase
 {
@@ -523,6 +524,37 @@ class OutgoingEmailReportTest extends CrmTestCase
         $this->assertSame('from@example.com', $log->from_address);
         $this->assertSame('From Name', $log->from_name);
         $this->assertNotNull($log->to_summary);
+        $this->assertNull($log->mailable_class);
+    }
+
+    /**
+     * Mailable (не Mail::raw): листенер пишет mailable_class из __laravel_mailable.
+     */
+    public function test_listener_stores_mailable_class_for_welcome_mail(): void
+    {
+        config(['mail.default' => 'array', 'queue.default' => 'sync']);
+
+        $student = $this->createUserWithRole('user', $this->partner, [
+            'email' => 'welcome-class@example.test',
+        ]);
+
+        Mail::to($student->email)->send(new \App\Mail\ClientWelcomeCredentialsMail(
+            student: $student,
+            plainPassword: 'TempPass1234',
+            partnerTitle: (string) $this->partner->title,
+            partnerId: (int) $this->partner->id,
+            loginUrl: url('/login'),
+        ));
+
+        $log = OutgoingEmailLog::query()
+            ->where('to_summary', 'like', '%welcome-class@example.test%')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($log);
+        $this->assertSame(OutgoingEmailLog::STATUS_SENT, $log->status);
+        $this->assertSame(\App\Mail\ClientWelcomeCredentialsMail::class, $log->mailable_class);
+        $this->assertSame((int) $this->partner->id, (int) $log->partner_id);
     }
 
     /**
