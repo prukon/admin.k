@@ -119,12 +119,14 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
         $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
         $widget->update(['landing_slug' => 'crm-test-school']);
         $landingUrl = route('lead.show', ['landingSlug' => 'crm-test-school']);
+        $instructionUrl = route('lead.instruction', ['landingSlug' => 'crm-test-school']);
 
         $this->get(route('admin.school-leads.landing'))
             ->assertOk()
             ->assertViewIs('admin.school-leads.index')
             ->assertViewHas('activeTab', 'landing')
             ->assertViewHas('landingUrl', $landingUrl)
+            ->assertViewHas('instructionUrl', $instructionUrl)
             ->assertViewHas('widget')
             ->assertViewHas('partner')
             ->assertSee('>Страница заявки</a>', false)
@@ -137,7 +139,9 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('id="copyLandingSuccess"', false)
             ->assertSee('Копировать', false)
             ->assertSee('Открыть страницу', false)
+            ->assertSee('Инструкция для родителей', false)
             ->assertSee($landingUrl, false)
+            ->assertSee($instructionUrl, false)
             ->assertSee('Брендированная страница с полной формой заявки', false);
     }
 
@@ -153,11 +157,17 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
         $response = $this->get(route('admin.school-leads.landing'))->assertOk();
 
         $landingUrl = $response->viewData('landingUrl');
+        $instructionUrl = $response->viewData('instructionUrl');
         $this->assertSame(
             route('lead.show', ['landingSlug' => 'shkola-rossi']),
             $landingUrl
         );
+        $this->assertSame(
+            route('lead.instruction', ['landingSlug' => 'shkola-rossi']),
+            $instructionUrl
+        );
         $this->assertStringContainsString('/lead/shkola-rossi', (string) $landingUrl);
+        $this->assertStringContainsString('/lead/shkola-rossi/instruction', (string) $instructionUrl);
     }
 
     public function test_landing_url_null_when_slug_not_set(): void
@@ -169,10 +179,135 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
         $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
         $widget->update(['landing_slug' => null]);
 
-        $this->get(route('admin.school-leads.landing'))
+        $html = $this->get(route('admin.school-leads.landing'))
             ->assertOk()
             ->assertViewHas('landingUrl', null)
-            ->assertSee('Сохраните адрес страницы', false);
+            ->assertViewHas('instructionUrl', null)
+            ->assertSee('Сохраните адрес страницы', false)
+            ->getContent();
+
+        $this->assertStringNotContainsString('Инструкция для родителей', $html);
+    }
+
+    public function test_instruction_button_opens_html_instruction_in_new_tab_not_pdf(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+        $widget->update(['landing_slug' => 'crm-test-school']);
+
+        $instructionUrl = route('lead.instruction', ['landingSlug' => 'crm-test-school']);
+        $pdfUrl = route('lead.instruction.pdf', ['landingSlug' => 'crm-test-school']);
+        $landingUrl = route('lead.show', ['landingSlug' => 'crm-test-school']);
+
+        $html = $this->get(route('admin.school-leads.landing'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/href="'.preg_quote($instructionUrl, '/').'"[^>]*class="btn btn-outline-secondary"/',
+            $html
+        );
+        $this->assertStringContainsString('target="_blank"', $html);
+        $this->assertStringContainsString('rel="noopener noreferrer"', $html);
+        $this->assertStringNotContainsString('href="'.$pdfUrl.'"', $html);
+
+        $openPos = strpos($html, 'Открыть страницу');
+        $instrPos = strpos($html, 'Инструкция для родителей');
+        $this->assertNotFalse($openPos);
+        $this->assertNotFalse($instrPos);
+        $this->assertLessThan($instrPos, $openPos);
+        $this->assertStringContainsString('href="'.$landingUrl.'"', $html);
+    }
+
+    public function test_saving_slug_then_reopening_tab_shows_instruction_button(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+        $widget->update(['landing_slug' => null]);
+
+        $htmlBefore = $this->get(route('admin.school-leads.landing'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('Инструкция для родителей', $htmlBefore);
+
+        $this->putJson(route('admin.school-leads.landing-slug.update'), [
+            'landing_slug' => 'after-save-instr',
+        ])
+            ->assertOk()
+            ->assertJsonPath('landing_slug', 'after-save-instr')
+            ->assertJsonPath('landing_url', route('lead.show', ['landingSlug' => 'after-save-instr']));
+
+        $htmlAfter = $this->get(route('admin.school-leads.landing'))->assertOk()->getContent();
+        $this->assertStringContainsString('Инструкция для родителей', $htmlAfter);
+        $this->assertStringContainsString(
+            route('lead.instruction', ['landingSlug' => 'after-save-instr']),
+            $htmlAfter
+        );
+    }
+
+    public function test_non_ajax_slug_save_persists_and_is_not_empty_200(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+
+        $this->from(route('admin.school-leads.landing'))
+            ->put(route('admin.school-leads.landing-slug.update'), [
+                'landing_slug' => 'non-ajax-instr',
+            ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Адрес страницы сохранён.')
+            ->assertJsonPath('landing_slug', 'non-ajax-instr');
+
+        $this->assertDatabaseHas('partner_widgets', [
+            'partner_id'   => $this->partner->id,
+            'landing_slug' => 'non-ajax-instr',
+        ]);
+    }
+
+    public function test_non_ajax_invalid_slug_redirects_back_with_field_error(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+
+        $this->from(route('admin.school-leads.landing'))
+            ->put(route('admin.school-leads.landing-slug.update'), [
+                'landing_slug' => 'ab',
+            ])
+            ->assertStatus(302)
+            ->assertRedirect(route('admin.school-leads.landing'))
+            ->assertSessionHasErrors(['landing_slug']);
+    }
+
+    public function test_landing_slug_ajax_reloads_so_instruction_button_appears(): void
+    {
+        $path = resource_path('views/admin/school-leads/tabs/landing.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("\$form.on('submit'", $content);
+        $this->assertStringContainsString('e.preventDefault()', $content);
+        $this->assertStringContainsString('$.ajax({', $content);
+        $this->assertStringContainsString("method: 'PUT'", $content);
+        $this->assertStringContainsString('errors.landing_slug', $content);
+        $this->assertStringContainsString('showSlugErrors(body.errors', $content);
+        $this->assertStringContainsString('window.location.reload()', $content);
+        $this->assertSame(1, substr_count($content, "\$form.on('submit'"));
+        $this->assertSame(1, substr_count($content, 'window.location.reload()'));
+
+        $submitPos = strpos($content, "\$form.on('submit'");
+        $this->assertNotFalse($submitPos);
+        $chunk = substr($content, $submitPos, 1800);
+        $this->assertStringContainsString('e.preventDefault()', $chunk);
+        $this->assertStringContainsString('window.location.reload()', $chunk);
+        $this->assertStringContainsString('showSlugErrors(body.errors', $chunk);
     }
 
     public function test_update_landing_slug_saves_and_returns_url(): void

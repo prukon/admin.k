@@ -48,6 +48,8 @@ final class ChatMobileUxFeatureTest extends ChatTestCase
         $this->assertStringContainsString('/chat/api/users/7', (string) $ui['account_tab']['url']);
         $this->assertStringContainsString('peer-card', (string) $ui['account_tab']['account_html']);
         $this->assertStringContainsString('Свой Аккаунт', (string) $ui['account_tab']['account_html']);
+        $this->assertStringNotContainsString('peer-card-partner', (string) $ui['account_tab']['account_html']);
+        $this->assertStringNotContainsString('Школа Аккаунта', (string) $ui['account_tab']['account_html']);
         $this->assertSame('', (string) $ui['account_tab']['peer_html']);
         $this->assertSame('', (string) $ui['account_tab']['error']);
         $this->assertStringNotContainsString('account-settings', (string) $ui['account_tab']['url']);
@@ -385,6 +387,7 @@ global.fetch = function (url) {
             parent_phone: '',
             last_seen_label: 'онлайн',
             team_title: '',
+            partner_name: 'Школа Аккаунта',
             avatar: '/img/default-avatar.png'
         });
     }

@@ -51,13 +51,14 @@ final class ChatMobileFeatureTest extends ChatTestCase
             ->assertOk()
             ->assertJsonStructure([
                 'id', 'avatar', 'full_name', 'phone', 'parent_full_name', 'parent_phone',
-                'is_online', 'last_seen_at', 'last_seen_label', 'team_title',
+                'is_online', 'last_seen_at', 'last_seen_label', 'team_title', 'partner_name',
             ])
             ->assertJsonPath('id', (int) $this->user->id)
             ->assertJsonPath('full_name', 'Свой Аккаунт')
             ->assertJsonPath('phone', '+79001234567')
             ->assertJsonPath('is_online', true)
-            ->assertJsonPath('last_seen_label', 'онлайн');
+            ->assertJsonPath('last_seen_label', 'онлайн')
+            ->assertJsonPath('partner_name', $this->partner->title);
     }
 
     public function test_native_own_card_get_returns_json_not_empty_page(): void

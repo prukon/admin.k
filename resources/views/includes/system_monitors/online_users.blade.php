@@ -54,10 +54,12 @@
         font-weight: 700;
         color: #e5e7eb;
         margin-bottom: 2px;
+        text-align: center;
     }
     .online-users__user {
         color: #f9fafb;
         padding-left: 0;
+        text-align: left;
     }
     .online-users__empty {
         color: #9ca3af;

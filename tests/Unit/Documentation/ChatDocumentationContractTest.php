@@ -60,6 +60,10 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('ChatHeaderSubtitleFeatureTest', $chunk);
         $this->assertStringContainsString('ChatHeaderSubtitleUxFeatureTest', $chunk);
         $this->assertStringContainsString('/doc#chat-header-subtitle-index', $chunk);
+        $this->assertStringContainsString('/doc#chat-partner-name-index', $chunk);
+        $this->assertStringContainsString('ChatPartnerNameFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatPartnerNameUxFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatPartnerNameDocumentationContractTest', $chunk);
         $this->assertStringContainsString('/doc#chat-mobile-index', $chunk);
         $this->assertStringContainsString('/doc#chat-mobile-inbox-split-index', $chunk);
         $this->assertStringContainsString('chat-immersive', $chunk);
@@ -204,6 +208,10 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#online-users-overlay-index', $html);
         $this->assertStringContainsString('Auth::id()', $html);
         $this->assertStringContainsString('зрителя в списке нет', $html);
+        $this->assertStringContainsString('.online-users__partner-title', $html);
+        $this->assertStringContainsString('text-align: center', $html);
+        $this->assertStringContainsString('.online-users__user', $html);
+        $this->assertStringContainsString('text-align: left', $html);
         $this->assertStringContainsString('id="ops-monitors-overlay"', $html);
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $html);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $html);
@@ -292,6 +300,9 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('peerCardError', $html);
         $this->assertStringContainsString('chat.api.users.show', $html);
         $this->assertStringContainsString('last_seen_label', $html);
+        $this->assertStringContainsString('partner_name', $html);
+        $this->assertStringContainsString('peer-card-partner', $html);
+        $this->assertStringContainsString('groupCardPartner', $html);
         $this->assertStringContainsString('threadSubtitle', $html);
         $this->assertStringContainsString('.chat-header-text', $html);
         $this->assertStringContainsString('header_subtitle', $html);
@@ -304,6 +315,11 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('membersCountLabel', $html);
         $this->assertStringContainsString('id="presence"', $html);
         $this->assertStringContainsString('id="header-subtitle"', $html);
+        $this->assertStringContainsString('id="partner-name"', $html);
+        $this->assertStringContainsString('/doc#chat-partner-name-index', $html);
+        $this->assertStringContainsString('ChatPartnerNameFeatureTest', $html);
+        $this->assertStringContainsString('ChatPartnerNameUxFeatureTest', $html);
+        $this->assertStringContainsString('ChatPartnerNameDocumentationContractTest', $html);
         $this->assertStringContainsString('/doc#chat-presence-index', $html);
         $this->assertStringContainsString('/doc#chat-header-subtitle-index', $html);
         $this->assertStringContainsString('без</b> <code>can:messages.view</code>', $html);
@@ -400,6 +416,8 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('онлайн (ping без messages.view)', $controller);
         $this->assertStringContainsString('подзаголовок шапки (участники / был(а) в сети)', $controller);
         $this->assertStringContainsString('карточка собеседника из шапки', $controller);
+        $this->assertStringContainsString('название партнёра в модалках Контакт и Группа', $controller);
+        $this->assertStringContainsString('не Аккаунт, не шапка', $controller);
         $this->assertStringContainsString('черновик на сервере', $controller);
         $this->assertStringContainsString('смайлы в композере и реакции на сообщения', $controller);
         $this->assertStringContainsString('фильтр контактов по учебной группе', $controller);
@@ -424,6 +442,7 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#chat-group-list-title-index', $index);
         $this->assertStringContainsString('/doc#chat-group-members-index', $index);
         $this->assertStringContainsString('/doc#chat-header-subtitle-index', $index);
+        $this->assertStringContainsString('/doc#chat-partner-name-index', $index);
         $this->assertStringContainsString('/doc#chat-thread-delete-index', $index);
         $this->assertStringContainsString('/doc#chat-emoji-index', $index);
         $this->assertStringContainsString('<b>удаление диалога</b>', $index);
@@ -632,9 +651,15 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('header_subtitle', $chunk);
         $this->assertStringContainsString('is-idle', $chunk);
         $this->assertStringContainsString('tel:', $chunk);
+        $this->assertStringContainsString('partner_name', $chunk);
+        $this->assertStringContainsString('peer-card-partner', $chunk);
+        $this->assertStringContainsString('partners.title', $chunk);
         $this->assertStringContainsString('/docs/documentation/chat#presence', $chunk);
         $this->assertStringContainsString('ChatPresenceFeatureTest', $chunk);
         $this->assertStringContainsString('ChatPresenceUxFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatPartnerNameFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatPartnerNameUxFeatureTest', $chunk);
+        $this->assertStringContainsString('/doc#chat-partner-name-index', $chunk);
         $this->assertStringContainsString('ChatHeaderSubtitleFeatureTest', $chunk);
         $this->assertStringContainsString('ChatHeaderSubtitleUxFeatureTest', $chunk);
         $this->assertStringContainsString('ChatDraftUxFeatureTest', $chunk);
@@ -1135,6 +1160,8 @@ final class ChatDocumentationContractTest extends TestCase
         $chunk = substr($html, $start, $end - $start);
 
         $this->assertStringContainsString('groupCardModal', $chunk);
+        $this->assertStringContainsString('groupCardPartner', $chunk);
+        $this->assertStringContainsString('partner_name', $chunk);
         $this->assertStringContainsString('addGroupMembersBtn', $chunk);
         $this->assertStringContainsString('leaveGroupBtn', $chunk);
         $this->assertStringContainsString('can_manage', $chunk);
@@ -1170,6 +1197,9 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('errors.user', $chunk);
         $this->assertStringContainsString('ChatGroupMembersFeatureTest', $chunk);
         $this->assertStringContainsString('ChatGroupMembersUxFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatPartnerNameFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatPartnerNameUxFeatureTest', $chunk);
+        $this->assertStringContainsString('/doc#chat-partner-name-index', $chunk);
         $this->assertStringContainsString('ChatHeaderSubtitleFeatureTest', $chunk);
         $this->assertStringContainsString('ChatHeaderSubtitleUxFeatureTest', $chunk);
         $this->assertStringContainsString('/doc#chat-header-subtitle-index', $chunk);
@@ -1221,12 +1251,16 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('function openGroupCard(', $js);
         $this->assertStringContainsString('function headerPeerActivate(', $js);
         $this->assertStringContainsString('id="groupCardModal"', $blade);
+        $this->assertStringContainsString('id="groupCardPartner"', $blade);
         $this->assertStringContainsString('id="threadSubtitle"', $blade);
         $this->assertStringContainsString('function setThreadSubtitle(', $js);
+        $this->assertStringContainsString('function setGroupCardPartner(', $js);
         $this->assertStringContainsString('id="addGroupMembersModal"', $blade);
         $this->assertStringContainsString('MEMBERS_PAGE_SIZE', $service);
         $this->assertStringContainsString('groupCardModal', $docs);
         $this->assertStringContainsString('chat-group-members-index', $docs);
+        $this->assertStringContainsString('groupCardPartner', $docs);
+        $this->assertStringContainsString('partner_name', $docs);
         $this->assertStringContainsString('ChatGroupMembersFeatureTest', $docs);
         $this->assertStringContainsString('after_user_id', $docs);
         $this->assertStringContainsString('showConfirmDeleteModal', $docs);
@@ -1599,6 +1633,10 @@ final class ChatDocumentationContractTest extends TestCase
 
         $this->assertStringContainsString("format('d.m.Y H:i')", $service);
         $this->assertStringContainsString("'last_seen_label'", $service);
+        $this->assertStringContainsString('function partnerTitle(', $service);
+        $this->assertStringContainsString("'partner_name'", $service);
+        $this->assertStringNotContainsString("'partner_name'", $headerChunk);
+        $this->assertStringNotContainsString("'partner_name'", $inboxChunk);
 
         $this->assertStringContainsString('function ping()', $echo);
         $this->assertStringNotContainsString('threadSubtitle', $echo);

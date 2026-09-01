@@ -143,6 +143,7 @@ final class ChatPresenceUxFeatureTest extends ChatTestCase
         $ui = $this->simulatePresenceUi();
 
         $this->assertStringContainsString('peer-card-name', $ui['card_empty']['html']);
+        $this->assertStringNotContainsString('peer-card-partner', $ui['card_empty']['html']);
         $this->assertSame(5, substr_count($ui['card_empty']['html'], 'peer-card-row'));
         $this->assertSame(5, substr_count($ui['card_empty']['html'], '>-<'));
         $this->assertStringNotContainsString('tel:', $ui['card_empty']['html']);
@@ -152,6 +153,10 @@ final class ChatPresenceUxFeatureTest extends ChatTestCase
         $this->assertStringContainsString('href="tel:+79005556677"', $ui['card_full']['html']);
         $this->assertStringContainsString('href="tel:+79001112233"', $ui['card_full']['html']);
         $this->assertStringContainsString('Иванов Иван', $ui['card_full']['html']);
+        $this->assertStringContainsString('peer-card-partner', $ui['card_full']['html']);
+        $this->assertStringContainsString('Школа Альфа', $ui['card_full']['html']);
+        $this->assertStringContainsString('&lt;img&gt;', $ui['card_xss_partner']['html']);
+        $this->assertStringNotContainsString('<img>', $ui['card_xss_partner']['html']);
         $this->assertStringContainsString('Сидоров Сидор', $ui['card_full']['html']);
         $this->assertStringContainsString('онлайн', $ui['card_full']['html']);
         $this->assertStringContainsString('КарточкаГруппа', $ui['card_full']['html']);
@@ -499,7 +504,8 @@ renderPeerCard({
     parent_full_name: '',
     parent_phone: '',
     last_seen_label: '',
-    team_title: ''
+    team_title: '',
+    partner_name: ''
 });
 const card_empty = { html: els.peerCardBody.innerHTML };
 renderPeerCard({
@@ -509,9 +515,15 @@ renderPeerCard({
     parent_full_name: 'Сидоров Сидор',
     parent_phone: '+79001112233',
     last_seen_label: 'онлайн',
-    team_title: 'КарточкаГруппа'
+    team_title: 'КарточкаГруппа',
+    partner_name: 'Школа Альфа'
 });
 const card_full = { html: els.peerCardBody.innerHTML };
+renderPeerCard({
+    full_name: 'Иванов Иван',
+    partner_name: '<img>'
+});
+const card_xss_partner = { html: els.peerCardBody.innerHTML };
 renderPeerCard({});
 const card_after_empty = { html: els.peerCardBody.innerHTML };
 
@@ -622,6 +634,7 @@ process.stdout.write(JSON.stringify({
     contacts_reopen: contacts_reopen,
     card_empty: card_empty,
     card_full: card_full,
+    card_xss_partner: card_xss_partner,
     card_after_empty: card_after_empty,
     open_without_peer: open_without_peer,
     open_with_peer: open_with_peer,

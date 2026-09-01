@@ -240,7 +240,7 @@ final class SchoolLeadLandingSlugFeatureTest extends CrmTestCase
 
     public function test_public_lead_routes_use_landing_slug_parameter(): void
     {
-        foreach (['lead.show', 'lead.teams', 'lead.team-info', 'lead.submit'] as $routeName) {
+        foreach (['lead.show', 'lead.instruction', 'lead.instruction.pdf', 'lead.teams', 'lead.team-info', 'lead.submit'] as $routeName) {
             $route = Route::getRoutes()->getByName($routeName);
             $this->assertNotNull($route, "Маршрут {$routeName} не найден");
             $this->assertStringContainsString('{landingSlug}', $route->uri(), $routeName);

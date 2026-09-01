@@ -133,7 +133,8 @@ final class ChatSupportIdentityAjaxContractFeatureTest extends ChatTestCase
             ->assertJsonPath('parent_full_name', '')
             ->assertJsonPath('parent_phone', '')
             ->assertJsonPath('team_title', '')
-            ->assertJsonStructure(['id', 'full_name', 'phone', 'parent_full_name', 'last_seen_label', 'team_title']);
+            ->assertJsonPath('partner_name', '')
+            ->assertJsonStructure(['id', 'full_name', 'phone', 'parent_full_name', 'last_seen_label', 'team_title', 'partner_name']);
     }
 
     public function test_ajax_group_create_with_extra_id_adds_canonical_not_extra(): void

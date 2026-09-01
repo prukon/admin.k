@@ -81,7 +81,7 @@
     В <code>/config/role_base_permissions.php</code> для роли <code>admin</code> (в разрезе партнёра):
     <ul>
       <li><code>schoolLeads.view</code> — страница «Заявки с сайта», datatable, update/delete заявок, CRUD настраиваемых статусов (§5.4). В базовый набор <b>входит</b>.</li>
-      <li><code>schoolLeadLanding.view</code> — вкладка «Страница заявки», настройка <code>landing_slug</code>, ссылка <code>/lead/{landingSlug}</code>. В базовый набор <b>входит</b>.</li>
+      <li><code>schoolLeadLanding.view</code> — вкладка «Страница заявки», настройка <code>landing_slug</code>, ссылка <code>/lead/{landingSlug}</code>, кнопка «Инструкция для родителей» на HTML <code>/lead/{landingSlug}/instruction</code> (новая вкладка, не PDF). В базовый набор <b>входит</b>.</li>
       <li><code>schoolWidget.view</code> — вкладка «Виджет для сайта», код iframe, подключение Telegram. В базовый набор <b>не входит</b> — назначается отдельно (право с <code>is_visible = 0</code>).</li>
       <li>Для колонки «Договор» и конвертации в ученика дополнительно нужны <code>users.view</code> и/или <code>contracts.view</code> (§5.6) — в базовый набор роли <code>admin</code> партнёра обычно уже входят.</li>
     </ul>
@@ -823,13 +823,13 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   </p>
 
   <h2>6) CRM: страница заявки, виджет и Telegram</h2>
-  <p>Раздел «Заявки с сайта» (<code>/admin/school-leads</code>) — вкладки: <b>Заявки</b> · <b>Страница заявки</b> · <b>Виджет для сайта</b>. Вкладка «Страница заявки» (slug, ссылка) — см. <a href="/docs/documentation/school-leads-landing#8">school-leads-landing §8</a>.</p>
+  <p>Раздел «Заявки с сайта» (<code>/admin/school-leads</code>) — вкладки: <b>Заявки</b> · <b>Страница заявки</b> · <b>Виджет для сайта</b>. Вкладка «Страница заявки» (slug, ссылка, инструкция HTML) — см. <a href="/docs/documentation/school-leads-landing#8">school-leads-landing §8</a> и <a href="/docs/documentation/school-leads-landing#4-2">§4.2</a>.</p>
   <table>
     <thead>
       <tr><th>Метод</th><th>URL</th><th>Middleware</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/admin/school-leads/landing</code></td><td><code>can:schoolLeadLanding.view</code></td><td>Настройка slug, ссылка <code>/lead/{landingSlug}</code></td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/landing</code></td><td><code>can:schoolLeadLanding.view</code></td><td>Настройка slug, ссылка <code>/lead/{landingSlug}</code>, кнопка «Инструкция для родителей» (HTML, новая вкладка; PDF — с самой инструкции)</td></tr>
       <tr><td>PUT</td><td><code>/admin/school-leads/landing-slug</code></td><td><code>can:schoolLeadLanding.view</code></td><td>Сохранение <code>landing_slug</code></td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/widget</code></td><td><code>can:schoolWidget.view</code></td><td>Код iframe, статус Telegram (алиас: <code>/admin/school-widget</code>)</td></tr>
       <tr><td>GET</td><td><code>/admin/school-widget</code></td><td><code>can:schoolWidget.view</code></td><td>То же, вкладка «Виджет для сайта»</td></tr>

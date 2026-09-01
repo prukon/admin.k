@@ -1424,10 +1424,16 @@
             return;
         }
         u = u || {};
+        const isAccount = targetId === 'accountCardBody';
+        const partnerName = isAccount ? '' : String(u.partner_name == null ? '' : u.partner_name).trim();
+        const partnerHtml = partnerName === ''
+            ? ''
+            : '<div class="peer-card-partner">' + escapeHtml(partnerName) + '</div>';
         body.innerHTML =
             '<div class="peer-card">' +
             '<img class="peer-card-avatar" src="' + escapeHtml(u.avatar || '/img/default-avatar.png') + '" alt="">' +
             '<div class="peer-card-name">' + escapeHtml(dashText(u.full_name)) + '</div>' +
+            partnerHtml +
             '<div class="peer-card-row"><div class="peer-card-label">Телефон</div><div>' + phoneHtml(u.phone) + '</div></div>' +
             '<div class="peer-card-row"><div class="peer-card-label">Родитель</div><div>' + escapeHtml(dashText(u.parent_full_name)) + '</div></div>' +
             '<div class="peer-card-row"><div class="peer-card-label">Телефон родителя</div><div>' + phoneHtml(u.parent_phone) + '</div></div>' +
@@ -2062,6 +2068,16 @@
     let addGroupMembersDebounce = null;
     let addGroupMembersBusy = false;
 
+    function setGroupCardPartner(name) {
+        const el = document.getElementById('groupCardPartner');
+        if (!el) {
+            return;
+        }
+        const s = String(name == null ? '' : name).trim();
+        el.textContent = s;
+        el.style.display = s === '' ? 'none' : '';
+    }
+
     function groupCardModal() {
         return bootstrap.Modal.getOrCreateInstance(document.getElementById('groupCardModal'));
     }
@@ -2264,6 +2280,7 @@
             if (body) {
                 body.innerHTML = '';
             }
+            setGroupCardPartner('');
             groupMembersHasMore = true;
         }
         const qs = afterId ? ('?after_user_id=' + encodeURIComponent(String(afterId))) : '';
@@ -2286,6 +2303,7 @@
                 if (av) {
                     av.src = thread.avatar || '/img/default-avatar.png';
                 }
+                setGroupCardPartner(thread.partner_name);
                 document.getElementById('groupCardCount').textContent = membersCountLabel(thread.members_total);
                 setThreadSubtitle(membersCountLabel(thread.members_total));
                 groupMembersCanManage = !!data.can_manage;

@@ -268,6 +268,8 @@ html { touch-action: pan-x pan-y; }
     object-fit: cover; margin: 0 auto 1rem;
 }
 .peer-card-name { text-align: center; font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem; }
+.peer-card-name:has(+ .peer-card-partner) { margin-bottom: 0; }
+.peer-card-partner { text-align: center; color: #6c757d; font-size: .9rem; margin: .2rem 0 1rem; }
 .peer-card-row { display: flex; gap: .75rem; padding: .35rem 0; border-top: 1px solid #f0f2f4; }
 .peer-card-label { flex: 0 0 42%; color: #6c757d; font-size: .85rem; }
 .peer-card-row > div:last-child { min-width: 0; word-break: break-word; }
@@ -277,6 +279,7 @@ html { touch-action: pan-x pan-y; }
     object-fit: cover; margin: 0 auto .75rem;
 }
 .group-card-title { font-weight: 600; font-size: 1.1rem; }
+.group-card-partner { color: #6c757d; font-size: .9rem; margin-top: .2rem; }
 .group-card-count { color: #6c757d; font-size: .9rem; margin-top: .2rem; }
 .group-card-actions {
     display: flex; justify-content: center; gap: 1.25rem;

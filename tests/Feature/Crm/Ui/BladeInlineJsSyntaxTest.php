@@ -66,6 +66,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'admin partner create edit modals' => ['includes/modal/editPartner.blade.php'];
         yield 'admin partners list metrics tab' => ['admin/partners/tabs/partners.blade.php'];
         yield 'partner lead landing form' => ['landing/partner-lead.blade.php'];
+        yield 'partner lead parents instruction qr' => ['landing/partner-lead-instruction.blade.php'];
+        yield 'school leads landing tab slug ajax' => ['admin/school-leads/tabs/landing.blade.php'];
+        yield 'partner self registration recaptcha' => ['landing/partner-register.blade.php'];
         yield 'contract templates variables reference copy js' => ['contract-templates/partials/variables-reference.blade.php'];
         yield 'contract templates edit modal init' => ['contract-templates/partials/edit-modal-init.blade.php'];
         yield 'contract templates index page scripts' => ['contract-templates/index.blade.php'];
@@ -150,6 +153,34 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringNotContainsString('fetch(', $content);
         $this->assertSame(1, substr_count($content, 'id="remember"'));
         $this->assertSame(1, substr_count($content, "form method=\"POST\""));
+    }
+
+    public function test_partner_register_recaptcha_script_prevents_submit_until_token_and_is_not_ajax(): void
+    {
+        $path = resource_path('views/landing/partner-register.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="partner-register-form"', $content);
+        $this->assertStringContainsString('id="recaptcha_token"', $content);
+        $this->assertStringContainsString("route('partner.register.store')", $content);
+        $this->assertStringContainsString('method="post"', $content);
+        $this->assertStringContainsString('e.preventDefault()', $content);
+        $this->assertStringContainsString("{action: 'partner_register'}", $content);
+        $this->assertStringContainsString('form.submit()', $content);
+        $this->assertStringContainsString('if (tokenInput && tokenInput.value)', $content);
+        $this->assertStringNotContainsString('$.ajax', $content);
+        $this->assertStringNotContainsString('fetch(', $content);
+        $this->assertStringNotContainsString('openPartnerRegister', $content);
+
+        $controller = (string) file_get_contents(app_path('Http/Controllers/GuestPartnerRegistrationController.php'));
+        $this->assertStringContainsString("'partner_register'", $controller);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'partner_register',
+            'blade-js-partner-register'
+        );
     }
 
     public function test_forbidden_page_blade_guest_layout_contract_has_no_ajax_submit(): void
@@ -773,6 +804,9 @@ JS;
         $this->assertStringContainsString('fmtTime(t.last_message_time)', $content);
         $this->assertStringContainsString("parentFio ? '<div class=\"contact-parent\">'", $content);
         $this->assertStringContainsString('last_seen_label', $content);
+        $this->assertStringContainsString('partner_name', $content);
+        $this->assertStringContainsString('peer-card-partner', $content);
+        $this->assertStringContainsString('function setGroupCardPartner(', $content);
         $this->assertStringContainsString('threadPeerHit', $content);
         $this->assertStringContainsString('function loadAccountCard(', $content);
         $this->assertStringContainsString("renderPeerCard(res.data, 'accountCardBody')", $content);
@@ -2496,6 +2530,14 @@ JS;
         $this->assertStringContainsString('credentials: \'same-origin\'', $content);
         $this->assertStringContainsString('Никого нет онлайн', $content);
         $this->assertStringContainsString('online-users__partner-title', $content);
+        $this->assertMatchesRegularExpression(
+            '/\.online-users__partner-title\s*\{[^}]*text-align:\s*center/',
+            $content
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.online-users__user\s*\{[^}]*text-align:\s*left/',
+            $content
+        );
         $this->assertStringContainsString('function escapeHtml(value)', $content);
         $this->assertStringContainsString('e.preventDefault()', $content);
         $this->assertStringContainsString('e.stopPropagation()', $content);

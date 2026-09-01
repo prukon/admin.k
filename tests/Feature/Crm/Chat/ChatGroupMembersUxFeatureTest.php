@@ -102,6 +102,8 @@ final class ChatGroupMembersUxFeatureTest extends ChatTestCase
         $this->assertSame(0, (int) $ui['zero_height']['after_fetches']);
         $this->assertGreaterThan(0, (int) $ui['scroll_bottom']['after_fetches']);
         $this->assertSame('Сборная', (string) $ui['card']['title']);
+        $this->assertSame('Школа Альфа', (string) $ui['card']['partner']);
+        $this->assertSame('', (string) $ui['card']['partner_display']);
         $this->assertSame('3 участника', (string) $ui['card']['count']);
         $this->assertSame('3 участника', (string) $ui['card']['header_subtitle']);
         $this->assertTrue((bool) $ui['card']['add_visible']);
@@ -325,6 +327,7 @@ const els = {
     groupMembersBody: makeEl('tbody'),
     groupCardTitle: makeEl('div'),
     groupCardAvatar: makeEl('img'),
+    groupCardPartner: makeEl('div'),
     groupCardCount: makeEl('div'),
     groupCardError: makeEl('div'),
     addGroupMembersBtn: addBtn,
@@ -510,7 +513,7 @@ global.fetch = function (url, opts) {
         });
     }
     return jsonRes(true, {
-        thread: { id: 88, title: 'Сборная', avatar: '/img/default-avatar.png', members_total: 3 },
+        thread: { id: 88, title: 'Сборная', avatar: '/img/default-avatar.png', members_total: 3, partner_name: 'Школа Альфа' },
         can_manage: groupMembersCanManage,
         has_more: pageMode === 'short',
         members: [
@@ -548,6 +551,7 @@ eval(extractFn(chatJs, 'showAddGroupMembersSearchError'));
 eval(extractFn(chatJs, 'setGroupManageVisible'));
 eval(extractFn(chatJs, 'lastGroupMemberUserId'));
 eval(extractFn(chatJs, 'appendGroupMembers'));
+eval(extractFn(chatJs, 'setGroupCardPartner'));
 eval(extractFn(chatJs, 'fetchGroupMembers'));
 eval(extractFn(chatJs, 'maybeFillGroupMembers'));
 eval(extractFn(chatJs, 'maybeLoadMoreMembers'));
@@ -585,6 +589,8 @@ const onAddTeam = eval('(' + extractListenerByVar(chatJs, 'addGroupMembersTeamFi
     const group = { group_open: groupOpen, peer_open: peerOpen, url: fetchLog[0] || '' };
     const card = {
         title: els.groupCardTitle.textContent,
+        partner: els.groupCardPartner.textContent,
+        partner_display: els.groupCardPartner.style.display || '',
         count: els.groupCardCount.textContent,
         header_subtitle: els.threadSubtitle.textContent,
         add_visible: !addBtn.classList.contains('is-hidden')

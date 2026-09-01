@@ -13,6 +13,7 @@ use Database\Seeders\PermissionGroupsSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 trait ProvidesSchoolLeadLandingFixtures
 {
@@ -36,6 +37,18 @@ trait ProvidesSchoolLeadLandingFixtures
     protected function setUpSchoolLeadLandingFixtures(
         array $partnerAttributes = [],
     ): void {
+        // Не писать compiled Blade в storage/framework/views от пользователя dev.
+        $compiled = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR
+            . 'kidscrm_compiled_views_lead_landing_'
+            . (string) Str::uuid();
+
+        if (! is_dir($compiled)) {
+            @mkdir($compiled, 0777, true);
+        }
+        @chmod($compiled, 0777);
+        config(['view.compiled' => $compiled]);
+
         $this->seed(RolesSeeder::class);
         $this->seed(PermissionGroupsSeeder::class);
         $this->seed(PermissionSeeder::class);

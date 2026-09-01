@@ -227,6 +227,7 @@
                     <div class="group-card-head">
                         <img id="groupCardAvatar" class="group-card-avatar" src="/img/default-avatar.png" alt="">
                         <div class="group-card-title" id="groupCardTitle"></div>
+                        <div class="group-card-partner" id="groupCardPartner" style="display:none;"></div>
                         <div class="group-card-count" id="groupCardCount"></div>
                     </div>
                     <div class="group-card-actions">

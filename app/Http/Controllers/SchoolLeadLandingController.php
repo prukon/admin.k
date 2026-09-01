@@ -6,9 +6,14 @@ use App\Http\Requests\SubmitSchoolLeadLandingRequest;
 use App\Services\RecaptchaVerificationService;
 use App\Services\SchoolLeadLandingService;
 use App\Services\SchoolLeadNotificationService;
+use App\Support\RuPhone;
+use App\Support\UrlQrCode;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 class SchoolLeadLandingController extends Controller
@@ -39,6 +44,36 @@ class SchoolLeadLandingController extends Controller
             'locationsUrl'     => route('lead.locations', ['landingSlug' => $landingSlug]),
             'teamsUrl'         => route('lead.teams', ['landingSlug' => $landingSlug]),
             'teamInfoUrl'      => route('lead.team-info', ['landingSlug' => $landingSlug]),
+        ]);
+    }
+
+    public function instruction(string $landingSlug): View
+    {
+        return view('landing.partner-lead-instruction', $this->instructionViewData($landingSlug));
+    }
+
+    public function instructionPdf(string $landingSlug): Response
+    {
+        $data = $this->instructionViewData($landingSlug);
+        $data['qrPngDataUri'] = UrlQrCode::pngDataUri($data['landingUrl']);
+
+        $html = view('landing.partner-lead-instruction-pdf', $data)->render();
+
+        $options = new Options();
+        $options->set('defaultFont', (string) config('contracts.dompdf_font', 'DejaVu Sans'));
+        $options->set('isRemoteEnabled', false);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->render();
+
+        $filename = 'instrukciya-'.$landingSlug.'.pdf';
+
+        return response($dompdf->output(), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
@@ -162,5 +197,39 @@ class SchoolLeadLandingController extends Controller
                 ->withInput()
                 ->withErrors(['form' => 'На сервере произошла ошибка. Попробуйте позже.']);
         }
+    }
+
+    /**
+     * @return array{
+     *     partner: \App\Models\Partner,
+     *     landingUrl: string,
+     *     pdfUrl: string,
+     *     contactPhone: ?string,
+     *     contactPhoneHref: ?string
+     * }
+     */
+    private function instructionViewData(string $landingSlug): array
+    {
+        $widget = $this->landing->resolveActiveWidget($landingSlug);
+        $partner = $widget->partner;
+
+        if ($partner === null) {
+            abort(404);
+        }
+
+        $rawPhone = trim((string) ($partner->phone ?? ''));
+        $contactPhone = $rawPhone !== '' ? RuPhone::formatForInput($rawPhone) : null;
+        $digits = RuPhone::normalizeDigits($rawPhone);
+        $contactPhoneHref = ($digits !== null && strlen($digits) === 11)
+            ? 'tel:+'.$digits
+            : null;
+
+        return [
+            'partner'          => $partner,
+            'landingUrl'       => route('lead.show', ['landingSlug' => $landingSlug]),
+            'pdfUrl'           => route('lead.instruction.pdf', ['landingSlug' => $landingSlug]),
+            'contactPhone'     => $contactPhone,
+            'contactPhoneHref' => $contactPhoneHref,
+        ];
     }
 }

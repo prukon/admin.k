@@ -28,17 +28,60 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
-  <h2 id="partner-self-registration-index">Саморегистрация школы с лендинга: флаг в .env (2026‑09)</h2>
+  <h2 id="landing-parents-instruction-index">Лендинг: инструкция для родителей + PDF (2026‑09)</h2>
   <div class="note">
-    Кнопка «Регистрация» в шапке лендинга и форма <code>/partner/register</code>
-    закрываются через <code>PARTNER_SELF_REGISTRATION_ENABLED=false</code>
-    (конфиг <code>app.partner_self_registration_enabled</code>, дефолт <code>true</code>).
+    Публичная распечатка <code>GET /lead/{landingSlug}/instruction</code> (<code>lead.instruction</code>):
+    заявка на лендинге партнёра → письмо с логином после создания клиента админом → письмо о договоре
+    → заполнение и подпись в кабинете → ежемесячная ссылка на оплату.
+    Название школы — <code>Partner::landingDisplayName()</code> (= <code>partners.title</code>, без fallback на юрлицо).
+    Ссылка «Запись — {title}» и QR ведут на лендинг <code>/lead/{landingSlug}</code> (<code>lead.show</code>),
+    не на саму инструкцию и не на PDF. QR на HTML: <code>#landing-qr</code> <code>data-url</code>
+    + <code>public/js/qrcode-generator.min.js</code> (SVG, ECC M).
+    Телефон — <code>partners.phone</code> (<code>RuPhone::formatForInput</code>): пустой/пробелы скрыты,
+    полный 11-значный — ссылка <code>tel:</code>, неполный — текст без <code>tel:</code>.
+    Кнопки «Распечатать» (<code>window.print</code>) и «Скачать PDF»; при печати панель скрывается.
+    PDF: <code>GET /lead/{landingSlug}/instruction.pdf</code> (<code>lead.instruction.pdf</code>),
+    attachment <code>instrukciya-{slug}.pdf</code>, Dompdf / DejaVu Sans, QR PNG из <code>App\Support\UrlQrCode</code>
+    (те же модули, что у JS, на URL лендинга). Маршруты публичные (<code>throttle:60,1</code>, без auth):
+    гость и пользователь без CRM-прав — 200, неактивный/чужой slug — 404, POST/PUT/PATCH/DELETE — 405.
+    В CRM на <code>/admin/school-leads/landing</code> при заданном slug — кнопка «Инструкция для родителей»
+    (новая вкладка, HTML, не PDF). JSON сохранения slug отдаёт <code>landing_url</code>, не <code>instruction_url</code> —
+    после AJAX страница <code>reload</code>, чтобы кнопка появилась.
+    <br><br>
+    Подробно — <a href="/docs/documentation/school-leads-landing#4-2">school-leads-landing §4.2</a>.
+    Тесты: <code>SchoolLeadLandingInstructionFeatureTest</code>,
+    <code>SchoolLeadLandingInstructionUxFeatureTest</code>,
+    <code>SchoolLeadLandingPublicAccessFeatureTest</code>,
+    <code>SchoolLeadLandingEndpointsAccessFeatureTest</code>,
+    <code>SchoolLeadLandingPageFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>UrlQrCodeTest</code>,
+    <code>SchoolLeadLandingInstructionDocumentationContractTest</code>.
+    Анонс: <a href="/doc#landing-parents-instruction-index">/doc#landing-parents-instruction-index</a>.
+  </div>
+
+  <h2 id="partner-self-registration-index">Саморегистрация школы с лендинга (2026‑09)</h2>
+  <div class="note">
+    Публичная регистрация <b>школы (партнёра)</b> с лендинга, не регистрация ученика.
+    Кнопка «Регистрация» в шапке (десктоп <code>#mainNav</code> и мобильное меню <code>#publicNavDrawer</code>)
+    ведёт гостя на <code>GET /partner/register</code>. Форма нативная (<code>method="post"</code>, не AJAX):
+    название школы, имя администратора, email, пароль. Успех — партнёр + пользователь роль <code>admin</code>,
+    вход без remember, 302 <code>/cabinet</code>.
+    Закрыть новые школы: <code>PARTNER_SELF_REGISTRATION_ENABLED=false</code>
+    (конфиг <code>app.partner_self_registration_enabled</code>, дефолт <code>true</code> через
+    <code>filter_var(..., FILTER_VALIDATE_BOOLEAN)</code>).
     Закомментировать строку в <code>.env</code> или поставить <code>true</code> — снова открыть.
-    Прямой GET при закрытом флаге показывает заглушку, POST — 403 без создания партнёра.
+    Прямой GET при закрытом флаге показывает заглушку (демо + Telegram), POST — 403 без создания партнёра.
     Не путать с админским <code>registrationActivity</code> (регистрация учеников).
     <br><br>
     Подробно — <a href="/docs/documentation/partner-self-registration">partner-self-registration</a>.
     Тесты: <code>PartnerSelfRegistrationFlagFeatureTest</code>,
+    <code>PartnerSelfRegistrationAccessFeatureTest</code>,
+    <code>PartnerSelfRegistrationNonAjaxSafetyNetFeatureTest</code>,
+    <code>PartnerSelfRegistrationAjaxContractFeatureTest</code>,
+    <code>PartnerSelfRegistrationUxFeatureTest</code>,
+    <code>PartnerSelfRegistrationFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
     <code>PartnerSelfRegistrationDocumentationContractTest</code>.
     Анонс: <a href="/doc#partner-self-registration-index">/doc#partner-self-registration-index</a>.
   </div>
@@ -223,6 +266,37 @@
     <a href="/docs/documentation/contracts#contract-signed-in-app">contracts §8.1</a>,
     <a href="/docs/documentation/account-contract-fill">заполнение в кабинете</a>.
     Тесты: <code>ContractSignedInAppNotification*FeatureTest</code>.
+  </div>
+
+  <h2 id="chat-partner-name-index">Чат: название партнёра в модалках «Контакт» и «Группа» (2026‑09)</h2>
+  <div class="note">
+    В <code>/chat</code> под именем в модалке <b>«Контакт»</b> и под названием в модалке
+    <b>«Группа»</b> показывается <code>partners.title</code> текущей школы
+    (JSON <code>partner_name</code>). Это не шапка открытого диалога
+    (<code>#threadSubtitle</code> — участники / «онлайн» /
+    <a href="/doc#chat-header-subtitle-index">анонс подзаголовка</a>)
+    и не вкладка «Аккаунт».
+    Карточка человека — <a href="/doc#chat-presence-index">онлайн / карточка</a>,
+    состав группы — <a href="/doc#chat-group-members-index">анонс состава</a>.
+    <br><br>
+    1) <b>Контакт.</b> <code>#peerCardModal</code>, сразу под ФИО:
+    <code>.peer-card-partner</code>. Пустое не рисуем и не ставим «-».
+    <code>GET /chat/api/users/{id}</code>. Служба поддержки — пустая строка.
+    Чужой партнёр — 403.
+    <br>
+    2) <b>Группа.</b> <code>#groupCardModal</code>, <code>#groupCardPartner</code>
+    под названием, над «N участников».
+    <code>GET /chat/api/threads/{id}/participants</code> → <code>thread.partner_name</code>.
+    Пустое — <code>display:none</code>.
+    <br>
+    3) <b>Не здесь.</b> Inbox, show шапки, список контактов, вкладка «Аккаунт»
+    (<code>#accountCardBody</code>) — строку партнёра не показываем
+    (в JSON своей карточки поле может быть, UI его не рисует).
+    <br><br>
+    Подробно — <a href="/docs/documentation/chat#partner-name">chat §название партнёра</a>.
+    Тесты: <code>ChatPartnerNameFeatureTest</code>,
+    <code>ChatPartnerNameUxFeatureTest</code>,
+    <code>ChatPartnerNameDocumentationContractTest</code>.
   </div>
 
   <h2 id="session-lifetime-index">Сессия 30 дней, «Запомнить меня», 403 без падения admin2 (2026‑08)</h2>
@@ -563,8 +637,10 @@
     <code>is_enabled=0</code> входит, если ping свежий. Soft-deleted пользователь — нет.
     Soft-deleted партнёр всё ещё группирует живых (eager <code>withTrashed()</code>).
     <br>
-    2) <b>Группы.</b> Блок на партнёра: название и число, ниже ФИО
-    (<code>lastname</code> + <code>name</code>, <code>User::full_name</code>).
+    2) <b>Группы.</b> Блок на партнёра: название и число по центру
+    (<code>text-align: center</code> у <code>.online-users__partner-title</code>),
+    ниже ФИО слева (<code>text-align: left</code> у <code>.online-users__user</code>,
+    <code>lastname</code> + <code>name</code>, <code>User::full_name</code>).
     Сортировка блоков по названию, блок без <code>partner_id</code> —
     последним, заголовок «Без партнёра». Пустое название школы — «Без названия».
     Пустое ФИО — <code>#id</code>. Пустой список — «Никого нет онлайн».
@@ -1312,8 +1388,11 @@
     <a href="/doc#chat-presence-index">онлайн / карточка</a>).
     Модалка стандартной ширины Bootstrap (не <code>modal-xl</code> / не fullscreen).
     <br>
-    2) <b>Карточка.</b> Аватар (пока дефолтный), название, число
+    2) <b>Карточка.</b> Аватар (пока дефолтный), название, под ним название партнёра
+    (<code>#groupCardPartner</code>, JSON <code>thread.partner_name</code>, <code>partners.title</code>;
+    пустое скрыто), число
     («N участник / участника / участников», <code>membersCountLabel</code>).
+    Не в шапке диалога (<code>#threadSubtitle</code>).
     Иконки в одну строку: «Добавить участников» (<code>#addGroupMembersBtn</code>,
     <code>fa-user-plus</code>) и «Покинуть группу» (<code>#leaveGroupBtn</code>,
     <code>fa-right-from-bracket</code>). Добавлять и удалять других может только
@@ -1385,6 +1464,8 @@
     чат — <a href="/doc#chat-index">анонс чата</a>.
     Тесты: <code>ChatGroupMembersFeatureTest</code>,
     <code>ChatGroupMembersUxFeatureTest</code>,
+    <code>ChatPartnerNameFeatureTest</code>, <code>ChatPartnerNameUxFeatureTest</code>
+    (<a href="/doc#chat-partner-name-index">название партнёра в модалках</a>),
     <code>ChatHeaderSubtitleFeatureTest</code>,
     <code>ChatHeaderSubtitleUxFeatureTest</code>,
     <code>ChatGroupThreadFeatureTest</code>,
@@ -2031,9 +2112,11 @@
     диалога (<code>#threadPeerHit</code>), не по строке слева и не по контакту
     (там открывается диалог). Пока диалог не выбран, шапка <code>is-idle</code> —
     клик карточку не открывает. Модалка стандартной ширины Bootstrap:
-    аватар, ФИО (<code>lastname</code>+<code>name</code>), телефон ученика (<code>tel:</code>),
+    аватар, ФИО (<code>lastname</code>+<code>name</code>), под ФИО название партнёра
+    (<code>.peer-card-partner</code>, JSON <code>partner_name</code> = <code>partners.title</code>;
+    пустое не рисуем), телефон ученика (<code>tel:</code>),
     ФИО и телефон родителя, последний онлайн («онлайн» / дата-время / «-»), группы.
-    Пустые поля карточки — «-».
+    Пустые поля карточки — «-». Вкладка «Аккаунт» и шапка диалога партнёра не показывают.
     API <code>GET /chat/api/users/{id}</code> — <code>messages.view</code> + своя школа
     (чужой партнёр 403, нет пользователя 404). Отключённый ученик той же школы — 200
     (из старого диалога карточку всё ещё можно открыть). POST/PATCH/DELETE → 405.
@@ -2046,6 +2129,8 @@
     Подробно — <a href="/docs/documentation/chat#presence">chat §онлайн и карточка</a>,
     чат — <a href="/doc#chat-index">анонс чата</a>.
     Тесты: <code>ChatPresenceFeatureTest</code>, <code>ChatPresenceUxFeatureTest</code>,
+    <code>ChatPartnerNameFeatureTest</code>, <code>ChatPartnerNameUxFeatureTest</code>
+    (<a href="/doc#chat-partner-name-index">название партнёра в модалках</a>),
     <code>ChatHeaderSubtitleFeatureTest</code>, <code>ChatHeaderSubtitleUxFeatureTest</code>
     (прогон реального <code>chat.js</code>: время сообщения, нет красной в списке,
     шапка idle, родитель только если ФИО есть),
@@ -2489,6 +2574,8 @@
     Под названием открытого диалога — участники группы или «онлайн» / «был(а) в сети…»,
     не в списке слева:
     <a href="/doc#chat-header-subtitle-index">анонс подзаголовка шапки</a>.
+    Название школы в модалках «Контакт» и «Группа» (не вкладка «Аккаунт», не шапка) —
+    <a href="/doc#chat-partner-name-index">анонс названия партнёра</a>.
     Фильтр контактов по учебной группе (не сам групповой чат) —
     <a href="/doc#chat-contacts-team-filter-index">анонс фильтра</a>.
     Стили и клиент страницы — Vite <code>resources/css/chat.css</code> и
@@ -2564,6 +2651,9 @@
     (<a href="/doc#chat-presence-index">онлайн / карточка</a>),
     <code>ChatHeaderSubtitleFeatureTest</code> / <code>ChatHeaderSubtitleUxFeatureTest</code>
     (<a href="/doc#chat-header-subtitle-index">подзаголовок шапки</a>),
+    <code>ChatPartnerNameFeatureTest</code> / <code>ChatPartnerNameUxFeatureTest</code>
+    / <code>ChatPartnerNameDocumentationContractTest</code>
+    (<a href="/doc#chat-partner-name-index">название партнёра в модалках</a>),
     <code>ChatDraftFeatureTest</code> / <code>ChatDraftUxFeatureTest</code> (черновик на сервере и превью «Черновик:»),
     <code>ChatReactionFeatureTest</code> / <code>ChatReactionUxFeatureTest</code>
     (<a href="/doc#chat-emoji-index">смайлы и реакции</a>),
@@ -4895,7 +4985,7 @@
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, автособытия «ученик добавил группу» (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer) и <b>«договор подписан»</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>, только admin школы, 7 суток), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
-    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
+    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>название партнёра в модалках</b> (<a href="/doc#chat-partner-name-index">анонс</a>: под ФИО в «Контакт» и под именем в «Группа», не вкладка «Аккаунт», не шапка), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
@@ -4943,9 +5033,9 @@
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
     <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
     <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы (<code>lockUser</code>, на клиентах — <a href="/doc#users-contract-create-index">анонс</a>), <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
-    <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), блок «Об услуге» — адрес / вид спорта / стоимость / период без расписания (<a href="/doc#landing-team-info-rows-index">анонс</a>, §5.4.2), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
+    <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, <b>инструкция для родителей</b> <code>/instruction</code> и PDF <code>/instruction.pdf</code> (<a href="/doc#landing-parents-instruction-index">анонс</a>, §4.2), каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), блок «Об услуге» — адрес / вид спорта / стоимость / период без расписания (<a href="/doc#landing-team-info-rows-index">анонс</a>, §5.4.2), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
-    <li><a href="/docs/documentation/partner-self-registration"><strong>Саморегистрация школы с лендинга</strong>: кнопка «Регистрация», <code>/partner/register</code>, флаг <code>PARTNER_SELF_REGISTRATION_ENABLED</code> — <a href="/doc#partner-self-registration-index">анонс</a></a></li>
+    <li><a href="/docs/documentation/partner-self-registration"><strong>Саморегистрация школы с лендинга</strong>: кнопка «Регистрация» (школа, не ученик), <code>/partner/register</code>, native POST → 302 <code>/cabinet</code>, флаг <code>PARTNER_SELF_REGISTRATION_ENABLED</code>, заглушка при закрытии — <a href="/doc#partner-self-registration-index">анонс</a></a></li>
     <li><a href="/docs/documentation/session-lifetime"><strong>Сессия 30 дней / «Запомнить меня» / 403</strong>: дефолт <code>SESSION_LIFETIME=43200</code> (факт = env), галка на <code>/login</code> с первого GET, гостевой HTML 403 без <code>admin2</code>, Echo <code>/broadcasting/auth</code> 403 не 500 — <a href="/doc#session-lifetime-index">анонс</a></a></li>
     <li><a href="/docs/documentation/tests-standards">Требования к единообразию Feature‑тестов (партнёр, авторизация, права, <b>фикстуры юр. лиц T‑Bank/CloudKassir</b>, <b>лог последнего PHPUnit</b> — <a href="/doc#phpunit-last-log-index">анонс</a>)</a></li>
   </ul>

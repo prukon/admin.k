@@ -48,6 +48,20 @@ final class SchoolLeadLandingEndpointsAccessFeatureTest extends TestCase
                 'expected' => 200,
             ],
             [
+                'name'     => 'instruction',
+                'method'   => 'GET',
+                'url'      => route('lead.instruction', ['landingSlug' => $slug]),
+                'headers'  => ['HTTP_ACCEPT' => 'text/html'],
+                'expected' => 200,
+            ],
+            [
+                'name'     => 'instruction pdf',
+                'method'   => 'GET',
+                'url'      => route('lead.instruction.pdf', ['landingSlug' => $slug]),
+                'headers'  => ['HTTP_ACCEPT' => 'application/pdf'],
+                'expected' => 200,
+            ],
+            [
                 'name'     => 'locations ok',
                 'method'   => 'GET',
                 'url'      => route('lead.locations', [
@@ -150,6 +164,10 @@ final class SchoolLeadLandingEndpointsAccessFeatureTest extends TestCase
         $slug = (string) $this->landingWidget->landing_slug;
 
         $this->get(route('lead.show', ['landingSlug' => $slug]))->assertOk();
+        $this->get(route('lead.instruction', ['landingSlug' => $slug]))->assertOk();
+        $this->get(route('lead.instruction.pdf', ['landingSlug' => $slug]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
 
         $this->getJson(route('lead.locations', [
             'landingSlug' => $slug,
@@ -187,10 +205,6 @@ final class SchoolLeadLandingEndpointsAccessFeatureTest extends TestCase
         $this->fakeRecaptchaSuccess();
 
         foreach ($this->guestExpectedStatusesPayload() as $item) {
-            if ($item['name'] === 'show') {
-                continue;
-            }
-
             $response = $this->call(
                 $item['method'],
                 $item['url'],
@@ -242,6 +256,8 @@ final class SchoolLeadLandingEndpointsAccessFeatureTest extends TestCase
 
         foreach ([
             ['GET', route('lead.show', ['landingSlug' => $slug]), []],
+            ['GET', route('lead.instruction', ['landingSlug' => $slug]), []],
+            ['GET', route('lead.instruction.pdf', ['landingSlug' => $slug]), []],
             ['GET', route('lead.locations', ['landingSlug' => $slug, 'district_id' => $this->landingDistrict->id]), []],
             ['GET', route('lead.teams', ['landingSlug' => $slug, 'location_id' => $this->landingLocation->id]), []],
             ['GET', route('lead.team-info', [
@@ -258,7 +274,7 @@ final class SchoolLeadLandingEndpointsAccessFeatureTest extends TestCase
 
     public function test_public_landing_routes_are_not_protected_by_auth_or_crm_permissions(): void
     {
-        foreach (['lead.show', 'lead.locations', 'lead.teams', 'lead.team-info', 'lead.submit'] as $routeName) {
+        foreach (['lead.show', 'lead.instruction', 'lead.instruction.pdf', 'lead.locations', 'lead.teams', 'lead.team-info', 'lead.submit'] as $routeName) {
             $route = Route::getRoutes()->getByName($routeName);
             $this->assertNotNull($route, "Маршрут {$routeName} не найден");
 

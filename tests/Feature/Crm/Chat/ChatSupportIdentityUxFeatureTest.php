@@ -129,6 +129,7 @@ final class ChatSupportIdentityUxFeatureTest extends ChatTestCase
         $this->assertStringNotContainsString((string) $ui['canonical_lastname'], $card);
         $this->assertStringNotContainsString('+79001112233', $card);
         $this->assertStringContainsString('peer-card-name', $card);
+        $this->assertStringNotContainsString('peer-card-partner', $card);
         $this->assertStringContainsString('>-<', $card);
 
         $members = (string) $ui['members']['html'];

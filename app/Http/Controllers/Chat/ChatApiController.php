@@ -216,7 +216,13 @@ class ChatApiController extends AdminBaseController
         $this->assertGroupThread($thread);
 
         return response()->json(
-            $this->chat->groupMembersPage($thread, $this->currentUser(), $request->afterUserId())
+            $this->chat->groupMembersPage(
+                $thread,
+                $this->currentUser(),
+                $request->afterUserId(),
+                ChatService::MEMBERS_PAGE_SIZE,
+                $this->requirePartnerId()
+            )
         );
     }
 

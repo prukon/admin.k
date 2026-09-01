@@ -49,6 +49,14 @@ final class SystemMonitorsOnlineUsersUxFeatureTest extends SystemMonitorsTestCas
         );
         $this->assertStringContainsString('aria-label="Копировать список"', $html);
         $this->assertStringContainsString('title="Копировать список"', $html);
+        $this->assertMatchesRegularExpression(
+            '/\.online-users__partner-title\s*\{[^}]*text-align:\s*center/',
+            $html
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.online-users__user\s*\{[^}]*text-align:\s*left/',
+            $html
+        );
     }
 
     public function test_monitors_off_does_not_server_render_online_names(): void

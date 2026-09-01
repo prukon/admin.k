@@ -49,11 +49,16 @@ class SchoolLeadLandingController extends Controller
             ? route('lead.show', ['landingSlug' => $widget->landing_slug])
             : null;
 
+        $instructionUrl = $widget->landing_slug !== null && $widget->landing_slug !== ''
+            ? route('lead.instruction', ['landingSlug' => $widget->landing_slug])
+            : null;
+
         return view('admin.school-leads.index', [
-            'activeTab'  => 'landing',
-            'widget'     => $widget,
-            'landingUrl' => $landingUrl,
-            'partner'    => $partner,
+            'activeTab'      => 'landing',
+            'widget'         => $widget,
+            'landingUrl'     => $landingUrl,
+            'instructionUrl' => $instructionUrl,
+            'partner'        => $partner,
         ]);
     }
 

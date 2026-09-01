@@ -18,7 +18,7 @@ final class ContractSignedInAppNotificationDocumentationContractTest extends Tes
         $this->assertStringContainsString('id="contract-signed-in-app-index"', $html);
         $start = strpos($html, 'id="contract-signed-in-app-index"');
         $this->assertNotFalse($start);
-        $end = strpos($html, 'id="session-lifetime-index"');
+        $end = strpos($html, 'id="chat-partner-name-index"');
         $this->assertNotFalse($end);
         $this->assertGreaterThan($start, $end);
         $chunk = substr($html, $start, $end - $start);

@@ -98,6 +98,7 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('id="peerCardBody"', $html);
         $this->assertStringContainsString('id="groupCardModal"', $html);
         $this->assertStringContainsString('id="groupCardError"', $html);
+        $this->assertStringContainsString('id="groupCardPartner"', $html);
         $this->assertStringContainsString('id="groupMembersBody"', $html);
         $this->assertStringContainsString('id="addGroupMembersModal"', $html);
         $this->assertStringContainsString('id="addGroupMembersBtn"', $html);
@@ -201,6 +202,8 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('.chat-li-unread', $css);
         $this->assertStringContainsString('.chat-header-peer { min-width: 0; flex: 1 1 auto; text-align: left; }', $css);
         $this->assertStringContainsString('.chat-header-subtitle {', $css);
+        $this->assertStringContainsString('.peer-card-partner {', $css);
+        $this->assertStringContainsString('.group-card-partner {', $css);
         $this->assertMatchesRegularExpression(
             '/\.chat-header-text\s*\{[^}]*text-align:\s*left/',
             $css
@@ -643,6 +646,10 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString("method: 'DELETE'", $submitChunk);
         $this->assertStringContainsString('peerCardModal', $js);
         $this->assertStringContainsString('last_seen_label', $js);
+        $this->assertStringContainsString('partner_name', $js);
+        $this->assertStringContainsString('peer-card-partner', $js);
+        $this->assertStringContainsString('function setGroupCardPartner(', $js);
+        $this->assertStringContainsString("getElementById('groupCardPartner')", $js);
         $this->assertStringContainsString("href=\"' + escapeHtml(href)", $js);
         $this->assertStringContainsString("urls.users + '/' + encodeURIComponent", $js);
         $this->assertStringContainsString('function persistLeavingDraft(', $js);
@@ -651,6 +658,7 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString("addEventListener('input', scheduleDraftSave)", $js);
         $this->assertStringContainsString('function loadAccountCard(', $js);
         $this->assertStringContainsString("renderPeerCard(res.data, 'accountCardBody')", $js);
+        $this->assertStringContainsString("targetId === 'accountCardBody'", $js);
         $this->assertStringContainsString('function showAccountCardError(', $js);
         $this->assertStringContainsString('function setMobileTab(', $js);
         $this->assertStringContainsString('function placeContactsMount(', $js);

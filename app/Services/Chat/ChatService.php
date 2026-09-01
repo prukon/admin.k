@@ -12,6 +12,7 @@ use App\Models\ChatMessage;
 use App\Models\ChatMessageReaction;
 use App\Models\ChatParticipant;
 use App\Models\ChatThread;
+use App\Models\Partner;
 use App\Models\User;
 use App\Support\UserTeamQuery;
 use Illuminate\Support\Facades\DB;
@@ -263,7 +264,7 @@ class ChatService
     /**
      * @return array<string, mixed>
      */
-    public function groupMembersPage(ChatThread $thread, User $viewer, ?int $afterUserId = null, int $limit = self::MEMBERS_PAGE_SIZE): array
+    public function groupMembersPage(ChatThread $thread, User $viewer, ?int $afterUserId = null, int $limit = self::MEMBERS_PAGE_SIZE, int $partnerId = 0): array
     {
         $limit = max(1, min(50, $limit));
         $hasRoleId = Schema::hasColumn('users', 'role_id');
@@ -336,6 +337,8 @@ class ChatService
 
         $membersTotal = $this->visibleGroupMembersCount($thread);
 
+        $resolvedPartnerId = $partnerId > 0 ? $partnerId : (int) ($viewer->partner_id ?? 0);
+
         return [
             'thread' => [
                 'id' => (int) $thread->id,
@@ -344,6 +347,7 @@ class ChatService
                 'is_group' => true,
                 'members_total' => $membersTotal,
                 'header_subtitle' => $this->membersCountLabel($membersTotal),
+                'partner_name' => $this->partnerTitle($resolvedPartnerId),
             ],
             'can_manage' => $this->userCanManageGroupMembers($viewer),
             'members' => $members,
@@ -815,6 +819,7 @@ class ChatService
                 'last_seen_at' => $peer->last_seen_at?->toDateTimeString(),
                 'last_seen_label' => $lastSeenLabel,
                 'team_title' => '',
+                'partner_name' => '',
             ];
         }
 
@@ -852,7 +857,17 @@ class ChatService
             'last_seen_at' => $peer->last_seen_at?->toDateTimeString(),
             'last_seen_label' => $lastSeenLabel,
             'team_title' => $teamTitle,
+            'partner_name' => $this->partnerTitle($partnerId),
         ];
+    }
+
+    private function partnerTitle(int $partnerId): string
+    {
+        if ($partnerId <= 0) {
+            return '';
+        }
+
+        return trim((string) (Partner::query()->whereKey($partnerId)->value('title') ?? ''));
     }
 
     public function avatarUrl(?string $imageCrop): string

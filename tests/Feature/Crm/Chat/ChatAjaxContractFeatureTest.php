@@ -581,7 +581,7 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
             ->assertOk()
             ->assertJsonStructure([
                 'id', 'avatar', 'full_name', 'phone', 'parent_full_name', 'parent_phone',
-                'is_online', 'last_seen_at', 'last_seen_label', 'team_title',
+                'is_online', 'last_seen_at', 'last_seen_label', 'team_title', 'partner_name',
             ])
             ->assertJsonPath('full_name', 'Иванов Иван')
             ->assertJsonPath('phone', '+79005556677')
@@ -589,7 +589,8 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
             ->assertJsonPath('parent_phone', '+79001112233')
             ->assertJsonPath('is_online', true)
             ->assertJsonPath('last_seen_label', 'онлайн')
-            ->assertJsonPath('team_title', 'КарточкаГруппа');
+            ->assertJsonPath('team_title', 'КарточкаГруппа')
+            ->assertJsonPath('partner_name', $this->partner->title);
     }
 
     public function test_peer_card_empty_fields_and_missing_last_seen_use_blank_and_dash(): void
@@ -610,7 +611,8 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
             ->assertJsonPath('parent_phone', '')
             ->assertJsonPath('is_online', false)
             ->assertJsonPath('last_seen_label', '-')
-            ->assertJsonPath('team_title', '');
+            ->assertJsonPath('team_title', '')
+            ->assertJsonPath('partner_name', $this->partner->title);
     }
 
     public function test_peer_card_offline_last_seen_is_formatted_datetime(): void

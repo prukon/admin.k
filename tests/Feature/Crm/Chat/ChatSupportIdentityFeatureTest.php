@@ -102,7 +102,8 @@ final class ChatSupportIdentityFeatureTest extends ChatTestCase
             ->assertJsonPath('phone', '')
             ->assertJsonPath('parent_full_name', '')
             ->assertJsonPath('parent_phone', '')
-            ->assertJsonPath('team_title', '');
+            ->assertJsonPath('team_title', '')
+            ->assertJsonPath('partner_name', '');
 
         $this->getJson(route('chat.api.users.show', $extra))->assertForbidden();
     }

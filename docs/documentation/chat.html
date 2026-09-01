@@ -33,6 +33,7 @@
     · анонс чата: <a href="/doc#chat-index">/doc#chat-index</a>
     · подзаголовок шапки: <a href="/doc#chat-header-subtitle-index">/doc#chat-header-subtitle-index</a>
     · онлайн / карточка: <a href="/doc#chat-presence-index">/doc#chat-presence-index</a>
+    · название партнёра в модалках: <a href="/doc#chat-partner-name-index">/doc#chat-partner-name-index</a>
     · черновик: <a href="/doc#chat-draft-index">/doc#chat-draft-index</a>
     · фильтр контактов по группе: <a href="/doc#chat-contacts-team-filter-index">/doc#chat-contacts-team-filter-index</a>
     · групповой чат: <a href="/doc#chat-groups-index">/doc#chat-groups-index</a>
@@ -377,7 +378,12 @@
       <code>GET /chat/api/users/{user}</code>: <code>full_name</code>, <code>phone</code>,
       <code>parent_full_name</code>, <code>parent_phone</code>, <code>is_online</code>,
       <code>last_seen_at</code>, <code>last_seen_label</code> («онлайн» / <code>d.m.Y H:i</code> / «-»),
-      <code>team_title</code>. В UI пустое — «-», телефоны с <code>tel:</code>.
+      <code>team_title</code>, <code>partner_name</code> (<code>partners.title</code> текущей школы).
+      В UI пустое в полях карточки — «-», телефоны с <code>tel:</code>.
+      Под ФИО в модалке <code>#peerCardModal</code> — <code>.peer-card-partner</code>
+      (пустое не рисуем и не ставим «-»). Вкладка «Аккаунт» тот же <code>renderPeerCard</code>
+      в <code>#accountCardBody</code> — название партнёра там не показываем.
+      Шапка диалога (<code>#threadSubtitle</code>) партнёра не показывает.
       Своя школа, в том числе отключённый и сам себе — 200; чужой партнёр — 403.
       Модалка <code>#peerCardModal</code> стандартной ширины, ошибки в <code>#peerCardError</code>.</li>
     <li><b>Перерисовка.</b> <code>InboxBump</code> отдаёт те же флаги списка, что HTTP inbox.
@@ -424,6 +430,29 @@
       <code>thread.header_subtitle</code>. Нативный GET show — JSON, не страница.
       Гость 302/401, без права / не участник 403. POST/PATCH show → 404/405.
       DELETE show — удаление чата (<code>messages.threads.delete</code>), без права 403.</li>
+  </ol>
+
+  <h2 id="partner-name">2.1.2) Название партнёра в модалках «Контакт» и «Группа»</h2>
+  <p>Анонс на главной: <a href="/doc#chat-partner-name-index">/doc#chat-partner-name-index</a>.
+    Под ФИО / названием чата в двух модалках, не в шапке диалога и не во вкладке «Аккаунт».</p>
+  <ol>
+    <li><b>Контакт.</b> <code>#peerCardModal</code>: сразу под <code>.peer-card-name</code>
+      серая строка <code>.peer-card-partner</code> из JSON <code>partner_name</code>
+      (<code>partners.title</code> текущей школы, <code>ChatService::userCard</code>).
+      Пустое и пробелы не рисуем и не ставим «-». Телефоны и остальные поля как раньше.
+      Вкладка «Аккаунт» вызывает <code>renderPeerCard(..., 'accountCardBody')</code> —
+      партнёра там нет, хотя API своё <code>partner_name</code> всё равно отдаёт.</li>
+    <li><b>Группа.</b> <code>#groupCardModal</code>: под <code>#groupCardTitle</code>,
+      над счётчиком участников — <code>#groupCardPartner</code>
+      (<code>setGroupCardPartner</code>, JSON <code>thread.partner_name</code> на
+      <code>GET /chat/api/threads/{id}/participants</code>). Пустое — <code>display:none</code>.
+      Не в <code>#threadSubtitle</code>.</li>
+    <li><b>Где нет.</b> Inbox, show шапки, список контактов, <code>inbox.bump</code> —
+      ключа <code>partner_name</code> нет. Служба поддержки — пустая строка, строку в UI не рисуем.
+      Чужой партнёр на карточке — 403.</li>
+    <li><b>Тесты.</b> <code>ChatPartnerNameFeatureTest</code>,
+      <code>ChatPartnerNameUxFeatureTest</code>,
+      <code>ChatPartnerNameDocumentationContractTest</code>.</li>
   </ol>
 
   <h2 id="draft">2.2) Черновик неотправленного текста</h2>
@@ -649,7 +678,10 @@
       <code>#groupCardModal</code> стандартной ширины Bootstrap (не <code>modal-xl</code>).
       Личный диалог по-прежнему открывает <code>#peerCardModal</code>.
       <code>setHeaderPeerClickable</code> — при <code>peer_id</code> или <code>is_group</code>.
-      В шапке модалки: аватар, название, число участников («N участник/участника/участников»).
+      В шапке модалки: аватар, название, под ним название партнёра
+      (<code>#groupCardPartner</code>, JSON <code>thread.partner_name</code>, <code>partners.title</code>;
+      пустое скрыто, не «-»), число участников («N участник/участника/участников»).
+      Не в шапке открытого чата (<code>#threadSubtitle</code>).
       Кнопки-иконки в одну строку: «Добавить участников» (<code>#addGroupMembersBtn</code>,
       <code>fa-user-plus</code>) и «Покинуть группу» (<code>#leaveGroupBtn</code>,
       <code>fa-right-from-bracket</code>). Добавлять и удалять других может только
@@ -770,7 +802,7 @@
       <code>role_label</code>), заголовок лички / <code>titleForViewer</code> /
       <code>inbox.bump</code>, состав группы (<code>full_name</code>,
       <code>role_label</code>), карточка <code>GET /chat/api/users/{id}</code>
-      (телефон, родитель, группы пустые). В JSON <code>role_name</code> остаётся
+      (телефон, родитель, группы, партнёр пустые). В JSON <code>role_name</code> остаётся
       <code>superadmin</code> (колонка роли на экране берёт <code>role_label</code>,
       JS: <code>role_label || role_name</code> в контактах, пикере «Создать группу»
       и «Добавить участников»). Нативный POST лички/группы без
@@ -789,7 +821,7 @@
     <li><b>Карточка.</b> <code>ChatUserShowRequest</code>: канонический доступен
       при <code>partner_id = null</code>; лишний superadmin чужому зрителю — 403;
       свою карточку (вкладка «Аккаунт») можно открыть — тоже «Служба поддержки»,
-      не ФИО. Карточка канонического маскирует телефон, родителя и группы.</li>
+      не ФИО. Карточка канонического маскирует телефон, родителя, группы и партнёра.</li>
   </ol>
 
   <h2 id="private-thread-identity">2.7) Идентичность личного диалога</h2>
@@ -925,10 +957,10 @@
       <tr><td>GET</td><td><code>/chat/api/unread</code></td><td><code>chat.api.unread</code></td><td>JSON <code>unread_total</code></td></tr>
       <tr><td>POST</td><td><code>/presence/ping</code></td><td><code>presence.ping</code></td><td>только <code>auth</code>+<code>2fa</code>, без <code>messages.view</code>; JSON <code>ok</code>; пишет <code>users.last_seen_at</code></td></tr>
       <tr><td>GET</td><td><code>/chat/api/users</code></td><td><code>chat.api.users</code></td><td>массив контактов текущей школы + одна «Служба поддержки» (канонический superadmin, без <code>OR</code> по всем SA); <code>?q=</code> — фамилия/имя ученика, email, фамилия/имя родителя; для поддержки — только подпись «Служба поддержки»; <code>?team_id=</code> — пусто / <code>none</code> / id группы (только ученики; поддержка не в конкретной группе); <code>?exclude_thread_id=</code> — скрыть уже состоящих в этой группе (участник группы)</td></tr>
-      <tr><td>GET</td><td><code>/chat/api/users/{user}</code></td><td><code>chat.api.users.show</code></td><td>карточка текущей школы, в т.ч. себя (вкладка «Аккаунт»); канонический superadmin — «Служба поддержки» даже при <code>partner_id = null</code>; лишний superadmin 403; чужой партнёр 403; без <code>messages.view</code> — 403; POST/PATCH/DELETE → 405</td></tr>
+      <tr><td>GET</td><td><code>/chat/api/users/{user}</code></td><td><code>chat.api.users.show</code></td><td>карточка текущей школы, в т.ч. себя (вкладка «Аккаунт»); канонический superadmin — «Служба поддержки» даже при <code>partner_id = null</code>; <code>partner_name</code> = <code>partners.title</code> (у поддержки пусто); лишний superadmin 403; чужой партнёр 403; без <code>messages.view</code> — 403; POST/PATCH/DELETE → 405</td></tr>
       <tr><td>GET</td><td><code>/chat/api/threads/{thread}</code></td><td><code>chat.api.threads.show</code></td><td>заголовок + последние 40 сообщений; помечает прочитанным; у группы <code>members_total</code> + <code>header_subtitle</code> («N участник/участника/участников»); у лички <code>peer_presence_label</code> / <code>header_subtitle</code> («онлайн» / «был(а) в сети…»); JSON <code>team_id</code> (null у ручных); нативный GET — JSON, не HTML; POST/PATCH → 404/405</td></tr>
       <tr><td>DELETE</td><td><code>/chat/api/threads/{thread}</code></td><td><code>chat.api.threads.destroy</code></td><td><code>messages.view</code> + <code>messages.threads.delete</code> + живой участник; soft-delete треда, участников и сообщений; AJAX JSON <code>ok</code>+<code>message</code> «Чат удалён.»; иначе 302 на <code>/chat</code>; авто-чат <code>threads.team_id</code> — 422 <code>errors.thread</code> «Нельзя удалить чат учебной группы.»; без права / не участник 403; нет треда 404; гость 302/401; PUT → 405; повторный клик по контакту создаёт новый 1-на-1</td></tr>
-      <tr><td>GET</td><td><code>/chat/api/threads/{thread}/participants</code></td><td><code>chat.api.threads.participants.index</code></td><td>карточка группы + порция участников (15, курсор <code>after_user_id</code>); <code>thread.header_subtitle</code> / <code>members_total</code>; не группа / не участник 403; <code>after_user_id=0</code> — JSON 422 <code>errors.after_user_id</code>, нативный GET 302</td></tr>
+      <tr><td>GET</td><td><code>/chat/api/threads/{thread}/participants</code></td><td><code>chat.api.threads.participants.index</code></td><td>карточка группы + порция участников (15, курсор <code>after_user_id</code>); <code>thread.header_subtitle</code> / <code>members_total</code> / <code>thread.partner_name</code>; не группа / не участник 403; <code>after_user_id=0</code> — JSON 422 <code>errors.after_user_id</code>, нативный GET 302</td></tr>
       <tr><td>POST</td><td><code>/chat/api/threads/{thread}/participants</code></td><td><code>chat.api.threads.participants.store</code></td><td>добавить; поле <code>user_ids</code> (min 1); только admin/superadmin; AJAX JSON, иначе 302; 422 под <code>user_ids</code>; ученик/тренер 403</td></tr>
       <tr><td>DELETE</td><td><code>/chat/api/threads/{thread}/participants/{user}</code></td><td><code>chat.api.threads.participants.destroy</code></td><td>себя — любой участник (покинуть); другого — только admin; AJAX JSON <code>ok</code>+<code>message</code>, иначе 302; 0 участников — soft-delete треда, кроме <code>threads.team_id</code>; GET/PATCH → 404/405</td></tr>
       <tr><td>GET</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.index</code></td><td><code>after_id</code> / <code>before_id</code> (integer min 1; <code>0</code> → JSON 422 <code>errors.before_id</code> «Некорректный идентификатор сообщения.», нативный GET 302 с ошибкой поля); PATCH/DELETE → 405</td></tr>
@@ -994,7 +1026,9 @@
       Онлайн в CRM обновляется ping <code>POST /presence/ping</code>
       (Echo-include на всех страницах кабинета, раз в 60 секунд, запись в БД не чаще чем раз в 30 секунд).
       Карточка шапки: <code>GET /chat/api/users/{id}</code> — <code>full_name</code>, <code>phone</code>,
-      <code>parent_full_name</code>, <code>parent_phone</code>, <code>last_seen_label</code>, <code>team_title</code>.</li>
+      <code>parent_full_name</code>, <code>parent_phone</code>, <code>last_seen_label</code>, <code>team_title</code>,
+      <code>partner_name</code> (под ФИО в <code>#peerCardModal</code>, не во вкладке «Аккаунт»).
+      Состав группы: <code>thread.partner_name</code> под названием в <code>#groupCardModal</code>.</li>
     <li>1-на-1: <code>is_group=0</code>, в <code>participants</code> (включая soft-deleted) ровно эта пара user id,
       без третьего человека. Живых может быть 2, 1 или 0 (собеседника выключили /
       оба ушли из треда; пустой не-team тред группы soft-delete, личка остаётся).
@@ -1076,7 +1110,10 @@
     <li>Стек <code>#system-monitors-stack</code> в <code>admin2</code>:
       <code>#js-online-users</code> над <code>#js-reverb-status</code>.
       Право и флаг как у Reverb (<code>SystemMonitors::shouldShow()</code>).
-      Без права разметки нет. Без флага разметка есть, скрыта CSS.</li>
+      Без права разметки нет. Без флага разметка есть, скрыта CSS.
+      Название школы по центру (<code>.online-users__partner-title</code>,
+      <code>text-align: center</code>), ФИО слева
+      (<code>.online-users__user</code>, <code>text-align: left</code>).</li>
     <li><code>GET /cabinet/system-monitors/online-users</code>: JSON <code>ok</code> /
       <code>total</code> / <code>partners[]</code>. Зрителя (<code>Auth::id()</code>) нет.
       Гость 302/401, без права 403,
@@ -1227,6 +1264,14 @@
       активность 1 по умолчанию, тренер через <code>@can</code>), кнопки «Создать группу» на
       <code>/chat</code> не бьют в <code>/admin/teams</code>, inbox после создания/переименования,
       <code>startDialog</code> и <code>inbox.bump</code> не подменяют личку командным чатом.</li>
+    <li><code>ChatPartnerNameFeatureTest</code> — <code>partner_name</code> = <code>partners.title</code>
+      на карточке и составе группы; inbox / show / контакты без ключа; поддержка пусто;
+      чужой партнёр 403; superadmin видит title сессии.</li>
+    <li><code>ChatPartnerNameUxFeatureTest</code> — живой <code>chat.js</code>: партнёр под ФИО
+      в «Контакт», скрыт если пусто, XSS escaped; вкладка «Аккаунт» без строки;
+      модалка «Группа» под названием, пустое <code>display:none</code>.</li>
+    <li><code>ChatPartnerNameDocumentationContractTest</code> — анонс /doc и §partner-name
+      совпадают с кодом.</li>
     <li><code>ChatSupportIdentityFeatureTest</code> — «Служба поддержки»: один канонический
       superadmin в контактах и составе, лишний скрыт, поиск по подписи не по ФИО,
       личка при <code>partner_id = null</code>, нормализация id лишнего SA,

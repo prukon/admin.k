@@ -236,6 +236,7 @@ const els = {
     chatApp: makeEl('div'),
     groupCardTitle: makeEl('div'),
     groupCardAvatar: makeEl('img'),
+    groupCardPartner: makeEl('div'),
     groupCardCount: makeEl('div'),
     groupMembersBody: makeEl('tbody'),
     groupCardError: makeEl('div')
@@ -325,6 +326,7 @@ eval(extractFn(chatJs, 'setThreadSubtitle'));
 eval(extractFn(chatJs, 'openThread'));
 eval(extractFn(chatJs, 'closeCurrentThread'));
 eval(extractFn(chatJs, 'startDialog'));
+eval(extractFn(chatJs, 'setGroupCardPartner'));
 eval(extractFn(chatJs, 'fetchGroupMembers'));
 eval(extractFn(chatJs, 'applyInboxBump'));
 

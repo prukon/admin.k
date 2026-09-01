@@ -27,7 +27,8 @@
 <body>
 <div class="wrap">
   <h1>Страница заявки партнёра (брендированный лендинг)</h1>
-  <div class="small">Файл: <code>/docs/documentation/school-leads-landing.html</code> · оглавление: <a href="/doc">/doc</a> · обзор иерархии: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a> · см. также <a href="/docs/documentation/school-leads-widget">заявки с сайта (виджет iframe и CRM)</a></div>
+  <div class="small">Файл: <code>/docs/documentation/school-leads-landing.html</code> · оглавление: <a href="/doc">/doc</a> · обзор иерархии: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a> · см. также <a href="/docs/documentation/school-leads-widget">заявки с сайта (виджет iframe и CRM)</a>
+    · анонс инструкции <a href="/doc#landing-parents-instruction-index">/doc#landing-parents-instruction-index</a></div>
 
   <div class="note">
     <b>Назначение:</b> отдельная публичная страница с полной формой записи для конкретного партнёра (школы).
@@ -35,6 +36,7 @@
     При submit выполняется <b>автосопоставление родителя</b> со справочником <code>parents</code>
     (email → телефон → ФИ) — см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>.<br>
     <b>Не путать</b> с iframe-виджетом (<code>/widget/{widgetKey}</code>) — это короткая форма для встраивания на сайт партнёра; см. <a href="/docs/documentation/school-leads-widget#4">school-leads-widget §4</a>.
+    Рядом с формой записи — публичная <b>инструкция для родителей</b> (<code>/lead/{landingSlug}/instruction</code> и PDF <code>/instruction.pdf</code>, QR на лендинг) — <a href="#4-2">§4.2</a>, анонс <a href="/doc#landing-parents-instruction-index">/doc#landing-parents-instruction-index</a>.
   </div>
 
   <h2>1) Два канала сбора заявок школы</h2>
@@ -106,6 +108,8 @@
     </thead>
     <tbody>
       <tr><td>GET</td><td><code>/lead/{landingSlug}</code></td><td>нет</td><td>HTML страницы с формой</td></tr>
+      <tr><td>GET</td><td><code>/lead/{landingSlug}/instruction</code></td><td>нет</td><td>HTML-инструкция для родителей (распечатка) — <a href="#4-2">§4.2</a></td></tr>
+      <tr><td>GET</td><td><code>/lead/{landingSlug}/instruction.pdf</code></td><td>нет</td><td>PDF той же инструкции (Dompdf, QR встроен) — <a href="#4-2">§4.2</a></td></tr>
       <tr><td>GET</td><td><code>/lead/{landingSlug}/locations?district_id=</code></td><td>нет</td><td>JSON: объекты выбранного района</td></tr>
       <tr><td>GET</td><td><code>/lead/{landingSlug}/teams?location_id=</code></td><td>нет</td><td>JSON: услуги (группы) для выбранного объекта</td></tr>
       <tr><td>GET</td><td><code>/lead/{landingSlug}/team-info?location_id=&amp;team_id=</code></td><td>нет</td><td>JSON: блок «Об услуге» — см. <a href="#5-4-2">§5.4.2</a></td></tr>
@@ -118,14 +122,20 @@
     <li>Сервис: <code>App\Services\SchoolLeadLandingService</code> (+ <code>App\Services\SchoolLeads\SchoolLeadParentMatcher</code> при create — §6 / <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">widget §5.5.5</a>).</li>
     <li>Валидация submit: <code>App\Http\Requests\SubmitSchoolLeadLandingRequest</code> — AJAX: ошибки по полям в JSON, 422; non-AJAX: redirect на страницу лендинга с <code>withErrors</code> / <code>withInput</code>.</li>
     <li>reCAPTCHA v3: <code>App\Services\RecaptchaVerificationService</code>.</li>
-    <li>View: <code>resources/views/landing/partner-lead.blade.php</code>.</li>
+    <li>View: <code>resources/views/landing/partner-lead.blade.php</code> (форма); <code>resources/views/landing/partner-lead-instruction.blade.php</code> (инструкция HTML); <code>resources/views/landing/partner-lead-instruction-pdf.blade.php</code> (шаблон PDF).</li>
     <li><b>CSRF 419</b> на AJAX <code>POST …/submit</code>: JSON <code>message</code> «Сессия устарела. Обновите страницу и отправьте заявку ещё раз.»; тот же текст показывается в <code>[data-error-for="form"]</code> (JS при <code>status === 419</code>). В <code>laravel.log</code> пишется <code>WARNING CSRF token mismatch on school lead submit</code> (<code>App\Exceptions\Handler</code>, маршруты <code>lead.submit</code> / <code>widget.school-lead.submit</code>) — иначе TokenMismatch не попадает в лог (internalDontReport). На проде для cookie сессии рекомендуется <code>SESSION_SECURE_COOKIE=true</code>.</li>
   </ul>
 
   <h3>4.1) Доступ без авторизации</h3>
-  <p>Страница и API лендинга публичные: гость и авторизованный пользователь CRM получают <b>200</b> на <code>show</code>, <code>locations</code>, <code>teams</code>, <code>team-info</code> и <code>submit</code> (AJAX) при валидном slug, активном лендинге и корректных параметрах запроса. Middleware <code>auth</code> и <code>2fa</code> на эти маршруты не навешены.</p>
-  <p>При <code>is_landing_active = false</code> или отсутствии <code>landing_slug</code> в БД — <b>404</b> на все endpoint'ы (<code>show</code>, <code>locations</code>, <code>teams</code>, <code>team-info</code>, <code>submit</code>).</p>
-  <p class="small">Покрытие: <code>SchoolLeadLandingPublicAccessFeatureTest.php</code>, <code>SchoolLeadLandingEndpointsAccessFeatureTest.php</code>, <code>SchoolLeadLandingSlugPublicFeatureTest.php</code>.</p>
+  <p>Страница и API лендинга публичные: гость и авторизованный пользователь CRM получают <b>200</b> на <code>show</code>, <code>instruction</code>, <code>instruction.pdf</code>, <code>locations</code>, <code>teams</code>, <code>team-info</code> и <code>submit</code> (AJAX) при валидном slug, активном лендинге и корректных параметрах запроса. Middleware <code>auth</code> и <code>2fa</code> на эти маршруты не навешены.</p>
+  <p>При <code>is_landing_active = false</code> или отсутствии <code>landing_slug</code> в БД — <b>404</b> на все endpoint'ы (<code>show</code>, <code>instruction</code>, <code>instruction.pdf</code>, <code>locations</code>, <code>teams</code>, <code>team-info</code>, <code>submit</code>).</p>
+  <p class="small">Покрытие: <code>SchoolLeadLandingPublicAccessFeatureTest.php</code>, <code>SchoolLeadLandingEndpointsAccessFeatureTest.php</code>, <code>SchoolLeadLandingSlugPublicFeatureTest.php</code>, <code>SchoolLeadLandingInstructionFeatureTest.php</code>, <code>SchoolLeadLandingInstructionUxFeatureTest.php</code>, <code>UrlQrCodeTest.php</code>.</p>
+
+  <h3 id="4-2">4.2) Инструкция для родителей (распечатка)</h3>
+  <p>Публичная страница <code>GET /lead/{landingSlug}/instruction</code> (<code>lead.instruction</code>) — тёплый текст «как записаться»: заявка → письмо с доступами после создания клиента админом → письмо о договоре → заполнение и подпись в кабинете → ежемесячная ссылка на оплату. Название на странице — <code>Partner::landingDisplayName()</code> (= <code>partners.title</code>, без fallback на юрлицо). Ссылка в тексте ведёт на лендинг того же партнёра (<code>lead.show</code>, текст «Запись — {title}»). Телефон — <code>partners.phone</code> (формат <code>RuPhone::formatForInput</code>); пустой / только пробелы — блок не показывается; полный 11-значный — ссылка <code>tel:</code>; неполный номер — текст без <code>tel:</code>. QR-код на HTML рисуется на клиенте из URL лендинга (не из URL инструкции и не из PDF): контейнер <code>#landing-qr</code> <code>data-url</code> = <code>lead.show</code> + <code>public/js/qrcode-generator.min.js</code> (Kazuhiko Arase, SVG, ECC M; если библиотека не загрузилась — контейнер остаётся пустым, без исключения). Кнопки «Распечатать» (<code>window.print</code>) и «Скачать PDF» (<code>&lt;a class="pdf-btn"&gt;</code> на <code>lead.instruction.pdf</code>); при печати панель <code>.print-bar</code> скрывается (<code>@media print</code>, A4). Гость и пользователь без CRM-прав получают <b>200</b> (не redirect на логин и не 403). POST/PUT/PATCH/DELETE → <b>405</b>. Те же 404, что у формы: <code>is_landing_active = false</code> / неизвестный slug. Throttle общий с лендингом: <code>throttle:60,1</code>.</p>
+  <p><code>GET /lead/{landingSlug}/instruction.pdf</code> (<code>lead.instruction.pdf</code>) отдаёт attachment PDF (Dompdf, шрифт <code>DejaVu Sans</code> из <code>config/contracts.php</code> <code>dompdf_font</code>), не HTML. QR в PDF — PNG data URI из <code>App\Support\UrlQrCode</code> (byte mode, ECC M, без composer-пакета; модули совпадают с JS-генератором на URL лендинга — <code>SchoolLeadLandingInstructionUxFeatureTest</code>). Имя файла: <code>instrukciya-{slug}.pdf</code>. View: <code>landing.partner-lead-instruction-pdf</code> (без кнопок печати/PDF; телефон при наличии — <code>&lt;strong&gt;</code>, без <code>tel:</code>). Accept: JSON всё равно отдаёт PDF, не пустой JSON 200.</p>
+  <p>В CRM на вкладке «Страница заявки» при заданном slug рядом с «Открыть страницу» есть кнопка «Инструкция для родителей» (новая вкладка, <code>target="_blank"</code> <code>rel="noopener noreferrer"</code>, <code>instructionUrl</code> → HTML, не PDF). Без slug кнопки нет. Если лендинг выключен (<code>is_landing_active = false</code>), кнопка при наличии slug <b>остаётся</b>, публичные GET instruction/pdf при этом 404 (на вкладке предупреждение «Страница заявки отключена»). JSON <code>PUT …/landing-slug</code> возвращает <code>message</code>, <code>landing_slug</code>, <code>landing_url</code> — <b>без</b> <code>instruction_url</code>; после AJAX-успеха страница перезагружается (<code>window.location.reload</code>), чтобы кнопка появилась. Non-AJAX PUT slug: успех — JSON 200 и запись в БД; ошибка валидации — 302 на вкладку с <code>errors.landing_slug</code>.</p>
+  <p class="small">View: <code>landing.partner-lead-instruction</code>. Контроллер: <code>SchoolLeadLandingController::instruction</code> / <code>instructionPdf</code>. Анонс: <a href="/doc#landing-parents-instruction-index">/doc#landing-parents-instruction-index</a>.</p>
 
   <h2>5) Поля формы</h2>
   <h3>5.1) Законный представитель (обязательные)</h3>
@@ -272,18 +282,18 @@
       <tr><th>Метод</th><th>URL</th><th>Middleware</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/admin/school-leads/landing</code></td><td><code>can:schoolLeadLanding.view</code></td><td>Форма slug, превью URL, копирование ссылки (если slug задан)</td></tr>
-      <tr><td>PUT</td><td><code>/admin/school-leads/landing-slug</code></td><td><code>can:schoolLeadLanding.view</code></td><td>JSON: сохранение <code>landing_slug</code> (<code>landing_slug</code>, <code>landing_url</code>, <code>message</code>)</td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/landing</code></td><td><code>can:schoolLeadLanding.view</code></td><td>Форма slug, превью URL, копирование ссылки, кнопки «Открыть страницу» и «Инструкция для родителей» (если slug задан)</td></tr>
+      <tr><td>PUT</td><td><code>/admin/school-leads/landing-slug</code></td><td><code>can:schoolLeadLanding.view</code></td><td>JSON: <code>message</code>, <code>landing_slug</code>, <code>landing_url</code> (без <code>instruction_url</code>)</td></tr>
     </tbody>
   </table>
   <ul>
     <li>Контроллер: <code>App\Http\Controllers\Admin\SchoolLeadLandingController</code> (<code>landingTab</code>, <code>updateSlug</code>).</li>
     <li>Request: <code>App\Http\Requests\UpdateSchoolLeadLandingSlugRequest</code>.</li>
-    <li>View: <code>resources/views/admin/school-leads/index.blade.php</code> → <code>admin/school-leads/tabs/landing.blade.php</code> (поле slug, AJAX PUT, блок готовой ссылки).</li>
+    <li>View: <code>resources/views/admin/school-leads/index.blade.php</code> → <code>admin/school-leads/tabs/landing.blade.php</code> (поле slug, AJAX PUT, блок готовой ссылки, кнопки на лендинг и на <code>/lead/{slug}/instruction</code>).</li>
     <li>Право: <code>schoolLeadLanding.view</code> — достаточно для вкладки и сохранения slug; <code>schoolLeads.view</code> для списка заявок не обязателен. В базовый набор роли <code>admin</code> <b>входит</b> (<code>config/role_base_permissions.php</code>); <code>schoolWidget.view</code> — нет.</li>
     <li>Маршрут <code>PUT …/landing-slug</code> регистрируется <b>до</b> <code>PUT …/{schoolLead}</code>, иначе Laravel воспринимает <code>landing-slug</code> как id заявки.</li>
     <li>Раздел «Заявки с сайта» — вкладки: <b>Заявки</b> (<code>schoolLeads.view</code>) · <b>Страница заявки</b> (<code>schoolLeadLanding.view</code>) · <b>Виджет для сайта</b> (<code>schoolWidget.view</code>).</li>
-    <li>Если <code>is_landing_active = false</code>, на вкладке показывается предупреждение; публичная страница при этом недоступна (404).</li>
+    <li>Если <code>is_landing_active = false</code>, на вкладке показывается предупреждение; публичная страница, инструкция и PDF при этом недоступны (404). Кнопка «Инструкция для родителей» при заданном slug не скрывается.</li>
   </ul>
 
   <h2>9) Уведомления</h2>
@@ -308,10 +318,10 @@
     <li>Контроллеры: <code>SchoolLeadLandingController</code>, <code>Admin\SchoolLeadLandingController</code></li>
     <li>Request: <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadLandingSlugRequest</code></li>
     <li>Сервисы: <code>SchoolLeadLandingService</code>, <code>SchoolLeadParentMatcher</code>, <code>TeamLocationAvailabilityService</code>, <code>PartnerWidgetService</code></li>
-    <li>Support: <code>App\Support\PartnerLandingSlug</code> (нормализация, reserved, pattern маршрута), <code>App\Support\RuPhone::nationalDigits10</code></li>
+    <li>Support: <code>App\Support\PartnerLandingSlug</code> (нормализация, reserved, pattern маршрута), <code>App\Support\RuPhone</code>, <code>App\Support\UrlQrCode</code> (QR PNG для PDF)</li>
     <li>Enum: <code>App\Enums\SchoolLeadSource</code>, <code>SchoolLeadParentMatchReason</code>, <code>SchoolLeadParentMatchConfirmation</code></li>
     <li>Модели: <code>SchoolLead</code>, <code>PartnerWidget</code>, <code>Partner</code> (<code>landingDisplayName()</code>), <code>SportType</code></li>
-    <li>Маршруты: <code>routes/web.php</code> — группа <code>/lead/{landingSlug}</code> (pattern из <code>PartnerLandingSlug::ROUTE_PATTERN</code>)</li>
+    <li>Маршруты: <code>routes/web.php</code> — группа <code>/lead/{landingSlug}</code> (pattern из <code>PartnerLandingSlug::ROUTE_PATTERN</code>), в том числе <code>/instruction</code> и <code>/instruction.pdf</code></li>
   </ul>
 
   <h2>12) Автотесты</h2>
@@ -323,7 +333,7 @@
     <tbody>
       <tr>
         <td><code>SchoolLeadLandingPublicAccessFeatureTest.php</code></td>
-        <td>Гость и авторизованный: show, teams, team-info, submit → 200; неактивный slug / без slug → 404; маршруты без <code>auth</code> и <code>2fa</code></td>
+        <td>Гость и авторизованный: show, instruction, instruction.pdf, teams, team-info, submit → 200; неактивный slug / без slug → 404; маршруты без <code>auth</code> и <code>2fa</code></td>
       </tr>
       <tr>
         <td><code>SchoolLeadLandingSlugPublicFeatureTest.php</code></td>
@@ -335,7 +345,23 @@
       </tr>
       <tr>
         <td><code>SchoolLeadLandingPageFullAccessFeatureTest.php</code></td>
-        <td>CRM-вкладка «Страница заявки», UI, slug в представлении, права</td>
+        <td>CRM-вкладка «Страница заявки», UI, slug в представлении, кнопка «Инструкция для родителей» (HTML, <code>target="_blank"</code>, не PDF), появление после сохранения slug, non-AJAX PUT slug, JS <code>reload</code> после AJAX, права</td>
+      </tr>
+      <tr>
+        <td><code>SchoolLeadLandingInstructionFeatureTest.php</code></td>
+        <td>§4.2 HTTP: гость 200 (не login redirect), auth без CRM-прав 200 (не 403), PDF attachment <code>%PDF</code> не HTML, 404 неактивный/чужой slug, POST/PUT/PATCH/DELETE → 405, маршрут без auth</td>
+      </tr>
+      <tr>
+        <td><code>SchoolLeadLandingInstructionUxFeatureTest.php</code></td>
+        <td>§4.2 UX: QR <code>data-url</code> = лендинг (не instruction/PDF), кнопка «Скачать PDF» на <code>.pdf</code>, печать скрывает <code>.print-bar</code>, порядок шагов, телефон tel / пустой / неполный, JS ECC M + fallback без библиотеки, PDF-шаблон без кнопок, модули QR PHP = JS</td>
+      </tr>
+      <tr>
+        <td><code>UrlQrCodeTest.php</code> (Unit)</td>
+        <td>Серверный QR для PDF: ECC M, PNG data URI, сетка с finder-паттернами; пустой URL отклоняется. Совпадение модулей с JS — в <code>SchoolLeadLandingInstructionUxFeatureTest</code></td>
+      </tr>
+      <tr>
+        <td><code>SchoolLeadLandingInstructionDocumentationContractTest.php</code> (Unit)</td>
+        <td>Анонс /doc#landing-parents-instruction-index и school-leads-landing §4.2: HTML/PDF, QR на лендинг, CRM-кнопка, slug JSON без instruction_url</td>
       </tr>
       <tr>
         <td><code>SchoolLeadLandingTeamInfoFeatureTest.php</code></td>
@@ -367,7 +393,7 @@
       </tr>
       <tr>
         <td><code>SchoolLeadLandingEndpointsAccessFeatureTest.php</code></td>
-        <td>Гость/авторизованный (в т.ч. без CRM-прав): ожидаемые статусы 200/422/404 на JSON-endpoint'ы; не 403/500; submit AJAX JSON</td>
+        <td>Гость/авторизованный (в т.ч. без CRM-прав): ожидаемые статусы 200/422/404 на JSON-endpoint'ы и instruction/PDF; не 403/500; submit AJAX JSON</td>
       </tr>
       <tr>
         <td><code>DistrictLocationLandingIntegrationFeatureTest.php</code></td>
@@ -395,7 +421,7 @@
       </tr>
       <tr>
         <td><code>BladeInlineJsSyntaxTest.php</code></td>
-        <td>Синтаксис inline JS в <code>landing/partner-lead.blade.php</code> (<code>node --check</code>)</td>
+        <td>Синтаксис inline JS: форма лендинга, QR на инструкции, AJAX slug на вкладке CRM (<code>node --check</code>)</td>
       </tr>
     </tbody>
   </table>

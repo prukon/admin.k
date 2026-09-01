@@ -169,6 +169,12 @@ Route::middleware(['throttle:60,1'])->group(function () {
     Route::get('/lead/{landingSlug}', [\App\Http\Controllers\SchoolLeadLandingController::class, 'show'])
         ->name('lead.show')
         ->where('landingSlug', $landingSlugPattern);
+    Route::get('/lead/{landingSlug}/instruction', [\App\Http\Controllers\SchoolLeadLandingController::class, 'instruction'])
+        ->name('lead.instruction')
+        ->where('landingSlug', $landingSlugPattern);
+    Route::get('/lead/{landingSlug}/instruction.pdf', [\App\Http\Controllers\SchoolLeadLandingController::class, 'instructionPdf'])
+        ->name('lead.instruction.pdf')
+        ->where('landingSlug', $landingSlugPattern);
     Route::get('/lead/{landingSlug}/locations', [\App\Http\Controllers\SchoolLeadLandingController::class, 'locations'])
         ->name('lead.locations')
         ->where('landingSlug', $landingSlugPattern);

@@ -42,6 +42,9 @@
                 <a href="{{ $landingUrl }}" class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer">
                     Открыть страницу
                 </a>
+                <a href="{{ $instructionUrl }}" class="btn btn-outline-secondary" target="_blank" rel="noopener noreferrer">
+                    Инструкция для родителей
+                </a>
             </div>
         @else
             <div class="alert alert-info mb-4">

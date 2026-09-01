@@ -459,8 +459,10 @@
     POST <code>/admin/switch-partner</code> (<code>partner.switch</code>) от тумблера не зависит.
     Без <code>canView()</code> класс на селект не вешается.
     Оверлей <code>#js-online-users</code> в том же стеке над Reverb
-    (<code>#system-monitors-stack</code>): партнёр и число, список ФИО
-    (<code>lastname</code> + <code>name</code>). Окно онлайна — 120 секунд
+    (<code>#system-monitors-stack</code>): название школы и число по центру
+    (<code>text-align: center</code> у <code>.online-users__partner-title</code>),
+    список ФИО слева (<code>text-align: left</code> у <code>.online-users__user</code>,
+    <code>lastname</code> + <code>name</code>). Окно онлайна — 120 секунд
     (<code>last_seen_at</code> / <code>UserPresence::ONLINE_WITHIN_SECONDS</code>),
     все партнёры и роли, включая отключённых; soft-deleted пользователей нет.
     Зрителя (<code>Auth::id()</code>) в снимке нет: <code>total</code> и блоки без него;

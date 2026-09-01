@@ -15,6 +15,9 @@
     .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
     ul { margin: 8px 0 8px 20px; }
     .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
   </style>
 </head>
 <body>
@@ -25,37 +28,131 @@
     · анонс: <a href="/doc#partner-self-registration-index">/doc</a></div>
 
   <div class="note">
-    Публичная форма <code>/partner/register</code> и кнопка «Регистрация» в шапке лендинга
-    управляются флагом <code>PARTNER_SELF_REGISTRATION_ENABLED</code>.
-    Это <b>не</b> переключатель «Регистрация на сайте» в админке
-    (<code>registrationActivity</code>) — тот закрывает регистрацию учеников у партнёра.
+    Публичная форма <code>/partner/register</code> регистрирует <b>школу (партнёра)</b> и первого
+    администратора. Это <b>не</b> регистрация ученика и <b>не</b> переключатель
+    «Регистрация на сайте» в админке (<code>registrationActivity</code>).
+    Кнопка «Регистрация» в шапке лендинга и сама форма управляются флагом
+    <code>PARTNER_SELF_REGISTRATION_ENABLED</code>.
+    Форма нативная (<code>method="post"</code>), не AJAX-submit: успех — 302 на <code>/cabinet</code>.
   </div>
 
   <h2 id="env">1) Флаг в .env</h2>
   <ul>
     <li>Конфиг: <code>config/app.php</code> → <code>partner_self_registration_enabled</code>.</li>
+    <li>Чтение: <code>filter_var(env('PARTNER_SELF_REGISTRATION_ENABLED', true), FILTER_VALIDATE_BOOLEAN)</code>
+      — строка <code>false</code> / <code>0</code> / <code>off</code> / <code>no</code> даёт выключено;
+      отсутствие ключа или <code>true</code> — включено.</li>
     <li>Дефолт: <code>env('PARTNER_SELF_REGISTRATION_ENABLED', true)</code> — регистрация открыта.</li>
     <li>Закрыть: <code>PARTNER_SELF_REGISTRATION_ENABLED=false</code>.</li>
     <li>Снова открыть: закомментировать строку или поставить <code>true</code>.</li>
     <li>Если на инстансе включён <code>php artisan config:cache</code>, после правки <code>.env</code>
-      нужно пересобрать кеш конфига. Без кеша достаточно сохранить <code>.env</code>.</li>
+      нужно пересобрать кеш конфига. Без кеша достаточно сохранить <code>.env</code>.
+      Blade view cache для этого флага не нужен.</li>
   </ul>
 
   <h2 id="ui">2) Что скрывается и что остаётся</h2>
   <ul>
-    <li>Кнопка «Регистрация» в десктопной шапке и в мобильном меню
-      (<code>resources/views/includes/public-navbar.blade.php</code>).</li>
+    <li>Кнопка «Регистрация» в десктопной шапке (<code>#mainNav</code>) и в мобильном меню
+      (<code>#publicNavDrawer</code>, <code>resources/views/includes/public-navbar.blade.php</code>).
+      Обе копии завязаны на <code>$partnerSelfRegistrationEnabled</code>
+      (<code>Route::has('partner.register')</code> и
+      <code>config('app.partner_self_registration_enabled', true)</code>), не только на наличие роута.</li>
     <li>Кнопка «Войти», заявки на демо и регистрация учеников не затрагиваются.</li>
+    <li>Залогиненный пользователь шапки не видит гостевые кнопки: вместо них — «В личный кабинет».</li>
+    <li>Тот же navbar на SEO-страницах и <code>/blog</code>.</li>
     <li>Прямой <code>GET /partner/register</code> при закрытом флаге отдаёт заглушку
       <code>landing.partner-register-closed</code> (200): «Регистрация временно закрыта»,
-      CTA на демо и Telegram, ссылка «Войти».</li>
-    <li><code>POST /partner/register</code> при закрытом флаге — 403, партнёр и пользователь не создаются
+      CTA на демо (<code>#createOrder</code>) и Telegram <code>https://t.me/prukon</code>, ссылка «Войти».
+      На заглушке нет формы саморегистрации и нет скрипта <code>partner_register</code>.
+      Layout <code>layouts.landingPage</code> по-прежнему подключает модалку демо
+      (<code>includes/modal/order.blade.php</code>) с recaptcha action <code>contact</code> и <code>$.ajax</code>
+      на <code>/contact/send</code> — это заявка на демо, не регистрация школы.</li>
+    <li><code>POST /partner/register</code> при закрытом флаге — 403 HTML/JSON, партнёр и пользователь не создаются
       (<code>StorePartnerSelfRegistrationRequest::authorize()</code>).</li>
+    <li>Обе страницы (форма и заглушка) ставят <code>&lt;meta name="robots" content="noindex, nofollow"&gt;</code>.</li>
   </ul>
 
-  <h2 id="tests">3) Тесты</h2>
+  <h2 id="http">3) HTTP-контракт</h2>
+  <p class="small">Оба метода в группе middleware <code>guest</code>
+    (<code>routes/web.php</code>). <code>RouteServiceProvider::HOME</code> = <code>/cabinet</code>.</p>
+  <table>
+    <thead><tr><th>Кто</th><th>Метод</th><th>Флаг</th><th>Ответ</th></tr></thead>
+    <tbody>
+      <tr><td>Гость</td><td>GET</td><td>вкл</td><td>200, форма <code>landing.partner-register</code></td></tr>
+      <tr><td>Гость</td><td>GET</td><td>выкл</td><td>200, заглушка <code>landing.partner-register-closed</code></td></tr>
+      <tr><td>Гость</td><td>POST native валидный</td><td>вкл</td><td>302 <code>/cabinet</code>, созданы partner+admin, сессия</td></tr>
+      <tr><td>Гость</td><td>POST native/JSON ошибка валидации</td><td>вкл</td><td>302 назад / 422 JSON <code>errors[field]</code></td></tr>
+      <tr><td>Гость</td><td>POST</td><td>выкл</td><td>403, БД без изменений</td></tr>
+      <tr><td>Залогиненный (admin/trainer/user, с правом и без)</td><td>GET/POST</td><td>любой</td><td>302 <code>/cabinet</code> (middleware <code>guest</code>), партнёр не создаётся</td></tr>
+      <tr><td>Гость</td><td>PATCH/PUT/DELETE</td><td>любой</td><td>405 (не 500, не пустой 200)</td></tr>
+      <tr><td>Гость</td><td>POST 6-й с одного IP за час</td><td>вкл</td><td>429 (<code>throttle:partner-registration-ip</code>, 5/час по IP; считает и неуспешные POST)</td></tr>
+      <tr><td>Гость</td><td>POST после 5 успешных с тем же email за час</td><td>вкл</td><td>ошибка поля <code>email</code> (см. §4), партнёр не создаётся</td></tr>
+    </tbody>
+  </table>
+  <p class="small">JSON-успех тоже 302 на <code>/cabinet</code>: контроллер всегда <code>redirect('/cabinet')</code>, это не AJAX-ресурс.
+    Пустой 200 на мутациях запрещён. Ни один метод не 500.</p>
+
+  <h2 id="validation">4) Ошибки по полям</h2>
+  <table>
+    <thead><tr><th>Поле</th><th>Когда</th><th>Текст</th></tr></thead>
+    <tbody>
+      <tr><td><code>school_title</code></td><td>пусто</td><td>Укажите название школы.</td></tr>
+      <tr><td><code>name</code></td><td>пусто</td><td>Укажите ваше имя.</td></tr>
+      <tr><td><code>email</code></td><td>пусто / не email / unique <code>users</code> и <code>partners</code> с <code>whereNull('deleted_at')</code></td><td>Укажите email. / Введите корректный email. / Этот email уже используется.</td></tr>
+      <tr><td><code>email</code></td><td>лимит 5 успешных регистраций/час на нормализованный email (<code>partner-registration:email:{sha256}</code>)</td><td>Слишком много попыток регистрации с этого email. Повторите через час.</td></tr>
+      <tr><td><code>password</code></td><td>пусто / &lt; 8 / не совпал confirmation</td><td>Укажите пароль. / Пароль должен быть не короче 8 символов. / Пароли не совпадают.</td></tr>
+      <tr><td><code>recaptcha_token</code></td><td>пусто (правило required)</td><td>Не пройдена защита от спама. Обновите страницу и попробуйте ещё раз.</td></tr>
+      <tr><td><code>recaptcha_token</code></td><td>низкий score / чужой action (не <code>partner_register</code>)</td><td>Проверка на спам не пройдена.</td></tr>
+      <tr><td><code>recaptcha_token</code></td><td>сбой запроса к Google</td><td>Ошибка проверки защиты от спама. Попробуйте позже.</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Native: 302 назад, <code>@error</code> + <code>is-invalid</code> под полем (recaptcha — alert над кнопкой).</li>
+    <li>JSON: 422 <code>errors.field[]</code>, те же тексты (кроме 403/429).</li>
+    <li>После ошибки <code>old()</code> сохраняет school_title / name / email; пароли и <code>recaptcha_token</code> в HTML не возвращаются
+      (на email-лимите контроллер явно <code>except</code> пароли и токен).</li>
+    <li>Порядок полей: school_title → name → email → password → password_confirmation.</li>
+    <li>Лимит email проверяется после FormRequest (unique уже прошёл) и до recaptcha;
+      <code>RateLimiter::hit</code> — только после успешного <code>register()</code>.
+      Повтор с тем же живым email сначала упирается в unique; лимит срабатывает, если unique пропускает
+      (например soft-deleted user/partner).</li>
+  </ul>
+
+  <h2 id="success">5) Успешная регистрация</h2>
+  <ul>
+    <li>Контроллер: <code>GuestPartnerRegistrationController::store</code>.</li>
+    <li><code>PartnerSelfRegistrationService::register()</code> в транзакции создаёт:
+      <code>partners.title</code>, <code>email</code>, <code>is_enabled=true</code>, <code>order_by=0</code>,
+      <code>registration_verified_at=null</code>; пользователя с тем же email, ролью <code>admin</code>,
+      <code>is_enabled=true</code>, пароль через <code>Hash::make</code>.</li>
+    <li>Сервис <b>не пишет</b> <code>partners.business_type</code>. Текст на форме
+      («тип владельца по умолчанию: индивидуальный предприниматель, можно изменить позже в настройках»)
+      — копирайт страницы, не поле формы и не запись в БД. Тип юрлица для оплат — в юр. лицах партнёра,
+      не в этом сценарии.</li>
+    <li>После <code>Partner::created</code> (общий observer модели, не только саморегистрация):
+      <code>assignBasePermissionsForPartner</code>, <code>LessonOccurrenceStatusesSeeder::ensureForPartner</code>,
+      <code>PartnerWidgetService::ensureForPartner</code> (строка <code>partner_widgets</code>),
+      <code>TrainerTypeCatalog::ensureSystemType</code>.</li>
+    <li>Письмо <code>PartnerSelfRegisteredNotification</code> (очередь <code>platform_outbound_mail</code>,
+      тема «Регистрация школы на kidscrm.online», заголовок <code>X-Partner-Id</code>).</li>
+    <li>Вход: <code>Auth::login($user, false)</code> — remember-cookie не ставится;
+      затем <code>$request->session()->regenerate()</code>; 302 <code>/cabinet</code>.</li>
+    <li>reCAPTCHA формы: JS <code>grecaptcha.execute(..., {action: 'partner_register'})</code>, сервер
+      <code>GoogleRecaptchaVerifier::verifyOrFail(..., 'partner_register')</code>. Без site_key скрипт формы не рендерится,
+      native POST всё равно уходит (ошибка <code>recaptcha_token</code> required).</li>
+    <li>JS формы: IIFE по <code>getElementById('partner-register-form')</code>,
+      <code>e.preventDefault()</code> пока токен пуст, затем <code>form.submit()</code>; не <code>$.ajax</code> / не <code>fetch</code>.</li>
+  </ul>
+
+  <h2 id="tests">6) Тесты</h2>
   <ul>
     <li><code>PartnerSelfRegistrationFlagFeatureTest</code></li>
+    <li><code>PartnerSelfRegistrationAccessFeatureTest</code></li>
+    <li><code>PartnerSelfRegistrationNonAjaxSafetyNetFeatureTest</code></li>
+    <li><code>PartnerSelfRegistrationAjaxContractFeatureTest</code></li>
+    <li><code>PartnerSelfRegistrationUxFeatureTest</code></li>
+    <li><code>PartnerSelfRegistrationFullAccessFeatureTest</code></li>
+    <li><code>BladeInlineJsSyntaxTest</code> (provider + <code>test_partner_register_recaptcha_script_prevents_submit_until_token_and_is_not_ajax</code>)</li>
     <li><code>PartnerSelfRegistrationDocumentationContractTest</code></li>
   </ul>
 </div>

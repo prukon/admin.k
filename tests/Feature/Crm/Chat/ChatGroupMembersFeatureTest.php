@@ -79,10 +79,11 @@ final class ChatGroupMembersFeatureTest extends ChatTestCase
             ->assertJsonPath('thread.is_group', true)
             ->assertJsonPath('thread.members_total', 3)
             ->assertJsonPath('thread.header_subtitle', '3 участника')
+            ->assertJsonPath('thread.partner_name', $this->partner->title)
             ->assertJsonPath('can_manage', true)
             ->assertJsonPath('has_more', false)
             ->assertJsonStructure([
-                'thread' => ['id', 'title', 'avatar', 'is_group', 'members_total', 'header_subtitle'],
+                'thread' => ['id', 'title', 'avatar', 'is_group', 'members_total', 'header_subtitle', 'partner_name'],
                 'can_manage',
                 'members' => [['id', 'avatar', 'full_name', 'role_name', 'role_label']],
                 'has_more',

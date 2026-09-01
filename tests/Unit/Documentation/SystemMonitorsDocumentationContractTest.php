@@ -118,6 +118,10 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringNotContainsString('себя тоже', $chunk);
         $this->assertStringContainsString('Без партнёра', $chunk);
         $this->assertStringContainsString('Без названия', $chunk);
+        $this->assertStringContainsString('text-align: center', $chunk);
+        $this->assertStringContainsString('.online-users__partner-title', $chunk);
+        $this->assertStringContainsString('text-align: left', $chunk);
+        $this->assertStringContainsString('.online-users__user', $chunk);
         $this->assertStringContainsString('#id', $chunk);
         $this->assertStringContainsString('OnlineUsersMonitor::snapshot()', $chunk);
         $this->assertStringContainsString('/cabinet/system-monitors/online-users', $chunk);
@@ -255,6 +259,10 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('пустой список', $chunk);
         $this->assertStringContainsString('Никого нет онлайн', $chunk);
         $this->assertStringContainsString('Без названия', $chunk);
+        $this->assertStringContainsString('text-align: center', $chunk);
+        $this->assertStringContainsString('.online-users__partner-title', $chunk);
+        $this->assertStringContainsString('text-align: left', $chunk);
+        $this->assertStringContainsString('.online-users__user', $chunk);
         $this->assertStringContainsString('Auth::id()', $chunk);
         $this->assertStringContainsString('зрителя', $chunk);
         $this->assertStringContainsString('OnlineUsersMonitor', $chunk);
