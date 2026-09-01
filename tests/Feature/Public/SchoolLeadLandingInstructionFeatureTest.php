@@ -37,6 +37,7 @@ final class SchoolLeadLandingInstructionFeatureTest extends TestCase
         $landingUrl = route('lead.show', ['landingSlug' => $slug]);
 
         $this->assertFileExists(public_path('js/qrcode-generator.min.js'));
+        $this->assertFileExists(public_path('img/logo.png'));
 
         $this->get(route('lead.instruction', ['landingSlug' => $slug]))
             ->assertOk()
@@ -55,7 +56,11 @@ final class SchoolLeadLandingInstructionFeatureTest extends TestCase
             ->assertSee(RuPhone::formatForInput('+7 (966) 939-14-13'), false)
             ->assertSee('Распечатать', false)
             ->assertSee('Скачать PDF', false)
-            ->assertSee(route('lead.instruction.pdf', ['landingSlug' => $slug]), false);
+            ->assertSee(route('lead.instruction.pdf', ['landingSlug' => $slug]), false)
+            ->assertSee('img/logo.png', false)
+            ->assertSee('alt="kidscrm.online"', false)
+            ->assertSee('https://kidscrm.online/', false)
+            ->assertSee('CRM для учёта детских секций, приёма оплат и онлайн-подписания договоров', false);
     }
 
     public function test_authenticated_user_can_open_instruction_page(): void

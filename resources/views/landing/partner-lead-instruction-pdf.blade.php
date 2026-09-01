@@ -17,6 +17,36 @@
             text-align: center;
             padding: 16px 18px 18px;
         }
+        .brand-bar {
+            background-color: #ffffff;
+            text-align: center;
+            padding: 10px 12px 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .brand-bar a {
+            text-decoration: none;
+            border: none;
+        }
+        .brand-bar img {
+            height: 44px;
+            width: auto;
+            border: 0;
+            display: block;
+            margin: 0 auto;
+        }
+        .sheet-footer {
+            margin-top: 18px;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            font-size: 9pt;
+            color: #4b5563;
+        }
+        .sheet-footer a {
+            font-weight: bold;
+            color: #155a35;
+            text-decoration: none;
+        }
         .partner-name {
             font-size: 11pt;
             margin: 0 0 8px;
@@ -57,6 +87,11 @@
     </style>
 </head>
 <body>
+@if (!empty($logoPngDataUri))
+    <div class="brand-bar">
+        <a href="https://kidscrm.online/"><img src="{{ $logoPngDataUri }}" alt="kidscrm.online" width="160" height="44"></a>
+    </div>
+@endif
 <div class="header">
     @if ($partner->landingDisplayName() !== '')
         <p class="partner-name">{{ $partner->landingDisplayName() }}</p>
@@ -111,5 +146,10 @@
 @endif
 
 <p class="closing">Мы всегда рядом и с радостью поможем.</p>
+
+<p class="sheet-footer">
+    <a href="https://kidscrm.online/">kidscrm.online</a>
+    — CRM для учёта детских секций, приёма оплат и онлайн-подписания договоров
+</p>
 </body>
 </html>

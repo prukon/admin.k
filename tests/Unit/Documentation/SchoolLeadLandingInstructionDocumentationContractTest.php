@@ -38,6 +38,9 @@ final class SchoolLeadLandingInstructionDocumentationContractTest extends TestCa
         $this->assertStringContainsString('SchoolLeadLandingInstructionUxFeatureTest', $chunk);
         $this->assertStringContainsString('BladeInlineJsSyntaxTest', $chunk);
         $this->assertStringContainsString('UrlQrCodeTest', $chunk);
+        $this->assertStringContainsString('img/logo.png', $chunk);
+        $this->assertStringContainsString('онлайн-подписания договоров', $chunk);
+        $this->assertStringContainsString('text-decoration: none', $chunk);
         $this->assertStringContainsString('SchoolLeadLandingInstructionDocumentationContractTest', $chunk);
         $this->assertStringContainsString('/doc#landing-parents-instruction-index', $html);
         $this->assertStringContainsString('school-leads-landing#4-2', $html);
@@ -72,6 +75,9 @@ final class SchoolLeadLandingInstructionDocumentationContractTest extends TestCa
         $this->assertStringContainsString('<b>без</b> <code>instruction_url</code>', $html);
         $this->assertStringContainsString('is_landing_active = false', $html);
         $this->assertStringContainsString('кнопка при наличии slug <b>остаётся</b>', $html);
+        $this->assertStringContainsString('img/logo.png', $html);
+        $this->assertStringContainsString('онлайн-подписания договоров', $html);
+        $this->assertStringContainsString('text-decoration: none', $html);
         $this->assertStringNotContainsString('Место под QR-код на странице пустое', $html);
     }
 

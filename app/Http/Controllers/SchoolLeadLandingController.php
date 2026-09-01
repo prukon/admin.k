@@ -56,6 +56,7 @@ class SchoolLeadLandingController extends Controller
     {
         $data = $this->instructionViewData($landingSlug);
         $data['qrPngDataUri'] = UrlQrCode::pngDataUri($data['landingUrl']);
+        $data['logoPngDataUri'] = $this->kidsCrmLogoPngDataUri();
 
         $html = view('landing.partner-lead-instruction-pdf', $data)->render();
 
@@ -231,5 +232,20 @@ class SchoolLeadLandingController extends Controller
             'contactPhone'     => $contactPhone,
             'contactPhoneHref' => $contactPhoneHref,
         ];
+    }
+
+    private function kidsCrmLogoPngDataUri(): ?string
+    {
+        $path = public_path('img/logo.png');
+        if (! is_file($path)) {
+            return null;
+        }
+
+        $raw = file_get_contents($path);
+        if ($raw === false || $raw === '') {
+            return null;
+        }
+
+        return 'data:image/png;base64,'.base64_encode($raw);
     }
 }

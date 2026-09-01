@@ -192,6 +192,34 @@ final class SchoolLeadLandingInstructionUxFeatureTest extends TestCase
         $this->assertStringContainsString("alt: 'QR-код записи'", $chunk);
     }
 
+    public function test_header_shows_kidscrm_logo_and_footer_shows_service_tagline(): void
+    {
+        Auth::logout();
+
+        $html = $this->get(route('lead.instruction', [
+            'landingSlug' => $this->landingWidget->landing_slug,
+        ]))->assertOk()->getContent();
+
+        $logoPos = strpos($html, '<div class="brand-bar">');
+        $headerPos = strpos($html, '<header class="sheet-header">');
+        $footerPos = strpos($html, 'class="sheet-footer"');
+        $printPos = strpos($html, 'class="print-bar"');
+
+        $this->assertNotFalse($logoPos);
+        $this->assertNotFalse($headerPos);
+        $this->assertNotFalse($footerPos);
+        $this->assertNotFalse($printPos);
+        $this->assertLessThan($headerPos, $logoPos);
+        $this->assertLessThan($printPos, $footerPos);
+        $this->assertStringContainsString('alt="kidscrm.online"', $html);
+        $this->assertStringContainsString('href="https://kidscrm.online/"', $html);
+        $this->assertStringContainsString(
+            'CRM для учёта детских секций, приёма оплат и онлайн-подписания договоров',
+            $html
+        );
+        $this->assertStringNotContainsString('подписснияд', $html);
+    }
+
     public function test_pdf_template_matches_html_partner_landing_and_embeds_qr_without_print_bar(): void
     {
         Auth::logout();
@@ -210,6 +238,9 @@ final class SchoolLeadLandingInstructionUxFeatureTest extends TestCase
         );
 
         $data['qrPngDataUri'] = UrlQrCode::pngDataUri($landingUrl);
+        $logoPath = public_path('img/logo.png');
+        $this->assertFileExists($logoPath);
+        $data['logoPngDataUri'] = 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath));
         $pdfHtml = view('landing.partner-lead-instruction-pdf', $data)->render();
 
         $this->assertStringContainsString('Центр содействия развития спорта', $pdfHtml);
@@ -217,6 +248,18 @@ final class SchoolLeadLandingInstructionUxFeatureTest extends TestCase
         $this->assertStringContainsString('Запись — Центр содействия развития спорта', $pdfHtml);
         $this->assertStringContainsString('data:image/png;base64,', $pdfHtml);
         $this->assertStringContainsString('class="qr"', $pdfHtml);
+        $this->assertStringContainsString('class="brand-bar"', $pdfHtml);
+        $this->assertMatchesRegularExpression('/\.brand-bar a\s*\{[^}]*text-decoration:\s*none/s', $pdfHtml);
+        $this->assertMatchesRegularExpression(
+            '#<a href="https://kidscrm\.online/"><img src="data:image/png;base64,#',
+            $pdfHtml
+        );
+        $this->assertStringContainsString('class="sheet-footer"', $pdfHtml);
+        $this->assertStringContainsString('https://kidscrm.online/', $pdfHtml);
+        $this->assertStringContainsString(
+            'CRM для учёта детских секций, приёма оплат и онлайн-подписания договоров',
+            $pdfHtml
+        );
         $this->assertStringContainsString(RuPhone::formatForInput('+7 (966) 939-14-13'), $pdfHtml);
         $this->assertStringNotContainsString('Скачать PDF', $pdfHtml);
         $this->assertStringNotContainsString('Распечатать', $pdfHtml);

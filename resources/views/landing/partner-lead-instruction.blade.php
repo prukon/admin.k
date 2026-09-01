@@ -33,6 +33,21 @@
             padding: 28px 32px 26px;
             text-align: center;
         }
+        .brand-bar {
+            background: #fff;
+            text-align: center;
+            padding: 14px 24px 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .brand-bar a {
+            display: inline-block;
+            line-height: 0;
+        }
+        .brand-bar img {
+            height: 52px;
+            width: auto;
+            max-width: 220px;
+        }
         .sheet-header .partner-name {
             display: inline-block;
             margin: 0 0 10px;
@@ -126,6 +141,20 @@
             margin: 18px 0 0;
             color: var(--muted);
         }
+        .sheet-footer {
+            margin: 8px 32px 0;
+            padding: 16px 4px 8px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            font-size: 0.86rem;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+        .sheet-footer a {
+            color: var(--brand-primary-dark);
+            font-weight: 700;
+            text-decoration: none;
+        }
         .print-bar {
             display: flex;
             gap: 12px;
@@ -183,6 +212,11 @@
 </head>
 <body>
 <div class="sheet">
+    <div class="brand-bar">
+        <a href="https://kidscrm.online/" target="_blank" rel="noopener noreferrer">
+            <img src="{{ asset('img/logo.png') }}" alt="kidscrm.online" width="180" height="52">
+        </a>
+    </div>
     <header class="sheet-header">
         @if ($partner->landingDisplayName() !== '')
             <p class="partner-name">{{ $partner->landingDisplayName() }}</p>
@@ -251,6 +285,11 @@
 
         <p class="closing">Мы всегда рядом и с радостью поможем.</p>
     </div>
+
+    <p class="sheet-footer">
+        <a href="https://kidscrm.online/" target="_blank" rel="noopener noreferrer">kidscrm.online</a>
+        — CRM для учёта детских секций, приёма оплат и онлайн-подписания договоров
+    </p>
 
     <div class="print-bar">
         <button type="button" onclick="window.print()">Распечатать</button>

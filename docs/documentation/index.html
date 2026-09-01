@@ -40,9 +40,13 @@
     Телефон — <code>partners.phone</code> (<code>RuPhone::formatForInput</code>): пустой/пробелы скрыты,
     полный 11-значный — ссылка <code>tel:</code>, неполный — текст без <code>tel:</code>.
     Кнопки «Распечатать» (<code>window.print</code>) и «Скачать PDF»; при печати панель скрывается.
+    В шапке логотип сервиса <code>public/img/logo.png</code> (ссылка на <code>https://kidscrm.online/</code>),
+    в футере: «kidscrm.online — CRM для учёта детских секций, приёма оплат и онлайн-подписания договоров»
+    (то же в PDF, логотип PNG data URI).
     PDF: <code>GET /lead/{landingSlug}/instruction.pdf</code> (<code>lead.instruction.pdf</code>),
     attachment <code>instrukciya-{slug}.pdf</code>, Dompdf / DejaVu Sans, QR PNG из <code>App\Support\UrlQrCode</code>
-    (те же модули, что у JS, на URL лендинга). Маршруты публичные (<code>throttle:60,1</code>, без auth):
+    (те же модули, что у JS, на URL лендинга); ссылка логотипа без пробелов внутри <code>&lt;a&gt;</code>
+    и с <code>text-decoration: none</code> (иначе Dompdf рисует черту справа от картинки). Маршруты публичные (<code>throttle:60,1</code>, без auth):
     гость и пользователь без CRM-прав — 200, неактивный/чужой slug — 404, POST/PUT/PATCH/DELETE — 405.
     В CRM на <code>/admin/school-leads/landing</code> при заданном slug — кнопка «Инструкция для родителей»
     (новая вкладка, HTML, не PDF). JSON сохранения slug отдаёт <code>landing_url</code>, не <code>instruction_url</code> —
