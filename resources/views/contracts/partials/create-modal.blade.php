@@ -147,7 +147,7 @@
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button id="btn-save" type="button" class="btn btn-primary">Сохранить</button>
+                    <button id="btn-save" type="button" class="btn btn-primary">Создать договор</button>
                 </div>
             </form>
         </div>
@@ -265,7 +265,7 @@
             margin-bottom: 0;
         }
 
-        /* disabled «Сохранить»: без белого текста на белом фоне из глобального .btn-primary */
+        /* disabled «Создать договор»: без белого текста на белом фоне из глобального .btn-primary */
         #createContractModal #btn-save:disabled,
         #createContractModal #btn-save.disabled {
             opacity: 1;

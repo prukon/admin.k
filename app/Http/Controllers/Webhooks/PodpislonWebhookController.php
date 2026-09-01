@@ -7,6 +7,7 @@ use App\Models\Contract;
 use App\Models\ContractEvent;
 use App\Enums\AuditEvent;
 use App\Services\Audit\ContractAudit;
+use App\Services\InAppNotifications\ContractSignedNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +18,7 @@ class PodpislonWebhookController extends Controller
 {
     public function __construct(
         private readonly ContractAudit $contractAudit,
+        private readonly ContractSignedNotifier $contractSignedNotifier,
     ) {}
 
     public function handle(Request $request)
@@ -471,6 +473,10 @@ class PodpislonWebhookController extends Controller
                     'contract_id'   => $contract->id,
                     'became_signed' => $becameSigned,
                 ]);
+
+                if ($becameSigned) {
+                    $this->contractSignedNotifier->notify($contract);
+                }
 
                 // После транзакции — докачка PDF
                 if (!$contract->signed_pdf_path) {

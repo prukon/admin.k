@@ -116,8 +116,11 @@ final class KidsCrmDataTableAbcdFeatureTest extends CrmTestCase
         $this->assertStringContainsString("key: 'contract'", $html);
         $this->assertStringContainsString('renderContractCell', $html);
         $this->assertStringContainsString('fa-file-pdf', $html);
+        $this->assertStringContainsString('fa-plus', $html);
+        $this->assertStringContainsString('users-contract-add-btn', $html);
         $this->assertStringContainsString('js-open-create-contract-from-user', $html);
         $this->assertStringContainsString('Создать договор', $html);
+        $this->assertStringContainsString('Создать ещё один договор', $html);
         $this->assertStringContainsString('Посмотреть черновик', $html);
 
         $contractKeyPos = strpos($html, "key: 'contract'");

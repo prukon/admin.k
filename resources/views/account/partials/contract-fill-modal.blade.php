@@ -52,6 +52,10 @@
         text-align: left;
     }
 
+    #contractFillModal .form-control.is-invalid ~ .invalid-feedback {
+        display: block;
+    }
+
     .contract-fill-modal-content .modal-body {
         padding-top: 0.25rem;
     }

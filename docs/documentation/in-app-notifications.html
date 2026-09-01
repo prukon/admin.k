@@ -33,16 +33,19 @@
     кабинет: <code>/in-app-notifications</code> · анонсы:
     <a href="/doc#cabinet-attach-team-in-app-index">автособытие attach</a>,
     <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>,
+    <a href="/doc#contract-signed-in-app-index">договор подписан</a>,
     <a href="/doc#in-app-notifications-index">колокольчик</a></div>
 
   <div class="ok">
     <b>Кратко.</b> Лента сообщений внутри кабинета: колокольчик в шапке <code>layouts.admin2</code>
     (перед «Выйти»), выпадашка из <b>3</b> последних, страница всех уведомлений.
-    <b>Ручную</b> рассылку составляет только <b>superadmin</b>. Плюс автособытие:
+    <b>Ручную</b> рассылку составляет только <b>superadmin</b>. Плюс автособытия:
     ученик добавил группу в ЛК → колокольчик admin/trainer школы
     (<a href="/doc#cabinet-attach-team-in-app-index">/doc</a>,
     <a href="/doc#cabinet-attach-team-in-app-body-index">текст</a>,
-    §<a href="#events">5.1</a>).
+    §<a href="#events">5.1</a>);
+    договор перешёл в <code>signed</code> → колокольчик только admin школы на 7 суток
+    (<a href="/doc#contract-signed-in-app-index">/doc</a>, §<a href="#events-contract-signed">5.2</a>).
     Ссылки живут <b>внутри текста</b> сообщения.
     Клик по пункту колокольчика открывает ленту и сразу помечает это уведомление прочитанным.
   </div>
@@ -193,6 +196,51 @@
   <p>Конфиг: <code>config/in_app_notifications.php</code> → <code>events.cabinet_team_attached</code>.
     Подробности attach — <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>.</p>
 
+  <h2 id="events-contract-signed">5.2) Автособытие: договор подписан</h2>
+  <div class="ok">
+    Второе автособытие: договор ученика впервые стал <code>signed</code>
+    (вебхук Подпислона или ручная синхронизация статуса). Колокольчик, не email.
+    Только админы школы договора. Анонс: <a href="/doc#contract-signed-in-app-index">/doc</a>.
+  </div>
+  <ol>
+    <li>После commit смены статуса <code>ContractSignedNotifier</code> создаёт сообщение
+      <code>source = event</code> через <code>InAppNotificationDispatcher::dispatchEvent</code>
+      и ставит <code>FanOutInAppNotificationJob</code> (очередь <code>default</code>).
+      Пока job не выполнен, статус <code>pending</code> — в ленте и колокольчике пусто.</li>
+    <li>Школа — <code>contracts.school_id</code>. Админы другой школы не получают.
+      Без <code>school_id</code> notifier выходит без записи.
+      Вебхук <code>opened</code>, повторный signed, докачка PDF уже подписанного договора —
+      событие не создают. Гость / 403 / 422 sync (нет <code>provider_doc_id</code>) —
+      тоже без уведомления.</li>
+    <li>Роли: только системная <code>admin</code> этой школы (<code>is_enabled=1</code>).
+      Тренеры, кастомные роли и ученики — нет. Выключенный сотрудник в снимок не попадает.
+      Superadmin видит, когда выбрана эта школа. Кто заведён после fan-out — не видит.</li>
+    <li>Тип <code>normal</code> (плашки нет), срок жизни 7 суток, <code>created_by</code> — ученик договора
+      (<code>contracts.user_id</code>). Аудит ручной рассылки (<code>in_app_notification.created</code>) не пишется.</li>
+    <li>Текст: без ссылки на карточку. Тело собирает <code>ContractSignedNotifier::buildBody</code>
+      (потом sanitizer: <code>p</code> / <code>br</code> разрешены). Номер — id договора.
+      <ul>
+        <li>Есть <code>users.parent_id</code> и непустое ФИО карточки <code>parents</code>
+          — три строки:<br>
+          <code>Родитель: Иванов Иван</code><br>
+          <code>Ребёнок: Комарова Ярослав.</code><br>
+          <code>Договор №123 подписан.</code></li>
+        <li>Нет родителя, soft-deleted карточка или пустое ФИО родителя —
+          <code>{ФИО}. Договор №123 подписан.</code></li>
+        <li>Пустое ФИО ученика → <code>Ученик #{id}</code>. Имена экранируются (<code>e()</code>).</li>
+      </ul>
+    </li>
+    <li>Сбой уведомления подписание <b>не</b> откатывает: статус уже <code>signed</code>, ошибка в лог
+      <code>[ContractSignedNotifier] failed</code>.</li>
+  </ol>
+  <p>Конфиг: <code>config/in_app_notifications.php</code> → <code>events.contract_signed</code>
+    (title, <code>role_names</code> admin, category normal, ttl 7d).
+    Точки вызова: <code>PodpislonWebhookController</code> (после TX, если <code>$becameSigned</code>),
+    <code>ContractSigningController::status</code> (ручной sync, тот же флаг).
+    Native GET <code>/client-contracts/{id}/status</code> без <code>X-Requested-With</code> (как открытие URL;
+    кнопка на карточке — <code>$.ajax</code> GET на тот же путь) тоже создаёт уведомление.
+    JSON-вебхук <code>DOCUMENT_SIGNED</code> — тот же <code>handle</code>, что и form-urlencoded.</p>
+
   <h2 id="data">6) Модель данных и конфиг</h2>
   <ol>
     <li><code>in_app_notifications</code> — тип (<code>update</code> / <code>important</code> / <code>normal</code>),
@@ -204,7 +252,7 @@
   </ol>
   <p><code>config/in_app_notifications.php</code>: <code>dropdown_limit = 3</code>,
     <code>dropdown_preview_limit = 60</code>, <code>index_per_page = 20</code>,
-    <code>events.cabinet_team_attached</code>.</p>
+    <code>events.cabinet_team_attached</code>, <code>events.contract_signed</code>.</p>
 
   <h2 id="tests">7) Тесты</h2>
   <ul>
@@ -219,9 +267,15 @@
       автособытие attach: ядро (admin/trainer, изоляция, семья, пустое ФИО родителя, XSS), доступ (гость/403/422 без уведомления),
       AJAX (errors[team_id], очередь, pending не в колокольчике), native POST 302 + уведомление,
       UX ленты (ФИО без ссылки; с родителем — три строки, без плашки «Обычное», SSR колокольчика, <code>?n=</code>, просрочка)</li>
+    <li><code>tests/Feature/Crm/Contracts/ContractSignedInAppNotification*FeatureTest.php</code> —
+      автособытие signed: ядро (только admin, не trainer, изоляция, родитель / без, XSS, TTL 7d, вебхук и ручной sync),
+      доступ (гость/403/чужая школа/невалидная подпись/orphan FILE_ID без уведомления, webhook без сессии),
+      AJAX (JSON status 200/422 message, bell preview с переносами, JSON-вебхук, очередь/pending),
+      native GET status без X-Requested-With (кнопка на карточке), UX ленты/карточки (@can sync, просрочка 7 суток, без ссылки и без плашки «Обычное»),
+      FullAccess (гость / admin с sync / без sync)</li>
     <li><code>InAppNotificationsPermissionCatalogFeatureTest</code>, <code>PartnerBasePermissionsTest</code>, <code>PermissionGroupsReorganizationFeatureTest</code></li>
   </ul>
-  <pre><code>php artisan test --env=testing tests/Unit/Services/InAppNotifications/InAppNotificationBodyHtmlTest.php tests/Feature/Crm/InAppNotifications tests/Feature/Crm/Cabinet --filter=CabinetTeamAttachInAppNotification tests/Feature/Crm/Permissions/InAppNotificationsPermissionCatalogFeatureTest.php</code></pre>
+  <pre><code>php artisan test --env=testing tests/Unit/Services/InAppNotifications/InAppNotificationBodyHtmlTest.php tests/Feature/Crm/InAppNotifications tests/Feature/Crm/Cabinet --filter=CabinetTeamAttachInAppNotification tests/Feature/Crm/Contracts --filter=ContractSignedInAppNotification tests/Feature/Crm/Permissions/InAppNotificationsPermissionCatalogFeatureTest.php</code></pre>
 
   <p class="small"><a href="/docs/documentation">К списку разделов</a> ·
     не путать с <a href="/docs/documentation/setting-prices-payment-notifications">email-уведомлениями об оплате</a></p>

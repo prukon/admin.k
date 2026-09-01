@@ -732,7 +732,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <p class="small">
     «Последний договор» — по <code>created_at</code> (затем <code>id</code>) среди записей <code>contracts</code> с <code>school_id = partner_id</code> и <code>user_id</code> ученика.
     Сервис: <code>App\Services\SchoolLeads\LatestUserContractLookup</code>. Подпись статуса — из <code>Contract::$STATUS_RU</code> (любой статус: Черновик, Отправлено, Подписано и т.д.).
-    На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> тот же lookup, другой UI: колонка только при <code>contracts.view</code>; нет договора — «Создать договор» (встроенная модалка); неподписанный последний — «Посмотреть черновик»; подписанный — иконка PDF. См. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>, анонс <a href="/doc#users-contract-create-index">/doc</a>.
+    На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> тот же lookup, другой UI: колонка только при <code>contracts.view</code>; нет договора — «Создать договор» (встроенная модалка); неподписанный последний — «Посмотреть черновик»; подписанный — иконка PDF и плюс «Создать ещё один договор». См. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>, анонс <a href="/doc#users-contract-create-index">/doc</a>.
   </p>
 
   <h3>5.7) Создание клиента из заявки (лид → ученик)</h3>

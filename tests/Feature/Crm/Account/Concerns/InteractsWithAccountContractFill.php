@@ -34,13 +34,29 @@ trait InteractsWithAccountContractFill
         ];
     }
 
-    protected function getContractFillModalHtml(Contract $contract): string
+    protected function getContractFillModalHtml(Contract $contract, ?string $mode = null): string
     {
+        $params = ['contract' => $contract];
+        if (is_string($mode) && $mode !== '') {
+            $params['mode'] = $mode;
+        }
+
         return (string) $this->withSession($this->accountDocumentsSession())
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
-            ->getJson(route('account.documents.fill', $contract))
+            ->getJson(route('account.documents.fill', $params))
             ->assertOk()
             ->json('html');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function contractFillAjaxHeaders(): array
+    {
+        return [
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept'           => 'application/json',
+        ];
     }
 
     /**

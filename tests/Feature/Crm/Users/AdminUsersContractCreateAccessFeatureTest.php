@@ -60,7 +60,9 @@ final class AdminUsersContractCreateAccessFeatureTest extends AdminUsersContract
 
         $this->get(route('admin.user1'))
             ->assertOk()
-            ->assertDontSee('id="createContractModal"', false);
+            ->assertDontSee('id="createContractModal"', false)
+            ->assertDontSee('users-contract-add-btn', false)
+            ->assertDontSee('Создать ещё один договор', false);
 
         $this->getJson('/admin/users/data?draw=1&start=0&length=10&name=ТолькоUsersViewCreate')
             ->assertOk();
@@ -88,7 +90,9 @@ final class AdminUsersContractCreateAccessFeatureTest extends AdminUsersContract
             ->assertOk()
             ->assertSee('id="createContractModal"', false)
             ->assertViewHas('contractTemplates')
-            ->assertViewHas('contractCreatePartner');
+            ->assertViewHas('contractCreatePartner')
+            ->assertSee('users-contract-add-btn', false)
+            ->assertSee('Создать ещё один договор', false);
 
         $this->getJson(route('contracts.users.search', ['q' => 'ОбаПраваCreate']))
             ->assertOk()

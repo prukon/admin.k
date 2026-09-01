@@ -433,7 +433,7 @@ users (role=user) — ученик, вход в CRM
   <p>На карточке договора, в модалке «Создать договор» (read-only) и в предзаполнении подписанта ФИО в <b>именительном</b> берётся из <code>User::parentFormFields()</code> / <code>parent_full_name</code> → таблица <code>parents</code>. См. <a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a> и <a href="/docs/documentation/contracts#contract-parent">§2–3</a>.</p>
   <ul>
     <li><code>ContractsController@show</code> — <code>User::with('parentProfile')</code>, без legacy-колонок на <code>users</code>.</li>
-    <li><code>ContractPrefillResolver</code> — плейсхолдеры <code>PARENT_*</code> из профиля родителя, в т.ч. <code>parent_full_name_genitive</code> (§<a href="#parent-full-name-genitive">1.5</a>).</li>
+    <li><code>ContractPrefillResolver</code> — плейсхолдеры <code>PARENT_*</code> из профиля родителя, в т.ч. <code>parent_full_name_genitive</code> (§<a href="#parent-full-name-genitive">1.5</a>). В модалке fill <code>parent_email</code>: если <code>parents.email</code> пуст — <code>users.email</code> ученика; подпись паспорта в модалке — «Паспорт (серия и номер)», в ЛК/админке карточка родителя без этого переименования (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>, <a href="/docs/documentation/account-contract-fill#fill-modal-passport-email-errors">account-contract-fill §2.6</a>).</li>
     <li>DOCX: <code>{{parent_full_name}}</code> (именительный, часто составной) и <code>{{parent_full_name_genitive}}</code> (одно поле) — <a href="/docs/documentation/contract-templates#docx-variables">contract-templates §6</a>.</li>
   </ul>
 

@@ -28,7 +28,9 @@ final class AdminUsersContractCreateFullAccessFeatureTest extends AdminUsersCont
             ->assertOk()
             ->assertSee('id="createContractModal"', false)
             ->assertSee('js-open-create-contract-from-user', false)
-            ->assertSee('Посмотреть черновик', false);
+            ->assertSee('Посмотреть черновик', false)
+            ->assertSee('users-contract-add-btn', false)
+            ->assertSee('Создать ещё один договор', false);
 
         foreach ($this->featureEndpoints($student, $contract) as $item) {
             $response = $this->call(

@@ -148,6 +148,9 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         $this->assertStringContainsString("KidsCrmTooltip.init(root, { scopes: ['hint'] })", $html);
         $this->assertStringContainsString('js-open-create-contract-from-user', $html);
         $this->assertStringContainsString('Создать договор', $html);
+        $this->assertStringContainsString('Создать ещё один договор', $html);
+        $this->assertStringContainsString('users-contract-add-btn', $html);
+        $this->assertStringContainsString('fa-plus', $html);
         $this->assertStringContainsString('Посмотреть черновик', $html);
         $this->assertStringContainsString('openCreateContractFromUser', $html);
         $this->assertStringContainsString("KidsCrmContractCreate.openModal(preselected, { lockUser: true })", $html);
@@ -177,7 +180,9 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
             ->assertDontSee('data-column-key="contract"', false)
             ->assertDontSee('id="createContractModal"', false)
             ->assertDontSee('js-open-create-contract-from-user', false)
-            ->assertDontSee('id="users-signed-contract-hint-tpl"', false);
+            ->assertDontSee('id="users-signed-contract-hint-tpl"', false)
+            ->assertDontSee('users-contract-add-btn', false)
+            ->assertDontSee('Создать ещё один договор', false);
     }
 
     // --- JSON DataTables: latest_contract ---

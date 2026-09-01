@@ -27,7 +27,8 @@
   <p class="small"><a href="/doc">← Документация</a></p>
   <h1>Договоры (клиентские)</h1>
   <div class="small">Файл: <code>/docs/documentation/contracts.html</code> · раздел CRM: <code>/client-contracts</code> · оглавление: <a href="/doc">/doc</a>
-    · создание со списка клиентов: <a href="/doc#users-contract-create-index">анонс</a></div>
+    · создание со списка клиентов: <a href="/doc#users-contract-create-index">анонс</a>
+    · колокольчик при signed: <a href="/doc#contract-signed-in-app-index">анонс</a></div>
 
   <h2>1) Назначение и доступ</h2>
   <div class="note">
@@ -35,6 +36,8 @@
     Все маршруты обёрнуты в <code>middleware('can:contracts.view')</code> (<code>routes/web.php</code>). Без права — <b>403</b> (HTML и JSON).<br>
     Маршруты с <code>{contract}</code> дополнительно проверяют <code>contract.partner</code> (договор того же партнёра, что <code>current_partner</code>).<br>
     Синхронизация статуса с Подпислоном: <code>GET …/status</code> — отдельно <code>can:contracts.sync</code>.
+    При первом переходе в <code>signed</code> (этот sync или вебхук Подпислона) админы школы получают in-app уведомление на 7 суток
+    (<a href="/doc#contract-signed-in-app-index">анонс</a>, <a href="#contract-signed-in-app">§8.1</a>).
   </div>
 
   <h3>Основные URL</h3>
@@ -58,7 +61,7 @@
       <tr><td>POST</td><td><code>/client-contracts/{contract}/send-email</code></td><td>Отправка PDF на email</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/download-original</code></td><td>Скачивание неподписанного PDF</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/download-signed</code></td><td>Скачивание подписанного PDF</td></tr>
-      <tr><td>GET</td><td><code>/client-contracts/{contract}/status</code></td><td>Ручная синхронизация с Подпислоном (<code>contracts.sync</code>)</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/{contract}/status</code></td><td>Ручная синхронизация с Подпислоном (<code>contracts.sync</code>). Первый переход в <code>signed</code> создаёт колокольчик админам школы</td></tr>
     </tbody>
   </table>
   <p class="small">Контроллеры: <code>App\Http\Controllers\Contracts\ContractsController</code>, <code>ContractSigningController</code>, <code>ContractTableController</code>, <code>ContractLookupsController</code>. View карточки: <code>resources/views/contracts/show.blade.php</code>.</p>
@@ -87,7 +90,7 @@
       <tr><td><code>contract.sign_resent_success</code> / <code>…_failed</code></td><td>Повторная отправка SMS</td></tr>
       <tr><td><code>contract.revoked</code></td><td>Отзыв (<code>POST …/revoke</code>), с указанием возврата 70&nbsp;₽</td></tr>
       <tr><td><code>contract.email_sent</code></td><td>Отправка PDF на email (<code>POST …/send-email</code>)</td></tr>
-      <tr><td><code>contract.signed</code>, <code>contract.sms_opened</code>, …</td><td>Webhook / синхронизация / кабинет родителя</td></tr>
+      <tr><td><code>contract.signed</code>, <code>contract.sms_opened</code>, …</td><td>Webhook / синхронизация / кабинет родителя. При первом переходе в <code>signed</code> — in-app уведомление админам школы (<a href="/doc#contract-signed-in-app-index">анонс</a>)</td></tr>
     </tbody>
   </table>
 
@@ -222,6 +225,7 @@
 
   <h3>5.4) Сохранение и оплата</h3>
   <ul>
+    <li>Footer модалки: «Отмена» и «Создать договор» (<code>#btn-save</code>).</li>
     <li>Submit модалки → подтверждение «Создать договор?» → <code>POST /client-contracts/check-balance</code> → <code>POST /client-contracts</code>.</li>
     <li>Списание с баланса партнёра — только при успешном <code>POST /client-contracts</code>, не при открытии модалки.</li>
     <li>После создания ученика и группы изменить нельзя — только новый договор.</li>
@@ -231,7 +235,7 @@
   <ul>
     <li>После привязки ученика к заявке — кнопка «Создать договор» в колонке «Договор» (после «Телефон родителя» на <code>/admin/school-leads</code>, §5.5.3 / §5.6) и в read-only модалке лида открывает ту же модалку создания <b>на странице заявок</b> (<code>KidsCrmContractCreate.openModal(..., { lockUser: true })</code>). Альтернатива — прямой переход <code>GET /client-contracts?user_id={id}</code>.</li>
     <li>Ученик и ФИО родителя предзаполняются в модалке, если у ученика есть запись в <code>parents</code>. При открытии из строки лида/клиента поле «Ученик» задисейблено (§5.3, <code>lockUser</code>).</li>
-    <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — колонка и фильтр «Договор» (только при <code>contracts.view</code>): нет договора — «Создать договор» (встроенная модалка, <code>lockUser</code>); неподписанный последний — «Посмотреть черновик»; подписанный — иконка PDF. См. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>.</li>
+    <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — колонка и фильтр «Договор» (только при <code>contracts.view</code>): нет договора — «Создать договор» (встроенная модалка, <code>lockUser</code>); неподписанный последний — «Посмотреть черновик»; подписанный — иконка PDF и плюс «Создать ещё один договор». См. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>.</li>
     <li>Полный сценарий лид → клиент → договор: <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5.2–5.8).</li>
   </ul>
 
@@ -266,7 +270,10 @@
         <b>каунтер активных договоров</b> в сайдбаре и на вкладке —
         <a href="/docs/documentation/account-contract-fill#account-documents-action-counter">§1.0</a>;
         автодата <code>{{contract_date}}</code> и разрывы Word — <a href="/docs/documentation/contract-templates#docx-placeholder-substitution">§6.2</a> /
-        <a href="/docs/documentation/account-contract-fill#contract-date-placeholders">fill §4.1</a></td></tr>
+        <a href="/docs/documentation/account-contract-fill#contract-date-placeholders">fill §4.1</a>;
+        паспорт / email / ошибки под полями —
+        <a href="/docs/documentation/account-contract-fill#fill-modal-passport-email-errors">fill §2.6</a>,
+        <a href="/doc#account-contract-fill-modal-ux-index">анонс</a></td></tr>
     </tbody>
   </table>
   <p class="small">На карточке договора template mode отображаются шаблон, срок заполнения, статус; отправка SMS из CRM для этого сценария не используется — подпись только из кабинета после generate PDF.</p>
@@ -275,6 +282,22 @@
   <p>Раздел <code>/client-contracts</code> объединяет список договоров и шаблонов DOCX (вкладки в UI).
   Шаблоны документированы в <a href="/docs/documentation/contract-templates">contract-templates.html</a>.
   Прямой URL шаблонов: <code>/client-contract-templates</code> (view <code>contract-templates.index</code>, вкладка «Шаблоны» активна).</p>
+
+  <h2 id="contract-signed-in-app">8.1) Колокольчик админам, когда договор подписан</h2>
+  <div class="note">
+    При первом переходе <code>contracts.status</code> в <code>signed</code> админы школы договора
+    (<code>contracts.school_id</code>, системная роль <code>admin</code>, <code>is_enabled=1</code>)
+    получают обычное in-app уведомление на 7 суток. Тренеры, ученики и кастомные роли — нет.
+    Ссылки на карточку в тексте нет. Заголовок «Договор подписан», тип <code>normal</code>
+    (плашки «Обычное» нет). Номер в тексте — id договора.
+    <br><br>
+    Точки: вебхук Подпислона <code>DOCUMENT_SIGNED</code> (<code>POST /webhooks/podpislon</code>, JSON и form-urlencoded)
+    и <code>GET /client-contracts/{id}/status</code> (кнопка на карточке — AJAX GET; тот же URL без
+    <code>X-Requested-With</code> тоже создаёт событие). Повторный signed, докачка PDF, вебхук
+    <code>opened</code>, 403/422 sync — без уведомления. Сбой колокольчика подписание не откатывает.
+    Анонс: <a href="/doc#contract-signed-in-app-index">/doc</a>.
+    Подробно: <a href="/docs/documentation/in-app-notifications#events-contract-signed">in-app-notifications §5.2</a>.
+  </div>
 
   <h2>9) Тесты (Feature)</h2>
   <div class="note">
@@ -291,6 +314,8 @@
       <li><code>ContractsIndexAccessFeatureTest.php</code>, <code>ContractsAccessTest.php</code></li>
       <li><code>ContractsParentAndAccessTest.php</code> — родитель на show, подписант</li>
       <li><code>ContractsSigningTest.php</code>, <code>ContractsSyncFeatureTest.php</code></li>
+      <li><code>ContractSignedInAppNotification*FeatureTest.php</code> — колокольчик админам при первом <code>signed</code>
+        (вебхук form/JSON, native GET и AJAX sync, @can кнопки, guest/403, UX ленты)</li>
       <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code></li>
       <li><code>ContractRevokeRefundTest.php</code> — revoke awaiting_client_fill + refund</li>
     </ul>

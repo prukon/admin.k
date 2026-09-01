@@ -34,6 +34,7 @@ class ContractCreateModalFeatureTest extends ContractsFeatureTestCase
             ->assertViewHas('preselectedUser', null)
             ->assertSee('id="createContractModal"', false)
             ->assertSee('id="contract-create-form"', false)
+            ->assertSee('id="btn-save" type="button" class="btn btn-primary">Создать договор</button>', false)
             ->assertSee('data-bs-target="#createContractModal"', false)
             ->assertSee('id="contractHowItWorksToggle"', false)
             ->assertSee('id="contractCreateHowItWorks"', false)

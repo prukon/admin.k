@@ -223,37 +223,84 @@
                     }
                 }
 
+                function laravelErrorKeyToName(key) {
+                    const parts = String(key).split('.');
+                    if (parts.length === 1) {
+                        return key;
+                    }
+
+                    return parts[0] + parts.slice(1).map(function (part) {
+                        return '[' + part + ']';
+                    }).join('');
+                }
+
+                function clearFillAjaxErrors() {
+                    if (!fillContent) {
+                        return;
+                    }
+
+                    fillContent.querySelectorAll('.contract-fill-ajax-errors').forEach(function (node) {
+                        node.remove();
+                    });
+                    fillContent.querySelectorAll('.is-invalid').forEach(function (el) {
+                        el.classList.remove('is-invalid');
+                    });
+                    fillContent.querySelectorAll('[data-error-for]').forEach(function (el) {
+                        el.textContent = '';
+                    });
+                }
+
                 function showFillAjaxErrors(errors) {
                     if (!fillContent || !errors || typeof errors !== 'object') {
                         return;
                     }
 
-                    const messages = [];
+                    clearFillAjaxErrors();
+
+                    const unmatched = [];
                     Object.keys(errors).forEach(function (key) {
                         const items = errors[key];
+                        let message = '';
                         if (Array.isArray(items)) {
-                            items.forEach(function (item) {
-                                if (item) {
-                                    messages.push(String(item));
-                                }
-                            });
+                            message = items.filter(Boolean).map(String).join(' ');
+                        } else if (items) {
+                            message = String(items);
                         }
+                        if (!message) {
+                            return;
+                        }
+
+                        const safeKey = String(key).replace(/"/g, '');
+                        const slot = fillContent.querySelector('[data-error-for="' + safeKey + '"]');
+                        const fieldName = laravelErrorKeyToName(safeKey);
+                        const input = fillContent.querySelector('[name="' + fieldName.replace(/"/g, '') + '"]');
+
+                        if (slot) {
+                            slot.textContent = message;
+                            if (input) {
+                                input.classList.add('is-invalid');
+                            }
+                            return;
+                        }
+
+                        unmatched.push(message);
                     });
 
-                    if (messages.length === 0) {
+                    const firstInvalid = fillContent.querySelector('.is-invalid');
+                    if (firstInvalid && typeof firstInvalid.scrollIntoView === 'function') {
+                        firstInvalid.scrollIntoView({ block: 'nearest' });
+                    }
+
+                    if (unmatched.length === 0) {
                         return;
                     }
 
-                    const list = messages.map(function (msg) {
+                    const list = unmatched.map(function (msg) {
                         return '<li>' + $('<div>').text(msg).html() + '</li>';
                     }).join('');
 
                     const alertHtml = '<div class="alert alert-danger mb-3 contract-fill-ajax-errors">'
                         + '<ul class="mb-0">' + list + '</ul></div>';
-
-                    fillContent.querySelectorAll('.contract-fill-ajax-errors').forEach(function (node) {
-                        node.remove();
-                    });
                     fillContent.insertAdjacentHTML('afterbegin', alertHtml);
                 }
 
@@ -341,6 +388,7 @@
                     const $submit = $(form).find('[type="submit"]');
                     $submit.prop('disabled', true);
                     fillError?.classList.add('d-none');
+                    clearFillAjaxErrors();
 
                     $.ajax({
                         method: 'POST',
@@ -361,13 +409,12 @@
                         }
                     }).fail(function (xhr) {
                         if (xhr.status === 422) {
-                            loadContractFill(contractId, true).done(function () {
-                                showFillAjaxErrors(xhr.responseJSON?.errors || {});
-                                if (!xhr.responseJSON?.errors && xhr.responseJSON?.message && fillError) {
-                                    fillError.textContent = xhr.responseJSON.message;
-                                    fillError.classList.remove('d-none');
-                                }
-                            });
+                            showFillAjaxErrors(xhr.responseJSON?.errors || {});
+                            if ((!xhr.responseJSON?.errors || Object.keys(xhr.responseJSON.errors).length === 0)
+                                && xhr.responseJSON?.message && fillError) {
+                                fillError.textContent = xhr.responseJSON.message;
+                                fillError.classList.remove('d-none');
+                            }
                             return;
                         }
 

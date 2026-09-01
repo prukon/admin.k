@@ -7,7 +7,8 @@ return [
     |--------------------------------------------------------------------------
     | auto       — LibreOffice, если доступен proc_open; иначе PhpWord+Dompdf
     | libreoffice — только LibreOffice (нужен proc_open)
-    | phpword    — PhpWord + Dompdf (без proc_open, подходит для shared hosting)
+    | phpword    — PhpWord + Dompdf (без proc_open, подходит для shared hosting;
+    |              перед load снимается w:numPr, иначе ListItemRun даёт лишние переносы)
     | fake       — заглушка для тестов
     */
     'pdf_converter' => env('CONTRACT_PDF_CONVERTER', 'auto'),

@@ -11,6 +11,7 @@ use App\Models\ContractEvent;
 use App\Models\ContractSignRequest;
 use App\Enums\AuditEvent;
 use App\Services\Audit\ContractAudit;
+use App\Services\InAppNotifications\ContractSignedNotifier;
 use App\Models\Partner;
 use App\Services\Contracts\ContractBillingService;
 use App\Services\Contracts\ContractPodpislonSendService;
@@ -27,6 +28,7 @@ class ContractSigningController extends Controller
 {
     public function __construct(
         private readonly ContractAudit $contractAudit,
+        private readonly ContractSignedNotifier $contractSignedNotifier,
     ) {}
 
     public function send(Contract $contract, ContractSendRequest $request, ContractPodpislonSendService $sendService)
@@ -403,7 +405,8 @@ class ContractSigningController extends Controller
                     'payload_json' => json_encode($payloadBase, JSON_UNESCAPED_UNICODE),
                 ]);
 
-                DB::transaction(function () use ($contract, $payloadBase, $authorId) {
+                $becameSigned = false;
+                DB::transaction(function () use ($contract, $payloadBase, $authorId, &$becameSigned) {
                     $c = Contract::query()->whereKey($contract->id)->lockForUpdate()->firstOrFail();
                     if ($c->status === Contract::STATUS_SIGNED) {
                         return;
@@ -412,6 +415,7 @@ class ContractSigningController extends Controller
                     $c->status = Contract::STATUS_SIGNED;
                     $c->signed_at = now();
                     $c->save();
+                    $becameSigned = true;
 
                     ContractEvent::create([
                         'contract_id'  => $c->id,
@@ -421,6 +425,10 @@ class ContractSigningController extends Controller
                     ]);
                     $this->manualSyncMyLogContractSigned($c, $prev);
                 });
+
+                if ($becameSigned) {
+                    $this->contractSignedNotifier->notify($contract->fresh() ?? $contract);
+                }
 
                 $contract->refresh();
                 if (!$contract->signed_pdf_path) {

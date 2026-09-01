@@ -7,8 +7,8 @@ namespace Tests\Feature\Crm\Users;
 use App\Models\Contract;
 
 /**
- * P1: UX колонки «Договор» на /admin/users — три состояния ячейки, lockUser из строки,
- * скрытый user_id при disabled Select2, негатив на свободный поиск на /client-contracts.
+ * P1: UX колонки «Договор» на /admin/users — три состояния ячейки, плюс у signed,
+ * lockUser из строки, скрытый user_id при disabled Select2, негатив на свободный поиск на /client-contracts.
  *
  * UX-баги до фикса: пустая ячейка без договора; серая PDF-иконка у черновика;
  * ученик оставался редактируемым после клика по строке.
@@ -26,6 +26,7 @@ final class AdminUsersContractCreateUxFeatureTest extends AdminUsersContractCrea
             ->assertSee('id="createContractModal"', false)
             ->assertSee('id="user_id"', false)
             ->assertSee('id="contract-create-form"', false)
+            ->assertSee('id="btn-save" type="button" class="btn btn-primary">Создать договор</button>', false)
             ->getContent();
 
         $this->assertMatchesRegularExpression(
@@ -51,6 +52,9 @@ final class AdminUsersContractCreateUxFeatureTest extends AdminUsersContractCrea
         $this->assertStringContainsString('{ lockUser: true }', $html);
         $this->assertStringContainsString('id="users-signed-contract-hint-tpl"', $html);
         $this->assertStringContainsString('data-kids-tooltip-hint', $html);
+        $this->assertStringContainsString('users-contract-add-btn', $html);
+        $this->assertStringContainsString('fa-plus', $html);
+        $this->assertStringContainsString('Создать ещё один договор', $html);
     }
 
     public function test_cell_without_contract_renders_create_button_instead_of_empty_cell(): void
@@ -71,6 +75,8 @@ final class AdminUsersContractCreateUxFeatureTest extends AdminUsersContractCrea
         $this->assertStringContainsString('js-open-create-contract-from-user', $html);
         $this->assertStringContainsString('data-user-id="' . $student->id . '"', $html);
         $this->assertStringNotContainsString('fa-file-pdf', $html);
+        $this->assertStringNotContainsString('fa-plus', $html);
+        $this->assertStringNotContainsString('Создать ещё один договор', $html);
         $this->assertStringNotContainsString('Посмотреть черновик', $html);
         $this->assertNotSame('', trim($html));
     }
@@ -94,6 +100,8 @@ final class AdminUsersContractCreateUxFeatureTest extends AdminUsersContractCrea
         $this->assertStringContainsString($row['latest_contract']['url'], $html);
         $this->assertStringNotContainsString('Создать договор', $html);
         $this->assertStringNotContainsString('fa-file-pdf', $html);
+        $this->assertStringNotContainsString('fa-plus', $html);
+        $this->assertStringNotContainsString('Создать ещё один договор', $html);
         $this->assertStringNotContainsString('#6c757d', $html);
 
         $this->get($row['latest_contract']['url'])->assertOk();
@@ -115,6 +123,8 @@ final class AdminUsersContractCreateUxFeatureTest extends AdminUsersContractCrea
         $this->assertStringContainsString('https://example.test/client-contracts/42', $html);
         $this->assertStringNotContainsString('Создать договор', $html);
         $this->assertStringNotContainsString('fa-file-pdf', $html);
+        $this->assertStringNotContainsString('fa-plus', $html);
+        $this->assertStringNotContainsString('Создать ещё один договор', $html);
     }
 
     public function test_any_unsigned_status_renders_view_draft_not_create_or_pdf_icon(): void
@@ -141,6 +151,8 @@ final class AdminUsersContractCreateUxFeatureTest extends AdminUsersContractCrea
             $this->assertStringContainsString('Посмотреть черновик', $html, $status);
             $this->assertStringNotContainsString('Создать договор', $html, $status);
             $this->assertStringNotContainsString('fa-file-pdf', $html, $status);
+            $this->assertStringNotContainsString('fa-plus', $html, $status);
+            $this->assertStringNotContainsString('Создать ещё один договор', $html, $status);
         }
     }
 
@@ -157,6 +169,8 @@ final class AdminUsersContractCreateUxFeatureTest extends AdminUsersContractCrea
         $this->assertStringContainsString('Создать договор', $html);
         $this->assertStringContainsString('js-open-create-contract-from-user', $html);
         $this->assertStringNotContainsString('Посмотреть черновик', $html);
+        $this->assertStringNotContainsString('fa-plus', $html);
+        $this->assertStringNotContainsString('Создать ещё один договор', $html);
     }
 
     public function test_signed_contract_renders_pdf_icon_not_create_or_draft_button(): void
@@ -180,9 +194,63 @@ final class AdminUsersContractCreateUxFeatureTest extends AdminUsersContractCrea
         $this->assertStringContainsString('kids-tooltip-hint', $html);
         $this->assertStringContainsString('data-kids-tooltip-hint', $html);
         $this->assertStringContainsString('ulp-assignment-paid-tooltip', $html);
+        $this->assertStringContainsString('fa-plus', $html);
+        $this->assertStringContainsString('users-contract-add-btn', $html);
+        $this->assertStringContainsString('Создать ещё один договор', $html);
+        $this->assertStringContainsString('js-open-create-contract-from-user', $html);
+        $this->assertStringContainsString('data-user-id="' . $student->id . '"', $html);
+        $this->assertStringContainsString('users-contract-cell', $html);
+        $this->assertSame(1, preg_match('/<a href="[^"]*" class="users-contract-icon-link">(.*?)<\/a>/s', $html, $linkMatch));
+        $this->assertStringContainsString('fa-file-pdf', $linkMatch[1]);
+        $this->assertStringNotContainsString('fa-plus', $linkMatch[1], 'плюс — сосед PDF-ссылки, не внутри неё');
         $this->assertStringNotContainsString('js-dt-cell-ellipsis-tooltip', $html);
-        $this->assertStringNotContainsString('Создать договор', $html);
+        $this->assertStringNotContainsString('>Создать договор</button>', $html);
         $this->assertStringNotContainsString('Посмотреть черновик', $html);
+    }
+
+    public function test_signed_plus_is_type_button_outside_pdf_link_and_shares_create_handler(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: true);
+
+        $student = $this->createStudent(['lastname' => 'ПлюсПодписанUx']);
+        $this->createContractForUser($student, Contract::STATUS_SIGNED);
+        $row = $this->fetchUsersDataRow('ПлюсПодписанUx');
+        $this->assertNotNull($row);
+
+        $html = $this->renderContractCellHtml([
+            'id' => $student->id,
+            'latest_contract' => $row['latest_contract'],
+        ]);
+
+        $this->assertSame(
+            1,
+            preg_match(
+                '/<button type="button"[^>]*\busers-contract-add-btn\b[^>]*>.*?<\/button>/s',
+                $html,
+                $btnMatch
+            )
+        );
+        $plus = $btnMatch[0];
+        $this->assertStringContainsString('js-open-create-contract-from-user', $plus);
+        $this->assertStringContainsString('data-user-id="' . $student->id . '"', $plus);
+        $this->assertStringContainsString('data-kids-tooltip-hint', $plus);
+        $this->assertStringContainsString('title="Создать ещё один договор"', $plus);
+        $this->assertStringContainsString('aria-label="Создать ещё один договор"', $plus);
+        $this->assertStringContainsString('fa-plus', $plus);
+        $this->assertStringContainsString('#0d6efd', $plus);
+        $this->assertStringNotContainsString('users-contract-icon-link', $plus);
+
+        $usersJs = $this->usersBladeSource();
+        $this->assertStringContainsString(
+            "$('#users-table').on('click', '.js-open-create-contract-from-user'",
+            $usersJs
+        );
+        $this->assertStringContainsString('event.stopPropagation()', $usersJs);
+        $this->assertStringContainsString('event.preventDefault()', $usersJs);
+        $this->assertStringContainsString(
+            'window.KidsCrmContractCreate.openModal(preselected, { lockUser: true })',
+            $usersJs
+        );
     }
 
     public function test_latest_unsigned_wins_over_older_signed_for_cell_state(): void
@@ -204,6 +272,8 @@ final class AdminUsersContractCreateUxFeatureTest extends AdminUsersContractCrea
         ]);
         $this->assertStringContainsString('Посмотреть черновик', $html);
         $this->assertStringNotContainsString('fa-file-pdf', $html);
+        $this->assertStringNotContainsString('fa-plus', $html);
+        $this->assertStringNotContainsString('Создать ещё один договор', $html);
     }
 
     public function test_opening_from_client_row_locks_student_and_keeps_user_id_for_submit(): void
@@ -379,6 +449,8 @@ JS
             ->assertDontSee('js-open-create-contract-from-user', false)
             ->assertDontSee('openCreateContractFromUser', false)
             ->assertDontSee('Посмотреть черновик', false)
-            ->assertDontSee('id="users-signed-contract-hint-tpl"', false);
+            ->assertDontSee('id="users-signed-contract-hint-tpl"', false)
+            ->assertDontSee('users-contract-add-btn', false)
+            ->assertDontSee('Создать ещё один договор', false);
     }
 }

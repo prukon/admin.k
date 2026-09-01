@@ -5,12 +5,27 @@ namespace App\Services\Contracts;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\Settings;
 use RuntimeException;
+use ZipArchive;
 
 /**
  * DOCX → PDF без proc_open (PhpWord + Dompdf, pure PHP).
+ *
+ * PhpWord HTML-writer для абзацев с Word-нумерацией (w:numPr → ListItemRun)
+ * оборачивает каждый run в отдельный &lt;p&gt; — Dompdf рисует это как лишние
+ * переносы строк. Перед загрузкой нумерацию снимаем с рабочей копии.
  */
 class PhpWordDompdfConverter implements ContractPdfConverterInterface
 {
+    private const XML_PARTS = [
+        'word/document.xml',
+        'word/header1.xml',
+        'word/header2.xml',
+        'word/header3.xml',
+        'word/footer1.xml',
+        'word/footer2.xml',
+        'word/footer3.xml',
+    ];
+
     private static bool $rendererConfigured = false;
 
     public function convertDocxToPdf(string $docxAbsolutePath, string $outputDirectory): string
@@ -25,10 +40,26 @@ class PhpWordDompdfConverter implements ContractPdfConverterInterface
 
         $this->configureRenderer();
 
+        $prepared = rtrim($outputDirectory, DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR
+            . pathinfo($docxAbsolutePath, PATHINFO_FILENAME)
+            . '-phpword-in.docx';
+
+        if (!@copy($docxAbsolutePath, $prepared)) {
+            throw new RuntimeException('Не удалось подготовить DOCX для PhpWord.');
+        }
+
         try {
-            $phpWord = IOFactory::load($docxAbsolutePath);
+            self::stripWordListNumbering($prepared);
+            $phpWord = IOFactory::load($prepared);
         } catch (\Throwable $e) {
             throw new RuntimeException('Не удалось прочитать DOCX: ' . $e->getMessage(), 0, $e);
+        } finally {
+            @unlink($prepared);
+        }
+
+        if (!isset($phpWord)) {
+            throw new RuntimeException('Не удалось прочитать DOCX.');
         }
 
         $baseName = pathinfo($docxAbsolutePath, PATHINFO_FILENAME);
@@ -72,5 +103,39 @@ class PhpWordDompdfConverter implements ContractPdfConverterInterface
         ]);
 
         self::$rendererConfigured = true;
+    }
+
+    /**
+     * Убирает w:numPr, чтобы PhpWord не читал абзац как ListItemRun.
+     * Исходный файл шаблона не трогаем — только переданную копию.
+     */
+    public static function stripWordListNumbering(string $docxPath): void
+    {
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            throw new RuntimeException('Не удалось открыть DOCX для подготовки PhpWord.');
+        }
+
+        foreach (self::XML_PARTS as $part) {
+            $xml = $zip->getFromName($part);
+            if ($xml === false || $xml === '') {
+                continue;
+            }
+
+            $stripped = self::stripNumPrFromXml($xml);
+            if ($stripped !== $xml) {
+                $zip->addFromString($part, $stripped);
+            }
+        }
+
+        $zip->close();
+    }
+
+    public static function stripNumPrFromXml(string $xml): string
+    {
+        $xml = (string) preg_replace('/<w:numPr\b[^>]*\/>/u', '', $xml);
+        $xml = (string) preg_replace('/<w:numPr\b[^>]*>.*?<\/w:numPr>/us', '', $xml);
+
+        return $xml;
     }
 }

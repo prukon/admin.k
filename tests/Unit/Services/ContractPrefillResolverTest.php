@@ -39,6 +39,51 @@ final class ContractPrefillResolverTest extends CrmTestCase
         $this->assertSame('parent@example.com', $values['parent_email']);
     }
 
+    public function test_parent_email_prefill_falls_back_to_student_email_when_parent_email_empty(): void
+    {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'email'      => null,
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->user->role_id,
+            'parent_id'  => $parent->id,
+            'email'      => 'student@example.com',
+        ]);
+
+        $resolver = app(ContractPrefillResolver::class);
+        $values = $resolver->resolveForContract(
+            $this->makeContractForStudent($student),
+            [
+                ['key' => 'parent_email', 'prefill_source' => ContractTemplatePrefillSources::PARENT_EMAIL],
+            ],
+        );
+
+        $this->assertSame('student@example.com', $values['parent_email']);
+    }
+
+    public function test_parent_email_prefill_falls_back_to_student_email_when_parent_profile_missing(): void
+    {
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->user->role_id,
+            'parent_id'  => null,
+            'email'      => 'orphan-student@example.com',
+        ]);
+
+        $resolver = app(ContractPrefillResolver::class);
+        $values = $resolver->resolveForContract(
+            $this->makeContractForStudent($student),
+            [
+                ['key' => 'parent_email', 'prefill_source' => ContractTemplatePrefillSources::PARENT_EMAIL],
+            ],
+        );
+
+        $this->assertSame('orphan-student@example.com', $values['parent_email']);
+    }
+
     public function test_parent_passport_and_address_prefill_from_parent_profile(): void
     {
         $parent = ParentProfile::factory()->create([

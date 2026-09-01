@@ -271,7 +271,21 @@
   <p class="small">
     Конвертер PDF: <code>CONTRACT_PDF_CONVERTER=auto</code> (LibreOffice при <code>proc_open</code>, иначе PhpWord+Dompdf).
     Явно: <code>phpword</code> | <code>libreoffice</code> | <code>fake</code> (тесты).
+    На проде PHP-FPM обычно без <code>proc_open</code> — тогда только phpword.
   </p>
+
+  <h3 id="phpword-numpr-line-breaks">8.1) PhpWord: лишние переносы строк</h3>
+  <div class="warn">
+    PhpWord читает абзац с Word-нумерацией (<code>w:numPr</code>) как <code>ListItemRun</code>
+    и в HTML кладёт <b>каждый run в отдельный</b> <code>&lt;p&gt;</code>. Dompdf рисует это как разрыв строки
+    (слово / скобка / кавычка на своей линии). Типично для юридических DOCX с автонумерацией пунктов.
+    LibreOffice эту вёрстку не ломает.
+  </div>
+  <p><code>PhpWordDompdfConverter</code> перед <code>IOFactory::load</code> снимает <code>w:numPr</code>
+  с <b>рабочей копии</b> заполненного DOCX (шаблон на диске не меняется).
+  Автонумерация Word в phpword и раньше не попадала в PDF — теряются только маркеры списка, текст абзаца остаётся целым.</p>
+  <p class="small">Тесты: <code>PhpWordDompdfConverterTest</code>
+  (<code>numbered_paragraph_with_split_runs_stays_one_html_paragraph</code>, исходный DOCX не мутирует).</p>
 
   <h2>9) Сервисы</h2>
   <ul>
@@ -280,8 +294,9 @@
     <li><code>DocxPlaceholderExtractor</code> — парсинг <code>{{…}}</code> из DOCX (в т.ч. при разрыве скобок Word на разные <code>w:t</code>)</li>
     <li><code>DocxPlaceholderSupport</code> / <code>ContractDocxPlaceholderFiller</code> — подстановка значений; все вхождения ключа, включая разорванные <code>{{</code>/<code>}}</code></li>
     <li><code>ContractPdfGenerationService</code> — формирование PDF (кабинет + очередь); системные <code>contract_date</code>, <code>contract_id</code>, <code>legal_entity_*</code></li>
+    <li><code>PhpWordDompdfConverter</code> — DOCX→PDF без <code>proc_open</code>; снимает <code>w:numPr</code> (см. <a href="#phpword-numpr-line-breaks">§8.1</a>)</li>
     <li><code>LibreOfficePdfConverter</code> / <code>FakeContractPdfConverter</code></li>
-    <li><code>ContractPrefillResolver</code> — предзаполнение из users/parents/teams</li>
+    <li><code>ContractPrefillResolver</code> — предзаполнение из users/parents/teams; <code>parent_email</code> в модалке fill: <code>parents.email</code>, иначе <code>users.email</code> ученика (не форма профиля ЛК) — <a href="/doc#account-contract-fill-modal-ux-index">анонс</a>, <a href="/docs/documentation/account-contract-fill#fill-modal-passport-email-errors">account-contract-fill §2.6</a></li>
     <li><code>ContractLegalEntityPlaceholderService</code> — реквизиты юр. лица группы и блок при отсутствии</li>
     <li><code>ContractParentProfileSyncService</code> / <code>ContractStudentProfileSyncService</code> — sync после generate</li>
     <li><code>ContractPodpislonSendService</code> — SMS (CRM и кабинет)</li>
@@ -312,6 +327,7 @@
       <li><code>ContractRevokeRefundTest.php</code> — revoke + возврат 70&nbsp;₽</li>
       <li><code>ContractTemplateWorkflowFeatureTest.php</code>, <code>ContractTemplateToParentWorkflowFeatureTest.php</code> — E2E</li>
       <li><code>ContractParentProfileSyncTest.php</code>, <code>ContractStudentProfileSyncTest.php</code></li>
+      <li><code>PhpWordDompdfConverterTest.php</code> — phpword: снятие <code>w:numPr</code>, абзац с несколькими run остаётся одним <code>&lt;p&gt;</code> (§8.1)</li>
     </ul>
     <p><b>Кабинет родителя:</b> см. <a href="/docs/documentation/account-contract-fill#7-feature-тесты">account-contract-fill §7</a>.</p>
     <p>Запуск блока шаблонов:</p>

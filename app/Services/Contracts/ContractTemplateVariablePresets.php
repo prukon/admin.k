@@ -161,7 +161,7 @@ class ContractTemplateVariablePresets
             ],
             [
                 'key'              => 'parent_passport',
-                'label'            => 'Родитель: паспорт',
+                'label'            => 'Родитель: паспорт (серия и номер)',
                 'description'      => 'Серия и номер паспорта заказчика.',
                 'group'            => self::GROUP_PARENT,
                 'prefill_source'   => ContractTemplatePrefillSources::PARENT_PASSPORT,
@@ -969,6 +969,10 @@ class ContractTemplateVariablePresets
                 $label = trim(mb_substr($label, mb_strlen($prefix)));
                 break;
             }
+        }
+
+        if (mb_strtolower($label, 'UTF-8') === 'паспорт') {
+            return 'Паспорт (серия и номер)';
         }
 
         return self::capitalizeFillFormLabel($label);

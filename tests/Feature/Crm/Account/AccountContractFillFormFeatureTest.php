@@ -49,6 +49,111 @@ class AccountContractFillFormFeatureTest extends CrmTestCase
         $this->assertStringContainsString('max="' . now()->format('Y-m-d') . '"', $html);
     }
 
+    public function test_fill_form_shows_parent_passport_as_series_and_number(): void
+    {
+        $contract = $this->makeAwaitingFillContract(
+            [
+                [
+                    'key'            => 'parent_passport',
+                    'label'          => 'Родитель: паспорт',
+                    'required'       => true,
+                    'prefill_source' => ContractTemplatePrefillSources::PARENT_PASSPORT,
+                ],
+            ],
+            ['parent_passport'],
+        );
+
+        $html = $this->getContractFillModalHtml($contract);
+
+        $this->assertStringContainsString('Паспорт (серия и номер)', $html);
+        $this->assertDoesNotMatchRegularExpression(
+            '/>\s*Паспорт\s*</u',
+            $html,
+            'Подпись поля не должна оставаться коротким «Паспорт»',
+        );
+    }
+
+    public function test_fill_form_uses_novalidate_and_laravel_field_error_slots(): void
+    {
+        $contract = $this->makeAwaitingFillContract(
+            [
+                ['key' => 'parent_passport', 'label' => 'Родитель: паспорт', 'required' => true],
+                ['key' => 'parent_email', 'label' => 'Родитель: email', 'required' => true],
+            ],
+            ['parent_passport', 'parent_email'],
+        );
+
+        $html = $this->getContractFillModalHtml($contract);
+
+        $this->assertStringContainsString('class="contract-fill-form" novalidate', $html);
+        $this->assertStringContainsString('data-error-for="fields.parent_passport"', $html);
+        $this->assertStringContainsString('data-error-for="fields.parent_email"', $html);
+        $this->assertDoesNotMatchRegularExpression(
+            '/name="fields\[parent_passport\]"[^>]*\srequired/u',
+            $html,
+            'HTML5 required не должен блокировать Laravel-валидацию',
+        );
+    }
+
+    public function test_generate_ajax_required_error_uses_fill_form_field_label(): void
+    {
+        $contract = $this->makeAwaitingFillContract(
+            [
+                [
+                    'key'            => 'parent_passport',
+                    'label'          => 'Родитель: паспорт',
+                    'required'       => true,
+                    'prefill_source' => ContractTemplatePrefillSources::PARENT_PASSPORT,
+                ],
+            ],
+            ['parent_passport'],
+        );
+
+        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->postJson(route('account.documents.generate', $contract), [
+                'fields' => [
+                    'parent_passport' => '',
+                ],
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['fields.parent_passport']);
+
+        $message = $response->json('errors')['fields.parent_passport'][0] ?? null;
+        $this->assertIsString($message);
+        $this->assertStringContainsString('Паспорт (серия и номер)', $message);
+        $this->assertStringNotContainsString('Родитель:', $message);
+    }
+
+    public function test_fill_form_prefills_parent_email_from_student_when_parent_email_empty(): void
+    {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'email'      => null,
+        ]);
+        $this->user->forceFill([
+            'parent_id' => $parent->id,
+            'email'     => 'student-fallback@example.com',
+        ])->save();
+
+        $contract = $this->makeAwaitingFillContract(
+            [
+                [
+                    'key'            => 'parent_email',
+                    'label'          => 'Родитель: email',
+                    'required'       => true,
+                    'prefill_source' => ContractTemplatePrefillSources::PARENT_EMAIL,
+                ],
+            ],
+            ['parent_email'],
+        );
+
+        $html = $this->getContractFillModalHtml($contract);
+
+        $this->assertStringContainsString('name="fields[parent_email]"', $html);
+        $this->assertStringContainsString('value="student-fallback@example.com"', $html);
+    }
+
     public function test_fill_form_marks_phone_fields_for_inputmask(): void
     {
         $contract = $this->makeAwaitingFillContract(

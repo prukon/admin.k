@@ -30,10 +30,15 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $this->assertStringContainsString('js-open-create-contract-from-user', $chunk);
         $this->assertStringContainsString('Посмотреть черновик', $chunk);
         $this->assertStringContainsString('#0d6efd', $chunk);
+        $this->assertStringContainsString('Создать ещё один договор', $chunk);
+        $this->assertStringContainsString('fa-plus', $chunk);
+        $this->assertStringContainsString('У черновика плюса нет', $chunk);
+        $this->assertStringContainsString('не внутри PDF-ссылки', $chunk);
         $this->assertStringContainsString('lockUser: true', $chunk);
         $this->assertStringContainsString('user_id_locked', $chunk);
         $this->assertStringContainsString('create_contract_url', $chunk);
         $this->assertStringContainsString('<code>actions</code>, не <code>icon</code>', $chunk);
+        $this->assertStringContainsString('на заявках его нет', $chunk);
         $this->assertStringContainsString('admin-users#user-contract-create', $chunk);
         $this->assertStringContainsString('AdminUsersContractCreateUxFeatureTest', $chunk);
         $this->assertStringContainsString('UsersContractCreateDocumentationContractTest', $chunk);
@@ -55,14 +60,21 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $this->assertStringContainsString('id="user-contract-create"', $users);
         $this->assertStringContainsString('create_contract_url</code> в JSON списка пользователей <b>нет</b>', $users);
         $this->assertStringContainsString("тип <code>actions</code>", $users);
+        $this->assertStringContainsString('«Создать договор» (<code>#btn-save</code>), не «Сохранить»', $users);
+        $this->assertStringContainsString('Создать ещё один договор', $users);
+        $this->assertStringContainsString('users-contract-add-btn', $users);
+        $this->assertStringContainsString('У черновика плюса нет', $users);
 
         $this->assertStringContainsString('/doc#users-contract-create-index', $contracts);
         $this->assertStringContainsString('lockUser: true', $contracts);
+        $this->assertStringContainsString('Footer модалки: «Отмена» и «Создать договор»', $contracts);
+        $this->assertStringContainsString('Создать ещё один договор', $contracts);
 
         $this->assertStringContainsString('/doc#users-contract-create-index', $leads);
         $this->assertStringContainsString('create_contract_url', $leads);
+        $this->assertStringContainsString('Создать ещё один договор', $leads);
 
-        $this->assertStringContainsString('<code>actions</code> (договор: создать / черновик / PDF)', $partials);
+        $this->assertStringContainsString('<code>actions</code> (договор: создать / черновик / PDF + плюс у signed)', $partials);
         $this->assertStringNotContainsString('<code>icon</code> (договор)', $partials);
     }
 
@@ -76,7 +88,7 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $this->assertStringContainsString('встроенная модалка, <code>lockUser</code>', $index);
         $this->assertStringContainsString('создание со списка клиентов и заявок', $index);
 
-        $this->assertStringContainsString('договор (создать / черновик / иконка signed, встроенная модалка, lockUser)', $controller);
+        $this->assertStringContainsString('договор (создать / черновик / иконка signed + плюс ещё один, встроенная модалка, lockUser)', $controller);
         $this->assertStringContainsString('создание со списка клиентов/заявок (lockUser)', $controller);
     }
 
@@ -94,12 +106,17 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $this->assertStringContainsString('#0d6efd', $usersBlade);
         $this->assertStringContainsString("@include('partials.ui.tooltip-hint'", $usersBlade);
         $this->assertStringContainsString('users-signed-contract-hint-tpl', $usersBlade);
+        $this->assertStringContainsString('users-contract-add-btn', $usersBlade);
+        $this->assertStringContainsString('fa-plus', $usersBlade);
+        $this->assertStringContainsString('Создать ещё один договор', $usersBlade);
+        $this->assertStringContainsString('users-contract-cell', $usersBlade);
         $this->assertStringContainsString('data-kids-tooltip-hint', $usersBlade);
         $this->assertStringContainsString("scopes: ['hint']", $usersBlade);
         $this->assertStringContainsString("type: 'actions'", $usersBlade);
         $this->assertStringContainsString('{ lockUser: true }', $usersBlade);
         $this->assertStringNotContainsString("type: 'icon'", $usersBlade);
 
+        $this->assertStringContainsString('id="btn-save" type="button" class="btn btn-primary">Создать договор</button>', $modal);
         $this->assertStringContainsString('setContractUserSelectLocked', $modal);
         $this->assertStringContainsString('user_id_locked', $modal);
         $this->assertStringContainsString('options.lockUser', $modal);
@@ -108,6 +125,8 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
             2,
             substr_count($leads, 'KidsCrmContractCreate.openModal(preselected, { lockUser: true })')
         );
+        $this->assertStringNotContainsString('users-contract-add-btn', $leads);
+        $this->assertStringNotContainsString('Создать ещё один договор', $leads);
         $this->assertStringNotContainsString('lockUser: true', $contractsIndex);
     }
 

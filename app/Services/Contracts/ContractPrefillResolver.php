@@ -121,10 +121,23 @@ class ContractPrefillResolver
             ContractTemplatePrefillSources::PARENT_PASSPORT_ISSUED => (string) ($parentFields['parent_passport_issued'] ?? ''),
             ContractTemplatePrefillSources::PARENT_ADDRESS    => (string) ($parentFields['parent_address'] ?? ''),
             ContractTemplatePrefillSources::PARENT_PHONE      => (string) ($parentFields['parent_phone'] ?? ''),
-            ContractTemplatePrefillSources::PARENT_EMAIL      => (string) ($parentFields['parent_email'] ?? ''),
+            ContractTemplatePrefillSources::PARENT_EMAIL      => $this->parentEmailOrStudentFallback($parentFields, $student),
             ContractTemplatePrefillSources::TEAM_TITLE        => (string) ($team?->title ?? ''),
             default => '',
         };
+    }
+
+    /**
+     * @param array<string, mixed> $parentFields
+     */
+    private function parentEmailOrStudentFallback(array $parentFields, User $student): string
+    {
+        $parentEmail = trim((string) ($parentFields['parent_email'] ?? ''));
+        if ($parentEmail !== '') {
+            return $parentEmail;
+        }
+
+        return trim((string) ($student->email ?? ''));
     }
 
     private function studentFullName(User $student): string

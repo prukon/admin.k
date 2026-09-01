@@ -31,15 +31,14 @@
                name="fields[{{ $key }}]"
                class="form-control @error('fields.' . $key) is-invalid @enderror"
                value="{{ $value }}"
-               max="{{ now()->format('Y-m-d') }}"
-               {{ $required ? 'required' : '' }}>
+               max="{{ now()->format('Y-m-d') }}">
     @elseif($isPhoneField)
         @include('includes.fields.phone-input', [
             'name' => 'fields[' . $key . ']',
             'value' => $rawValue,
             'unmask' => true,
             'contractFill' => true,
-            'required' => $required,
+            'required' => false,
             'class' => $errors->has('fields.' . $key) ? 'is-invalid' : '',
         ])
     @else
@@ -47,10 +46,7 @@
                name="fields[{{ $key }}]"
                class="form-control @error('fields.' . $key) is-invalid @enderror"
                value="{{ $value }}"
-               {{ $required ? 'required' : '' }}
                maxlength="2000">
     @endif
-    @error('fields.' . $key)
-    <div class="invalid-feedback">{{ $message }}</div>
-    @enderror
+    <div class="invalid-feedback" data-error-for="fields.{{ $key }}">@error('fields.' . $key){{ $message }}@enderror</div>
 </div>

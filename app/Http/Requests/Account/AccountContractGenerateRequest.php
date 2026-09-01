@@ -4,6 +4,7 @@ namespace App\Http\Requests\Account;
 
 use App\Models\Contract;
 use App\Services\Contracts\ContractPdfGenerationService;
+use App\Services\Contracts\ContractTemplatePrefillSources;
 use App\Services\Contracts\ContractTemplateVariablePresets;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -19,16 +20,9 @@ class AccountContractGenerateRequest extends FormRequest
 
     public function rules(): array
     {
-        /** @var Contract $contract */
-        $contract = $this->route('contract');
-        $contract->loadMissing('templateVersion');
-
-        $schema = ContractTemplateVariablePresets::schemaFieldsForParentForm(
-            $contract->templateVersion?->fields_schema ?? [],
-        );
         $rules = ['fields' => ['required', 'array']];
 
-        foreach ($schema as $field) {
+        foreach ($this->fieldsSchema() as $field) {
             $key = $field['key'] ?? null;
             if (!is_string($key) || $key === '') {
                 continue;
@@ -37,8 +31,6 @@ class AccountContractGenerateRequest extends FormRequest
             if (ContractTemplateVariablePresets::isSystemFillField($key)) {
                 continue;
             }
-
-            $label = (string) ($field['label'] ?? $key);
 
             if (ContractTemplateVariablePresets::isFillFormDateField($key)) {
                 $fieldRules = ['nullable', 'date', 'before:today'];
@@ -60,18 +52,11 @@ class AccountContractGenerateRequest extends FormRequest
 
     public function attributes(): array
     {
-        /** @var Contract $contract */
-        $contract = $this->route('contract');
-        $contract->loadMissing('templateVersion');
-        $schema = ContractTemplateVariablePresets::schemaFieldsForParentForm(
-            $contract->templateVersion?->fields_schema ?? [],
-        );
-
         $attrs = ['fields' => 'Поля договора'];
-        foreach ($schema as $field) {
+        foreach ($this->fieldsSchema() as $field) {
             $key = $field['key'] ?? null;
             if (is_string($key) && $key !== '') {
-                $attrs['fields.' . $key] = (string) ($field['label'] ?? $key);
+                $attrs['fields.' . $key] = $this->fieldDisplayLabel($field, $key);
             }
         }
 
@@ -113,6 +98,40 @@ class AccountContractGenerateRequest extends FormRequest
         }
 
         return ContractTemplateVariablePresets::composeNameFieldsForPdf($normalized);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function fieldsSchema(): array
+    {
+        /** @var Contract $contract */
+        $contract = $this->route('contract');
+        $contract->loadMissing('templateVersion');
+
+        return ContractTemplateVariablePresets::schemaFieldsForParentForm(
+            $contract->templateVersion?->fields_schema ?? [],
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function fieldDisplayLabel(array $field, string $key): string
+    {
+        $label = (string) ($field['label'] ?? $key);
+        $prefillKey = $field['prefill_source'] ?? null;
+        if (is_string($prefillKey) && $prefillKey !== '') {
+            $sources = ContractTemplatePrefillSources::labels();
+            if (isset($sources[$prefillKey])) {
+                $label = $sources[$prefillKey];
+            }
+        }
+
+        return ContractTemplateVariablePresets::fillFormFieldLabel(
+            $label,
+            ContractTemplateVariablePresets::fieldGroupForKey($key),
+        );
     }
 
     public function withValidator($validator): void

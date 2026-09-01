@@ -13,11 +13,20 @@
     <div class="alert alert-success mb-3">{{ session('success') }}</div>
 @endif
 
-@if($errors->any())
+@php
+    $bannerErrorKeys = collect($errors->keys())->reject(function ($key) {
+        $key = (string) $key;
+
+        return str_starts_with($key, 'fields.') || str_starts_with($key, 'signer_');
+    })->values();
+@endphp
+@if($bannerErrorKeys->isNotEmpty())
     <div class="alert alert-danger mb-3">
         <ul class="mb-0">
-            @foreach($errors->all() as $err)
-                <li>{{ $err }}</li>
+            @foreach($bannerErrorKeys as $errorKey)
+                @foreach($errors->get($errorKey) as $err)
+                    <li>{{ $err }}</li>
+                @endforeach
             @endforeach
         </ul>
     </div>
@@ -36,7 +45,7 @@
 @endif
 
 @if($showFillForm && !$contract->isGeneratingPdf())
-    <form method="post" action="{{ route('account.documents.generate', $contract) }}" class="contract-fill-form">
+    <form method="post" action="{{ route('account.documents.generate', $contract) }}" class="contract-fill-form" novalidate>
         @csrf
 
         @if($fillMode === 'edit')
@@ -116,7 +125,7 @@
             </a>
         </div>
 
-        <form method="post" action="{{ route('account.documents.sign', $contract) }}">
+        <form method="post" action="{{ route('account.documents.sign', $contract) }}" novalidate>
             @csrf
             <section class="contract-fill-panel contract-fill-panel--parent mb-3">
                 <div class="contract-fill-panel__head">
@@ -131,20 +140,20 @@
                         <div class="col-12 col-md-6 text-start">
                             <label class="form-label mb-1 text-start w-100">Фамилия <span class="text-danger">*</span></label>
                             <input type="text" name="signer_lastname" class="form-control @error('signer_lastname') is-invalid @enderror"
-                                   value="{{ old('signer_lastname', $signerDefaults['lastname']) }}" required maxlength="100">
-                            @error('signer_lastname')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                   value="{{ old('signer_lastname', $signerDefaults['lastname']) }}" maxlength="100">
+                            <div class="invalid-feedback" data-error-for="signer_lastname">@error('signer_lastname'){{ $message }}@enderror</div>
                         </div>
                         <div class="col-12 col-md-6 text-start">
                             <label class="form-label mb-1 text-start w-100">Имя <span class="text-danger">*</span></label>
                             <input type="text" name="signer_firstname" class="form-control @error('signer_firstname') is-invalid @enderror"
-                                   value="{{ old('signer_firstname', $signerDefaults['firstname']) }}" required maxlength="100">
-                            @error('signer_firstname')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                   value="{{ old('signer_firstname', $signerDefaults['firstname']) }}" maxlength="100">
+                            <div class="invalid-feedback" data-error-for="signer_firstname">@error('signer_firstname'){{ $message }}@enderror</div>
                         </div>
                         <div class="col-12 col-md-6 text-start">
                             <label class="form-label mb-1 text-start w-100">Отчество</label>
                             <input type="text" name="signer_middlename" class="form-control @error('signer_middlename') is-invalid @enderror"
                                    value="{{ old('signer_middlename', $signerDefaults['middlename']) }}" maxlength="100">
-                            @error('signer_middlename')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <div class="invalid-feedback" data-error-for="signer_middlename">@error('signer_middlename'){{ $message }}@enderror</div>
                         </div>
                         <div class="col-12 col-md-6 text-start">
                             <label class="form-label mb-1 text-start w-100">Телефон для SMS <span class="text-danger">*</span></label>
@@ -153,10 +162,10 @@
                                 'value' => old('signer_phone', $signerDefaults['phone']),
                                 'unmask' => true,
                                 'contractFill' => true,
-                                'required' => true,
+                                'required' => false,
                                 'class' => trim(($errors->has('signer_phone') ? 'is-invalid' : '')),
                             ])
-                            @error('signer_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <div class="invalid-feedback" data-error-for="signer_phone">@error('signer_phone'){{ $message }}@enderror</div>
                         </div>
                     </div>
                 </div>

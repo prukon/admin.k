@@ -35,6 +35,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'sport types index modals' => ['admin/sport-types/index.blade.php'];
         yield 'admin users page' => ['admin/user.blade.php'];
         yield 'contract create modal' => ['contracts/partials/create-modal.blade.php'];
+        yield 'contract show sync status ajax' => ['contracts/show.blade.php'];
         yield 'admin users parent form ajax handlers' => ['admin/users/_parent_form.blade.php'];
         yield 'admin trainers create welcome email ajax' => ['admin/trainers/index.blade.php'];
         yield 'admin role staff create welcome email ajax' => ['admin/role_staff/index.blade.php'];
@@ -3920,6 +3921,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('data-kids-tooltip-hint', $content);
         $this->assertStringContainsString("KidsCrmTooltip.init(root, { scopes: ['hint'] })", $content);
         $this->assertStringContainsString('draw.dt.kidsCrmUsersContractHint', $content);
+        $this->assertStringContainsString('users-contract-add-btn', $content);
+        $this->assertStringContainsString('fa-plus', $content);
+        $this->assertStringContainsString('Создать ещё один договор', $content);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $path,
@@ -3982,13 +3986,18 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $users = (string) file_get_contents($usersPath);
         $cellStart = strpos($users, 'function renderContractCell(row)');
         $this->assertNotFalse($cellStart);
-        $cell = substr($users, $cellStart, 3200);
+        $cell = substr($users, $cellStart, 5000);
         $this->assertStringContainsString('js-open-create-contract-from-user', $cell);
         $this->assertStringContainsString('Создать договор', $cell);
         $this->assertStringNotContainsString("return '';", $cell);
         $this->assertStringContainsString("contract.status !== 'signed'", $cell);
         $this->assertStringContainsString('users-signed-contract-hint-tpl', $users);
         $this->assertStringContainsString('kids-tooltip-hint', $cell);
+        $this->assertStringContainsString('users-contract-add-btn', $cell);
+        $this->assertStringContainsString('fa-plus', $cell);
+        $this->assertStringContainsString('Создать ещё один договор', $cell);
+        $this->assertStringContainsString('users-contract-cell', $cell);
+        $this->assertStringContainsString('event.stopPropagation()', $users);
         $this->assertStringNotContainsString('js-dt-cell-ellipsis-tooltip', $cell);
         $this->assertStringContainsString('event.preventDefault()', $users);
     }
@@ -4399,7 +4408,19 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("'mode=edit'", $content);
         $this->assertStringContainsString("headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}", $content);
         $this->assertStringContainsString('showFillAjaxErrors', $content);
+        $this->assertStringContainsString('clearFillAjaxErrors', $content);
+        $this->assertStringContainsString('data-error-for', $content);
+        $this->assertStringContainsString('laravelErrorKeyToName', $content);
+        $this->assertStringContainsString("'[' + part + ']'", $content);
+        $this->assertStringContainsString('xhr.status === 422', $content);
+        $this->assertStringContainsString('showFillAjaxErrors(xhr.responseJSON?.errors || {})', $content);
+        $this->assertStringContainsString('slot.textContent = message', $content);
+        $this->assertStringContainsString("input.classList.add('is-invalid')", $content);
+        $this->assertStringContainsString('contract-fill-ajax-errors', $content);
+        $this->assertStringNotContainsString('loadContractFill(contractId, true).done(function () {', $content);
         $this->assertStringContainsString('resp.poll', $content);
+        $this->assertStringContainsString("click', '.js-open-contract-fill'", $content);
+        $this->assertStringContainsString("click', '.js-open-contract-fill-edit'", $content);
 
         preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
         $this->assertNotEmpty($matches[1]);
@@ -4412,9 +4433,13 @@ final class BladeInlineJsSyntaxTest extends TestCase
             $found = true;
             $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
             $this->assertNotSame('', trim($js));
-            $this->assertStringContainsString('e.preventDefault()', $js);
             $this->assertStringContainsString("'.js-open-contract-fill'", $js);
             $this->assertStringContainsString("'.js-open-contract-fill-edit'", $js);
+            $this->assertStringContainsString('e.preventDefault()', $js);
+            $this->assertStringContainsString('showFillAjaxErrors', $js);
+            $this->assertStringContainsString('laravelErrorKeyToName', $js);
+            $this->assertStringContainsString('xhr.status === 422', $js);
+            $this->assertStringNotContainsString('loadContractFill(contractId, true).done', $js);
 
             $tempFile = sys_get_temp_dir() . '/blade-js-docs-fill-' . uniqid('', true) . '.js';
             try {
@@ -5451,6 +5476,36 @@ final class BladeInlineJsSyntaxTest extends TestCase
             $indexPath,
             'scrollIntoView',
             'blade-js-in-app-index'
+        );
+    }
+
+    /**
+     * Кнопка «Синхронизировать с Подпислон» на карточке: GET /status (тот же URL, что создаёт
+     * in-app уведомление админам при первом signed). Без preventDefault — это не форма.
+     */
+    public function test_contract_show_sync_status_js_hits_status_endpoint_and_is_valid_javascript(): void
+    {
+        $path = resource_path('views/contracts/show.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("@can('contracts.sync')", $content);
+        $this->assertStringContainsString('id="syncStatusBtn"', $content);
+        $this->assertStringContainsString("\$('#syncStatusBtn').on('click'", $content);
+
+        $syncStart = strpos($content, "$('#syncStatusBtn').on('click'");
+        $this->assertNotFalse($syncStart);
+        $syncChunk = substr($content, $syncStart, 700);
+        $this->assertStringContainsString("method: 'GET'", $syncChunk);
+        $this->assertStringContainsString("/client-contracts/' + contractId + '/status'", $syncChunk);
+        $this->assertStringContainsString('location.reload()', $syncChunk);
+        $this->assertStringNotContainsString('/send', $syncChunk);
+        $this->assertStringNotContainsString("method: 'POST'", $syncChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'syncStatusBtn',
+            'blade-js-contract-show-sync'
         );
     }
 

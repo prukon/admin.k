@@ -33,12 +33,18 @@
     <a href="/docs/documentation/contracts">договоры в CRM</a>
     · <a href="#contract-date-placeholders">§4.1 contract_date / Word</a>
     · <a href="#account-documents-action-counter">§1.0 каунтер активных договоров</a>
+    · <a href="#fill-modal-passport-email-errors">§2.6 паспорт / email / ошибки</a>
+    · анонс <a href="/doc#account-contract-fill-modal-ux-index">/doc</a>
   </div>
 
   <h2>1) Назначение и доступ</h2>
   <div class="note">
     После создания договора в режиме «форма клиенту» (<code>creation_mode=template</code>) ученик (родитель в семейном кабинете)
     видит задачу «Требуется заполнение», открывает модалку, заполняет поля из схемы шаблона, формирует PDF и подписывает договор по SMS (Подпислон).<br><br>
+    Когда Подпислон подтверждает подпись (вебхук или ручная синхронизация статуса), договор становится <code>signed</code>
+    и админы школы получают уведомление в колокольчик на 7 суток
+    (<a href="/doc#contract-signed-in-app-index">анонс</a>,
+    <a href="/docs/documentation/in-app-notifications#events-contract-signed">in-app-notifications §5.2</a>).<br><br>
     Право на раздел: <code>account.documents.view</code> (<code>Gate::define('account.documents.view')</code>).<br>
     Маршруты fill / generate / sign дополнительно защищены middleware <code>contract.owner</code> — только владелец договора (<code>contracts.user_id === Auth::id()</code>); чужой пользователь получает <b>404</b> (anti-enumeration).<br>
     Гость → <b>302</b> на login; без права → <b>403</b>.
@@ -113,7 +119,7 @@
   <table>
     <thead><tr><th>Панель</th><th>CSS</th><th>Содержимое</th></tr></thead>
     <tbody>
-      <tr><td>Родитель</td><td><code>contract-fill-panel--parent</code></td><td>Поля группы «родитель» из <code>fields_schema</code> (ФИО по частям, телефон, паспорт, адрес, супруг(а)…)</td></tr>
+      <tr><td>Родитель</td><td><code>contract-fill-panel--parent</code></td><td>Поля группы «родитель» из <code>fields_schema</code> (ФИО по частям, телефон, паспорт (серия и номер), адрес, супруг(а)…). Подпись <code>parent_passport</code> в модалке — «Паспорт (серия и номер)» (<code>fillFormFieldLabel</code>; пресет <code>Родитель: паспорт (серия и номер)</code>)</td></tr>
       <tr><td>Ребёнок</td><td><code>contract-fill-panel--child</code></td><td>Поля группы «ученик» (фамилия/имя, дата рождения и т.д.)</td></tr>
       <tr><td>Подписание</td><td><code>contract-fill-sign-block</code></td><td>После успешного generate: ФИО подписанта, телефон SMS, кнопка «Подписать договор»</td></tr>
     </tbody>
@@ -138,9 +144,13 @@
 
   <h3>2.4) Предзаполнение</h3>
   <p><code>ContractPrefillResolver</code> подставляет значения из карточки ученика/родителя/группы по <code>prefill_source</code> в схеме.
+  Поле <code>parent_email</code> (подпись «Email»): <code>parentEmailOrStudentFallback()</code> —
+  сначала <code>parents.email</code>; если пусто (пробелы / нет карточки) — <code>users.email</code> ученика.
+  Это только модалка fill, не форма <code>/account-settings/user/edit</code>.
+  Подробно — <a href="#fill-modal-passport-email-errors">§2.6</a>.
   После успешного generate данные синхронизируются обратно:</p>
   <ul>
-    <li><code>ContractParentProfileSyncService</code> — ФИО родителя в <code>parents</code></li>
+    <li><code>ContractParentProfileSyncService</code> — ФИО, паспорт, адрес, телефон и непустой <code>parent_email</code> в <code>parents</code></li>
     <li><code>ContractStudentProfileSyncService</code> — фамилия, имя, дата рождения, <b>адрес проживания</b> (<code>child_address</code> → <code>users.address</code>) и <b>ФИО в родительном</b> (<code>child_full_name_genitive</code> → <code>users.full_name_genitive</code>, только непустое)</li>
   </ul>
 
@@ -155,6 +165,52 @@
     non-AJAX → redirect с той же ошибкой. Подробно —
     <a href="/docs/documentation/contract-templates#legal-entity-variables">contract-templates §6.1</a>.
   </div>
+
+  <h3 id="fill-modal-passport-email-errors">2.6) Паспорт, email, ошибки под полями (модалка)</h3>
+  <p>
+    Анонс на главной: <a href="/doc#account-contract-fill-modal-ux-index">/doc § паспорт / email / ошибки</a>.
+    Только модалка <code>#contractFillModal</code> на <code>/account-settings/documents</code>.
+    Форма родителя в <code>/account-settings/user/edit</code> — «Паспорт»;
+    админский <code>_parent_form</code> — «Паспорт родителя».
+    Fallback <code>users.email</code> в поле email родителя — только prefill модалки, не форма профиля.
+  </p>
+  <table>
+    <thead><tr><th>Тема</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Подпись <code>parent_passport</code></td>
+        <td>
+          «Паспорт (серия и номер)». Источники: пресет
+          <code>Родитель: паспорт (серия и номер)</code> и
+          <code>ContractTemplateVariablePresets::fillFormFieldLabel()</code>
+          (после снятия префикса «Родитель:» точное «паспорт» → новая подпись).
+          Поле <code>parent_passport_issued</code> («Паспорт, кем и когда выдан») без изменений.
+        </td>
+      </tr>
+      <tr>
+        <td>Prefill <code>parent_email</code></td>
+        <td>
+          <code>ContractPrefillResolver::parentEmailOrStudentFallback()</code>:
+          непустой <code>parents.email</code>; иначе <code>users.email</code> ученика;
+          оба пустые → пустое поле. Сохранённый непустой <code>filled_data.parent_email</code>
+          при режиме «Изменить» побеждает prefill (<code>array_merge</code>).
+          Generate синхронизирует непустое значение в <code>parents.email</code>.
+        </td>
+      </tr>
+      <tr>
+        <td>Ошибки Laravel</td>
+        <td>
+          Форма <code>novalidate</code>, без HTML5 <code>required</code>.
+          AJAX 422 не вызывает <code>loadContractFill(…).done(…)</code>:
+          <code>errors['fields.{key}']</code> → <code>.is-invalid</code> и
+          <code>[data-error-for="fields.{key}"]</code> под инпутом;
+          <code>errors.contract</code> и прочие не-полевые ключи — alert сверху.
+          <code>AccountContractGenerateRequest::attributes()</code> подставляет те же подписи,
+          что в форме.
+        </td>
+      </tr>
+    </tbody>
+  </table>
 
   <h2>3) Жизненный цикл статусов (кабинет)</h2>
   <table>
@@ -174,8 +230,11 @@
   <h2>4) Валидация generate</h2>
   <p><code>AccountContractGenerateRequest</code>: обязательные поля по <code>required</code> в схеме; системные поля
   (<code>contract_date</code>, <code>contract_id</code>, <code>legal_entity_*</code>…) не показываются родителю.
-  Ошибки валидации полей — redirect / JSON с ключами <code>fields.{key}</code>;
-  ошибка отсутствия юрлица — ключ <code>contract</code> (см. §<a href="#fill-legal-entity">2.5</a>).</p>
+  Форма с <code>novalidate</code>, без HTML5 <code>required</code> (звёздочка в label остаётся).
+  Ошибки валидации полей — JSON/redirect с ключами <code>fields.{key}</code>, подпись в тексте — как в форме
+  (<code>fillFormFieldLabel</code>); в модалке выводятся <b>под соответствующим полем</b>
+  (<code>is-invalid</code> + <code>invalid-feedback[data-error-for]</code>), без общего списка.
+  Ошибка отсутствия юрлица — ключ <code>contract</code>, alert сверху (см. §<a href="#fill-legal-entity">2.5</a>).</p>
 
   <h3 id="contract-date-placeholders">4.1) <code>{{contract_date}}</code> и разрывы Word</h3>
   <div class="note">
@@ -190,10 +249,15 @@
     учитывает такие разрывы и заменяет <b>все</b> вхождения. Подробности и тесты —
     <a href="/docs/documentation/contract-templates#docx-placeholder-substitution">contract-templates §6.2</a>.<br><br>
     <b>Уже скачанный PDF</b> после правки шаблона/кода сам не меняется: нужна повторная генерация
-    (кнопка изменения данных в статусе <code>draft</code> при доступном edit-окне, либо новый договор).
+    (кнопка изменения данных в статусе <code>draft</code> при доступном edit-окне, либо новый договор).<br><br>
+    <b>Лишние переносы строк в PDF</b> на драйвере <code>phpword</code> (типичный прод без <code>proc_open</code>):
+    Word-нумерация абзаца (<code>w:numPr</code>) → PhpWord режет run’ы на отдельные <code>&lt;p&gt;</code>.
+    Конвертер снимает нумерацию с рабочей копии перед загрузкой.
+    Подробно: <a href="/docs/documentation/contract-templates#phpword-numpr-line-breaks">contract-templates §8.1</a>.
   </div>
   <ul>
-    <li>AJAX generate → JSON <code>{ message, poll }</code>; ошибки валидации полей — <code>errors['fields.{key}']</code>.</li>
+    <li>AJAX generate → JSON <code>{ message, poll }</code>; 422 не перезагружает форму: <code>errors['fields.{key}']</code>
+      мапятся в <code>[data-error-for]</code> под полями; <code>errors.contract</code> — alert сверху.</li>
     <li>Non-AJAX POST → 302 на index с <code>?fill={id}</code>, flash success; PDF на диске, статус <code>draft</code>.</li>
     <li>Guest → login; без <code>account.documents.view</code> → 403; чужой договор → 404 (<code>contract.owner</code>).</li>
   </ul>
@@ -212,7 +276,15 @@
   <div class="note">
     <ul>
       <li><code>AccountContractFillTest.php</code> — базовый fill, generate, sign</li>
-      <li><code>AccountContractFillFormFeatureTest.php</code> — UI полей, порядок, дата, маска телефона, sync профилей</li>
+      <li><code>AccountContractFillFormFeatureTest.php</code> — UI полей, порядок, дата, маска телефона, sync профилей,
+        подпись <code>parent_passport</code>, fallback <code>parent_email</code> ← <code>users.email</code>,
+        <code>novalidate</code> + слоты Laravel-ошибок, 422 с подписью поля</li>
+      <li><code>AccountContractFillPassportEmailUxFeatureTest.php</code> — подпись «Паспорт (серия и номер)»,
+        fallback Email (пусто у родителя → ученик; иначе родитель; оба JS-триггера открытия)</li>
+      <li><code>AccountContractFillFieldErrorsAjaxContractFeatureTest.php</code> — AJAX generate 200 JSON / 422
+        <code>errors['fields.{key}']</code>, 403, гость, чужие HTTP-методы</li>
+      <li><code>AccountContractFillGenerateNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX generate 302 + запись /
+        302 + session errors по полям</li>
       <li><code>AccountContractDatePlaceholderFeatureTest.php</code> — <code>contract_date</code> скрыт в форме; AJAX/non-AJAX generate;
         UX: разрыв скобок Word — все вхождения даты в DOCX; guest/403; extractor</li>
       <li><code>ContractTemplateContractDateExtractionFeatureTest.php</code> — store DOCX с разорванными <code>{{contract_date}}</code> → schema</li>
@@ -225,10 +297,15 @@
         только actionable-статусы, изоляция по <code>user_id</code>, скрытие при 0 / без права, guest/403</li>
       <li><code>ContractTemplateToParentWorkflowFeatureTest.php</code> — admin → email → fill → PDF (CRM + кабинет)</li>
       <li><code>ContractTemplateWorkflowFeatureTest.php</code> — сквозной E2E</li>
-      <li><code>BladeInlineJsSyntaxTest</code> — <code>account/documents.blade.php</code> (loadContractFill, оба click-триггера, AJAX submit);
+      <li><code>ContractSignedInAppNotification*FeatureTest.php</code> — колокольчик админам школы при первом <code>signed</code></li>
+      <li><code>PhpWordDompdfConverterTest</code> — phpword: <code>w:numPr</code> не рвёт абзац на отдельные <code>&lt;p&gt;</code> (§8.1)</li>
+      <li><code>BladeInlineJsSyntaxTest</code> — <code>account/documents.blade.php</code> (loadContractFill, оба click-триггера, AJAX submit,
+        422 мапит <code>errors['fields.{key}']</code> в <code>[data-error-for]</code> без перезагрузки формы);
         markup-контракт badge на <code>account/index.blade.php</code> и <code>includes/sidebar.blade.php</code></li>
+      <li><code>AccountContractFillModalUxDocumentationContractTest</code> — анонс <a href="/doc#account-contract-fill-modal-ux-index">/doc</a>
+        совпадает с кодом (подпись паспорта только в модалке, fallback email, 422 без reload)</li>
     </ul>
-    Запуск блока: <code>php artisan test tests/Feature/Crm/Account/AccountContractDatePlaceholderFeatureTest.php tests/Feature/Crm/Contracts/ContractTemplateContractDateExtractionFeatureTest.php tests/Feature/Crm/Account/AccountContractFillFormFeatureTest.php tests/Feature/Crm/Account/AccountContractParentFillEndpointsAccessFeatureTest.php</code>
+    Запуск блока: <code>php artisan test tests/Feature/Crm/Account/AccountContractDatePlaceholderFeatureTest.php tests/Feature/Crm/Contracts/ContractTemplateContractDateExtractionFeatureTest.php tests/Feature/Crm/Account/AccountContractFillFormFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPassportEmailUxFeatureTest.php tests/Feature/Crm/Account/AccountContractFillFieldErrorsAjaxContractFeatureTest.php tests/Feature/Crm/Account/AccountContractFillGenerateNonAjaxSafetyNetFeatureTest.php tests/Feature/Crm/Account/AccountContractParentFillEndpointsAccessFeatureTest.php</code>
   </div>
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·

@@ -252,7 +252,7 @@ class ContractTemplateVariablePresetsTest extends TestCase
         $this->assertSame(ContractTemplatePrefillSources::PARENT_FULL_NAME, $schema[0]['prefill_source']);
 
         $this->assertSame('parent_passport', $schema[1]['key']);
-        $this->assertSame('Родитель: паспорт', $schema[1]['label']);
+        $this->assertSame('Родитель: паспорт (серия и номер)', $schema[1]['label']);
         $this->assertSame(ContractTemplatePrefillSources::PARENT_PASSPORT, $schema[1]['prefill_source']);
 
         @unlink($path);
@@ -372,7 +372,8 @@ class ContractTemplateVariablePresetsTest extends TestCase
         $this->assertSame('custom_parent_note', $grouped[ContractTemplateVariablePresets::GROUP_PARENT][1]['key']);
         $this->assertSame('ФИО', ContractTemplateVariablePresets::fillFormFieldLabel('Родитель: ФИО', ContractTemplateVariablePresets::GROUP_PARENT));
         $this->assertSame('ФИО', ContractTemplateVariablePresets::fillFormFieldLabel('Ребёнок: ФИО', ContractTemplateVariablePresets::GROUP_CHILD));
-        $this->assertSame('Паспорт', ContractTemplateVariablePresets::fillFormFieldLabel('Родитель: паспорт', ContractTemplateVariablePresets::GROUP_PARENT));
+        $this->assertSame('Паспорт (серия и номер)', ContractTemplateVariablePresets::fillFormFieldLabel('Родитель: паспорт', ContractTemplateVariablePresets::GROUP_PARENT));
+        $this->assertSame('Паспорт (серия и номер)', ContractTemplateVariablePresets::fillFormFieldLabel('Родитель: паспорт (серия и номер)', ContractTemplateVariablePresets::GROUP_PARENT));
         $this->assertSame('Адрес регистрации', ContractTemplateVariablePresets::fillFormFieldLabel('Родитель: адрес регистрации', ContractTemplateVariablePresets::GROUP_PARENT));
         $this->assertSame('Паспорт, кем и когда выдан', ContractTemplateVariablePresets::fillFormFieldLabel('Родитель: паспорт, кем и когда выдан', ContractTemplateVariablePresets::GROUP_PARENT));
         $this->assertSame('Телефон', ContractTemplateVariablePresets::fillFormFieldLabel('Родитель: телефон', ContractTemplateVariablePresets::GROUP_PARENT));

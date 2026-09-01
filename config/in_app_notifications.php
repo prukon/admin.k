@@ -26,6 +26,12 @@ return [
             'category' => 'normal',
             'ttl_preset' => '30d',
         ],
+        'contract_signed' => [
+            'title' => 'Договор подписан',
+            'role_names' => ['admin'],
+            'category' => 'normal',
+            'ttl_preset' => '7d',
+        ],
     ],
 
     'dropdown_limit' => 3,

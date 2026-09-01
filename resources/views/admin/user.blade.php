@@ -407,7 +407,22 @@
                         + '</span>';
                 }
 
-                return '<a href="' + url + '" class="users-contract-icon-link">' + hintHtml + '</a>';
+                const addBtn = '<button type="button"'
+                    + ' class="btn btn-link p-0 border-0 lh-1 text-decoration-none js-open-create-contract-from-user users-contract-add-btn"'
+                    + ' data-user-id="' + row.id + '"'
+                    + ' data-kids-tooltip-hint'
+                    + ' data-bs-toggle="tooltip"'
+                    + ' data-bs-placement="top"'
+                    + ' data-bs-custom-class="ulp-assignment-paid-tooltip"'
+                    + ' title="Создать ещё один договор"'
+                    + ' aria-label="Создать ещё один договор">'
+                    + '<i class="fa-solid fa-plus" style="color:#0d6efd;" aria-hidden="true"></i>'
+                    + '</button>';
+
+                return '<span class="users-contract-cell d-inline-flex align-items-center gap-2">'
+                    + '<a href="' + url + '" class="users-contract-icon-link">' + hintHtml + '</a>'
+                    + addBtn
+                    + '</span>';
             }
             @endif
 
