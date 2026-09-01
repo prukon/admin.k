@@ -139,10 +139,31 @@
         <td>По ученикам</td>
         <td><code>/admin/setting-prices/users</code></td>
         <td><code>admin.settingPrices.users</code></td>
-        <td>Слева ученики (+ фильтр группы); справа 12 месяцев выбранного года для пары ученик+группа</td>
+        <td>Слева ученики (+ фильтр группы); справа 12 месяцев выбранного <b>календарного</b> года для пары ученик+группа</td>
       </tr>
     </tbody>
   </table>
+
+  <div class="note" id="cabinet-academic-year">
+    <b>Консоль родителя — другой календарь.</b>
+    Вкладка «По ученикам» даёт селект календарного года
+    <code>now()-&gt;year - 1 … now()-&gt;year + 1</code>
+    (<code>#user-year-select</code>). «По месяцам» — селект <code>#single-select-date</code>:
+    24 месяца с сентября 2025 по август 2027 (старт и длина — <code>MONTHLY_SELECT_MIN_DATE</code>
+    / <code>monthlySelectWindow</code> в контроллере). Если session или
+    <code>prices_last_month</code> раньше сентября 2025, страница открывает сентябрь 2025
+    и запоминает его. POST <code>update-date</code> по-прежнему принимает строку месяца
+    (в т.ч. 2024) — урезан только UI-селект.
+    Тесты: <code>SettingPricesMonthlySelectWindowFeatureTest</code>,
+    <code>SettingPricesMonthlySelectWindowJsContractTest</code>,
+    <code>SettingPricesMonthlySelectWindowDocumentationContractTest</code>.
+    Шапки на <code>/cabinet</code> — <b>учебный</b> год сентябрь–август от текущей даты МСК,
+    вниз до 2021–2022, не этот селект.
+    Начисление за сентябрь 2026, выставленное в августе, у родителя появится ячейкой
+    только с 1 сентября 2026.
+    Анонс: <a href="/doc#cabinet-season-years-index">/doc#cabinet-season-years-index</a>,
+    подробно — <a href="/docs/documentation/dashboard-cabinet#cabinet-season-years">dashboard-cabinet §6.1</a>.
+  </div>
 
   <h2 id="former-members">3) Бывшие участники группы (новый функционал)</h2>
   <div class="ok">
@@ -307,6 +328,8 @@
     <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a> ·
     <a href="/docs/documentation/setting-prices-custom-payments">доп. платежи</a> ·
     <a href="/docs/documentation/dashboard-cabinet">консоль /cabinet</a> ·
+    <a href="/docs/documentation/dashboard-cabinet#cabinet-season-years">учебный сезон на консоли</a> ·
+    <a href="/doc#cabinet-season-years-index">анонс сезона 2026–2027</a> ·
     <a href="/docs/documentation/set-prices-package-assignments">packageAssignments.view</a>
   </p>
 </div>

@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Dashboard;
 
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Tests\Feature\Crm\StudentTeams\StudentTeamPivotTestCase;
 
 /**
@@ -40,6 +41,7 @@ final class DashboardSeasonsSetPricesVisibilityFeatureTest extends StudentTeamPi
 
         $this->assertStringNotContainsString('class="row seasons"', $html);
         $this->assertStringNotContainsString('id="season-2026"', $html);
+        $this->assertStringNotContainsString('id="season-2027"', $html);
         $this->assertStringNotContainsString('id="dashboard-active-team"', $html);
         $this->assertStringNotContainsString('id="dashboard-disabled-pay-hint-tpl"', $html);
         $this->assertStringContainsString('var dashboardSeasonsEnabled = false', $html);
@@ -59,9 +61,69 @@ final class DashboardSeasonsSetPricesVisibilityFeatureTest extends StudentTeamPi
 
         $this->assertStringContainsString('class="row seasons"', $html);
         $this->assertStringContainsString('id="season-2026"', $html);
+        $this->assertStringContainsString('id="season-2022"', $html);
         $this->assertStringContainsString('id="dashboard-disabled-pay-hint-tpl"', $html);
         $this->assertStringContainsString('var dashboardSeasonsEnabled = true', $html);
         $this->assertStringContainsString('createSeasons()', $html);
+    }
+
+    public function test_dashboard_blade_builds_season_shells_from_current_academic_year(): void
+    {
+        $blade = (string) file_get_contents(resource_path('views/dashboard.blade.php'));
+
+        $this->assertStringContainsString('$cabinetSeasonEndYear', $blade);
+        $this->assertStringContainsString('now()->month >= 9', $blade);
+        $this->assertStringContainsString('range($cabinetSeasonEndYear, 2022)', $blade);
+        $this->assertStringNotContainsString('id="season-2026"', $blade);
+        $this->assertStringNotContainsString('Сезон 2025 - 2026', $blade);
+    }
+
+    public function test_cabinet_shows_season_2026_2027_from_september_2026(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-01 00:00:00', 'Europe/Moscow'));
+
+        $student = $this->makeStudentWithTeams([$this->team]);
+        $html = $this->cabinetHtmlFor($student);
+
+        $this->assertSame('2027', $this->firstSeasonEndYearInHtml($html));
+        $this->assertStringContainsString('id="season-2027"', $html);
+        $this->assertStringContainsString('Сезон 2026 - 2027', $html);
+        $this->assertStringContainsString('data-season="2027"', $html);
+        $this->assertStringContainsString('id="season-2026"', $html);
+        $this->assertStringContainsString('Сезон 2025 - 2026', $html);
+        $this->assertStringContainsString('id="season-2022"', $html);
+        $this->assertStringContainsString('Сезон 2021 - 2022', $html);
+        $this->assertStringNotContainsString('id="season-2028"', $html);
+        $this->assertStringNotContainsString('id="season-2021"', $html);
+    }
+
+    public function test_cabinet_does_not_show_next_season_before_september(): void
+    {
+        $this->travelTo(Carbon::parse('2026-08-31 23:59:59', 'Europe/Moscow'));
+
+        $student = $this->makeStudentWithTeams([$this->team]);
+        $html = $this->cabinetHtmlFor($student);
+
+        $this->assertSame('2026', $this->firstSeasonEndYearInHtml($html));
+        $this->assertStringNotContainsString('id="season-2027"', $html);
+        $this->assertStringNotContainsString('Сезон 2026 - 2027', $html);
+        $this->assertStringContainsString('id="season-2026"', $html);
+        $this->assertStringContainsString('id="season-2022"', $html);
+    }
+
+    public function test_cabinet_shows_season_2027_2028_from_september_2027(): void
+    {
+        $this->travelTo(Carbon::parse('2027-09-01 00:00:00', 'Europe/Moscow'));
+
+        $student = $this->makeStudentWithTeams([$this->team]);
+        $html = $this->cabinetHtmlFor($student);
+
+        $this->assertSame('2028', $this->firstSeasonEndYearInHtml($html));
+        $this->assertStringContainsString('id="season-2028"', $html);
+        $this->assertStringContainsString('Сезон 2027 - 2028', $html);
+        $this->assertStringContainsString('id="season-2027"', $html);
+        $this->assertStringContainsString('id="season-2022"', $html);
+        $this->assertStringNotContainsString('id="season-2029"', $html);
     }
 
     public function test_cabinet_shows_team_switcher_only_with_cabinet_seasons_permission_and_multiple_teams(): void
@@ -156,5 +218,16 @@ final class DashboardSeasonsSetPricesVisibilityFeatureTest extends StudentTeamPi
         $content = $this->get(route('dashboard'))->assertOk()->getContent();
 
         return is_string($content) ? $content : '';
+    }
+
+    private function firstSeasonEndYearInHtml(string $html): string
+    {
+        $this->assertSame(
+            1,
+            preg_match('/id="season-(\d+)"/', $html, $matches),
+            'В HTML /cabinet нет id="season-YYYY"'
+        );
+
+        return $matches[1];
     }
 }

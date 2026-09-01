@@ -136,10 +136,7 @@ final class SchoolLeadLandingService
         }
 
         $team = Team::query()
-            ->with([
-                'sportType:id,name',
-                'weekdays' => fn ($query) => $query->orderBy('weekdays.id'),
-            ])
+            ->with(['sportType:id,name'])
             ->where('partner_id', $partnerId)
             ->where('is_enabled', true)
             ->whereKey($teamId)
@@ -158,21 +155,11 @@ final class SchoolLeadLandingService
             ->whereKey($locationId)
             ->first(['address']);
 
-        $weekdaysCount = $team->weekdays->count();
-        $scheduleLabel = $team->weekdays
-            ->pluck('title')
-            ->filter(fn ($title) => trim((string) $title) !== '')
-            ->implode(', ');
-
         $rows = [
             ['label' => 'Адрес', 'value' => $this->displayValue($location?->address)],
             ['label' => 'Вид спорта', 'value' => $this->displayValue($team->sportType?->name)],
             ['label' => 'Стоимость в месяц', 'value' => $this->formatMonthPrice($team->month_price_cents)],
-            ['label' => 'Занятий в неделю', 'value' => $weekdaysCount > 0 ? (string) $weekdaysCount : ''],
-            ['label' => 'Занятий в месяц', 'value' => $weekdaysCount > 0 ? (string) ($weekdaysCount * 4) : ''],
-            ['label' => 'Продолжительность занятия', 'value' => $this->formatDuration($team->default_duration_minutes)],
             ['label' => 'Период занятий', 'value' => $this->formatTrainingPeriod()],
-            ['label' => 'Расписание занятий', 'value' => $scheduleLabel],
         ];
 
         return [
@@ -201,29 +188,6 @@ final class SchoolLeadLandingService
         }
 
         return Money::formatRub($amountCents, ' ₽');
-    }
-
-    private function formatDuration(mixed $minutes): string
-    {
-        $minutes = (int) $minutes;
-        if ($minutes <= 0) {
-            return '';
-        }
-
-        if ($minutes % 60 === 0) {
-            $hours = (int) ($minutes / 60);
-
-            return $hours === 1 ? '1 час' : $hours . ' ч';
-        }
-
-        if ($minutes > 60) {
-            $hours = intdiv($minutes, 60);
-            $rest = $minutes % 60;
-
-            return $hours . ' ч ' . $rest . ' мин';
-        }
-
-        return $minutes . ' мин';
     }
 
     private function formatTrainingPeriod(?Carbon $today = null): string

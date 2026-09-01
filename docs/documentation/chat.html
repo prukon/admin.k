@@ -1018,6 +1018,10 @@
       <code>thread.read</code>, <code>message.reaction</code> (реакции, без unread).</li>
     <li>Клиент Echo поднимается в <code>includes/in_app_notifications/echo.blade.php</code>
       (без лишнего <code>wsPath: '/app'</code>: pusher-js сам собирает <code>/app/{key}</code>).
+      <code>authEndpoint: '/broadcasting/auth'</code> без
+      <code>Accept: application/json</code>: гость — HTTP 403 HTML (лейаут логина),
+      не 500, не 401 и не редирект на <code>/login</code>
+      (<a href="/docs/documentation/session-lifetime">session-lifetime</a>).
       Бейдж сайдбара слушает inbox в <code>includes/chat/echo.blade.php</code>.
       Страница чата — Vite <code>resources/css/chat.css</code> и <code>resources/js/chat.js</code>
       (page-only <code>@vite</code> на <code>chat.index</code>, не в общий бандл <code>admin2</code>;

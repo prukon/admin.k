@@ -113,7 +113,7 @@ team_schedule_slots.location_id — объект слота расписания
   <h2>5) Лендинг заявки</h2>
   <ul>
     <li><code>GET /lead/{slug}/teams?location_id=</code> — только активные группы партнёра с <code>teams.location_id = location_id</code> (<code>SchoolLeadLandingService::teamsForLocation</code>).</li>
-    <li><code>GET /lead/{slug}/team-info?location_id=&amp;team_id=</code> — строка «Адрес» берётся из <code>locations.address</code> выбранного объекта, не из группы.</li>
+    <li><code>GET /lead/{slug}/team-info?location_id=&amp;team_id=</code> — строка «Адрес» берётся из <code>locations.address</code> выбранного объекта, не из группы. В <code>data.rows</code> также могут быть «Вид спорта», «Стоимость в месяц», «Период занятий». Не отдаются: «Занятий в неделю», «Занятий в месяц», «Продолжительность занятия», «Расписание занятий». Состав строк — <a href="/docs/documentation/school-leads-landing#5-4-2">school-leads-landing §5.4.2</a>.</li>
     <li>Группа без объекта или с другим <code>location_id</code> → 404 на <code>team-info</code>.</li>
   </ul>
   <p>См. <a href="/docs/documentation/school-leads-landing">school-leads-landing</a>.</p>

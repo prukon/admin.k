@@ -363,51 +363,23 @@
                 'innerHtml' => '',
             ])
         </template>
-        {{--Сезоны--}}
+        {{-- Сезоны: шапки от текущего учебного года (сент–авг, TZ приложения) вниз до 2021–2022. --}}
         <div class="row seasons">
             <div class="col-12">
-
-                <div class="season season-2026" id="season-2026">
-                    <div class="header-season">Сезон 2025 - 2026 <i class="fa fa-chevron-up"></i><span
-                                class="display-none from">2025</span><span class="display-none to">2026</span></div>
-                    <span class="is_credit">Имеется просроченная задолженность в размере <span
-                                class="is_credit_value">0</span> руб.</span>
-                    <span class="display-none1 total-summ"></span>
-                    <div class="row justify-content-center align-items-center container" data-season="2026"></div>
-                </div>
-
-                <div class="season season-2025" id="season-2025">
-                    <div class="header-season">Сезон 2024 - 2025 <i class="fa fa-chevron-up"></i><span
-                                class="display-none from">2024</span><span class="display-none to">2025</span></div>
-                    <span class="is_credit">Имеется просроченная задолженность в размере <span
-                                class="is_credit_value">0</span> руб.</span>
-                    <span class="display-none1 total-summ"></span>
-                    <div class="row justify-content-center align-items-center container" data-season="2025"></div>
-                </div>
-
-                <div class="season season-2024" id="season-2024">
-                    <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-up"></i><span
-                                class="display-none from">2023</span><span class="display-none to">2024</span></div>
-                    <span class="is_credit">Имеется просроченная задолженность в размере <span
-                                class="is_credit_value">0</span> руб.</span>
-                    <span class="display-none1 total-summ"></span>
-                    <div class="row justify-content-center align-items-center container" data-season="2024"></div>
-                </div>
-
-                <div class="season season-2023" id="season-2023">
-                    <div class="header-season">Сезон 2022 - 2023 <i class="fa fa-chevron-up"></i><span
-                                class="display-none from">2022</span><span class="display-none to">2023</span></div>
-                    <span class="is_credit">Имеется просроченная задолженность в размере <span
-                                class="is_credit_value">0</span> руб.</span>
-                    <div class="row justify-content-center align-items-center container" data-season="2023"></div>
-                </div>
-
-                <div class="season season-2022" id="season-2022">
-                    <div class="header-season">Сезон 2021 - 2022 <i class="fa fa-chevron-up"></i></div>
-                    <span class="is_credit">Имеется просроченная задолженность в размере <span
-                                class="is_credit_value">0</span> руб.</span>
-                    <div class="row justify-content-center align-items-center container" data-season="2022"></div>
-                </div>
+                @php
+                    $cabinetSeasonEndYear = now()->month >= 9 ? now()->year + 1 : now()->year;
+                @endphp
+                @foreach (range($cabinetSeasonEndYear, 2022) as $seasonEndYear)
+                    @php $seasonStartYear = $seasonEndYear - 1; @endphp
+                    <div class="season season-{{ $seasonEndYear }}" id="season-{{ $seasonEndYear }}">
+                        <div class="header-season">Сезон {{ $seasonStartYear }} - {{ $seasonEndYear }} <i class="fa fa-chevron-up"></i><span
+                                    class="display-none from">{{ $seasonStartYear }}</span><span class="display-none to">{{ $seasonEndYear }}</span></div>
+                        <span class="is_credit">Имеется просроченная задолженность в размере <span
+                                    class="is_credit_value">0</span> руб.</span>
+                        <span class="display-none1 total-summ"></span>
+                        <div class="row justify-content-center align-items-center container" data-season="{{ $seasonEndYear }}"></div>
+                    </div>
+                @endforeach
             </div>
         </div>
         @endcanany

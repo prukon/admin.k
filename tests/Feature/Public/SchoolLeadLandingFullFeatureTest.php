@@ -12,7 +12,6 @@ use App\Models\SportType;
 use App\Models\Team;
 use App\Services\TeamLocationSyncService;
 use App\Services\PartnerWidgetService;
-use Database\Seeders\WeekdaysSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
@@ -215,8 +214,6 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
 
     public function test_team_info_returns_service_details(): void
     {
-        $this->seed(WeekdaysSeeder::class);
-
         $sportType = SportType::query()->create([
             'partner_id' => $this->landingPartner->id,
             'name'       => 'Плавание',
@@ -231,7 +228,6 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             'month_price_cents'        => 450000,
             'default_duration_minutes' => 90,
         ]);
-        $this->landingTeam->weekdays()->sync([1, 3, 5]);
 
         Carbon::setTestNow(Carbon::create(2026, 3, 15));
 
@@ -247,20 +243,22 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             ->assertJsonPath('data.rows.0.value', 'ул. Спортивная, 5')
             ->assertJsonPath('data.rows.1.label', 'Вид спорта')
             ->assertJsonPath('data.rows.1.value', 'Плавание')
+            ->assertJsonPath('data.rows.2.label', 'Стоимость в месяц')
             ->assertJsonPath('data.rows.2.value', '4 500 ₽')
-            ->assertJsonPath('data.rows.3.value', '3')
-            ->assertJsonPath('data.rows.4.value', '12')
-            ->assertJsonPath('data.rows.5.value', '1 ч 30 мин')
-            ->assertJsonPath('data.rows.6.value', '12.01.2026 — 30.06.2026')
-            ->assertJsonPath('data.rows.7.value', 'Понедельник, Среда, Пятница');
+            ->assertJsonPath('data.rows.3.label', 'Период занятий')
+            ->assertJsonPath('data.rows.3.value', '12.01.2026 — 30.06.2026');
+
+        $labels = collect($response->json('data.rows'))->pluck('label')->all();
+        $this->assertSame(
+            ['Адрес', 'Вид спорта', 'Стоимость в месяц', 'Период занятий'],
+            $labels
+        );
 
         Carbon::setTestNow();
     }
 
     public function test_team_info_uses_september_period_in_second_half_of_year(): void
     {
-        $this->seed(WeekdaysSeeder::class);
-
         Carbon::setTestNow(Carbon::create(2026, 10, 1));
 
         $rows = $this->getJson(route('lead.team-info', [

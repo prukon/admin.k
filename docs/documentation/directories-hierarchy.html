@@ -262,7 +262,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <ol>
     <li><b>Район</b> — активные районы с ≥1 активным объектом с заполненным <code>district_id</code>. Если в списке <b>ровно один</b> район — выбирается и блокируется (<code>disabled</code>) при загрузке страницы, объекты подгружаются автоматически.</li>
     <li><b>Объект</b> — <code>GET /lead/{slug}/locations?district_id=</code> (только enabled, с district_id). Если в ответе <b>ровно один</b> объект — выбирается и блокируется, услуги подгружаются автоматически.</li>
-    <li><b>Услуга</b> — <code>GET /lead/{slug}/teams?location_id=</code> (группы объекта через <code>TeamLocationAvailabilityService</code>). Если в ответе <b>ровно одна</b> услуга — выбирается и блокируется, показывается блок «Об услуге».</li>
+    <li><b>Услуга</b> — <code>GET /lead/{slug}/teams?location_id=</code> (группы объекта через <code>TeamLocationAvailabilityService</code>). Если в ответе <b>ровно одна</b> услуга — выбирается и блокируется, показывается блок «Об услуге» (только адрес / вид спорта / стоимость / период — <a href="/docs/documentation/school-leads-landing#5-4-2">school-leads-landing §5.4.2</a>).</li>
     <li><b>Submit</b> — обязательны <code>district_id</code> и <code>location_id</code>; cross-check: объект принадлежит району; partner scope по slug. Значения из <code>disabled</code>-селектов явно добавляются в <code>FormData</code> перед отправкой (иначе браузер их не передаёт).</li>
   </ol>
   <div class="warn">
@@ -338,7 +338,9 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>SportTypesPageFullAccessFeatureTest.php</code></td><td>Full access + UI «Справочники» на странице sport-types</td></tr>
       <tr><td><code>SchoolLeadDistrictFeatureTest.php</code></td><td>CRM UI/data/update, email/Telegram с районом</td></tr>
       <tr><td><code>SchoolLeadsDistrictPageFullAccessFeatureTest.php</code></td><td>Заявки: все endpoint'ы с районом/объектом → 200</td></tr>
-      <tr><td><code>SchoolLeadLandingFullFeatureTest.php</code></td><td>Каскад и валидация на лендинге</td></tr>
+      <tr><td><code>SchoolLeadLandingFullFeatureTest.php</code></td><td>Каскад и валидация на лендинге; состав <code>team-info</code> rows</td></tr>
+      <tr><td><code>SchoolLeadLandingTeamInfoFeatureTest.php</code></td><td>Блок «Об услуге»: только адрес / вид спорта / стоимость / период</td></tr>
+      <tr><td><code>SchoolLeadLandingTeamInfoDocumentationContractTest.php</code> (Unit)</td><td>Анонс /doc и school-leads-landing §5.4.2: состав team-info rows</td></tr>
       <tr><td><code>SchoolLeadLandingSingleOptionFeatureTest.php</code></td><td>Автовыбор единственного района/объекта/услуги (disabled)</td></tr>
       <tr><td><code>SchoolLeadLandingNonAjaxSafetyNetFeatureTest.php</code></td><td>Non-AJAX submit → redirect + БД; AJAX JSON</td></tr>
       <tr><td><code>SchoolLeadLandingEndpointsAccessFeatureTest.php</code></td><td>Статусы всех публичных endpoint'ов лендинга</td></tr>

@@ -48,6 +48,10 @@
       нет селекторов <code>.layout-fixed .main-sidebar</code>.</li>
     <li>Лендинг <b>использует тот же</b> partial иконок <code>includes.fontawesome</code>
       (локальный FA 6, без Kit). Это не «admin-gutter на публичной витрине».</li>
+    <li>Имя / почта / роль в сайдбаре — nullsafe
+      (<code>auth()->user()?->role?->label</code>, без
+      <code>optional(auth()->user()->role)</code>). Гостевой HTML 403 этот лейаут
+      не использует — <a href="/docs/documentation/session-lifetime">session-lifetime</a>.</li>
     <li>Нового permission нет. Страницы кабинета по-прежнему требуют свои права
       (<code>dashboard.view</code>, <code>users.view</code>, …).
       Эту страницу документации видит роль с <code>documentations.view</code>

@@ -77,6 +77,7 @@
       <tr><td>POST</td><td><code>/admin/users/{user}/send-welcome-credentials</code></td><td>Повторная отправка пароля на email ученика (<code>admin.user.send-welcome-credentials</code>, throttle 5/мин, §<a href="#user-welcome-credentials">5.1</a>)</td></tr>
       <tr><td>GET</td><td><code>/admin/users/{user}/edit</code></td><td>JSON для модалки редактирования (нужен AJAX)</td></tr>
       <tr><td>PATCH</td><td><code>/admin/users/{user}</code></td><td>Обновление</td></tr>
+      <tr><td>DELETE</td><td><code>/admin/user/{user}</code></td><td>Soft delete (<code>admin.user.delete</code>); <code>users.email = null</code> (§<a href="#user-delete-clears-email">4.5.6</a>)</td></tr>
       <tr><td>GET</td><td><code>/admin/user/logs-data</code></td><td>Логи пользователей (DataTables)</td></tr>
       <tr><td>GET</td><td><code>/admin/users/import/template</code></td><td>Скачать шаблон <code>.xlsx</code> (<code>users.import</code>, §<a href="#user-import">8</a>)</td></tr>
       <tr><td>POST</td><td><code>/admin/users/import/preview</code></td><td>Проверка файла, превью + diff для update, токен в cache (<code>throttle:10,1</code>)</td></tr>
@@ -1000,6 +1001,41 @@
     Анонс toast — <a href="/doc#success-toast-instead-of-modal-index">/doc</a>.
   </p>
 
+  <h3 id="user-delete-clears-email">4.5.6) Удаление: освобождение email</h3>
+  <div class="note">
+    Ученик удаляется soft delete (<code>users.deleted_at</code>, <code>User</code> + <code>SoftDeletes</code>).
+    SoftDeletes пишет только <code>deleted_at</code> / <code>updated_at</code>.
+    Колонка <code>users.email</code> уникальна на всю таблицу (в т.ч. soft-deleted),
+    валидация создания — <code>unique:users,email</code>
+    (<code>StoreRequest</code>, <code>StoreTrainerRequest</code>, <code>StoreRoleStaffUserRequest</code>).
+    Поэтому в <code>User::deleting</code> перед мягким удалением выполняется
+    <code>users.email = null</code> (прямой UPDATE, без <code>save()</code> — чтобы не трогать каст пароля).
+    Тот же хук срабатывает при удалении тренера и сотрудника: любой <code>$user-&gt;delete()</code>.
+    Разовой очистки уже удалённых записей нет.
+    Анонс — <a href="/doc#user-delete-clears-email-index">/doc</a>.
+  </div>
+  <ul>
+    <li><b>HTTP.</b> <code>DELETE /admin/user/{user}</code> (клиент, JSON всегда:
+      <code>success</code> «Клиент успешно удалён», в т.ч. без <code>X-Requested-With</code>);
+      <code>DELETE /admin/trainers/{trainerProfile}</code> (AJAX JSON <code>message</code> «Тренер удалён»,
+      non-AJAX → redirect <code>admin.trainers.index</code>);
+      <code>DELETE /admin/administrators/{user}</code> и <code>DELETE /admin/roles/{role}/{user}</code>
+      (AJAX JSON «Пользователь удалён», non-AJAX → <code>back()</code>).</li>
+    <li><b>Пока запись жива</b> повтор той же почты — <b>422</b> <code>errors.email</code>
+      (текст под полем): ученик — «Этот адрес электронной почты уже зарегистрирован.»;
+      тренер и сотрудник — «Пользователь с таким email уже существует».
+      Non-AJAX store ученика — <b>302</b> + session <code>errors.email</code>.</li>
+    <li><b>После DELETE</b> ту же почту можно выдать новому клиенту / тренеру / сотруднику (200 / 302).</li>
+    <li><b>Доступ.</b> Гость — 401/302, email не тронут. Без <code>users.view</code> — 403.
+      Без <code>trainers.view</code> destroy тренера — 403. Чужой партнёр — 404.
+      GET/POST/PUT/PATCH на <code>admin.user.delete</code> — 404/405, email не обнуляется.</li>
+  </ul>
+  <p class="small">Тесты: <code>UserDeleteClearsEmailFeatureTest</code> (HTTP ученик/тренер/сотрудник + reuse),
+    <code>UserDeleteClearsEmailAjaxContractFeatureTest</code> (JSON 200/422 <code>errors.email</code>),
+    <code>UserDeleteClearsEmailNonAjaxSafetyNetFeatureTest</code> (DELETE без AJAX, store 302),
+    <code>UserDeleteClearsEmailAccessFeatureTest</code> (гость / 403 / 404 / методы),
+    <code>UserDeleteClearsEmailDocumentationContractTest</code>.</p>
+
   <h2>5) Создание ученика (<code>POST /admin/users</code>)</h2>
   <div class="note">
     Маршрут <code>admin.user.store</code>. Валидация: <code>App\Http\Requests\User\StoreRequest</code>.
@@ -1484,6 +1520,11 @@
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code> — изоляция switch / account / search</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersAccessTest.php</code> — гость / без <code>users.view</code> → 403; smoke 200 раздела</li>
       <li><code>tests/Feature/Crm/Users/UserControllerTest.php</code> — data (только ученики в <code>recordsTotal</code>), сортировка, parent, <code>test_store_non_ajax_redirects_and_creates_user</code></li>
+      <li><code>tests/Feature/Crm/Users/UserDeleteClearsEmailFeatureTest.php</code> — §<a href="#user-delete-clears-email">4.5.6</a> HTTP DELETE ученика/тренера/сотрудника обнуляет <code>users.email</code>, повторное создание с той же почтой — 200</li>
+      <li><code>tests/Feature/Crm/Users/UserDeleteClearsEmailAjaxContractFeatureTest.php</code> — JSON 200 delete + store; пока жив — 422 <code>errors.email</code> с текстом под полем (ученик / тренер / сотрудник)</li>
+      <li><code>tests/Feature/Crm/Users/UserDeleteClearsEmailNonAjaxSafetyNetFeatureTest.php</code> — DELETE без AJAX всё равно обнуляет email; store 302 после удаления; живой email — session <code>errors.email</code></li>
+      <li><code>tests/Feature/Crm/Users/UserDeleteClearsEmailAccessFeatureTest.php</code> — гость / без <code>users.view</code> / без <code>trainers.view</code> / чужой партнёр не трогают email; GET/POST/PUT/PATCH на delete — 404/405</li>
+      <li><code>tests/Unit/Documentation/UserDeleteClearsEmailDocumentationContractTest.php</code> — анонс <code>/doc#user-delete-clears-email-index</code> и хук <code>User::deleting</code></li>
       <li><code>tests/Feature/Crm/Ui/GenericMultiselectFullAccessFeatureTest.php</code> — multiselect групп, UI модалок §<a href="#user-modals">4.5</a></li>
       <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline-JS create/edit user</li>
       <li><code>tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php</code>, <code>AdminUsersSectionFeatureTest.php</code>, <code>RoleStaffUsersFeatureTest.php</code> — вкладки раздела, фиксация роли при create, CRUD сотрудников по ролям</li>
@@ -1502,6 +1543,7 @@
     Мед./особенности: <code>php artisan test --env=testing tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code>.
     Пол и комментарий: <code>php artisan test tests/Feature/Crm/Users/UserCommentAndSexFeatureTest.php --env=testing</code>.
     Персональная скидка: <code>php artisan test tests/Feature/Crm/Users/UserPercentDiscountFeatureTest.php tests/Feature/Crm/Users/UserPercentDiscountAccessFeatureTest.php tests/Feature/Crm/Users/UserPercentDiscountAjaxContractFeatureTest.php tests/Feature/Crm/Users/UserPercentDiscountNonAjaxSafetyNetFeatureTest.php --env=testing</code>.
+    Освобождение email при delete: <code>php artisan test --env=testing --filter=UserDeleteClearsEmail</code>.
     «Показать N»: <code>php artisan test --env=testing tests/Feature/Crm/Users/UsersPageLengthFeatureTest.php tests/Feature/Crm/Users/UsersPageLengthFullAccessFeatureTest.php</code>.
     ФИО ученика в родительном: <code>php artisan test --filter=ChildFullNameGenitive</code>.
     Импорт Excel: <code>php artisan test --filter=UsersImport</code>.

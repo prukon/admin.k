@@ -108,7 +108,7 @@
       <tr><td>GET</td><td><code>/lead/{landingSlug}</code></td><td>нет</td><td>HTML страницы с формой</td></tr>
       <tr><td>GET</td><td><code>/lead/{landingSlug}/locations?district_id=</code></td><td>нет</td><td>JSON: объекты выбранного района</td></tr>
       <tr><td>GET</td><td><code>/lead/{landingSlug}/teams?location_id=</code></td><td>нет</td><td>JSON: услуги (группы) для выбранного объекта</td></tr>
-      <tr><td>GET</td><td><code>/lead/{landingSlug}/team-info?location_id=&amp;team_id=</code></td><td>нет</td><td>JSON: детали выбранной услуги (группы)</td></tr>
+      <tr><td>GET</td><td><code>/lead/{landingSlug}/team-info?location_id=&amp;team_id=</code></td><td>нет</td><td>JSON: блок «Об услуге» — см. <a href="#5-4-2">§5.4.2</a></td></tr>
       <tr><td>POST</td><td><code>/lead/{landingSlug}/submit</code></td><td>нет</td><td>Приём заявки: AJAX → JSON; non-AJAX → redirect 302 на страницу лендинга</td></tr>
     </tbody>
   </table>
@@ -155,7 +155,7 @@
     <li><b>Услуга</b> (<code>team_id</code>) — необязательна. Подгружается после выбора объекта: <code>GET /lead/{slug}/teams?location_id=</code> — только группы с <code>teams.location_id</code>, равным выбранному объекту (<code>TeamLocationAvailabilityService</code>). Группы без объекта на лендинг не попадают.</li>
   </ol>
   <ul>
-    <li>Блок «Детали услуги» (<code>GET …/team-info</code>): строка «Адрес» берётся из <code>locations.address</code> выбранного объекта, не из группы. Поле «Тренировочная база» (<code>teams.training_base</code>) снято — в ответе только актуальные строки деталей услуги. Пустые поля (без значения) <b>не включаются</b> в <code>data.rows</code> и не показываются прочерком; если после фильтрации строк нет — блок «Об услуге» на лендинге скрывается целиком. «Период занятий» считается автоматически и всегда присутствует, пока остальные поля могут отсутствовать.</li>
+    <li>Блок «Об услуге» после выбора услуги: <code>GET …/team-info</code> — состав строк, источники и скрытие пустых полей — <a href="#5-4-2">§5.4.2</a>.</li>
     <li>Чекбокс <code>needs_contact_help</code> — «Не могу определиться с секцией…»: при включении <code>team_id</code> сбрасывается и не обязателен.</li>
     <li>Submit: объект должен принадлежать выбранному району; иначе 422 на <code>location_id</code>.</li>
   </ul>
@@ -194,6 +194,39 @@
   <div class="note">
     <b>Non-AJAX safety-net (submit):</b> если форма ушла нативным POST без <code>X-Requested-With</code> (например, при сбое JS), бэкенд всё равно создаёт заявку и отвечает <b>302 redirect</b> на <code>/lead/{landingSlug}</code> с flash <code>landing_submitted</code>. Ошибки валидации и reCAPTCHA — redirect назад с ошибками в сессии, не пустой 200. См. <code>SchoolLeadLandingNonAjaxSafetyNetFeatureTest.php</code>.
   </div>
+
+  <h3 id="5-4-2">5.4.2) Блок «Об услуге» (<code>GET …/team-info</code>)</h3>
+  <p>После выбора объекта и услуги фронтенд запрашивает <code>GET /lead/{slug}/team-info?location_id=&amp;team_id=</code> и рисует таблицу из <code>data.rows</code> (labels не зашиты в blade — только ответ API). Заголовок блока — <code>data.title</code> (название группы). Чекбокс <code>needs_contact_help</code> скрывает блок и не вызывает endpoint.</p>
+  <p>Ответ: <code>{ "data": { "title": "…", "rows": [ { "label": "…", "value": "…" } ] } }</code>. Пустое <code>value</code> <b>не попадает</b> в <code>rows</code> и не показывается прочерком. Если после фильтрации <code>rows</code> пуст — JS вызывает <code>hideTeamInfo()</code>, блок скрывается целиком.</p>
+  <table>
+    <thead>
+      <tr><th>Строка (<code>label</code>)</th><th>Источник</th><th>Когда есть в <code>rows</code></th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Адрес</td>
+        <td><code>locations.address</code> выбранного объекта (не из группы)</td>
+        <td>непустая строка после trim</td>
+      </tr>
+      <tr>
+        <td>Вид спорта</td>
+        <td><code>sport_types.name</code> группы</td>
+        <td>у группы задан активный вид спорта</td>
+      </tr>
+      <tr>
+        <td>Стоимость в месяц</td>
+        <td><code>teams.month_price_cents</code> → <code>Money::formatRub</code> (пробел + «₽»)</td>
+        <td>не <code>null</code>, не отрицательное</td>
+      </tr>
+      <tr>
+        <td>Период занятий</td>
+        <td>считается на сервере (<code>SchoolLeadLandingService::formatTrainingPeriod</code>), не из БД</td>
+        <td>всегда: 1 янв–30 июн → <code>12.01.{год} — 30.06.{год}</code>; иначе → <code>01.09.{год} — 30.06.{год+1}</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p><b>Не отдаются</b> (даже если у группы заполнены дни недели / длительность): «Занятий в неделю», «Занятий в месяц», «Продолжительность занятия», «Расписание занятий». Поле «Тренировочная база» (<code>teams.training_base</code>) снято ранее. Дни недели группы на этот endpoint больше не загружаются.</p>
+  <p class="small">Покрытие: <code>SchoolLeadLandingTeamInfoFeatureTest.php</code>, <code>SchoolLeadLandingFullFeatureTest.php</code> (<code>test_team_info_returns_service_details</code>), <code>SchoolLeadLandingTeamInfoDocumentationContractTest.php</code>. Анонс: <a href="/doc#landing-team-info-rows-index">/doc#landing-team-info-rows-index</a>.</p>
 
   <h3>5.5) Прочее</h3>
   <ul>
@@ -306,7 +339,11 @@
       </tr>
       <tr>
         <td><code>SchoolLeadLandingTeamInfoFeatureTest.php</code></td>
-        <td>«Об услуге»: пустые поля не в <code>rows</code> / без прочерка; AJAX JSON-контракт; non-AJAX GET → JSON не пустой 200; гость и auth без CRM-прав → 200; JS-guard скрытия блока при пустых <code>rows</code></td>
+        <td>§5.4.2 «Об услуге»: только адрес / вид спорта / стоимость / период; снятые строки расписания и длительности не в <code>rows</code> даже при заполненных weekdays/duration; пустые поля не в <code>rows</code> / без прочерка; AJAX JSON-контракт; non-AJAX GET → JSON не пустой 200; гость и auth без CRM-прав → 200; JS-guard скрытия блока при пустых <code>rows</code></td>
+      </tr>
+      <tr>
+        <td><code>SchoolLeadLandingTeamInfoDocumentationContractTest.php</code> (Unit)</td>
+        <td>Анонс /doc и school-leads-landing §5.4.2: состав <code>team-info</code> rows, снятые строки, сервис без labels расписания</td>
       </tr>
       <tr>
         <td><code>SchoolLeadLandingFullFeatureTest.php</code></td>

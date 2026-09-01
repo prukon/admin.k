@@ -14,8 +14,8 @@ use Tests\Feature\Public\Concerns\ProvidesSchoolLeadLandingFixtures;
 use Tests\TestCase;
 
 /**
- * Блок «Об услуге» (GET /lead/{slug}/team-info): пустые поля не отдаются,
- * AJAX-контракт, non-AJAX JSON, публичный доступ без CRM-прав.
+ * Блок «Об услуге» (GET /lead/{slug}/team-info): только адрес / вид спорта / стоимость / период;
+ * пустые поля не отдаются, AJAX-контракт, non-AJAX JSON, публичный доступ без CRM-прав.
  *
  * @see \Tests\Feature\Crm\Ui\BladeInlineJsSyntaxTest (landing/partner-lead.blade.php)
  */
@@ -107,11 +107,11 @@ final class SchoolLeadLandingTeamInfoFeatureTest extends TestCase
         $this->assertSame('ул. Тестовая, 1', $rowsByLabel->get('Адрес')['value'] ?? null);
         $this->assertSame('Плавание вид', $rowsByLabel->get('Вид спорта')['value'] ?? null);
         $this->assertSame('3 000 ₽', $rowsByLabel->get('Стоимость в месяц')['value'] ?? null);
-        $this->assertSame('2', $rowsByLabel->get('Занятий в неделю')['value'] ?? null);
-        $this->assertSame('8', $rowsByLabel->get('Занятий в месяц')['value'] ?? null);
-        $this->assertSame('1 час', $rowsByLabel->get('Продолжительность занятия')['value'] ?? null);
         $this->assertSame('12.01.2026 — 30.06.2026', $rowsByLabel->get('Период занятий')['value'] ?? null);
-        $this->assertSame('Понедельник, Среда', $rowsByLabel->get('Расписание занятий')['value'] ?? null);
+        $this->assertSame(
+            ['Адрес', 'Вид спорта', 'Стоимость в месяц', 'Период занятий'],
+            $rowsByLabel->keys()->all()
+        );
 
         Carbon::setTestNow();
     }
@@ -188,10 +188,6 @@ final class SchoolLeadLandingTeamInfoFeatureTest extends TestCase
         $this->assertNotContains('Адрес', $labels);
         $this->assertNotContains('Вид спорта', $labels);
         $this->assertNotContains('Стоимость в месяц', $labels);
-        $this->assertNotContains('Занятий в неделю', $labels);
-        $this->assertNotContains('Занятий в месяц', $labels);
-        $this->assertNotContains('Продолжительность занятия', $labels);
-        $this->assertNotContains('Расписание занятий', $labels);
         $this->assertContains('Период занятий', $labels);
     }
 
@@ -248,9 +244,12 @@ final class SchoolLeadLandingTeamInfoFeatureTest extends TestCase
         $this->assertNotContains('Стоимость в месяц', $labels);
     }
 
-    public function test_team_info_omits_weekdays_counts_and_schedule_when_none(): void
+    public function test_team_info_never_returns_schedule_duration_or_lesson_counts(): void
     {
-        $this->landingTeam->weekdays()->sync([]);
+        $this->seed(WeekdaysSeeder::class);
+
+        $this->landingTeam->update(['default_duration_minutes' => 60]);
+        $this->landingTeam->weekdays()->sync([1, 3]);
 
         $labels = collect(
             $this->getJson($this->teamInfoUrl())->assertOk()->json('data.rows')
@@ -258,24 +257,9 @@ final class SchoolLeadLandingTeamInfoFeatureTest extends TestCase
 
         $this->assertNotContains('Занятий в неделю', $labels);
         $this->assertNotContains('Занятий в месяц', $labels);
+        $this->assertNotContains('Продолжительность занятия', $labels);
         $this->assertNotContains('Расписание занятий', $labels);
-    }
-
-    public function test_team_info_omits_duration_when_zero_or_null(): void
-    {
-        $this->landingTeam->update(['default_duration_minutes' => 0]);
-
-        $labels = collect(
-            $this->getJson($this->teamInfoUrl())->assertOk()->json('data.rows')
-        )->pluck('label')->all();
-        $this->assertNotContains('Продолжительность занятия', $labels);
-
-        $this->landingTeam->update(['default_duration_minutes' => null]);
-
-        $labels = collect(
-            $this->getJson($this->teamInfoUrl())->assertOk()->json('data.rows')
-        )->pluck('label')->all();
-        $this->assertNotContains('Продолжительность занятия', $labels);
+        $this->assertContains('Период занятий', $labels);
     }
 
     public function test_team_info_validation_returns_422_json_not_empty_200(): void
@@ -312,6 +296,10 @@ final class SchoolLeadLandingTeamInfoFeatureTest extends TestCase
         $this->assertStringContainsString('if (!rows.length) {', $html);
         $this->assertStringContainsString('hideTeamInfo();', $html);
         $this->assertStringContainsString('id="teamInfoBlock"', $html);
+        $this->assertStringNotContainsString('Занятий в неделю', $html);
+        $this->assertStringNotContainsString('Занятий в месяц', $html);
+        $this->assertStringNotContainsString('Продолжительность занятия', $html);
+        $this->assertStringNotContainsString('Расписание занятий', $html);
     }
 
     /**

@@ -61,6 +61,19 @@ class User extends Authenticatable
         static::created(function (User $user): void {
             app(TeamUserSyncService::class)->syncLegacyTeamColumnToPivot($user);
         });
+
+        // SoftDeletes пишет только deleted_at; unique(users.email) иначе блокирует повторное создание.
+        static::deleting(function (User $user): void {
+            if ($user->email === null) {
+                return;
+            }
+
+            $user->newQueryWithoutScopes()
+                ->whereKey($user->getKey())
+                ->update(['email' => null]);
+
+            $user->email = null;
+        });
     }
 
     public function getBirthdayForFormAttribute(): ?string

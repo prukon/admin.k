@@ -382,6 +382,122 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: консоль — createSeasons берёт год из data-season HTML, не из хардкода.
+     * Регрессия: шапки обрывались на 2025–2026, ячейки «Сентябрь 2026» не создавались.
+     * Триггеры пересборки цен (applyDashboardTeamContext, AJAX ФИО) не вызывают createSeasons повторно.
+     */
+    public function test_dashboard_create_seasons_fills_cells_from_data_season_not_hardcoded_years(): void
+    {
+        $path = resource_path('views/dashboard.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('$cabinetSeasonEndYear', $content);
+        $this->assertStringContainsString('now()->month >= 9', $content);
+        $this->assertStringContainsString('range($cabinetSeasonEndYear, 2022)', $content);
+        $this->assertStringNotContainsString('id="season-2026"', $content);
+        $this->assertStringNotContainsString('Сезон 2025 - 2026', $content);
+
+        $fnPos = strpos($content, 'function createSeasons()');
+        $this->assertNotFalse($fnPos);
+        $createChunk = substr($content, $fnPos, 4200);
+        $this->assertStringContainsString("document.querySelectorAll('.season .container')", $createChunk);
+        $this->assertStringContainsString('container.dataset.season', $createChunk);
+        $this->assertStringContainsString("'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь'", $createChunk);
+        $this->assertStringContainsString('const calendarMonthByKey = [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8];', $createChunk);
+        $this->assertStringContainsString('displaySeason = season - 1', $createChunk);
+        $this->assertStringContainsString('displaySeason = season', $createChunk);
+        $this->assertStringContainsString('formatedPaymentDate', $createChunk);
+        $this->assertStringContainsString('${monthsRu[key]} ${displaySeason}', $createChunk);
+        $this->assertStringNotContainsString('data-season="2026"', $createChunk);
+        $this->assertStringNotContainsString('season == 2026', $createChunk);
+        $this->assertStringNotContainsString('season === 2026', $createChunk);
+
+        $applyPos = strpos($content, 'function applyDashboardTeamContext');
+        $this->assertNotFalse($applyPos);
+        $applyChunk = substr($content, $applyPos, 900);
+        $this->assertStringContainsString('apendPrice(userPrice)', $applyChunk);
+        $this->assertStringNotContainsString('createSeasons()', $applyChunk);
+
+        $ajaxApend = strpos($content, 'refreshPrice();');
+        $this->assertNotFalse($ajaxApend);
+        $this->assertGreaterThanOrEqual(2, substr_count($content, 'apendPrice(userPrice)'));
+        $this->assertSame(1, substr_count($content, 'createSeasons();'));
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+        $foundCreate = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'function createSeasons()')) {
+                continue;
+            }
+            $foundCreate = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $tempFile = sys_get_temp_dir().'/blade-js-dashboard-create-seasons-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    "JS syntax error in dashboard createSeasons, script #{$index}:\n".implode("\n", $output)
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+
+            $mapFile = sys_get_temp_dir().'/blade-js-season-map-'.uniqid('', true).'.js';
+            $mapJs = <<<'JS'
+const monthsRu = [
+    'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август'
+];
+const calendarMonthByKey = [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8];
+function monthsForSeason(season) {
+    const out = [];
+    for (const [key] of monthsRu.entries()) {
+        var displaySeason;
+        if (monthsRu[key] == "Сентябрь" ||
+            monthsRu[key] == "Октябрь" ||
+            monthsRu[key] == "Ноябрь" ||
+            monthsRu[key] == "Декабрь"
+        ) {
+            displaySeason = season - 1;
+        } else {
+            displaySeason = season;
+        }
+        const year = Number(displaySeason);
+        const calMonth = calendarMonthByKey[key];
+        out.push(`${year}-${String(calMonth).padStart(2, '0')}-01`);
+    }
+    return out;
+}
+if (!monthsForSeason(2027).includes('2026-09-01')) {
+    throw new Error('data-season=2027 must produce 2026-09-01');
+}
+if (!monthsForSeason(2027).includes('2027-08-01')) {
+    throw new Error('data-season=2027 must produce 2027-08-01');
+}
+if (monthsForSeason(2026).includes('2026-09-01')) {
+    throw new Error('data-season=2026 must not produce 2026-09-01 (это и был UX-баг)');
+}
+JS;
+            try {
+                file_put_contents($mapFile, $mapJs);
+                $mapOut = [];
+                $mapCode = 0;
+                exec('node '.escapeshellarg($mapFile).' 2>&1', $mapOut, $mapCode);
+                $this->assertSame(0, $mapCode, implode("\n", $mapOut));
+            } finally {
+                @unlink($mapFile);
+            }
+        }
+        $this->assertTrue($foundCreate, 'В dashboard.blade.php нет function createSeasons()');
+    }
+
+    /**
      * P1: список /admin/partners — метрики, дефолты колонок, сброс фильтра, node --check.
      */
     public function test_partners_list_metrics_inline_script_contract_and_valid_javascript(): void

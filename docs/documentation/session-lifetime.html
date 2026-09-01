@@ -15,6 +15,9 @@
     .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
     ul { margin: 8px 0 8px 20px; }
     .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
   </style>
 </head>
 <body>
@@ -25,11 +28,15 @@
     · анонс: <a href="/doc#session-lifetime-index">/doc</a></div>
 
   <div class="note">
-    <b>Кратко.</b> Idle-сессия <code>SESSION_LIFETIME=43200</code> (30 суток), драйвер по-прежнему
-    <code>file</code>. На <code>/login</code> галка «Запомнить меня» включена с первого показа.
+    <b>Кратко.</b> Дефолт <code>config/session.php</code> — <code>SESSION_LIFETIME=43200</code>
+    (30 суток idle). Драйвер по-прежнему <code>file</code>, redis/database этот инкремент
+    <b>не</b> вводит. Фактический срок на инстансе = <code>env('SESSION_LIFETIME')</code>:
+    если в <code>.env</code> осталось старое значение 120 минут, пользователи живут
+    два часа, даже при дефолте 43200 в config.
+    На <code>/login</code> галка «Запомнить меня» включена с первого показа.
     HTML <code>403</code> для гостя — <code>layouts.app</code>, не кабинетный <code>admin2</code>
-    (иначе <code>auth()->user()->role</code> на <code>null</code> превращал 403 в 500).
-    Redis/БД для сессий этот инкремент <b>не</b> вводит.
+    (иначе <code>auth()->user()->role</code> на <code>null</code> превращал 403 в 500
+    и писал ErrorException в строку «500» пульта).
   </div>
 
   <h2 id="lifetime">1) Срок сессии</h2>
@@ -37,40 +44,125 @@
     <li><code>config/session.php</code>: <code>lifetime</code> = <code>(int) env('SESSION_LIFETIME', 43200)</code>.</li>
     <li>43200 минут = 30 суток <b>бездействия</b>. Закрытие браузера сессию не убивает
       (<code>expire_on_close</code> = <code>false</code>).</li>
-    <li>Пока открыта вкладка кабинета, <code>POST /presence/ping</code> раз в минуту сдвигает mtime файла сессии.</li>
+    <li>Чтобы на сайте было 30 дней, в <code>.env</code> (и на тесте — в <code>.env.testing</code>)
+      должно быть <code>SESSION_LIFETIME=43200</code>. Переменная окружения побеждает дефолт config.</li>
+    <li>PHPUnit: <code>phpunit.xml</code> <code>SESSION_LIFETIME</code> 43200 с <code>force="true"</code>
+      (иначе <code>.env.testing</code> перебивает). Feature-тесты срока проверяют исходник config,
+      не runtime-значение без force.</li>
+    <li>Пока открыта любая страница кабинета (<code>layouts.admin2</code>),
+      <code>POST /presence/ping</code> (<code>presence.ping</code>) раз в минуту
+      (<code>includes/in_app_notifications/echo.blade.php</code>,
+      <code>setInterval(ping, 60000)</code>, <code>credentials: 'same-origin'</code>)
+      сдвигает mtime файла сессии. Это тот же ping, что онлайн в чате
+      (<a href="/docs/documentation/chat#presence">chat §2.1</a>), не отдельный keepalive.</li>
     <li>Драйвер <code>SESSION_DRIVER=file</code>, каталог <code>storage/framework/sessions</code>.
       Сборщик лотереи <code>[2, 100]</code> без изменений.</li>
   </ul>
 
   <h2 id="remember">2) «Запомнить меня»</h2>
   <ul>
-    <li>Форма <code>resources/views/auth/login.blade.php</code>, чекбокс <code>#remember</code> / <code>name="remember"</code>.</li>
-    <li>Первый GET <code>/login</code> — атрибут <code>checked</code> (без <code>old()</code>).</li>
+    <li>Форма <code>resources/views/auth/login.blade.php</code> — native <code>POST</code>
+      на <code>route('login')</code>, без AJAX / <code>preventDefault</code> / дубликата JS.</li>
+    <li>Чекбокс <code>#remember</code> / <code>name="remember"</code>. Порядок полей:
+      email → password → remember.</li>
+    <li>Первый GET <code>/login</code> — атрибут <code>checked</code> (нет <code>old()</code>).</li>
     <li>После редиректа с <code>withInput()</code> (<code>session()->hasOldInput()</code>):
       галка как в POST. Сняли и ошиблись в пароле — остаётся снятой.
       <code>old('remember')</code> без <code>hasOldInput()</code> снова включил бы галку.</li>
+    <li>После logout повторный GET снова с <code>checked</code> (новой сессии без old input).</li>
     <li>Сервер: <code>AuthenticatesUsers</code> / <code>$request->boolean('remember')</code>.
       Поля нет — remember-cookie не ставится. Поле есть — cookie recaller ~400 дней
-      (<code>SessionGuard</code> <code>rememberDuration</code> 576000 минут).</li>
+      (<code>SessionGuard</code> <code>rememberDuration</code> 576000 минут). Это не idle-сессия.</li>
+    <li>CRM-права на вход не нужны: admin без <code>groups.view</code>, trainer и ученик входят так же.</li>
   </ul>
 
-  <h2 id="forbidden">3) Страница 403</h2>
+  <h2 id="login-http">3) HTTP <code>/login</code> и <code>/logout</code></h2>
+  <p class="small">Капча на живой форме в PHPUnit не участвует (CSRF в тестах снят).
+    Ошибки полей — не Form Request: пустые поля валидирует <code>AuthenticatesUsers</code>,
+    неверный email/пароль — <code>LoginController::sendFailedLoginResponse</code>.</p>
+  <table>
+    <thead>
+      <tr><th>Кто / метод</th><th>Ответ</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Гость GET <code>/login</code></td>
+        <td>200 HTML, форма, <code>#remember</code> checked. JSON Accept тоже HTML-форма, не пустой 200 без разметки.</td>
+      </tr>
+      <tr>
+        <td>Залогиненный GET/POST <code>/login</code></td>
+        <td>302 <code>/cabinet</code> (<code>guest</code> middleware), не 500 и не пустой 200.</td>
+      </tr>
+      <tr>
+        <td>Гость POST пустые email/password</td>
+        <td>HTML: 302 + session <code>errors.email</code> / <code>errors.password</code>
+          («Поле электронная почта обязательно…», «Поле пароль обязательно…»).
+          JSON + <code>X-Requested-With</code>: <b>422</b>
+          <code>errors.email.0</code> / <code>errors.password.0</code>.</td>
+      </tr>
+      <tr>
+        <td>Гость POST неизвестный email</td>
+        <td>302 (в т.ч. AJAX: контроллер делает <code>back()->withErrors</code>, не ValidationException).
+          <code>errors.email</code> «Такой email не найден.» Пароль не трогает.</td>
+      </tr>
+      <tr>
+        <td>Гость POST неверный пароль</td>
+        <td>302, <code>errors.password</code> «Неправильный пароль.» Email не трогает.
+          Текст под полем в HTML (<code>is-invalid</code>).</td>
+      </tr>
+      <tr>
+        <td>Гость POST успех (native)</td>
+        <td>302 <code>/cabinet</code>, сессия создана. Не пустой 200.</td>
+      </tr>
+      <tr>
+        <td>Гость POST успех (JSON, <code>wantsJson</code>)</td>
+        <td><b>204</b> пустое тело (Laravel <code>AuthenticatesUsers::sendLoginResponse</code>), не 200.</td>
+      </tr>
+      <tr>
+        <td>PATCH/PUT/DELETE <code>/login</code></td>
+        <td>405 (или отказ), не 500, не пустой 200.</td>
+      </tr>
+      <tr>
+        <td>POST <code>/logout</code></td>
+        <td>Залогиненный HTML → redirect <code>/</code>. JSON → 204 или redirect. Гость — отказ, не пустой 200.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="forbidden">4) Страница 403 и <code>/broadcasting/auth</code></h2>
   <ul>
     <li><code>resources/views/errors/403.blade.php</code>:
       <code>@extends(auth()->check() ? 'layouts.admin2' : 'layouts.app')</code>.</li>
     <li>Гость: лейаут логина, кнопка «Войти» на <code>route('login')</code>,
-      <code>noindex, nofollow</code> через <code>@push('meta')</code>.</li>
+      <code>noindex, nofollow</code> через <code>@push('meta')</code>, без
+      <code>main-sidebar</code> и без <code>#js-ops-monitors</code>.</li>
     <li>Залогиненный: кабинетный лейаут, кнопка «На главную» на <code>/</code>.</li>
     <li>Сайдбар <code>admin2</code>: <code>auth()->user()?->role?->label</code>
-      (не <code>optional(auth()->user()->role)</code> — тот всё равно читает <code>-&gt;role</code> у <code>null</code>).</li>
-    <li>Типичный продовый каскад до фикса: протухшая сессия →
-      <code>POST /broadcasting/auth</code> без пользователя →
+      (не <code>optional(auth()->user()->role)</code> — тот всё равно читает <code>-&gt;role</code> у <code>null</code>).
+      Имя/почта тоже nullsafe. Подробно про сайдбар —
+      <a href="/docs/documentation/admin-layout-sidebar">admin-layout-sidebar</a>.</li>
+    <li><code>Broadcast::routes()</code> в <code>BroadcastServiceProvider</code> —
+      GET+POST <code>/broadcasting/auth</code>, web-стек, <b>без</b> middleware <code>auth</code>.
+      Гость получает HTTP <b>403</b>, не 401 и не редирект на <code>/login</code>.</li>
+    <li>Echo (<code>includes/in_app_notifications/echo.blade.php</code>) бьёт
+      <code>authEndpoint: '/broadcasting/auth'</code> <b>без</b>
+      <code>Accept: application/json</code> — Laravel рисует HTML 403.
+      Типичный каскад до фикса: протухшая сессия → этот POST →
       <code>AccessDeniedHttpException</code> 403 → рендер HTML 403 через <code>admin2</code> →
-      <code>ErrorException</code> «Attempt to read property "role" on null» в пульт как 500.
-      HTTP 403 по-прежнему не пишется в строку 500 пульта (<code>Handler</code> режет 4xx).</li>
+      <code>ErrorException</code> «Attempt to read property "role" on null».
+      HTTP оставался 403, но <code>Handler::renderHttpException</code> вызывал
+      <code>report()</code> на ViewException — пульт видел 500.
+      Сам HTTP 403 по-прежнему не пишется в строку 500 (<code>Handler</code> режет 4xx).
+      После фикса гостевой 403 <code>errors.count</code> не увеличивает.
+      Пульт: <a href="/doc#ops-errors-detail-index">ховер 500</a>,
+      <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>.</li>
+    <li>Свой канал <code>private-inbox.{id}</code> — 200, право <code>messages.view</code> не нужно.
+      Чужой inbox — 403 (залогиненному HTML с admin2).
+      JSON с <code>Accept: application/json</code> — 403 JSON <code>message</code>, не HTML 500.</li>
+    <li>PATCH/PUT/DELETE на <code>/broadcasting/auth</code> — 405, не 500.</li>
   </ul>
 
-  <h2>4) Тесты</h2>
+  <h2>5) Тесты</h2>
   <ul>
     <li><code>tests/Feature/Crm/Auth/SessionLifetimeFeatureTest.php</code> — дефолт <code>config/session.php</code> 43200, <code>expire_on_close=false</code>.</li>
     <li><code>LoginRememberAccessFeatureTest</code> — гость видит форму; залогиненный → <code>/cabinet</code>; вход без CRM-права.</li>

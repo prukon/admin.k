@@ -31,6 +31,7 @@
 
   <div class="note">
     <b>Кратко.</b> Страница «Консоль» — личный кабинет ученика (или семейный просмотр данных ребёнка): профиль, календарь посещений, блоки оплат (доп. платежи, назначенные абонементы, сезоны месячных начислений).
+    Шапка сезона считается от текущего учебного года (сентябрь–август) вниз до 2021–2022 — §<a href="#cabinet-season-years">6.1</a>, не хардкод «2025 - 2026».
     Доступ к странице — <code>dashboard.view</code>; видимость отдельных блоков оплат — отдельные permissions (§<a href="#cabinet-payment-blocks">2</a>).
     Для роли с правом <code>users.view</code> (админ CRM) доступны селекты «Группа» / «ФИО» и AJAX-подгрузка данных другого ученика.
     При <b>2+ группах</b> у активного ученика в <b>пользовательском</b> режиме селект <b>«Выбор группы»</b>
@@ -47,6 +48,7 @@
     <code>inAppNotifications.view</code>; это не блок оплат консоли —
     <a href="/docs/documentation/in-app-notifications">in-app-notifications</a>.
     Анонс фильтра абонементов и <code>team_id</code> из журнала — <a href="/doc#cabinet-ulp-team-filter">/doc</a>.
+    Учебные годы на консоли — <a href="/doc#cabinet-season-years-index">/doc#cabinet-season-years-index</a>.
     Оверлей статуса Reverb, список «Онлайн» по партнёрам и «Пульт» — часть системных мониторов: скрытое
     <code>settings.systemMonitors.view</code> (superadmin через
     <code>Gate::before</code>), переключатель в шапке слева от колокольчика,
@@ -276,6 +278,31 @@
   <h2>6) Сезоны и месячные оплаты</h2>
   <p>Секция <code>.row.seasons</code> рендерится при <code>setPrices.cabinetSeasons.view</code>
     <b>или</b> <code>setPrices.cabinetPackages.postpay.view</code>.</p>
+  <h3 id="cabinet-season-years">6.1) Какие учебные годы рисуются</h3>
+  <div class="ok">
+    Шапка сезона — не хардкод года. В <code>dashboard.blade.php</code> цикл
+    <code>range($cabinetSeasonEndYear, 2022)</code>
+    от конца <b>текущего</b> учебного года вниз до <b>2021–2022</b>
+    (<code>data-season="2022"</code>). <code>$cabinetSeasonEndYear</code>:
+    <code>now()-&gt;month &gt;= 9 ? now()-&gt;year + 1 : now()-&gt;year</code>
+    (учебный год сентябрь–август, TZ приложения <code>Europe/Moscow</code>).
+    С 1 сентября 2026 сверху появляется
+    «Сезон 2026 - 2027» (<code>id="season-2027"</code>); 31 августа 2026 верхний ещё
+    «Сезон 2025 - 2026». Исторические сезоны не выкидываются.
+    Ячейки месяцев по-прежнему строит JS <code>createSeasons</code> по
+    <code>data-season</code> (сент–дек = год окончания − 1, янв–авг = год окончания).
+    Начисление в <code>users_prices</code> без соответствующей шапки на странице
+    <b>не</b> рисуется: <code>apendPrice</code> ищет подпись месяца, которую создаёт только
+    <code>createSeasons</code>. Переключение группы и AJAX «ФИО» пересобирают кнопки
+    (<code>apendPrice</code>), но <b>не</b> добавляют новые учебные годы.
+    JS <code>showSessons</code> прячет сезоны с нулевой суммой, но <b>всегда</b> показывает
+    первый в DOM (текущий учебный год), даже без цен.
+    Админка «Установка цен» живёт <b>календарным</b> годом/месяцем — это не те же шапки;
+    см. <a href="/docs/documentation/setting-prices-monthly-users#cabinet-academic-year">setting-prices-monthly-users</a>.
+    Семья: те же шапки, payload — <code>activeStudent</code>
+    (<a href="/docs/documentation/parents-and-family-cabinet">parents-and-family-cabinet</a>).
+    Анонс: <a href="/doc#cabinet-season-years-index">/doc#cabinet-season-years-index</a>.
+  </div>
   <ul>
     <li>Ячейки месяцев генерируются в JS (<code>createSeasons</code>), цены подставляются из массива <code>userPrice</code> (или отфильтрованного под группу).</li>
     <li>Каждая оплачиваемая ячейка содержит <code>paymentDate</code>, <code>formatedPaymentDate</code> (<code>YYYY-MM-01</code>), hidden <code>team_id</code>, <code>outSum</code> (на сервере для monthly_fee не источник истины).</li>
@@ -466,7 +493,12 @@
     <code>auth.recent_logins</code> и <code>auth.recent_2fa</code>
     (пароль только в cache, не в <code>my_logs</code>; журнал —
     <code>auth.login_failed</code>).
-    HTTP 4xx / CSRF в 500 не пишутся. Welcome <code>STATUS_FAILED</code>
+    HTTP 4xx / CSRF в 500 не пишутся.
+    Гостевой HTML 403 (Echo <code>POST /broadcasting/auth</code> без
+    <code>Accept: application/json</code>) больше не падает в <code>admin2</code>
+    и не пишет ErrorException в строку 500 —
+    <a href="/docs/documentation/session-lifetime">session-lifetime</a>.
+    Welcome <code>STATUS_FAILED</code>
     всё ещё missing. Успешный welcome: <code>mailable_class</code> =
     <code>ClientWelcomeCredentialsMail</code> или пустой класс + тема
     «Доступ в личный кабинет» и email в <code>to_summary</code>
@@ -493,7 +525,11 @@
   <div class="note">
     <ul class="small">
       <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetSeasonsAccessFeatureTest.php</code> — право <code>setPrices.cabinetSeasons.view</code>, 200/403/гость, изоляция от <code>setPrices.view</code></li>
-      <li><code>tests/Feature/Crm/Dashboard/DashboardSeasonsSetPricesVisibilityFeatureTest.php</code> — видимость сезонов и селекта группы</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardSeasonsSetPricesVisibilityFeatureTest.php</code> — видимость сезонов и селекта группы; шапки от текущего учебного года до 2021–2022 (<code>season-2027</code> с 01.09.2026)</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetSeasonYearsFeatureTest.php</code> — UX-баг: начисление <code>2026-09-01</code> в payload и ячейка JS (<code>data-season</code> → <code>createSeasons</code>); семейный switch; postpay-only; негатив до 1 сентября и «будущий» 2028; POST /cabinet</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetSeasonYearsFullAccessFeatureTest.php</code> — HTTP-матрица: гость / 403 / 200 GET+POST, FilterRequest <code>errors.title</code> 302/422, PATCH/DELETE, без партнёра, изоляция чужого <code>userPrice</code></li>
+      <li><code>tests/Unit/Documentation/CabinetSeasonYearsDocumentationContractTest.php</code> — анонс /doc и §6.1 совпадают с циклом в blade</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>createSeasons</code> из <code>data-season</code> (не хардкод года), <code>node --check</code>, маппинг 2027 → 2026-09-01; пересборки <code>apendPrice</code> без повторного <code>createSeasons</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardLessonPackagesFeatureTest.php</code> — блок «Назначенные абонементы», суммы, <code>refreshPrice()</code>, дата разового занятия, селект группы без сезонов, <code>data-ulp-team-id</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardLessonPackagesTeamFilterFeatureTest.php</code> — фильтр абонементов селектом группы: 200/403/гость, две группы в DOM, карточка без <code>team_id</code> для JS-hide, нулевая стоимость не включает селект, админ без селекта, <code>getUserDetails</code> не отдаёт ULP, JS-порядок <code>filterLessonPackagesByTeam</code> до выхода по сезонам, P2 smoke</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardPackageAssignmentsAccessFeatureTest.php</code> — <code>packageAssignments.view</code> консоль не открывает; тип <code>cabinetPackages.fixed.view</code> открывает</li>

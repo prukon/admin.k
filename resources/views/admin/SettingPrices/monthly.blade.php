@@ -26,27 +26,26 @@
         </div>
         <div class="row justify-content-md-center">
             <div id='selectDate' class="selectDate">
-                <select class="form-select" id="single-select-date" data-placeholder="Дата">
-
-                    @if($monthString)
-                        <option>{{ $monthString  }}</option>
-                    @endif
-
+                <select class="form-select" id="single-select-date" data-placeholder="Дата"
+                        data-start-year="{{ (int) $monthlySelectStartYear }}"
+                        data-start-month-index="{{ (int) $monthlySelectStartMonthIndex }}"
+                        data-month-count="{{ (int) $monthlySelectMonthCount }}"
+                        data-selected-label="{{ $monthString }}">
                 </select>
                 <script>
                     const selectElement = document.getElementById('single-select-date');
-                    const startYear = 2024;
-                    const startMonth = 8; // Июнь (месяцы в JavaScript считаются с 0: 0 = январь, 1 = февраль и т.д.)
-
-                    let CountMonths = function () {
-                        return 24;
-                    }
+                    const startYear = Number(selectElement.dataset.startYear);
+                    const startMonth = Number(selectElement.dataset.startMonthIndex);
+                    const monthCount = Number(selectElement.dataset.monthCount);
+                    const selectedLabel = (selectElement.dataset.selectedLabel || '').trim();
 
                     function capitalizeFirstLetter(string) {
                         return string.charAt(0).toUpperCase() + string.slice(1);
                     }
 
-                    for (let i = 0; i < CountMonths(); i++) {
+                    selectElement.innerHTML = '';
+
+                    for (let i = 0; i < monthCount; i++) {
                         const optionDate = new Date(startYear, startMonth + i, 1);
                         let monthYear = optionDate.toLocaleString('ru-RU', {
                             month: 'long',
@@ -56,6 +55,9 @@
                         const option = document.createElement('option');
                         option.value = monthYear;
                         option.textContent = monthYear;
+                        if (monthYear === selectedLabel) {
+                            option.selected = true;
+                        }
                         selectElement.appendChild(option);
                     }
 

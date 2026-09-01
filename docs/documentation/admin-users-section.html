@@ -133,6 +133,10 @@
       <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingNonAjaxSafetyNetFeatureTest.php</code> — POST/PATCH без <code>X-Requested-With</code> → 302 на <code>/admin/users</code> + запись в БД; валидация 302 + session errors; DELETE без AJAX всё равно JSON «Клиент успешно удалён»</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingFullAccessFeatureTest.php</code> — гость 302/401; без <code>users.view</code> 403; без <code>settings.roles.view</code> / <code>trainers.view</code> 403; admin 200; PUT/PATCH/DELETE на GET-страницы → 404/405; чужой партнёр 404</li>
       <li><code>tests/Unit/Documentation/UsersClientNamingDocumentationContractTest.php</code> — анонс <code>/doc#users-client-naming-index</code> совпадает с Blade/контроллерами (сайдбар «Пользователи», JSON «Клиент…», негативы)</li>
+      <li><code>tests/Feature/Crm/Users/UserDeleteClearsEmailFeatureTest.php</code> — soft delete любой учётки обнуляет <code>users.email</code> (<a href="/docs/documentation/admin-users#user-delete-clears-email">admin-users §4.5.6</a>)</li>
+      <li><code>tests/Feature/Crm/Users/UserDeleteClearsEmailAjaxContractFeatureTest.php</code>,
+        <code>UserDeleteClearsEmailNonAjaxSafetyNetFeatureTest.php</code>,
+        <code>UserDeleteClearsEmailAccessFeatureTest.php</code> — 422 unique / 302 / гость-403-404</li>
     </ul>
     <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php \

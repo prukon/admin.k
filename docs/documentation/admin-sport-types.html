@@ -155,7 +155,7 @@
   </div>
 
   <h2>8) Лендинг заявки (<code>/lead/{landingSlug}</code>)</h2>
-  <p>Отдельного селекта «Вид спорта» на публичной форме <b>нет</b>. Родитель выбирает район → объект → услугу (группу); вид спорта отображается в блоке «Об услуге» и сохраняется в заявку из поля <code>teams.sport_type_id</code> выбранной группы. Подробно: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>.</p>
+  <p>Отдельного селекта «Вид спорта» на публичной форме <b>нет</b>. Родитель выбирает район → объект → услугу (группу); вид спорта отображается в блоке «Об услуге» и сохраняется в заявку из поля <code>teams.sport_type_id</code> выбранной группы. Подробно: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>, состав блока — <a href="/docs/documentation/school-leads-landing#5-4-2">§5.4.2</a>.</p>
   <ul>
     <li><code>GET /lead/{landingSlug}/teams?location_id=</code> — услуги (группы) выбранного объекта; фильтра по <code>sport_type_id</code> в query <b>нет</b>.</li>
     <li><code>GET /lead/{landingSlug}/team-info</code> — в строке «Вид спорта» выводится <code>sport_types.name</code> группы; если вид спорта у группы не задан, строка в ответе отсутствует.</li>

@@ -192,16 +192,16 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
     {
         TeamPrice::forceCreate([
             'team_id' => $this->team->id,
-            'new_month' => '2024-09-01',
+            'new_month' => '2025-09-01',
             'price_cents' => 77700,
             'lesson_package_id' => $this->package->id,
         ]);
 
-        // месяц в сессии — как после updateDate
+        // месяц в сессии — как после updateDate (окно селекта с сентября 2025)
         $this->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
-            'prices_month' => 'Сентябрь 2024',
+            'prices_month' => 'Сентябрь 2025',
         ]);
 
         $html = $this->get(route('admin.settingPrices.indexMenu'))

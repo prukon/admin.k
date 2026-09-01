@@ -48,6 +48,16 @@ class SettingPricesController extends AdminBaseController
 {
     use BuildsLogTable;
 
+    /**
+     * Первый месяц селекта на вкладке «По месяцам» (YYYY-MM-01).
+     */
+    protected const MONTHLY_SELECT_MIN_DATE = '2025-09-01';
+
+    /**
+     * Длина окна селекта «По месяцам» (сентябрь 2025 … август 2027).
+     */
+    protected const MONTHLY_SELECT_MONTH_COUNT = 24;
+
     public function __construct(
         PartnerContext $partnerContext,
         private readonly AuditLogger $auditLogger,
@@ -122,6 +132,38 @@ class SettingPricesController extends AdminBaseController
         }
 
         return Str::ucfirst(Carbon::now()->translatedFormat('F Y'));
+    }
+
+    /**
+     * Параметры JS-селекта месяца: старт (JS month index) и число пунктов.
+     *
+     * @return array{startYear: int, startMonthIndex: int, monthCount: int, minMonthString: string}
+     */
+    protected function monthlySelectWindow(): array
+    {
+        $min = Carbon::parse(self::MONTHLY_SELECT_MIN_DATE)->startOfMonth();
+
+        return [
+            'startYear' => (int) $min->year,
+            'startMonthIndex' => (int) $min->month - 1,
+            'monthCount' => self::MONTHLY_SELECT_MONTH_COUNT,
+            'minMonthString' => $this->ruMonthName((int) $min->month).' '.$min->year,
+        ];
+    }
+
+    /**
+     * Месяц раньше окна селекта → сентябрь 2025, с записью в сессию и settings.
+     */
+    protected function clampMonthStringToMonthlySelect(int $partnerId, string $monthString): string
+    {
+        if ($this->formatedDate($monthString) >= self::MONTHLY_SELECT_MIN_DATE) {
+            return $monthString;
+        }
+
+        $minMonthString = $this->monthlySelectWindow()['minMonthString'];
+        $this->rememberCurrentMonthString($partnerId, $minMonthString);
+
+        return $minMonthString;
     }
 
     /**
@@ -206,7 +248,11 @@ class SettingPricesController extends AdminBaseController
 
         $allTeams = $this->getPartnerTeamsOrdered();
 
-        $monthString = $this->getCurrentMonthString($partnerId);
+        $selectWindow = $this->monthlySelectWindow();
+        $monthString = $this->clampMonthStringToMonthlySelect(
+            $partnerId,
+            $this->getCurrentMonthString($partnerId)
+        );
         $monthDate   = $this->formatedDate($monthString);
 
         $this->ensureTeamPricesForMonth($allTeams, $monthDate);
@@ -221,6 +267,9 @@ class SettingPricesController extends AdminBaseController
                 'allTeams'        => $allTeams,
                 'monthString'     => $monthString,
                 'lessonPackages'  => $this->lessonPackagesForPartnerSelect($partnerId),
+                'monthlySelectStartYear' => $selectWindow['startYear'],
+                'monthlySelectStartMonthIndex' => $selectWindow['startMonthIndex'],
+                'monthlySelectMonthCount' => $selectWindow['monthCount'],
             ]
         );
     }

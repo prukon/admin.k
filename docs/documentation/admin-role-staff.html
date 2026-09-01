@@ -61,7 +61,7 @@
       <tr><td>GET</td><td><code>/admin/administrators/{user}</code></td><td><code>admin.administrators.show</code></td><td>JSON карточки</td></tr>
       <tr><td>POST</td><td><code>/admin/administrators</code></td><td><code>admin.administrators.store</code></td><td>Создание</td></tr>
       <tr><td>PUT</td><td><code>/admin/administrators/{user}</code></td><td><code>admin.administrators.update</code></td><td>Обновление</td></tr>
-      <tr><td>DELETE</td><td><code>/admin/administrators/{user}</code></td><td><code>admin.administrators.destroy</code></td><td>Soft delete <code>users</code></td></tr>
+      <tr><td>DELETE</td><td><code>/admin/administrators/{user}</code></td><td><code>admin.administrators.destroy</code></td><td>Soft delete <code>users</code>; <code>users.email = null</code> (<a href="/docs/documentation/admin-users#user-delete-clears-email">admin-users §4.5.6</a>)</td></tr>
     </tbody>
   </table>
 
@@ -71,7 +71,7 @@
     <li>Фильтры: имя (ФИО / email / телефон), статус (<code>active</code> / <code>inactive</code>).</li>
     <li><b>Создание</b> — модалка: имя*, фамилия*, email, телефон, чекбокс «Отправить письмо» (§<a href="#staff-welcome-credentials">3.3</a>), пароль (опционально; скрыт при включённом чекбоксе), активен. Успех: toast с <code>message</code> сервера (обычно «Пользователь создан»), не <code>showSuccessModal</code>.</li>
     <li><b>Редактирование</b> — аватар (<code>editAvatar</code>), смена пароля → <code>POST /admin/user/{id}/update-password</code> при <code>users.password.update</code> (§<a href="#staff-password-change">3.4</a>). Повторной отправки пароля по email на этих страницах <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>).</li>
-    <li><b>Удаление</b> — soft delete из модалки редактирования. Подтверждение через <code>showConfirmDeleteModal</code> (не <code>window.confirm</code>) → <code>DELETE</code>. Успех: edit-модалка закрывается (снятие <code>hidden.bs.modal.return</code> у confirm), AJAX reload таблицы, toast с <code>message</code> сервера (обычно «Пользователь удалён»), не <code>showSuccessModal</code>. Ошибка DELETE — <code>showErrorModal</code>.</li>
+    <li><b>Удаление</b> — soft delete из модалки редактирования. Подтверждение через <code>showConfirmDeleteModal</code> (не <code>window.confirm</code>) → <code>DELETE</code>. Успех: edit-модалка закрывается (снятие <code>hidden.bs.modal.return</code> у confirm), AJAX reload таблицы, toast с <code>message</code> сервера (обычно «Пользователь удалён»), не <code>showSuccessModal</code>. Ошибка DELETE — <code>showErrorModal</code>. Вместе с <code>deleted_at</code> пишется <code>users.email = null</code> (<a href="/docs/documentation/admin-users#user-delete-clears-email">admin-users §4.5.6</a>), чтобы почту можно было выдать новому пользователю.</li>
     <li>Ошибки валидации — JSON <code>422</code>, поля под формой.</li>
   </ul>
 
@@ -125,7 +125,7 @@
       <tr><td>GET</td><td><code>/admin/roles/{role}/{user}</code></td><td><code>admin.roles.users.show</code></td></tr>
       <tr><td>POST</td><td><code>/admin/roles/{role}</code></td><td><code>admin.roles.users.store</code></td></tr>
       <tr><td>PUT</td><td><code>/admin/roles/{role}/{user}</code></td><td><code>admin.roles.users.update</code></td></tr>
-      <tr><td>DELETE</td><td><code>/admin/roles/{role}/{user}</code></td><td><code>admin.roles.users.destroy</code></td></tr>
+      <tr><td>DELETE</td><td><code>/admin/roles/{role}/{user}</code></td><td><code>admin.roles.users.destroy</code> — soft delete, <code>users.email = null</code></td></tr>
     </tbody>
   </table>
 
@@ -179,6 +179,9 @@
       <li><code>tests/Unit/Documentation/TrainerPasswordFormDocumentationContractTest.php</code> — у сотрудника нет класса <code>.change-pass-wrap</code>, в отличие от тренера / ученика</li>
       <li><code>BladeInlineJsSyntaxTest::test_admin_password_change_js_paths_show_toast_and_skip_same_password</code> — <code>node --check</code> toast + role_staff / editUser / trainers</li>
       <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — создание администратора: toast, не success-модалка</li>
+      <li><code>UserDeleteClearsEmailFeatureTest.php</code> — HTTP DELETE администратора обнуляет <code>users.email</code>, повторное создание с той же почтой — 200</li>
+      <li><code>UserDeleteClearsEmailAjaxContractFeatureTest.php</code> — 422 <code>errors.email</code> «Пользователь с таким email уже существует», затем destroy освобождает почту</li>
+      <li><code>UserDeleteClearsEmailNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX destroy сотрудника обнуляет email</li>
     </ul>
     <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/Users/AdministratorsPageFullAccessFeatureTest.php \

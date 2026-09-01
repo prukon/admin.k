@@ -41,6 +41,9 @@
                         'allTeams' => $allTeams,
                         'monthString' => $monthString,
                         'lessonPackages' => $lessonPackages ?? [],
+                        'monthlySelectStartYear' => $monthlySelectStartYear,
+                        'monthlySelectStartMonthIndex' => $monthlySelectStartMonthIndex,
+                        'monthlySelectMonthCount' => $monthlySelectMonthCount,
                     ])
                 @elseif($activeTab === 'users')
                     @include('admin.SettingPrices.users', [
