@@ -64,6 +64,16 @@ return [
     'favicon_theme_color' => env('APP_FAVICON_THEME_COLOR', '#ff6501'),
 
     /*
+    | Саморегистрация школы с лендинга (/partner/register и кнопка «Регистрация»).
+    | По умолчанию открыта. PARTNER_SELF_REGISTRATION_ENABLED=false — закрыть.
+    | Закомментировать строку в .env или поставить true — снова открыть.
+    */
+    'partner_self_registration_enabled' => filter_var(
+        env('PARTNER_SELF_REGISTRATION_ENABLED', true),
+        FILTER_VALIDATE_BOOLEAN
+    ),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------

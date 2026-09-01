@@ -9,7 +9,7 @@ class StorePartnerSelfRegistrationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return (bool) config('app.partner_self_registration_enabled', true);
     }
 
     public function rules(): array

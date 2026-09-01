@@ -17,7 +17,6 @@ use App\Models\User;
 use App\Models\UserPrice;
 use App\Services\PaymentNotifications\PaymentNotificationDispatchService;
 use App\Services\TeamUserSyncService;
-use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -360,7 +359,7 @@ final class PaymentNotificationsFeatureTest extends CrmTestCase
 
     public function test_demo_preview_uses_current_moscow_month_and_full_email_layout_with_logo_footer(): void
     {
-        Carbon::setTestNow(CarbonImmutable::parse('2026-08-12 15:00:00', 'Europe/Moscow'));
+        $this->travelTo(CarbonImmutable::parse('2026-08-12 15:00:00', 'Europe/Moscow'));
 
         try {
             $preview = $this->postJson(route('admin.settingPrices.paymentNotifications.preview'), [
@@ -384,7 +383,7 @@ final class PaymentNotificationsFeatureTest extends CrmTestCase
             $this->assertStringContainsString('kidscrm.online', $email);
             $this->assertStringContainsString('Иванов Иван', $body);
         } finally {
-            Carbon::setTestNow();
+            $this->travelBack();
         }
     }
 

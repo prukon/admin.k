@@ -15,6 +15,10 @@ class GuestPartnerRegistrationController extends Controller
 {
     public function create(): View
     {
+        if (! $this->isEnabled()) {
+            return view('landing.partner-register-closed');
+        }
+
         return view('landing.partner-register');
     }
 
@@ -62,5 +66,10 @@ class GuestPartnerRegistrationController extends Controller
         $request->session()->regenerate();
 
         return redirect('/cabinet');
+    }
+
+    private function isEnabled(): bool
+    {
+        return (bool) config('app.partner_self_registration_enabled', true);
     }
 }

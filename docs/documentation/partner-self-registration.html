@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Саморегистрация школы с лендинга</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Саморегистрация школы с лендинга</h1>
+  <div class="small">Файл: <code>/docs/documentation/partner-self-registration.html</code>
+    · анонс: <a href="/doc#partner-self-registration-index">/doc</a></div>
+
+  <div class="note">
+    Публичная форма <code>/partner/register</code> и кнопка «Регистрация» в шапке лендинга
+    управляются флагом <code>PARTNER_SELF_REGISTRATION_ENABLED</code>.
+    Это <b>не</b> переключатель «Регистрация на сайте» в админке
+    (<code>registrationActivity</code>) — тот закрывает регистрацию учеников у партнёра.
+  </div>
+
+  <h2 id="env">1) Флаг в .env</h2>
+  <ul>
+    <li>Конфиг: <code>config/app.php</code> → <code>partner_self_registration_enabled</code>.</li>
+    <li>Дефолт: <code>env('PARTNER_SELF_REGISTRATION_ENABLED', true)</code> — регистрация открыта.</li>
+    <li>Закрыть: <code>PARTNER_SELF_REGISTRATION_ENABLED=false</code>.</li>
+    <li>Снова открыть: закомментировать строку или поставить <code>true</code>.</li>
+    <li>Если на инстансе включён <code>php artisan config:cache</code>, после правки <code>.env</code>
+      нужно пересобрать кеш конфига. Без кеша достаточно сохранить <code>.env</code>.</li>
+  </ul>
+
+  <h2 id="ui">2) Что скрывается и что остаётся</h2>
+  <ul>
+    <li>Кнопка «Регистрация» в десктопной шапке и в мобильном меню
+      (<code>resources/views/includes/public-navbar.blade.php</code>).</li>
+    <li>Кнопка «Войти», заявки на демо и регистрация учеников не затрагиваются.</li>
+    <li>Прямой <code>GET /partner/register</code> при закрытом флаге отдаёт заглушку
+      <code>landing.partner-register-closed</code> (200): «Регистрация временно закрыта»,
+      CTA на демо и Telegram, ссылка «Войти».</li>
+    <li><code>POST /partner/register</code> при закрытом флаге — 403, партнёр и пользователь не создаются
+      (<code>StorePartnerSelfRegistrationRequest::authorize()</code>).</li>
+  </ul>
+
+  <h2 id="tests">3) Тесты</h2>
+  <ul>
+    <li><code>PartnerSelfRegistrationFlagFeatureTest</code></li>
+    <li><code>PartnerSelfRegistrationDocumentationContractTest</code></li>
+  </ul>
+</div>
+</body>
+</html>

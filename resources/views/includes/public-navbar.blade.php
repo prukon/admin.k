@@ -17,6 +17,8 @@
 
         return url('/') . $fragment;
     };
+    $partnerSelfRegistrationEnabled = Route::has('partner.register')
+        && (bool) config('app.partner_self_registration_enabled', true);
 @endphp
 
 <header class="bg-white shadow-sm">
@@ -99,7 +101,7 @@
                             <li class="nav-item">
                                 <a class="btn btn-primary" href="{{ route('login') }}">Войти</a>
                             </li>
-                            @if (Route::has('partner.register'))
+                            @if ($partnerSelfRegistrationEnabled)
                                 <li class="nav-item">
                                     <a class="btn btn-outline-primary" href="{{ route('partner.register') }}">Регистрация</a>
                                 </li>
@@ -215,7 +217,7 @@
                     @guest
                         @if (Route::has('login'))
                             <a class="btn btn-primary w-100 mb-2" href="{{ route('login') }}">Войти</a>
-                            @if (Route::has('partner.register'))
+                            @if ($partnerSelfRegistrationEnabled)
                                 <a class="btn btn-outline-primary w-100" href="{{ route('partner.register') }}">Регистрация</a>
                             @endif
                         @endif

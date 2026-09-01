@@ -68,6 +68,7 @@ class DocumentationController extends Controller
         'account-partner-organization' => 'Организация партнёра: ЛК и админка, метрики списка /admin/partners (короткие заголовки, оборот и комиссия платформы по снимку выплаты), PartnerLegacyLegalFields, оплаты без fallback на partners',
         'school-leads-widget'         => 'Заявки с сайта: виджет iframe, CRM (порядок колонок ребёнок→родитель→статус→объект→секция→телефон, «Показать N» / page_length), лид→клиент (welcome-письмо), статус после клиента, договор, статусы, Telegram',
         'school-leads-landing'        => 'Страница заявки партнёра: /lead/{landingSlug}, каскад район→объект→услуга, district_id',
+        'partner-self-registration'   => 'Саморегистрация школы с лендинга: /partner/register, кнопка «Регистрация», PARTNER_SELF_REGISTRATION_ENABLED',
         'blog'                        => 'Блог: /blog, админка (blog.view), ИИ, VK (kidscrm): анонс ИИ, очередь default',
         'admin-legal-entities'        => 'Юр. лица: /admin/legal-entities, bank_corr_account, sm-register, displayTitle, LegalEntityResolver, плейсхолдеры договоров',
     ];
