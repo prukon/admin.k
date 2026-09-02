@@ -1021,6 +1021,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:schoolLeadLanding.view')->group(function () {
         Route::get('/admin/school-leads/landing', [\App\Http\Controllers\Admin\SchoolLeadLandingController::class, 'landingTab'])->name('admin.school-leads.landing');
         Route::put('/admin/school-leads/landing-slug', [\App\Http\Controllers\Admin\SchoolLeadLandingController::class, 'updateSlug'])->name('admin.school-leads.landing-slug.update');
+        Route::post('/admin/school-leads/instruction-preview', [\App\Http\Controllers\Admin\SchoolLeadLandingController::class, 'previewInstruction'])->name('admin.school-leads.instruction-preview');
     });
 
     // Заявки с сайта школы (виджет iframe)

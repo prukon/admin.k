@@ -52,7 +52,7 @@
     <tbody>
       <tr>
         <td><code>GET /partner-wallet</code></td>
-        <td>Баланс из <code>partners.wallet_balance_cents</code> текущего партнёра; hidden <code>partner_id</code> = current.</td>
+        <td>Баланс из <code>partners.wallet_balance_cents</code> текущего партнёра (две копейки); hidden <code>partner_id</code> = current.</td>
       </tr>
       <tr>
         <td><code>GET /partner-wallet/transactions</code></td>
@@ -60,7 +60,24 @@
       </tr>
       <tr>
         <td><code>POST /partner-wallet/topup</code></td>
-        <td><code>CreatePartnerWalletTopupRequest</code>: <code>partner_id</code> обязан совпасть с current (иначе 422 под полем). Затем <code>guardPartnerAccess()</code> — 403, если не совпало. Запись транзакции — по ID из <code>PartnerContext</code>, не из «первого партнёра в БД».</td>
+        <td><code>CreatePartnerWalletTopupRequest</code>: <code>partner_id</code> обязан совпасть с current —
+          иначе <b>422</b> <code>errors.partner_id</code> «Нельзя пополнить кошелёк другой школы.»
+          (до ЮKassa запись не создаётся). <code>guardPartnerAccess()</code> — запасной <b>403</b>
+          «Нет доступа к кошельку этой школы.», если ID всё же не совпал; в одном запросе после 422
+          до guard очередь не доходит. Запись транзакции — <code>partner_id</code> из
+          <code>PartnerContext</code>, не из тела запроса и не <code>Partner::first()</code>.</td>
+      </tr>
+      <tr>
+        <td><code>GET /partner-wallet/success</code></td>
+        <td>То же право <code>partnerWallet.view</code>. Страница не знает статус платежа —
+          пишет «Платёж обрабатывается»; зачисление делает вебхук.</td>
+      </tr>
+      <tr>
+        <td><code>POST /partner-wallet/webhook</code>,
+            <code>POST /webhook/yookassa</code> (scope <code>partner_wallet_topup</code>)</td>
+        <td>Публично, без auth/CSRF, фильтр IP ЮKassa. Это <b>не</b> <code>STRICT_CURRENT</code>:
+          одна транзакция по <code>metadata.wallet_transaction_id</code>, зачисление на
+          <code>tx.partner_id</code>. Не список всех школ.</td>
       </tr>
     </tbody>
   </table>
@@ -72,8 +89,14 @@
   <h2 id="money">3) Деньги</h2>
   <ul>
     <li>БД: <code>partners.wallet_balance_cents</code>, <code>partner_wallet_transactions.amount_cents</code>.</li>
-    <li>Форма пополнения принимает рубли; запись — <code>Money::toCentsOrFail</code>.</li>
-    <li>На странице баланс рендерится из <code>wallet_balance_cents</code>, не из legacy <code>wallet_balance</code>.</li>
+    <li>Форма пополнения принимает рубли; HTML <code>min="1"</code>; Request:
+      <code>required|numeric|min:1|max:99999999.99</code>, сообщение «Сумма должна быть не меньше 1 ₽.»</li>
+    <li>Запись — <code>Money::toCentsOrFail</code>.</li>
+    <li>На странице баланс рендерится из <code>wallet_balance_cents</code>, не из legacy <code>wallet_balance</code>,
+      всегда две копейки (<code>number_format(..., 2)</code>).</li>
+    <li>Сайдбар: тот же <code>wallet_balance_cents</code> текущего партнёра
+      (<code>app('current_partner')</code>), без копеек (<code>number_format(..., 0)</code>).
+      Это отображение, не другая колонка БД.</li>
   </ul>
 
   <h2 id="errors">4) Ошибки пополнения</h2>
@@ -85,19 +108,41 @@
       (не пустой 200). Успешный/шлюзовой путь создаёт <code>pending</code> в
       <code>partner_wallet_transactions</code> текущей школы и отвечает JSON 200/500
       (как SMS send: не 302 на ЮKassa, пока контроллер всегда <code>response()->json</code>).</li>
+    <li><code>Client::setAuth()</code> вызывается <b>до</b> <code>try</code>. Не-int / битый
+      <code>yookassa.shop_id</code> → <code>TypeError</code> без pending-строки.
+      Если auth прошёл, а <code>createPayment</code> упал — JSON 500 и pending своей школы уже есть.</li>
   </ul>
 
   <h2 id="ux">5) UX страницы</h2>
   <ul>
     <li>Первое открытие и повторный GET: поле суммы без <code>value</code> (пусто, не подставляется чужая сумма).</li>
     <li>Порядок: сумма → кнопка «Оплатить»; история — DataTables <code>#walletTxTable</code>.</li>
-    <li>Сайдбар <code>@can('partnerWallet.view')</code>: ссылка «(пополнить)» только с правом.</li>
+    <li>Сайдбар <code>@can('partnerWallet.view')</code>: ссылка «(пополнить)» только с правом;
+      без партнёра — «Партнёр не выбран».</li>
     <li>Один JS-путь submit: <code>$('#walletTopupForm').on('submit')</code> + <code>e.preventDefault</code> + <code>$.ajax</code>.</li>
   </ul>
 
-  <h2 id="code">6) Код и тесты</h2>
+  <h2 id="webhook">6) После оплаты и вебхуки</h2>
+  <ul>
+    <li>YooKassa <code>return_url</code> — <code>/partner-wallet/success</code>. Контроллер
+      <code>ykWalletSuccess</code> не опрашивает шлюз: «Платёж обрабатывается. Статус обновится
+      в истории транзакций в течение минуты.»</li>
+    <li>Зачисление: <code>payment.succeeded</code> → <code>tx.status = succeeded</code> +
+      <code>partners.wallet_balance_cents += amount_cents</code> (<code>lockForUpdate</code> по партнёру транзакции).</li>
+    <li><code>payment.canceled</code> → статус <code>canceled</code>, баланс не трогаем.
+      Уже финальный статус — идемпотентный <code>{ok:true}</code>.</li>
+    <li>Расхождение суммы вебхука и <code>tx.amount_cents</code> → 422, без зачисления.</li>
+    <li>Два входа (оба в CSRF except):
+      <code>PartnerPaymentController::ykWalletWebhook</code> на <code>/partner-wallet/webhook</code>
+      и <code>YooKassaWebhookController</code> на <code>/webhook/yookassa</code>
+      (ветка <code>metadata.scope === partner_wallet_topup</code>). Логика зачисления одинаковая.</li>
+  </ul>
+
+  <h2 id="code">7) Код и тесты</h2>
   <ul>
     <li>Контроллер: <code>App\Http\Controllers\PartnerPaymentController</code> (extends <code>AdminBaseController</code>).</li>
+    <li>Единый вебхук ЮKassa: <code>App\Http\Controllers\YooKassaWebhookController</code>
+      (ветка <code>partner_wallet_topup</code>).</li>
     <li>Request: <code>App\Http\Requests\Partner\CreatePartnerWalletTopupRequest</code>.</li>
     <li>Тесты:
       <code>PartnerWalletPartnerIsolationFeatureTest</code> (баг Partner::first()),

@@ -47,14 +47,14 @@ class SchoolLeadLandingController extends Controller
         ]);
     }
 
-    public function instruction(string $landingSlug): View
+    public function instruction(Request $request, string $landingSlug): View
     {
-        return view('landing.partner-lead-instruction', $this->instructionViewData($landingSlug));
+        return view('landing.partner-lead-instruction', $this->instructionViewData($request, $landingSlug));
     }
 
-    public function instructionPdf(string $landingSlug): Response
+    public function instructionPdf(Request $request, string $landingSlug): Response
     {
-        $data = $this->instructionViewData($landingSlug);
+        $data = $this->instructionViewData($request, $landingSlug);
         $data['qrPngDataUri'] = UrlQrCode::pngDataUri($data['landingUrl']);
         $data['logoPngDataUri'] = $this->kidsCrmLogoPngDataUri();
 
@@ -209,7 +209,7 @@ class SchoolLeadLandingController extends Controller
      *     contactPhoneHref: ?string
      * }
      */
-    private function instructionViewData(string $landingSlug): array
+    private function instructionViewData(Request $request, string $landingSlug): array
     {
         $widget = $this->landing->resolveActiveWidget($landingSlug);
         $partner = $widget->partner;
@@ -218,20 +218,42 @@ class SchoolLeadLandingController extends Controller
             abort(404);
         }
 
-        $rawPhone = trim((string) ($partner->phone ?? ''));
-        $contactPhone = $rawPhone !== '' ? RuPhone::formatForInput($rawPhone) : null;
-        $digits = RuPhone::normalizeDigits($rawPhone);
-        $contactPhoneHref = ($digits !== null && strlen($digits) === 11)
-            ? 'tel:+'.$digits
-            : null;
+        $digits = $this->instructionPhoneDigits($request);
+        $contactPhone = $digits !== null ? RuPhone::formatForInput($digits) : null;
+        $contactPhoneHref = $digits !== null ? 'tel:+'.$digits : null;
+
+        $pdfParams = ['landingSlug' => $landingSlug];
+        if ($digits !== null) {
+            $pdfParams['phone'] = $digits;
+        }
 
         return [
             'partner'          => $partner,
             'landingUrl'       => route('lead.show', ['landingSlug' => $landingSlug]),
-            'pdfUrl'           => route('lead.instruction.pdf', ['landingSlug' => $landingSlug]),
+            'pdfUrl'           => route('lead.instruction.pdf', $pdfParams),
             'contactPhone'     => $contactPhone,
             'contactPhoneHref' => $contactPhoneHref,
         ];
+    }
+
+    private function instructionPhoneDigits(Request $request): ?string
+    {
+        $raw = $request->query('phone');
+        if (! is_string($raw)) {
+            return null;
+        }
+
+        $trimmed = trim($raw);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $digits = RuPhone::normalizeDigits($trimmed);
+        if ($digits === null || strlen($digits) !== 11 || ! str_starts_with($digits, '7')) {
+            return null;
+        }
+
+        return $digits;
     }
 
     private function kidsCrmLogoPngDataUri(): ?string

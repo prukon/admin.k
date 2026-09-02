@@ -24,13 +24,22 @@ final class PartnerWalletDocumentationContractTest extends TestCase
         $chunk = substr($html, $start, $end - $start);
 
         $this->assertStringContainsString('/partner-wallet', $chunk);
+        $this->assertStringContainsString('Partner::first()', $chunk);
         $this->assertStringContainsString('PartnerContext', $chunk);
         $this->assertStringContainsString('STRICT_CURRENT', $chunk);
         $this->assertStringContainsString('wallet_balance_cents', $chunk);
         $this->assertStringContainsString('CreatePartnerWalletTopupRequest', $chunk);
         $this->assertStringContainsString('Нельзя пополнить кошелёк другой школы.', $chunk);
         $this->assertStringContainsString('guardPartnerAccess()', $chunk);
+        $this->assertStringContainsString('в одном запросе после 422 до guard очередь не доходит', $chunk);
         $this->assertStringContainsString('partnerWallet.view', $chunk);
+        $this->assertStringContainsString('/partner-wallet/success', $chunk);
+        $this->assertStringContainsString('/partner-wallet/webhook', $chunk);
+        $this->assertStringContainsString('/webhook/yookassa', $chunk);
+        $this->assertStringContainsString('partner_wallet_topup', $chunk);
+        $this->assertStringContainsString('number_format(..., 0)', $chunk);
+        $this->assertStringContainsString('сумма ≥ 1 ₽', $chunk);
+        $this->assertStringNotContainsString('затем <code>guardPartnerAccess()</code> (403)', $chunk);
         $this->assertStringContainsString('PartnerWalletPartnerIsolationFeatureTest', $chunk);
         $this->assertStringContainsString('PartnerWalletAccessFeatureTest', $chunk);
         $this->assertStringContainsString('PartnerWalletAjaxContractFeatureTest', $chunk);
@@ -69,6 +78,18 @@ final class PartnerWalletDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Ваша организация недоступна.', $html);
         $this->assertStringContainsString('не <code>Partner::first()</code>', $html);
         $this->assertStringContainsString('PartnerWalletDocumentationContractTest', $html);
+        $this->assertStringContainsString('в одном запросе после 422', $html);
+        $this->assertStringContainsString('/partner-wallet/success', $html);
+        $this->assertStringContainsString('/partner-wallet/webhook', $html);
+        $this->assertStringContainsString('/webhook/yookassa', $html);
+        $this->assertStringContainsString('partner_wallet_topup', $html);
+        $this->assertStringContainsString('YooKassaWebhookController', $html);
+        $this->assertStringContainsString('Сумма должна быть не меньше 1 ₽.', $html);
+        $this->assertStringContainsString('number_format(..., 0)', $html);
+        $this->assertStringContainsString('number_format(..., 2)', $html);
+        $this->assertStringContainsString('Client::setAuth()', $html);
+        $this->assertStringContainsString('metadata.wallet_transaction_id', $html);
+        $this->assertStringContainsString('не</b> <code>STRICT_CURRENT</code>', $html);
     }
 
     public function test_page_titles_include_partner_wallet(): void

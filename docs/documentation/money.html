@@ -118,6 +118,10 @@
       (публичная оплата ULP, DataTables preset <code>money</code> в <code>kids-datatable.js</code>).</li>
     <li><code>Money::formatRubFixed</code> — всегда два знака (сверки/выплаты; <code>TinkoffMoney::rub</code> делегирует сюда).</li>
     <li><code>Money::fromCents</code> — <code>"1234.56"</code> для провайдеров.</li>
+    <li>Кошелёк партнёра не через эти хелперы: страница <code>/partner-wallet</code> —
+      <code>number_format(..., 2)</code>; сайдбар — <code>number_format(..., 0)</code>.
+      Источник один: <code>partners.wallet_balance_cents</code>.
+      Изоляция и пополнение — <a href="/docs/documentation/partner-wallet">partner-wallet</a>.</li>
   </ul>
 
   <h2 id="payments-flow">7) Оплаты и отчёты</h2>
@@ -127,6 +131,10 @@
     <li>Тариф SMS со ссылкой на оплату: <code>config/billing.php</code> <code>sms_send_fee</code> (рубли, по умолчанию 70) →
       списание <code>partners.wallet_balance_cents</code> копейками через <code>Money::toCentsOrFail</code>
       (<a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>).</li>
+    <li>Пополнение кошелька: форма в рублях (≥ 1 ₽) → pending
+      <code>partner_wallet_transactions.amount_cents</code> → вебхук ЮKassa
+      <code>payment.succeeded</code> увеличивает <code>partners.wallet_balance_cents</code>
+      (<a href="/docs/documentation/partner-wallet">partner-wallet</a>).</li>
     <li>Ledger: <code>payables.amount_cents</code> → <code>payment_intents.out_sum_cents</code> → webhook → <code>payments.summ_cents</code>.</li>
     <li>T‑Bank Init получает копейки напрямую из <code>amount_cents</code> (без повторного <code>× 100</code> из рублей).</li>
     <li>Отчёт «Платежи»: комиссии и нетто считаются от <code>payments.summ_cents</code>

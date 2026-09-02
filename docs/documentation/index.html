@@ -30,14 +30,46 @@
 
   <h2 id="partner-wallet-isolation-index">Кошелёк партнёра: изоляция по школе (2026‑09)</h2>
   <div class="note">
-    Страница <code>/partner-wallet</code> — обычный CRM-экран: баланс и история только текущего партнёра
-    (<code>PartnerContext</code>, <code>STRICT_CURRENT</code>). Админ одной школы не видит начисления другой.
-    Superadmin видит кошелёк выбранной в переключателе школы, не «все школы сразу».
-    Баланс на странице — <code>wallet_balance_cents</code>. Пополнение: Form Request
-    <code>CreatePartnerWalletTopupRequest</code>, чужой <code>partner_id</code> → 422 под полем
-    «Нельзя пополнить кошелёк другой школы.», затем <code>guardPartnerAccess()</code> (403).
-    Ошибки суммы — под полем, не <code>alert()</code>.
-    Право <code>partnerWallet.view</code>. Тесты
+    Страница <code>/partner-wallet</code> раньше брала партнёра через <code>Partner::first()</code>:
+    админ любой школы видел баланс и всю историю начислений <b>первой</b> записи в <code>partners</code>.
+    Сейчас это обычный CRM-экран: только текущая школа.
+    <br><br>
+    1) <b>Контекст.</b> <code>PartnerContext</code> / <code>STRICT_CURRENT</code>, не
+    <code>Partner::first()</code>. Админ — только <code>user.partner_id</code>
+    (middleware <code>SetPartner</code> не даёт подменить session). Superadmin — кошелёк школы
+    из переключателя, не «все школы сразу». Право <code>partnerWallet.view</code>
+    (базовая роль admin). Без права — 403 JSON и web. Гость — 302 на логин / 401 JSON.
+    Non‑superadmin без организации: 302, guest, под Email «Ваша организация недоступна.»
+    <br>
+    2) <b>Баланс и история.</b> На странице — <code>partners.wallet_balance_cents</code>
+    (не legacy <code>wallet_balance</code>), две копейки. В сайдбаре тот же cents текущего
+    партнёра, без копеек (<code>number_format(..., 0)</code>), ссылка «(пополнить)» только
+    при <code>@can('partnerWallet.view')</code>. DataTables
+    <code>GET /partner-wallet/transactions</code> —
+    <code>WHERE partner_id = current</code>; чужие строки не в <code>data</code> /
+    <code>recordsTotal</code>. Hidden <code>partner_id</code> в форме = current.
+    Поле суммы при GET пустое (нет <code>value</code>).
+    <br>
+    3) <b>Пополнение.</b> <code>POST /partner-wallet/topup</code>,
+    <code>CreatePartnerWalletTopupRequest</code>: сумма ≥ 1 ₽. Чужой
+    <code>partner_id</code> → <b>422</b> <code>errors.partner_id</code>
+    «Нельзя пополнить кошелёк другой школы.» (до ЮKassa запись не создаётся).
+    <code>guardPartnerAccess()</code> — запасной <b>403</b>, если ID всё же не совпал;
+    в одном запросе после 422 до guard очередь не доходит. Транзакция пишется с ID из
+    контекста. AJAX: тексты под полями (<code>data-error-for="amount"</code> /
+    <code>partner_id</code>), не <code>alert()</code>. Native POST без JS: валидация →
+    302 на <code>/partner-wallet</code> + session errors. Ответ шлюза ЮKassa —
+    JSON <code>{ok, redirect}</code> или 500 <code>{ok:false, message}</code>
+    (pending уже своей школы).
+    <br>
+    4) <b>После оплаты.</b> <code>GET /partner-wallet/success</code> (то же право) —
+    «Платёж обрабатывается», статус меняет вебхук (зачисление в
+    <code>wallet_balance_cents</code>). Публичные
+    <code>POST /partner-wallet/webhook</code> и <code>POST /webhook/yookassa</code>
+    (scope <code>partner_wallet_topup</code>) — без логина, фильтр IP ЮKassa;
+    это одна транзакция по <code>metadata.wallet_transaction_id</code>, не список всех школ.
+    <br>
+    5) <b>Тесты.</b>
     <code>PartnerWalletPartnerIsolationFeatureTest</code>,
     <code>PartnerWalletAccessFeatureTest</code>,
     <code>PartnerWalletAjaxContractFeatureTest</code>,
@@ -47,7 +79,8 @@
     <code>BladeInlineJsSyntaxTest</code>,
     <code>PartnerWalletDocumentationContractTest</code>.
     Подробно — <a href="/docs/documentation/partner-wallet">partner-wallet</a>,
-    <a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a>.
+    <a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a>,
+    деньги — <a href="/docs/documentation/money">money</a>.
   </div>
 
   <h2 id="payment-notifications-sbp-link-index">Уведомления об оплате: ссылка СБП (2026‑09)</h2>
@@ -119,32 +152,66 @@
 
   <h2 id="landing-parents-instruction-index">Лендинг: инструкция для родителей + PDF (2026‑09)</h2>
   <div class="note">
-    Публичная распечатка <code>GET /lead/{landingSlug}/instruction</code> (<code>lead.instruction</code>):
+    Публичная распечатка «как записаться» и CRM-модалка выбора телефона <b>перед</b> открытием.
+    Кнопка «Инструкция для родителей» на вкладке «Страница заявки» больше не ведёт сразу на HTML.
+    <br><br>
+    1) <b>Публичный HTML.</b> <code>GET /lead/{landingSlug}/instruction</code> (<code>lead.instruction</code>):
     заявка на лендинге партнёра → письмо с логином после создания клиента админом → письмо о договоре
     → заполнение и подпись в кабинете → ежемесячная ссылка на оплату.
     Название школы — <code>Partner::landingDisplayName()</code> (= <code>partners.title</code>, без fallback на юрлицо).
     Ссылка «Запись — {title}» и QR ведут на лендинг <code>/lead/{landingSlug}</code> (<code>lead.show</code>),
     не на саму инструкцию и не на PDF. QR на HTML: <code>#landing-qr</code> <code>data-url</code>
     + <code>public/js/qrcode-generator.min.js</code> (SVG, ECC M).
-    Телефон — <code>partners.phone</code> (<code>RuPhone::formatForInput</code>): пустой/пробелы скрыты,
-    полный 11-значный — ссылка <code>tel:</code>, неполный — текст без <code>tel:</code>.
     Кнопки «Распечатать» (<code>window.print</code>) и «Скачать PDF»; при печати панель скрывается.
     В шапке логотип сервиса <code>public/img/logo.png</code> (ссылка на <code>https://kidscrm.online/</code>),
     в футере: «kidscrm.online — CRM для учёта детских секций, приёма оплат и онлайн-подписания договоров»
     (то же в PDF, логотип PNG data URI).
-    PDF: <code>GET /lead/{landingSlug}/instruction.pdf</code> (<code>lead.instruction.pdf</code>),
+    <br>
+    2) <b>Телефон только из query.</b> В HTML/PDF номер <b>не берётся</b> из <code>partners.phone</code>.
+    Прямой заход на <code>/lead/{landingSlug}/instruction</code> и PDF без query — блок телефона скрыт.
+    Номер показывается только из query <code>phone</code> (валидные 11 цифр с ведущей 7,
+    <code>RuPhone::formatForInput</code>, ссылка <code>tel:</code>); невалидный query игнорируется.
+    Тот же <code>phone</code> прокидывается в «Скачать PDF».
+    <br>
+    3) <b>PDF.</b> <code>GET /lead/{landingSlug}/instruction.pdf</code> (<code>lead.instruction.pdf</code>),
     attachment <code>instrukciya-{slug}.pdf</code>, Dompdf / DejaVu Sans, QR PNG из <code>App\Support\UrlQrCode</code>
     (те же модули, что у JS, на URL лендинга); ссылка логотипа без пробелов внутри <code>&lt;a&gt;</code>
     и с <code>text-decoration: none</code> (иначе Dompdf рисует черту справа от картинки).
-    Вёрстка PDF плотнее HTML-превью (поля 10 мм, 11pt / line-height 1.35, QR 112px), чтобы лист с телефоном влез на <b>одну страницу A4</b>. Маршруты публичные (<code>throttle:60,1</code>, без auth):
+    Вёрстка PDF плотнее HTML-превью (поля 10 мм, 11pt / line-height 1.35, QR 112px), чтобы лист с телефоном влез на <b>одну страницу A4</b>.
+    Маршруты публичные (<code>throttle:60,1</code>, без auth):
     гость и пользователь без CRM-прав — 200, неактивный/чужой slug — 404, POST/PUT/PATCH/DELETE — 405.
-    В CRM на <code>/admin/school-leads/landing</code> при заданном slug — кнопка «Инструкция для родителей»
-    (новая вкладка, HTML, не PDF). JSON сохранения slug отдаёт <code>landing_url</code>, не <code>instruction_url</code> —
+    <br>
+    4) <b>CRM-модалка.</b> На <code>/admin/school-leads/landing</code> при заданном slug кнопка
+    «Инструкция для родителей» открывает стандартную Bootstrap-модалку
+    (<code>#instructionPhoneModal</code>, не на весь экран), а не страницу.
+    Галочка «Не указывать номер телефона» по умолчанию <b>снята</b>; поле телефона пустое, пока не выберут.
+    Селект — только активные пользователи текущего партнёра с системной ролью <code>admin</code>
+    и валидным российским номером; пункт «Другой номер» — свободный ввод.
+    Если ни у кого из админов нет номера — селекта нет, только поле.
+    При снятой галочке телефон обязателен. Выбор на этот просмотр, в БД не сохраняется.
+    При каждом открытии (<code>show.bs.modal</code>) форма сбрасывается.
+    Без slug кнопки и модалки нет. Если лендинг выключен, кнопка при slug <b>остаётся</b>
+    (публичные GET instruction/pdf при этом 404).
+    <br>
+    5) <b>Preview.</b> Форма модалки: <code>method="post"</code>, <code>@csrf</code>,
+    action <code>POST /admin/school-leads/instruction-preview</code>
+    (<code>can:schoolLeadLanding.view</code>, <code>PreviewSchoolLeadLandingInstructionRequest</code>).
+    AJAX: 200 JSON <code>instruction_url</code>, затем <code>window.open</code> (новая вкладка, HTML, не PDF);
+    422 — <code>errors.phone</code> / <code>errors.landing_slug</code> под полями.
+    Non-AJAX (JS не сработал): успех → <b>302</b> на публичный instruction (не JSON 200);
+    ошибка валидации → 302 на вкладку с <code>errors.phone</code> / <code>errors.landing_slug</code>.
+    Гость — 302 на логин / 401 JSON; без права — 403.
+    JSON сохранения slug отдаёт <code>landing_url</code>, не <code>instruction_url</code> —
     после AJAX страница <code>reload</code>, чтобы кнопка появилась.
     <br><br>
-    Подробно — <a href="/docs/documentation/school-leads-landing#4-2">school-leads-landing §4.2</a>.
+    Подробно — <a href="/docs/documentation/school-leads-landing#4-2">school-leads-landing §4.2</a>,
+    CRM-таблица — <a href="/docs/documentation/school-leads-landing#8">§8</a>.
     Тесты: <code>SchoolLeadLandingInstructionFeatureTest</code>,
     <code>SchoolLeadLandingInstructionUxFeatureTest</code>,
+    <code>SchoolLeadLandingInstructionPreviewAccessFeatureTest</code>,
+    <code>SchoolLeadLandingInstructionPreviewAjaxContractFeatureTest</code>,
+    <code>SchoolLeadLandingInstructionPreviewNonAjaxSafetyNetFeatureTest</code>,
+    <code>SchoolLeadLandingInstructionPreviewUxFeatureTest</code>,
     <code>SchoolLeadLandingPublicAccessFeatureTest</code>,
     <code>SchoolLeadLandingEndpointsAccessFeatureTest</code>,
     <code>SchoolLeadLandingPageFullAccessFeatureTest</code>,
@@ -5130,7 +5197,7 @@
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
     <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
     <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы (<code>lockUser</code>, на клиентах — <a href="/doc#users-contract-create-index">анонс</a>), <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
-    <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, <b>инструкция для родителей</b> <code>/instruction</code> и PDF <code>/instruction.pdf</code> (<a href="/doc#landing-parents-instruction-index">анонс</a>, §4.2), каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), блок «Об услуге» — адрес / вид спорта / стоимость / период без расписания (<a href="/doc#landing-team-info-rows-index">анонс</a>, §5.4.2), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
+    <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, <b>инструкция для родителей</b> <code>/instruction</code> и PDF <code>/instruction.pdf</code> (телефон только из query, не из <code>partners.phone</code>), CRM-кнопка открывает <b>модалку телефона</b> → <code>POST /admin/school-leads/instruction-preview</code> (<a href="/doc#landing-parents-instruction-index">анонс</a>, §4.2 / §8), каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), блок «Об услуге» — адрес / вид спорта / стоимость / период без расписания (<a href="/doc#landing-team-info-rows-index">анонс</a>, §5.4.2), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
     <li><a href="/docs/documentation/partner-self-registration"><strong>Саморегистрация школы с лендинга</strong>: кнопка «Регистрация» (школа, не ученик), <code>/partner/register</code>, native POST → 302 <code>/cabinet</code>, флаг <code>PARTNER_SELF_REGISTRATION_ENABLED</code>, заглушка при закрытии — <a href="/doc#partner-self-registration-index">анонс</a></a></li>
     <li><a href="/docs/documentation/session-lifetime"><strong>Сессия 30 дней / «Запомнить меня» / 403</strong>: дефолт <code>SESSION_LIFETIME=43200</code> (факт = env), галка на <code>/login</code> с первого GET, гостевой HTML 403 без <code>admin2</code>, Echo <code>/broadcasting/auth</code> 403 не 500 — <a href="/doc#session-lifetime-index">анонс</a></a></li>

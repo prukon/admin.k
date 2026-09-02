@@ -53,7 +53,8 @@ final class SchoolLeadLandingInstructionFeatureTest extends TestCase
             ->assertDontSee('Место для QR-кода', false)
             ->assertSee('личный кабинет', false)
             ->assertSee('подпишите договор', false)
-            ->assertSee(RuPhone::formatForInput('+7 (966) 939-14-13'), false)
+            ->assertDontSee(RuPhone::formatForInput('+7 (966) 939-14-13'), false)
+            ->assertDontSee('просто позвоните нам', false)
             ->assertSee('Распечатать', false)
             ->assertSee('Скачать PDF', false)
             ->assertSee(route('lead.instruction.pdf', ['landingSlug' => $slug]), false)
@@ -108,10 +109,9 @@ final class SchoolLeadLandingInstructionFeatureTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
     }
 
-    public function test_instruction_hides_phone_when_partner_phone_empty(): void
+    public function test_instruction_hides_phone_on_direct_open_even_when_partner_phone_filled(): void
     {
         Auth::logout();
-        $this->landingPartner->update(['phone' => null]);
 
         $html = $this->get(route('lead.instruction', [
             'landingSlug' => $this->landingWidget->landing_slug,
@@ -120,7 +120,33 @@ final class SchoolLeadLandingInstructionFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringNotContainsString('просто позвоните нам', $html);
+        $this->assertStringNotContainsString(RuPhone::formatForInput('+7 (966) 939-14-13'), $html);
         $this->assertStringContainsString('Мы всегда рядом и с радостью поможем.', $html);
+    }
+
+    public function test_instruction_shows_phone_from_query_param(): void
+    {
+        Auth::logout();
+
+        $formatted = RuPhone::formatForInput('79112223344');
+        $html = $this->get(route('lead.instruction', [
+            'landingSlug' => $this->landingWidget->landing_slug,
+            'phone' => '79112223344',
+        ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('просто позвоните нам', $html);
+        $this->assertStringContainsString('href="tel:+79112223344"', $html);
+        $this->assertStringContainsString($formatted, $html);
+        $this->assertStringContainsString(
+            route('lead.instruction.pdf', [
+                'landingSlug' => $this->landingWidget->landing_slug,
+                'phone' => '79112223344',
+            ]),
+            $html
+        );
+        $this->assertStringNotContainsString(RuPhone::formatForInput('+7 (966) 939-14-13'), $html);
     }
 
     public function test_instruction_does_not_show_other_partner_name(): void

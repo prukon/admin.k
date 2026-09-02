@@ -123,13 +123,14 @@ final class SchoolLeadLandingInstructionUxFeatureTest extends TestCase
         $this->assertLessThan($pay, $contract);
     }
 
-    public function test_valid_partner_phone_renders_as_tel_link(): void
+    public function test_query_phone_renders_as_tel_link(): void
     {
         Auth::logout();
 
-        $formatted = RuPhone::formatForInput('+7 (966) 939-14-13');
+        $formatted = RuPhone::formatForInput('79669391413');
         $html = $this->get(route('lead.instruction', [
             'landingSlug' => $this->landingWidget->landing_slug,
+            'phone' => '79669391413',
         ]))->assertOk()->getContent();
 
         $this->assertStringContainsString('просто позвоните нам', $html);
@@ -137,10 +138,9 @@ final class SchoolLeadLandingInstructionUxFeatureTest extends TestCase
         $this->assertStringContainsString($formatted, $html);
     }
 
-    public function test_whitespace_only_phone_hides_phone_block(): void
+    public function test_direct_open_hides_phone_even_when_partner_phone_filled(): void
     {
         Auth::logout();
-        $this->landingPartner->update(['phone' => '   ']);
 
         $html = $this->get(route('lead.instruction', [
             'landingSlug' => $this->landingWidget->landing_slug,
@@ -148,22 +148,23 @@ final class SchoolLeadLandingInstructionUxFeatureTest extends TestCase
 
         $this->assertStringNotContainsString('просто позвоните нам', $html);
         $this->assertStringNotContainsString('tel:+', $html);
+        $this->assertStringNotContainsString(RuPhone::formatForInput('+7 (966) 939-14-13'), $html);
         $this->assertStringContainsString('Мы всегда рядом и с радостью поможем.', $html);
     }
 
-    public function test_incomplete_phone_shows_text_without_tel_link(): void
+    public function test_invalid_query_phone_hides_phone_block(): void
     {
         Auth::logout();
-        $this->landingPartner->update(['phone' => '12345']);
 
         $html = $this->get(route('lead.instruction', [
             'landingSlug' => $this->landingWidget->landing_slug,
+            'phone' => '12345',
         ]))->assertOk()->getContent();
 
-        $this->assertStringContainsString('просто позвоните нам', $html);
-        $this->assertStringContainsString('12345', $html);
+        $this->assertStringNotContainsString('просто позвоните нам', $html);
+        $this->assertStringNotContainsString('12345', $html);
         $this->assertStringNotContainsString('href="tel:', $html);
-        $this->assertStringContainsString('<strong>12345</strong>', $html);
+        $this->assertStringContainsString('Мы всегда рядом и с радостью поможем.', $html);
     }
 
     public function test_qr_js_draws_from_data_url_with_ecc_m_and_skips_missing_library(): void
@@ -262,7 +263,8 @@ final class SchoolLeadLandingInstructionUxFeatureTest extends TestCase
             'CRM для учёта детских секций, приёма оплат и онлайн-подписания договоров',
             $pdfHtml
         );
-        $this->assertStringContainsString(RuPhone::formatForInput('+7 (966) 939-14-13'), $pdfHtml);
+        $this->assertStringNotContainsString(RuPhone::formatForInput('+7 (966) 939-14-13'), $pdfHtml);
+        $this->assertStringNotContainsString('просто позвоните нам', $pdfHtml);
         $this->assertStringNotContainsString('Скачать PDF', $pdfHtml);
         $this->assertStringNotContainsString('Распечатать', $pdfHtml);
         $this->assertStringNotContainsString('window.print', $pdfHtml);
@@ -275,7 +277,10 @@ final class SchoolLeadLandingInstructionUxFeatureTest extends TestCase
         Auth::logout();
 
         $slug = (string) $this->landingWidget->landing_slug;
-        $response = $this->get(route('lead.instruction', ['landingSlug' => $slug]))->assertOk();
+        $response = $this->get(route('lead.instruction', [
+            'landingSlug' => $slug,
+            'phone' => '79669391413',
+        ]))->assertOk();
         $view = $response->original;
         $this->assertInstanceOf(View::class, $view);
         $data = $view->getData();
@@ -306,10 +311,9 @@ final class SchoolLeadLandingInstructionUxFeatureTest extends TestCase
         $this->assertSame(1, $dompdf->getCanvas()->get_page_count());
     }
 
-    public function test_pdf_hides_phone_when_partner_phone_empty(): void
+    public function test_pdf_hides_phone_on_direct_open(): void
     {
         Auth::logout();
-        $this->landingPartner->update(['phone' => null]);
 
         $response = $this->get(route('lead.instruction', [
             'landingSlug' => $this->landingWidget->landing_slug,
@@ -323,6 +327,34 @@ final class SchoolLeadLandingInstructionUxFeatureTest extends TestCase
         $this->assertStringNotContainsString('просто позвоните нам', $pdfHtml);
         $this->assertArrayHasKey('contactPhone', $data);
         $this->assertNull($data['contactPhone']);
+    }
+
+    public function test_pdf_shows_phone_from_query_param(): void
+    {
+        Auth::logout();
+
+        $formatted = RuPhone::formatForInput('79112223344');
+        $response = $this->get(route('lead.instruction', [
+            'landingSlug' => $this->landingWidget->landing_slug,
+            'phone' => '79112223344',
+        ]))->assertOk();
+        $view = $response->original;
+        $this->assertInstanceOf(View::class, $view);
+        $data = $view->getData();
+        $this->assertSame($formatted, $data['contactPhone'] ?? null);
+        $this->assertSame('tel:+79112223344', $data['contactPhoneHref'] ?? null);
+        $this->assertSame(
+            route('lead.instruction.pdf', [
+                'landingSlug' => $this->landingWidget->landing_slug,
+                'phone' => '79112223344',
+            ]),
+            $data['pdfUrl'] ?? null
+        );
+
+        $data['qrPngDataUri'] = UrlQrCode::pngDataUri((string) $data['landingUrl']);
+        $pdfHtml = view('landing.partner-lead-instruction-pdf', $data)->render();
+        $this->assertStringContainsString('просто позвоните нам', $pdfHtml);
+        $this->assertStringContainsString($formatted, $pdfHtml);
     }
 
     public function test_server_qr_modules_match_js_generator_for_landing_url(): void

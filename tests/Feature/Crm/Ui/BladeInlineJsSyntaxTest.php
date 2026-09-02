@@ -3737,6 +3737,34 @@ JS;
     }
 
     /**
+     * P1: модалка инструкции для родителей — preventDefault + AJAX, сброс при открытии, ошибки под полями.
+     */
+    public function test_school_leads_instruction_modal_ajax_prevents_native_submit_and_resets_on_open(): void
+    {
+        $path = resource_path('views/admin/school-leads/tabs/landing.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("\$instructionForm.on('submit'", $content);
+        $this->assertStringContainsString('e.preventDefault()', $content);
+        $this->assertStringContainsString("method: 'POST'", $content);
+        $this->assertStringContainsString('showInstructionErrors(body.errors', $content);
+        $this->assertStringContainsString("\$instructionModal.on('show.bs.modal'", $content);
+        $this->assertStringContainsString('resetInstructionForm()', $content);
+        $this->assertStringContainsString("\$omitPhone.prop('checked', false)", $content);
+        $this->assertStringContainsString("window.open(url, '_blank', 'noopener,noreferrer')", $content);
+        $this->assertStringContainsString("data-error-for=\"phone\"", $content);
+        $this->assertSame(1, substr_count($content, "\$instructionForm.on('submit'"));
+        $this->assertStringNotContainsString('elseif', $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            '$instructionForm.on(\'submit\'',
+            'blade-js-instruction-preview'
+        );
+    }
+
+    /**
      * P1: порядок колонок заявок в inline JS — ключи, when-флаги, columns-settings по имени.
      */
     public function test_school_leads_column_order_inline_script_contract_and_valid_javascript(): void

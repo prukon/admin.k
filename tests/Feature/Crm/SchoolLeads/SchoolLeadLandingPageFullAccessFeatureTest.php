@@ -5,6 +5,7 @@ namespace Tests\Feature\Crm\SchoolLeads;
 use App\Models\PartnerWidget;
 use App\Models\User;
 use App\Services\PartnerWidgetService;
+use App\Support\RuPhone;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -141,7 +142,11 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('Открыть страницу', false)
             ->assertSee('Инструкция для родителей', false)
             ->assertSee($landingUrl, false)
-            ->assertSee($instructionUrl, false)
+            ->assertSee('id="instructionPhoneModal"', false)
+            ->assertSee('id="instructionOmitPhone"', false)
+            ->assertSee('id="instructionPhoneInput"', false)
+            ->assertSee('Не указывать номер телефона', false)
+            ->assertSee('Нужно ли указывать номер телефона в инструкции?', false)
             ->assertSee('Брендированная страница с полной формой заявки', false);
     }
 
@@ -189,7 +194,7 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('Инструкция для родителей', $html);
     }
 
-    public function test_instruction_button_opens_html_instruction_in_new_tab_not_pdf(): void
+    public function test_instruction_button_opens_settings_modal_instead_of_direct_link(): void
     {
         $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
         $this->grantPermission($actor, 'schoolLeadLanding.view');
@@ -205,11 +210,22 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
         $html = $this->get(route('admin.school-leads.landing'))->assertOk()->getContent();
 
         $this->assertMatchesRegularExpression(
-            '/href="'.preg_quote($instructionUrl, '/').'"[^>]*class="btn btn-outline-secondary"/',
+            '/id="openInstructionSettingsBtn"[^>]*data-bs-target="#instructionPhoneModal"/',
             $html
         );
-        $this->assertStringContainsString('target="_blank"', $html);
-        $this->assertStringContainsString('rel="noopener noreferrer"', $html);
+        $this->assertStringContainsString('id="instructionPhoneModal"', $html);
+        $this->assertStringContainsString('id="instructionPhoneForm"', $html);
+        $this->assertStringContainsString('Не указывать номер телефона', $html);
+        $this->assertStringContainsString('id="instructionOmitPhone"', $html);
+        $this->assertStringNotContainsString('checked', substr($html, (int) strpos($html, 'id="instructionOmitPhone"'), 200));
+        $this->assertStringContainsString('id="instructionPhoneInput"', $html);
+        $this->assertStringNotContainsString('id="instructionAdminPhoneSelect"', $html);
+        $this->assertStringNotContainsString('Другой номер', $html);
+        $this->assertStringContainsString("method: 'POST'", $html);
+        $this->assertStringContainsString('window.open(url, \'_blank\', \'noopener,noreferrer\')', $html);
+        $this->assertStringContainsString('data-error-for="phone"', $html);
+        $this->assertStringContainsString('instruction-preview', $html);
+        $this->assertStringNotContainsString('href="'.$instructionUrl.'"', $html);
         $this->assertStringNotContainsString('href="'.$pdfUrl.'"', $html);
 
         $openPos = strpos($html, 'Открыть страницу');
@@ -218,6 +234,7 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
         $this->assertNotFalse($instrPos);
         $this->assertLessThan($instrPos, $openPos);
         $this->assertStringContainsString('href="'.$landingUrl.'"', $html);
+        $this->assertStringContainsString('target="_blank"', $html);
     }
 
     public function test_saving_slug_then_reopening_tab_shows_instruction_button(): void
@@ -241,10 +258,8 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
 
         $htmlAfter = $this->get(route('admin.school-leads.landing'))->assertOk()->getContent();
         $this->assertStringContainsString('Инструкция для родителей', $htmlAfter);
-        $this->assertStringContainsString(
-            route('lead.instruction', ['landingSlug' => 'after-save-instr']),
-            $htmlAfter
-        );
+        $this->assertStringContainsString('id="openInstructionSettingsBtn"', $htmlAfter);
+        $this->assertStringContainsString('id="instructionPhoneModal"', $htmlAfter);
     }
 
     public function test_non_ajax_slug_save_persists_and_is_not_empty_200(): void
@@ -495,13 +510,15 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
 
     public function test_landing_route_uses_school_lead_landing_view_middleware_only(): void
     {
-        $route = Route::getRoutes()->getByName('admin.school-leads.landing');
-        $this->assertNotNull($route);
+        foreach (['admin.school-leads.landing', 'admin.school-leads.instruction-preview'] as $routeName) {
+            $route = Route::getRoutes()->getByName($routeName);
+            $this->assertNotNull($route, $routeName);
 
-        $middleware = $route->gatherMiddleware();
-        $this->assertContains('can:schoolLeadLanding.view', $middleware);
-        $this->assertNotContains('can:schoolWidget.view', $middleware);
-        $this->assertNotContains('can:schoolLeads.view', $middleware);
+            $middleware = $route->gatherMiddleware();
+            $this->assertContains('can:schoolLeadLanding.view', $middleware, $routeName);
+            $this->assertNotContains('can:schoolWidget.view', $middleware, $routeName);
+            $this->assertNotContains('can:schoolLeads.view', $middleware, $routeName);
+        }
     }
 
     public function test_school_lead_landing_view_permission_exists_in_database(): void
@@ -531,6 +548,198 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
             ->exists();
 
         $this->assertTrue($assigned, 'Роль admin партнёра должна получать schoolLeadLanding.view автоматически');
+    }
+
+    public function test_instruction_modal_lists_only_enabled_partner_admin_phones(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+        $widget->update(['landing_slug' => 'crm-test-school']);
+
+        $listed = $this->createUserWithRole('admin', $this->partner, [
+            'name' => 'Анна',
+            'lastname' => 'Селектова',
+            'phone' => '79111111111',
+            'email' => 'admin-listed-'.uniqid('', true).'@example.test',
+        ]);
+        $this->createUserWithRole('admin', $this->partner, [
+            'name' => 'Борис',
+            'lastname' => 'Безтелефона',
+            'phone' => null,
+            'email' => 'admin-nophone-'.uniqid('', true).'@example.test',
+        ]);
+        $this->createUserWithRole('admin', $this->partner, [
+            'name' => 'Виктор',
+            'lastname' => 'Отключён',
+            'phone' => '79112222222',
+            'is_enabled' => 0,
+            'email' => 'admin-disabled-'.uniqid('', true).'@example.test',
+        ]);
+        $this->createUserWithRole('trainer', $this->partner, [
+            'name' => 'Глеб',
+            'lastname' => 'Тренеров',
+            'phone' => '79113333333',
+            'email' => 'trainer-phone-'.uniqid('', true).'@example.test',
+        ]);
+        $this->createUserWithRole('admin', $this->foreignPartner, [
+            'name' => 'Диана',
+            'lastname' => 'Чужая',
+            'phone' => '79114444444',
+            'email' => 'foreign-admin-'.uniqid('', true).'@example.test',
+        ]);
+
+        $html = $this->get(route('admin.school-leads.landing'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('id="instructionAdminPhoneSelect"', $html);
+        $this->assertStringContainsString('Другой номер', $html);
+        $this->assertStringContainsString('Селектова Анна — '.RuPhone::formatForInput('79111111111'), $html);
+        $this->assertStringContainsString('data-phone="79111111111"', $html);
+        $this->assertStringContainsString('value="'.$listed->id.'"', $html);
+        $this->assertStringNotContainsString('Безтелефона', $html);
+        $this->assertStringNotContainsString('Отключён', $html);
+        $this->assertStringNotContainsString('Тренеров', $html);
+        $this->assertStringNotContainsString('Чужая', $html);
+        $this->assertStringNotContainsString('79112222222', $html);
+        $this->assertStringNotContainsString('79113333333', $html);
+        $this->assertStringNotContainsString('79114444444', $html);
+    }
+
+    public function test_instruction_preview_returns_url_with_phone_query(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+        $widget->update(['landing_slug' => 'crm-test-school']);
+
+        $expected = route('lead.instruction', [
+            'landingSlug' => 'crm-test-school',
+            'phone' => '79115556677',
+        ]);
+
+        $this->postJson(route('admin.school-leads.instruction-preview'), [
+            'omit_phone' => 0,
+            'phone' => '+7 (911) 555-66-77',
+        ])
+            ->assertOk()
+            ->assertJsonPath('instruction_url', $expected);
+
+        $this->assertStringContainsString('phone=79115556677', $expected);
+    }
+
+    public function test_instruction_preview_omit_phone_returns_url_without_phone(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+        $widget->update(['landing_slug' => 'crm-test-school']);
+
+        $expected = route('lead.instruction', ['landingSlug' => 'crm-test-school']);
+
+        $this->postJson(route('admin.school-leads.instruction-preview'), [
+            'omit_phone' => 1,
+            'phone' => '+7 (911) 555-66-77',
+        ])
+            ->assertOk()
+            ->assertJsonPath('instruction_url', $expected);
+
+        $this->assertStringNotContainsString('phone=', $expected);
+    }
+
+    public function test_instruction_preview_requires_phone_when_not_omitted(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+        $widget->update(['landing_slug' => 'crm-test-school']);
+
+        $this->postJson(route('admin.school-leads.instruction-preview'), [
+            'omit_phone' => 0,
+            'phone' => '',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone'])
+            ->assertJsonPath('errors.phone.0', 'Укажите номер телефона.');
+    }
+
+    public function test_instruction_preview_rejects_invalid_phone(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+        $widget->update(['landing_slug' => 'crm-test-school']);
+
+        $this->postJson(route('admin.school-leads.instruction-preview'), [
+            'omit_phone' => 0,
+            'phone' => '12345',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone'])
+            ->assertJsonPath('errors.phone.0', 'Укажите корректный номер телефона.');
+    }
+
+    public function test_instruction_preview_without_slug_returns_422(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+        $widget->update(['landing_slug' => null]);
+
+        $this->postJson(route('admin.school-leads.instruction-preview'), [
+            'omit_phone' => 1,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.landing_slug.0', 'Сначала сохраните адрес страницы.');
+    }
+
+    public function test_guest_cannot_preview_instruction(): void
+    {
+        Auth::logout();
+
+        $this->postJson(route('admin.school-leads.instruction-preview'), [
+            'omit_phone' => 1,
+        ])->assertUnauthorized();
+    }
+
+    public function test_user_without_school_lead_landing_view_cannot_preview_instruction(): void
+    {
+        $denied = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->actingAs($denied);
+
+        $this->postJson(route('admin.school-leads.instruction-preview'), [
+            'omit_phone' => 1,
+        ])->assertForbidden();
+    }
+
+    public function test_non_ajax_invalid_instruction_preview_redirects_back_with_field_error(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+        $widget->update(['landing_slug' => 'crm-test-school']);
+
+        $this->from(route('admin.school-leads.landing'))
+            ->post(route('admin.school-leads.instruction-preview'), [
+                'omit_phone' => 0,
+                'phone' => '',
+            ])
+            ->assertStatus(302)
+            ->assertRedirect(route('admin.school-leads.landing'))
+            ->assertSessionHasErrors(['phone']);
     }
 
     private function grantPermission(User $actor, string $permissionName): void

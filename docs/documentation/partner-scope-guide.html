@@ -121,7 +121,10 @@
 
   <div class="note">
     Пример обычной страницы: <a href="/docs/documentation/partner-wallet">кошелёк партнёра</a>
-    (<code>/partner-wallet</code>) — баланс и история только current partner, не <code>Partner::first()</code>.
+    (<code>/partner-wallet</code>) — баланс, история и POST topup только current partner, не
+    <code>Partner::first()</code>. Вебхуки ЮKassa (<code>/partner-wallet/webhook</code>,
+    <code>/webhook/yookassa</code> scope <code>partner_wallet_topup</code>) публичные:
+    зачисление по <code>tx.partner_id</code>, не через <code>PartnerContext</code>.
   </div>
 
   <h3>4.2 Какие методы вызывать</h3>
