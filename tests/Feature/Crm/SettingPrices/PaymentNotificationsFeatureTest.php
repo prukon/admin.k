@@ -15,6 +15,7 @@ use App\Models\PaymentNotificationRule;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
+use App\Models\UserPricePublicPayLink;
 use App\Services\PaymentNotifications\PaymentNotificationDispatchService;
 use App\Services\TeamUserSyncService;
 use Carbon\CarbonImmutable;
@@ -234,6 +235,7 @@ final class PaymentNotificationsFeatureTest extends CrmTestCase
         );
         $this->assertStringContainsString('{{student_name}}', $html);
         $this->assertStringContainsString('{{month_year}}', $html);
+        $this->assertStringContainsString('{{pay_url}}', $html);
         $this->assertStringNotContainsString('id="pn-variables-help"', $html);
     }
 
@@ -382,6 +384,8 @@ final class PaymentNotificationsFeatureTest extends CrmTestCase
             $this->assertStringContainsString('С уважением', $email);
             $this->assertStringContainsString('kidscrm.online', $email);
             $this->assertStringContainsString('Иванов Иван', $body);
+            $this->assertStringContainsString('Оплатить через СБП', $body);
+            $this->assertStringContainsString('/pm/examplePay', $body);
         } finally {
             $this->travelBack();
         }
@@ -842,5 +846,507 @@ final class PaymentNotificationsFeatureTest extends CrmTestCase
 
         // Нет неоплаченных строк — job отрабатывает без 500.
         $this->assertTrue(true);
+    }
+
+    public function test_send_without_tbank_does_not_append_sbp_block(): void
+    {
+        Mail::fake();
+
+        $userPrice = UserPrice::query()->create([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-09-01',
+            'price_cents' => 500000,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        $rule = PaymentNotificationRule::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'без tbank',
+            'is_enabled' => true,
+            'trigger_type' => PaymentNotificationRule::TRIGGER_DAY_OF_MONTH,
+            'trigger_value' => 5,
+            'billing_month_offset' => 0,
+            'schedule_types' => ['fixed'],
+            'subject_template' => 'Оплата',
+            'body_html_template' => '<p>{{student_name}}</p>',
+            'sort_order' => 0,
+        ]);
+
+        $dispatch = PaymentNotificationDispatch::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_notification_rule_id' => $rule->id,
+            'users_price_id' => $userPrice->id,
+            'trigger_date' => '2026-09-05',
+            'status' => PaymentNotificationDispatch::STATUS_PENDING,
+        ]);
+
+        (new SendPaymentNotificationDispatchJob((int) $dispatch->id))->handle(
+            app(\App\Services\PaymentNotifications\PaymentNotificationSendService::class)
+        );
+
+        Mail::assertSent(PaymentNotificationMail::class, function (PaymentNotificationMail $mail) {
+            return ! str_contains($mail->bodyHtml, 'Оплатить через СБП')
+                && ! str_contains($mail->bodyHtml, '/pm/');
+        });
+        $this->assertDatabaseCount('user_price_public_pay_links', 0);
+    }
+
+    public function test_send_with_tbank_appends_sbp_block_and_reuses_short_code(): void
+    {
+        Mail::fake();
+        $this->seedTbankForNotifications();
+
+        $userPrice = UserPrice::query()->create([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-09-01',
+            'price_cents' => 500000,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        $rule = PaymentNotificationRule::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'со ссылкой',
+            'is_enabled' => true,
+            'trigger_type' => PaymentNotificationRule::TRIGGER_DAY_OF_MONTH,
+            'trigger_value' => 5,
+            'billing_month_offset' => 0,
+            'schedule_types' => ['fixed'],
+            'subject_template' => 'Оплата',
+            'body_html_template' => '<p>{{student_name}}</p>',
+            'sort_order' => 0,
+        ]);
+
+        $dispatch = PaymentNotificationDispatch::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_notification_rule_id' => $rule->id,
+            'users_price_id' => $userPrice->id,
+            'trigger_date' => '2026-09-05',
+            'status' => PaymentNotificationDispatch::STATUS_PENDING,
+        ]);
+
+        (new SendPaymentNotificationDispatchJob((int) $dispatch->id))->handle(
+            app(\App\Services\PaymentNotifications\PaymentNotificationSendService::class)
+        );
+
+        $link = UserPricePublicPayLink::query()->where('users_price_id', $userPrice->id)->first();
+        $this->assertNotNull($link);
+        $this->assertSame(10, strlen((string) $link->short_code));
+        $this->assertNull($link->tinkoff_payment_id);
+        $firstCode = (string) $link->short_code;
+        $firstExpiry = $link->expires_at?->getTimestamp();
+
+        Mail::assertSent(PaymentNotificationMail::class, function (PaymentNotificationMail $mail) use ($firstCode) {
+            return str_contains($mail->bodyHtml, 'Оплатить через СБП')
+                && str_contains($mail->bodyHtml, '/pm/'.$firstCode)
+                && substr_count($mail->bodyHtml, 'Оплатить через СБП') === 1;
+        });
+
+        $this->travel(3)->days();
+
+        Mail::fake();
+        $second = PaymentNotificationDispatch::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_notification_rule_id' => $rule->id,
+            'users_price_id' => $userPrice->id,
+            'trigger_date' => '2026-09-25',
+            'status' => PaymentNotificationDispatch::STATUS_PENDING,
+        ]);
+
+        (new SendPaymentNotificationDispatchJob((int) $second->id))->handle(
+            app(\App\Services\PaymentNotifications\PaymentNotificationSendService::class)
+        );
+
+        $link->refresh();
+        $this->assertSame($firstCode, (string) $link->short_code);
+        $this->assertGreaterThan($firstExpiry, $link->expires_at?->getTimestamp());
+        $this->assertDatabaseCount('user_price_public_pay_links', 1);
+    }
+
+    public function test_send_with_pay_url_placeholder_does_not_duplicate_autoblock(): void
+    {
+        Mail::fake();
+        $this->seedTbankForNotifications();
+
+        $userPrice = UserPrice::query()->create([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-09-01',
+            'price_cents' => 350000,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        $rule = PaymentNotificationRule::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'своя ссылка',
+            'is_enabled' => true,
+            'trigger_type' => PaymentNotificationRule::TRIGGER_DAY_OF_MONTH,
+            'trigger_value' => 5,
+            'billing_month_offset' => 0,
+            'schedule_types' => ['fixed'],
+            'subject_template' => 'Оплата',
+            'body_html_template' => '<p><a href="{{pay_url}}">Оплатить абонемент</a></p>',
+            'sort_order' => 0,
+        ]);
+
+        $dispatch = PaymentNotificationDispatch::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_notification_rule_id' => $rule->id,
+            'users_price_id' => $userPrice->id,
+            'trigger_date' => '2026-09-05',
+            'status' => PaymentNotificationDispatch::STATUS_PENDING,
+        ]);
+
+        (new SendPaymentNotificationDispatchJob((int) $dispatch->id))->handle(
+            app(\App\Services\PaymentNotifications\PaymentNotificationSendService::class)
+        );
+
+        $code = (string) UserPricePublicPayLink::query()
+            ->where('users_price_id', $userPrice->id)
+            ->value('short_code');
+
+        Mail::assertSent(PaymentNotificationMail::class, function (PaymentNotificationMail $mail) use ($code) {
+            return str_contains($mail->bodyHtml, 'Оплатить абонемент')
+                && str_contains($mail->bodyHtml, '/pm/'.$code)
+                && ! str_contains($mail->bodyHtml, 'Оплатить через СБП');
+        });
+    }
+
+    public function test_rules_index_includes_pay_url_variable(): void
+    {
+        $response = $this->getJson(
+            route('admin.settingPrices.paymentNotifications.rules.index'),
+            $this->ajaxHeaders()
+        )->assertOk();
+
+        $keys = collect($response->json('variables'))->pluck('key')->all();
+        $this->assertContains('pay_url', $keys);
+    }
+
+    public function test_preview_validation_returns_field_errors(): void
+    {
+        $this->postJson(route('admin.settingPrices.paymentNotifications.preview'), [
+            'subject_template' => '',
+            'body_html_template' => '',
+        ], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['subject_template', 'body_html_template'])
+            ->assertJsonPath('errors.subject_template.0', 'Укажите тему письма.')
+            ->assertJsonPath('errors.body_html_template.0', 'Укажите текст письма.');
+    }
+
+    public function test_preview_foreign_users_price_returns_exists_error(): void
+    {
+        $foreignPrice = UserPrice::query()->create([
+            'user_id' => $this->foreignUser->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-09-01',
+            'price_cents' => 500000,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        $this->postJson(route('admin.settingPrices.paymentNotifications.preview'), [
+            'subject_template' => 'Тема',
+            'body_html_template' => '<p>Тело</p>',
+            'users_price_id' => $foreignPrice->id,
+        ], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['users_price_id'])
+            ->assertJsonPath(
+                'errors.users_price_id.0',
+                'Начисление не найдено или недоступно для текущего партнёра.'
+            );
+    }
+
+    public function test_test_send_foreign_users_price_returns_exists_error(): void
+    {
+        $foreignPrice = UserPrice::query()->create([
+            'user_id' => $this->foreignUser->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-09-01',
+            'price_cents' => 500000,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        $this->postJson(route('admin.settingPrices.paymentNotifications.testSend'), [
+            'to_email' => 'admin-test@example.com',
+            'subject_template' => 'Тема',
+            'body_html_template' => '<p>Тело</p>',
+            'users_price_id' => $foreignPrice->id,
+        ], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['users_price_id']);
+    }
+
+    public function test_preview_and_test_send_non_ajax_still_return_json_not_empty_html(): void
+    {
+        Mail::fake();
+
+        $preview = $this->post(route('admin.settingPrices.paymentNotifications.preview'), [
+            'subject_template' => 'Тема {{amount}}',
+            'body_html_template' => '<p>{{student_name}}</p>',
+        ], [
+            'HTTP_ACCEPT' => 'application/json',
+        ]);
+
+        $this->assertNotSame(500, $preview->getStatusCode());
+        $this->assertNotSame(302, $preview->getStatusCode());
+        $preview->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonStructure(['subject', 'body_html', 'email_html', 'variables', 'is_demo']);
+        $this->assertNotSame('', (string) $preview->json('body_html'));
+
+        $send = $this->post(route('admin.settingPrices.paymentNotifications.testSend'), [
+            'to_email' => 'admin-test@example.com',
+            'subject_template' => 'Тема',
+            'body_html_template' => '<p>Тело</p>',
+        ], [
+            'HTTP_ACCEPT' => 'application/json',
+        ]);
+
+        $this->assertNotSame(500, $send->getStatusCode());
+        $this->assertNotSame(302, $send->getStatusCode());
+        $send->assertOk()->assertJsonPath('ok', true);
+        Mail::assertSent(PaymentNotificationMail::class);
+    }
+
+    public function test_demo_preview_autoblock_is_real_anchor_to_example_pay_url(): void
+    {
+        $preview = $this->postJson(route('admin.settingPrices.paymentNotifications.preview'), [
+            'subject_template' => 'Тема',
+            'body_html_template' => '<p>Напоминание</p>',
+        ], $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('is_demo', true);
+
+        $body = (string) $preview->json('body_html');
+        $example = rtrim((string) config('app.url'), '/').'/pm/examplePay';
+
+        $this->assertStringContainsString('href="'.e($example).'"', $body);
+        $this->assertStringContainsString('Оплатить через СБП</a>', $body);
+        $this->assertStringNotContainsString('&lt;a href', $body);
+        $this->assertSame($example, (string) $preview->json('variables.pay_url'));
+    }
+
+    public function test_preview_with_real_row_and_tbank_puts_pm_url_without_init(): void
+    {
+        $this->seedTbankForNotifications();
+
+        $userPrice = UserPrice::query()->create([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-07-01',
+            'price_cents' => 350000,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        $preview = $this->postJson(route('admin.settingPrices.paymentNotifications.preview'), [
+            'subject_template' => 'Счёт {{month_year}}',
+            'body_html_template' => '<p>{{student_name}}</p>',
+            'users_price_id' => $userPrice->id,
+        ], $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('is_demo', false);
+
+        $payUrl = (string) $preview->json('variables.pay_url');
+        $this->assertStringContainsString('/pm/', $payUrl);
+        $this->assertStringNotContainsString('examplePay', $payUrl);
+
+        $body = (string) $preview->json('body_html');
+        $this->assertStringContainsString('Оплатить через СБП</a>', $body);
+        $this->assertStringContainsString('href="'.e($payUrl).'"', $body);
+
+        $link = UserPricePublicPayLink::query()->where('users_price_id', $userPrice->id)->first();
+        $this->assertNotNull($link);
+        $this->assertNull($link->tinkoff_payment_id);
+        $this->assertStringContainsString('/pm/'.$link->short_code, $payUrl);
+    }
+
+    public function test_preview_with_real_row_without_tbank_does_not_append_sbp_block(): void
+    {
+        $userPrice = UserPrice::query()->create([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-07-01',
+            'price_cents' => 350000,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        $preview = $this->postJson(route('admin.settingPrices.paymentNotifications.preview'), [
+            'subject_template' => 'Счёт',
+            'body_html_template' => '<p>{{student_name}}</p>',
+            'users_price_id' => $userPrice->id,
+        ], $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('is_demo', false);
+
+        $body = (string) $preview->json('body_html');
+        $this->assertSame('', (string) $preview->json('variables.pay_url'));
+        $this->assertStringNotContainsString('Оплатить через СБП', $body);
+        $this->assertStringNotContainsString('/pm/', $body);
+        $this->assertDatabaseCount('user_price_public_pay_links', 0);
+    }
+
+    public function test_pay_url_placeholder_with_spaces_suppresses_autoblock(): void
+    {
+        Mail::fake();
+        $this->seedTbankForNotifications();
+
+        $userPrice = UserPrice::query()->create([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-09-01',
+            'price_cents' => 350000,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        $rule = PaymentNotificationRule::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'пробелы в плейсхолдере',
+            'is_enabled' => true,
+            'trigger_type' => PaymentNotificationRule::TRIGGER_DAY_OF_MONTH,
+            'trigger_value' => 5,
+            'billing_month_offset' => 0,
+            'schedule_types' => ['fixed'],
+            'subject_template' => 'Оплата',
+            'body_html_template' => '<p><a href="{{ pay_url }}">Оплатить абонемент</a></p>',
+            'sort_order' => 0,
+        ]);
+
+        $dispatch = PaymentNotificationDispatch::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_notification_rule_id' => $rule->id,
+            'users_price_id' => $userPrice->id,
+            'trigger_date' => '2026-09-05',
+            'status' => PaymentNotificationDispatch::STATUS_PENDING,
+        ]);
+
+        (new SendPaymentNotificationDispatchJob((int) $dispatch->id))->handle(
+            app(\App\Services\PaymentNotifications\PaymentNotificationSendService::class)
+        );
+
+        $code = (string) UserPricePublicPayLink::query()
+            ->where('users_price_id', $userPrice->id)
+            ->value('short_code');
+
+        Mail::assertSent(PaymentNotificationMail::class, function (PaymentNotificationMail $mail) use ($code) {
+            return str_contains($mail->bodyHtml, 'Оплатить абонемент')
+                && str_contains($mail->bodyHtml, '/pm/'.$code)
+                && ! str_contains($mail->bodyHtml, 'Оплатить через СБП');
+        });
+    }
+
+    public function test_send_skips_pay_url_when_amount_above_sbp_maximum(): void
+    {
+        Mail::fake();
+        $this->seedTbankForNotifications();
+
+        $userPrice = UserPrice::query()->create([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-09-01',
+            'price_cents' => 100000001,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        $rule = PaymentNotificationRule::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'слишком много',
+            'is_enabled' => true,
+            'trigger_type' => PaymentNotificationRule::TRIGGER_DAY_OF_MONTH,
+            'trigger_value' => 5,
+            'billing_month_offset' => 0,
+            'schedule_types' => ['fixed'],
+            'subject_template' => 'Оплата',
+            'body_html_template' => '<p>{{amount}}</p>',
+            'sort_order' => 0,
+        ]);
+
+        $dispatch = PaymentNotificationDispatch::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_notification_rule_id' => $rule->id,
+            'users_price_id' => $userPrice->id,
+            'trigger_date' => '2026-09-05',
+            'status' => PaymentNotificationDispatch::STATUS_PENDING,
+        ]);
+
+        (new SendPaymentNotificationDispatchJob((int) $dispatch->id))->handle(
+            app(\App\Services\PaymentNotifications\PaymentNotificationSendService::class)
+        );
+
+        Mail::assertSent(PaymentNotificationMail::class, function (PaymentNotificationMail $mail) {
+            return ! str_contains($mail->bodyHtml, '/pm/')
+                && ! str_contains($mail->bodyHtml, 'Оплатить через СБП');
+        });
+        $this->assertDatabaseCount('user_price_public_pay_links', 0);
+    }
+
+    public function test_send_skips_pay_url_when_amount_below_sbp_minimum(): void
+    {
+        Mail::fake();
+        $this->seedTbankForNotifications();
+
+        $userPrice = UserPrice::query()->create([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-09-01',
+            'price_cents' => 500,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        $rule = PaymentNotificationRule::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'мелочь',
+            'is_enabled' => true,
+            'trigger_type' => PaymentNotificationRule::TRIGGER_DAY_OF_MONTH,
+            'trigger_value' => 5,
+            'billing_month_offset' => 0,
+            'schedule_types' => ['fixed'],
+            'subject_template' => 'Оплата',
+            'body_html_template' => '<p>{{amount}}</p>',
+            'sort_order' => 0,
+        ]);
+
+        $dispatch = PaymentNotificationDispatch::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_notification_rule_id' => $rule->id,
+            'users_price_id' => $userPrice->id,
+            'trigger_date' => '2026-09-05',
+            'status' => PaymentNotificationDispatch::STATUS_PENDING,
+        ]);
+
+        (new SendPaymentNotificationDispatchJob((int) $dispatch->id))->handle(
+            app(\App\Services\PaymentNotifications\PaymentNotificationSendService::class)
+        );
+
+        Mail::assertSent(PaymentNotificationMail::class, function (PaymentNotificationMail $mail) {
+            return ! str_contains($mail->bodyHtml, '/pm/')
+                && ! str_contains($mail->bodyHtml, 'Оплатить через СБП');
+        });
+        $this->assertDatabaseCount('user_price_public_pay_links', 0);
+    }
+
+    private function seedTbankForNotifications(): void
+    {
+        $this->seedGlobalTbank([
+            'terminal_key' => 'TERM_PN_PAY',
+            'token_password' => 'PWD_PN_PAY',
+            'e2c_terminal_key' => 'E2C_PN',
+            'e2c_token_password' => 'E2C_PN_PWD',
+        ]);
+
+        $entity = $this->seedRegisteredLegalEntityForPartner($this->partner, 'SHOP-PN-PAY');
+        $this->team->update(['legal_entity_id' => $entity->id]);
     }
 }

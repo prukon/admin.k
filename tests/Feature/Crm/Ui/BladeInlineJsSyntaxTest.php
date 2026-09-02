@@ -55,6 +55,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'lesson packages tab modals' => ['admin/lessonPackages/tabs/packages.blade.php'];
         yield 'lesson package assignments tab' => ['admin/lessonPackages/tabs/assignments.blade.php'];
         yield 'club fee payment page' => ['payment/clubFee.blade.php'];
+        yield 'partner wallet topup ajax' => ['payment/partnerWallet.blade.php'];
         yield 'ulp public pay page' => ['payment/ulp-public-pay.blade.php'];
         yield 'legal entities index modals' => ['admin/legal-entities/index.blade.php'];
         yield 'locations index delete toast ajax' => ['admin/locations/index.blade.php'];
@@ -3525,6 +3526,29 @@ JS;
         $this->assertStringContainsString("pn-rule-billing-offset').value = '0'", $content);
         $this->assertStringContainsString("pn-rule-enabled').checked = true", $content);
 
+        preg_match('/function openCreate\(\)\s*\{(.*?)\n    function openEdit\(/s', $content, $openCreateMatch);
+        $this->assertNotEmpty($openCreateMatch[1] ?? null, 'Не найден блок openCreate');
+        $this->assertStringNotContainsString(
+            'pay_url',
+            $openCreateMatch[1],
+            'Дефолтное тело openCreate не должно содержать {{pay_url}}: иначе автоблок СБП не добавится'
+        );
+        $this->assertStringContainsString('student_name', $openCreateMatch[1]);
+        $this->assertStringContainsString('month_year', $openCreateMatch[1]);
+        $this->assertStringContainsString("pn-rule-body').value = rule.body_html_template", $content);
+
+        $this->assertStringContainsString('api(\'POST\', urls.preview, {', $content);
+        $this->assertDoesNotMatchRegularExpression(
+            '/api\(\'POST\',\s*urls\.preview,\s*\{[^}]*users_price_id/s',
+            $content,
+            'Кнопка «Превью» в модалке всегда демо: users_price_id в payload не передаётся'
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/api\(\'POST\',\s*urls\.testSend,\s*\{[^}]*users_price_id/s',
+            $content,
+            'Кнопка тестовой отправки в модалке не передаёт users_price_id'
+        );
+
         $this->assertStringContainsString('function syncTriggerUi()', $content);
         $this->assertStringContainsString('days_after_overdue', $content);
         $this->assertStringContainsString("offsetWrap.classList.add('d-none')", $content);
@@ -3573,6 +3597,69 @@ JS;
         }
 
         $this->assertTrue($found, 'В payment-notifications.blade.php не найден script с openCreate / preview');
+    }
+
+    /**
+     * /partner-wallet: один AJAX-submit, ошибки под полями, не alert, история через DataTables.
+     */
+    public function test_partner_wallet_topup_ajax_prevents_native_submit_and_shows_field_errors(): void
+    {
+        $path = resource_path('views/payment/partnerWallet.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('wallet_balance_cents', $content);
+        $this->assertStringNotContainsString('wallet_balance ??', $content);
+        $this->assertStringContainsString('id="walletTopupForm"', $content);
+        $this->assertStringContainsString('id="walletTopupAmount"', $content);
+        $this->assertStringContainsString('data-error-for="amount"', $content);
+        $this->assertStringContainsString('data-error-for="partner_id"', $content);
+        $this->assertStringContainsString("url: '/partner-wallet/transactions'", $content);
+        $this->assertStringContainsString("url: '/partner-wallet/topup'", $content);
+
+        $this->assertSame(1, substr_count($content, "$('#walletTopupForm').on('submit'"));
+        $submitPos = strpos($content, "$('#walletTopupForm').on('submit'");
+        $this->assertNotFalse($submitPos);
+        $submitChunk = substr($content, (int) $submitPos, 2500);
+        $this->assertStringContainsString('e.preventDefault()', $submitChunk);
+        $this->assertStringContainsString('$.ajax({', $submitChunk);
+        $this->assertStringContainsString('showWalletTopupErrors', $submitChunk);
+        $this->assertStringContainsString('json.errors', $submitChunk);
+        $this->assertStringNotContainsString('alert(', $submitChunk);
+
+        $this->assertStringContainsString('function showWalletTopupErrors', $content);
+        $this->assertStringContainsString('[data-error-for="', $content);
+        $this->assertStringNotContainsString('Partner::first()', $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "$('#walletTopupForm').on('submit'",
+            'blade-js-partner-wallet-topup'
+        );
+    }
+
+    /**
+     * Страница месяца и абонемента шарят ulp-public-pay.blade.php.
+     * Без инъекции qrJsonUrl JS падает на /pay/ulp/ — для /pm/{code} QR будет 404.
+     */
+    public function test_ulp_public_pay_js_falls_back_to_ulp_qr_routes_unless_urls_injected(): void
+    {
+        $path = resource_path('views/payment/ulp-public-pay.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString(
+            "\$qrJsonUrl ?? route('ulp.public.pay.qr.json'",
+            $content
+        );
+        $this->assertStringContainsString(
+            "\$qrPayloadUrl ?? route('ulp.public.pay.qr.payload'",
+            $content
+        );
+        $this->assertStringContainsString(
+            "\$qrStateUrl ?? route('ulp.public.pay.qr.state'",
+            $content
+        );
     }
 
     /**

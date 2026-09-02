@@ -40,6 +40,10 @@ RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(40)->by($request->ip());
         });
 
+        RateLimiter::for('up-public-pay', function (Request $request) {
+            return Limit::perMinute(40)->by($request->ip());
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')

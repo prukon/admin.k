@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кошелёк партнёра</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .small { color: #555; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/docs/documentation/">← К оглавлению</a> · в кабинете также <code>/doc</code>
+    · анонс <a href="/doc#partner-wallet-isolation-index">/doc#partner-wallet-isolation-index</a></p>
+  <h1>Кошелёк партнёра</h1>
+  <div class="small">Страница <code>/partner-wallet</code> · право <code>partnerWallet.view</code> · обычная CRM-страница (<code>STRICT_CURRENT</code>).</div>
+
+  <div class="ok" style="margin-top:12px">
+    Админ школы видит баланс и историю <b>только своей школы</b>. Superadmin — кошелёк школы, выбранной в переключателе.
+    Источник партнёра — <code>PartnerContext</code>, не <code>Partner::first()</code>.
+  </div>
+
+  <h2 id="access">1) Доступ</h2>
+  <ul>
+    <li>Маршруты в группе <code>auth</code> + <code>2fa</code> + <code>can:partnerWallet.view</code>.</li>
+    <li>Право в базовой роли <code>admin</code> (<code>config/role_base_permissions.php</code>), группа permissions <code>partner</code>.</li>
+    <li>Без права — 403 (JSON и web). Гость — 302 на логин / 401 JSON.</li>
+    <li>Non‑superadmin без <code>partner_id</code>: middleware <code>SetPartner</code> → 302, guest,
+      session <code>errors.email</code> = «Ваша организация недоступна.»</li>
+  </ul>
+
+  <h2 id="isolation">2) Изоляция по партнёру</h2>
+  <table>
+    <thead>
+      <tr><th>Поверхность</th><th>Что ограничено</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>GET /partner-wallet</code></td>
+        <td>Баланс из <code>partners.wallet_balance_cents</code> текущего партнёра; hidden <code>partner_id</code> = current.</td>
+      </tr>
+      <tr>
+        <td><code>GET /partner-wallet/transactions</code></td>
+        <td>DataTables: <code>WHERE partner_id = current</code>. Чужие строки не попадают в <code>data</code> / <code>recordsTotal</code>.</td>
+      </tr>
+      <tr>
+        <td><code>POST /partner-wallet/topup</code></td>
+        <td><code>CreatePartnerWalletTopupRequest</code>: <code>partner_id</code> обязан совпасть с current (иначе 422 под полем). Затем <code>guardPartnerAccess()</code> — 403, если не совпало. Запись транзакции — по ID из <code>PartnerContext</code>, не из «первого партнёра в БД».</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="warn">
+    Не-superadmin не может подменить школу через session: middleware <code>SetPartner</code> фиксирует
+    <code>current_partner = user.partner_id</code>.
+  </div>
+
+  <h2 id="money">3) Деньги</h2>
+  <ul>
+    <li>БД: <code>partners.wallet_balance_cents</code>, <code>partner_wallet_transactions.amount_cents</code>.</li>
+    <li>Форма пополнения принимает рубли; запись — <code>Money::toCentsOrFail</code>.</li>
+    <li>На странице баланс рендерится из <code>wallet_balance_cents</code>, не из legacy <code>wallet_balance</code>.</li>
+  </ul>
+
+  <h2 id="errors">4) Ошибки пополнения</h2>
+  <ul>
+    <li>Валидация в <code>CreatePartnerWalletTopupRequest</code> (rules / attributes / messages).</li>
+    <li>AJAX (<code>postJson</code> / <code>X-Requested-With</code>): 422, тексты из <code>errors[field]</code>
+      под полями (<code>data-error-for="amount"</code>, <code>data-error-for="partner_id"</code>), не <code>alert()</code>.</li>
+    <li>Non-AJAX POST без JS: валидация → 302 на <code>/partner-wallet</code> + <code>session errors[field]</code>
+      (не пустой 200). Успешный/шлюзовой путь создаёт <code>pending</code> в
+      <code>partner_wallet_transactions</code> текущей школы и отвечает JSON 200/500
+      (как SMS send: не 302 на ЮKassa, пока контроллер всегда <code>response()->json</code>).</li>
+  </ul>
+
+  <h2 id="ux">5) UX страницы</h2>
+  <ul>
+    <li>Первое открытие и повторный GET: поле суммы без <code>value</code> (пусто, не подставляется чужая сумма).</li>
+    <li>Порядок: сумма → кнопка «Оплатить»; история — DataTables <code>#walletTxTable</code>.</li>
+    <li>Сайдбар <code>@can('partnerWallet.view')</code>: ссылка «(пополнить)» только с правом.</li>
+    <li>Один JS-путь submit: <code>$('#walletTopupForm').on('submit')</code> + <code>e.preventDefault</code> + <code>$.ajax</code>.</li>
+  </ul>
+
+  <h2 id="code">6) Код и тесты</h2>
+  <ul>
+    <li>Контроллер: <code>App\Http\Controllers\PartnerPaymentController</code> (extends <code>AdminBaseController</code>).</li>
+    <li>Request: <code>App\Http\Requests\Partner\CreatePartnerWalletTopupRequest</code>.</li>
+    <li>Тесты:
+      <code>PartnerWalletPartnerIsolationFeatureTest</code> (баг Partner::first()),
+      <code>PartnerWalletAccessFeatureTest</code>,
+      <code>PartnerWalletAjaxContractFeatureTest</code>,
+      <code>PartnerWalletNonAjaxSafetyNetFeatureTest</code>,
+      <code>PartnerWalletUxFeatureTest</code>,
+      <code>PartnerWalletFullAccessFeatureTest</code>,
+      <code>BladeInlineJsSyntaxTest::test_partner_wallet_topup_ajax_prevents_native_submit_and_shows_field_errors</code>,
+      <code>PartnerWalletDocumentationContractTest</code>.</li>
+  </ul>
+  <p class="small">Контекст партнёра: <a href="/docs/documentation/partner-context">partner-context</a>,
+    руководство: <a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a>,
+    канон денег: <a href="/docs/documentation/money">money</a>.</p>
+</div>
+</body>
+</html>

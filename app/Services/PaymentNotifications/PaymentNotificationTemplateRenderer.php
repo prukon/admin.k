@@ -6,6 +6,7 @@ namespace App\Services\PaymentNotifications;
 
 use App\Models\LessonPackage;
 use App\Models\UserPrice;
+use App\Services\Payments\UserPricePublicPayService;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
@@ -16,6 +17,11 @@ use Illuminate\Support\Str;
  */
 final class PaymentNotificationTemplateRenderer
 {
+    public function __construct(
+        private readonly UserPricePublicPayService $publicPay,
+    ) {
+    }
+
     /**
      * @return list<array{key: string, label: string, example: string}>
      */
@@ -35,7 +41,13 @@ final class PaymentNotificationTemplateRenderer
             ['key' => 'team', 'label' => 'Группа', 'example' => 'Младшая группа'],
             ['key' => 'package', 'label' => 'Название абонемента', 'example' => 'Фиксированный'],
             ['key' => 'package_type', 'label' => 'Тип абонемента', 'example' => 'Фиксированный'],
+            ['key' => 'pay_url', 'label' => 'Ссылка на оплату через СБП', 'example' => self::demoPayUrl()],
         ];
+    }
+
+    public static function demoPayUrl(): string
+    {
+        return rtrim((string) config('app.url'), '/').'/pm/examplePay';
     }
 
     /**
@@ -45,6 +57,7 @@ final class PaymentNotificationTemplateRenderer
     {
         $vars = $this->variablesFromUserPrice($userPrice);
         $bodyHtml = $this->replace($bodyHtmlTemplate, $vars, escape: true);
+        $bodyHtml = $this->appendSbpPayBlockIfNeeded($bodyHtmlTemplate, $bodyHtml, $vars['pay_url']);
 
         return [
             'subject' => $this->replace($subjectTemplate, $vars, escape: false),
@@ -68,6 +81,7 @@ final class PaymentNotificationTemplateRenderer
         }
 
         $bodyHtml = $this->replace($bodyHtmlTemplate, $vars, escape: true);
+        $bodyHtml = $this->appendSbpPayBlockIfNeeded($bodyHtmlTemplate, $bodyHtml, $vars['pay_url']);
 
         return [
             'subject' => $this->replace($subjectTemplate, $vars, escape: false),
@@ -116,6 +130,7 @@ final class PaymentNotificationTemplateRenderer
             'team' => (string) ($userPrice->team?->title ?? 'Группа'),
             'package' => (string) ($userPrice->lessonPackage?->name ?? 'Абонемент'),
             'package_type' => $this->scheduleTypeLabel($scheduleType),
+            'pay_url' => $this->publicPay->shareUrlForNotification($userPrice),
         ];
     }
 
@@ -128,6 +143,27 @@ final class PaymentNotificationTemplateRenderer
             LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE => 'Без расписания',
             default => $scheduleType !== '' ? $scheduleType : '—',
         };
+    }
+
+    public static function templateContainsPayUrlPlaceholder(string $template): bool
+    {
+        return preg_match('/\{\{\s*pay_url\s*\}\}/u', $template) === 1;
+    }
+
+    private function appendSbpPayBlockIfNeeded(string $template, string $bodyHtml, string $payUrl): string
+    {
+        if ($payUrl === '' || self::templateContainsPayUrlPlaceholder($template)) {
+            return $bodyHtml;
+        }
+
+        $safeUrl = e($payUrl);
+
+        return $bodyHtml
+            .'<p style="margin:24px 0 8px;">'
+            .'<a href="'.$safeUrl.'" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;">Оплатить через СБП</a>'
+            .'</p>'
+            .'<p style="margin:0;font-size:12px;color:#555;">Если кнопка не открывается, скопируйте ссылку:<br>'
+            .'<a href="'.$safeUrl.'" style="color:#2563eb;word-break:break-all;">'.$safeUrl.'</a></p>';
     }
 
     /**

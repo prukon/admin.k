@@ -6,6 +6,8 @@ namespace Tests\Feature\Public;
 
 use App\Support\RuPhone;
 use App\Support\UrlQrCode;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -266,6 +268,42 @@ final class SchoolLeadLandingInstructionUxFeatureTest extends TestCase
         $this->assertStringNotContainsString('window.print', $pdfHtml);
         $this->assertStringNotContainsString('print-bar', $pdfHtml);
         $this->assertStringNotContainsString('Чужая школа', $pdfHtml);
+    }
+
+    public function test_pdf_fits_on_one_a4_page_with_phone_and_long_partner_title(): void
+    {
+        Auth::logout();
+
+        $slug = (string) $this->landingWidget->landing_slug;
+        $response = $this->get(route('lead.instruction', ['landingSlug' => $slug]))->assertOk();
+        $view = $response->original;
+        $this->assertInstanceOf(View::class, $view);
+        $data = $view->getData();
+        $data['qrPngDataUri'] = UrlQrCode::pngDataUri((string) $data['landingUrl']);
+        $logoPath = public_path('img/logo.png');
+        $this->assertFileExists($logoPath);
+        $data['logoPngDataUri'] = 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath));
+        $pdfHtml = view('landing.partner-lead-instruction-pdf', $data)->render();
+
+        $this->assertStringContainsString('@page { margin: 10mm; }', $pdfHtml);
+        $this->assertMatchesRegularExpression('/body\s*\{[^}]*font-size:\s*11pt/s', $pdfHtml);
+        $this->assertDoesNotMatchRegularExpression('/body\s*\{[^}]*font-size:\s*12pt/s', $pdfHtml);
+        $this->assertStringContainsString('line-height: 1.35', $pdfHtml);
+        $this->assertStringContainsString('width="112"', $pdfHtml);
+        $this->assertStringContainsString('height="112"', $pdfHtml);
+        $this->assertStringNotContainsString('width="140"', $pdfHtml);
+
+        $options = new Options();
+        $options->set('defaultFont', (string) config('contracts.dompdf_font', 'DejaVu Sans'));
+        $options->set('isRemoteEnabled', false);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->loadHtml($pdfHtml, 'UTF-8');
+        $dompdf->render();
+
+        $this->assertSame(1, $dompdf->getCanvas()->get_page_count());
     }
 
     public function test_pdf_hides_phone_when_partner_phone_empty(): void

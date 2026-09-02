@@ -4,23 +4,23 @@
     <meta charset="utf-8">
     <title>Как записаться — {{ $partner->landingDisplayName() }}</title>
     <style>
-        @page { margin: 14mm 14mm 16mm 14mm; }
+        @page { margin: 10mm; }
         body {
             font-family: DejaVu Sans, sans-serif;
             color: #1a1a1a;
-            font-size: 12pt;
-            line-height: 1.45;
+            font-size: 11pt;
+            line-height: 1.35;
         }
         .header {
             background-color: #1d6f42;
             color: #ffffff;
             text-align: center;
-            padding: 16px 18px 18px;
+            padding: 10px 14px 12px;
         }
         .brand-bar {
             background-color: #ffffff;
             text-align: center;
-            padding: 10px 12px 8px;
+            padding: 6px 10px 5px;
             border-bottom: 1px solid #e5e7eb;
         }
         .brand-bar a {
@@ -28,18 +28,18 @@
             border: none;
         }
         .brand-bar img {
-            height: 44px;
+            height: 36px;
             width: auto;
             border: 0;
             display: block;
             margin: 0 auto;
         }
         .sheet-footer {
-            margin-top: 18px;
-            padding-top: 10px;
+            margin-top: 10px;
+            padding-top: 6px;
             border-top: 1px solid #e5e7eb;
             text-align: center;
-            font-size: 9pt;
+            font-size: 8.5pt;
             color: #4b5563;
         }
         .sheet-footer a {
@@ -48,48 +48,48 @@
             text-decoration: none;
         }
         .partner-name {
-            font-size: 11pt;
-            margin: 0 0 8px;
+            font-size: 10pt;
+            margin: 0 0 4px;
         }
         h1 {
-            font-size: 18pt;
+            font-size: 16pt;
             margin: 0;
         }
-        .lead { margin: 16px 0 14px; }
+        .lead { margin: 10px 0 8px; }
         h2 {
-            font-size: 13pt;
+            font-size: 12pt;
             color: #155a35;
-            margin: 14px 0 6px;
+            margin: 10px 0 4px;
         }
-        p { margin: 0 0 8px; }
+        p { margin: 0 0 5px; }
         .apply-link {
             font-weight: bold;
             color: #155a35;
             text-decoration: underline;
         }
         .apply-url {
-            font-size: 9pt;
+            font-size: 8.5pt;
             color: #4b5563;
-            margin: 4px 0 0;
+            margin: 3px 0 0;
         }
         .qr {
-            width: 140px;
-            height: 140px;
+            width: 112px;
+            height: 112px;
         }
         .phone {
-            margin-top: 16px;
-            padding: 10px 12px;
+            margin-top: 10px;
+            padding: 8px 10px;
             background-color: #f4f7f5;
         }
-        .closing { color: #4b5563; margin-top: 12px; }
-        table.apply { width: 100%; border-collapse: collapse; margin: 8px 0 4px; }
+        .closing { color: #4b5563; margin-top: 8px; }
+        table.apply { width: 100%; border-collapse: collapse; margin: 6px 0 2px; }
         table.apply td { vertical-align: middle; }
     </style>
 </head>
 <body>
 @if (!empty($logoPngDataUri))
     <div class="brand-bar">
-        <a href="https://kidscrm.online/"><img src="{{ $logoPngDataUri }}" alt="kidscrm.online" width="160" height="44"></a>
+        <a href="https://kidscrm.online/"><img src="{{ $logoPngDataUri }}" alt="kidscrm.online" width="131" height="36"></a>
     </div>
 @endif
 <div class="header">
@@ -115,8 +115,8 @@
             <a class="apply-link" href="{{ $landingUrl }}">Запись — {{ $partner->landingDisplayName() }}</a>
             <p class="apply-url">{{ $landingUrl }}</p>
         </td>
-        <td style="width: 150px; text-align: right;">
-            <img class="qr" src="{{ $qrPngDataUri }}" alt="QR-код записи" width="140" height="140">
+        <td style="width: 122px; text-align: right;">
+            <img class="qr" src="{{ $qrPngDataUri }}" alt="QR-код записи" width="112" height="112">
         </td>
     </tr>
 </table>

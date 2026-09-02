@@ -28,6 +28,95 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="partner-wallet-isolation-index">Кошелёк партнёра: изоляция по школе (2026‑09)</h2>
+  <div class="note">
+    Страница <code>/partner-wallet</code> — обычный CRM-экран: баланс и история только текущего партнёра
+    (<code>PartnerContext</code>, <code>STRICT_CURRENT</code>). Админ одной школы не видит начисления другой.
+    Superadmin видит кошелёк выбранной в переключателе школы, не «все школы сразу».
+    Баланс на странице — <code>wallet_balance_cents</code>. Пополнение: Form Request
+    <code>CreatePartnerWalletTopupRequest</code>, чужой <code>partner_id</code> → 422 под полем
+    «Нельзя пополнить кошелёк другой школы.», затем <code>guardPartnerAccess()</code> (403).
+    Ошибки суммы — под полем, не <code>alert()</code>.
+    Право <code>partnerWallet.view</code>. Тесты
+    <code>PartnerWalletPartnerIsolationFeatureTest</code>,
+    <code>PartnerWalletAccessFeatureTest</code>,
+    <code>PartnerWalletAjaxContractFeatureTest</code>,
+    <code>PartnerWalletNonAjaxSafetyNetFeatureTest</code>,
+    <code>PartnerWalletUxFeatureTest</code>,
+    <code>PartnerWalletFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>PartnerWalletDocumentationContractTest</code>.
+    Подробно — <a href="/docs/documentation/partner-wallet">partner-wallet</a>,
+    <a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a>.
+  </div>
+
+  <h2 id="payment-notifications-sbp-link-index">Уведомления об оплате: ссылка СБП (2026‑09)</h2>
+  <div class="note">
+    Письма вкладки <code>/admin/setting-prices/notifications</code> ведут родителя на публичную
+    оплату <b>месячного начисления</b> <code>users_prices</code> через T‑Bank СБП, без входа в кабинет.
+    <br><br>
+    1) <b>Не путать с абонементом.</b> Короткая ссылка назначения —
+    <code>/p/{code}</code> / <code>/pay/ulp/{token}</code>, payable
+    <code>lesson_package_fee</code> (SMS со вкладки назначений).
+    Здесь — <code>/pm/{short_code}</code> / <code>/pay/up/{token}</code>, payable
+    <code>monthly_fee</code>; webhook отмечает строку <code>users_prices</code>.
+    Общий blade QR (<code>payment/ulp-public-pay.blade.php</code>), но AJAX QR
+    <b>обязан</b> ходить на <code>/pay/up/{token}/qr/json|payload|state</code>.
+    Если контроллер не передаст <code>qrJsonUrl</code> / <code>qrPayloadUrl</code> /
+    <code>qrStateUrl</code>, JS уйдёт на <code>/pay/ulp/</code> — QR не загрузится.
+    Заголовок страницы — «Оплата», не «Оплата абонемента».
+    <br>
+    2) <b>Когда ссылка есть.</b> При рендере письма (cron, тест-отправка, превью с
+    <code>users_price_id</code>), если у партнёра настроен T‑Bank (глобальный терминал +
+    ShopCode юр. лица группы начисления), сумма 10 ₽ … 1 000 000 ₽,
+    <code>effective_is_paid=false</code> (в т.ч. ручная отметка
+    <code>is_manual_paid</code>), постоплата уже открыта к оплате.
+    Init банка <b>не</b> в момент рассылки: в
+    <code>user_price_public_pay_links</code> появляется token / short_code (10 символов),
+    <code>tinkoff_payment_id</code> ещё пустой.
+    <br>
+    3) <b>Когда письма без ссылки</b> (уходит как раньше, автоблок не добавляется):
+    нет T‑Bank, сумма &lt; 10 ₽ или &gt; 1 000 000 ₽, постоплата ещё закрыта,
+    начисление уже оплачено. Запись ссылки в БД не создаётся.
+    <br>
+    4) <b>Шаблон.</b> Переменная <code>{{pay_url}}</code> (допускаются пробелы:
+    <code>{{ pay_url }}</code>). Если плейсхолдера в теле <b>нет</b> и URL непустой —
+    в конец письма добавляется кнопка «Оплатить через СБП» + запасная ссылка
+    (настоящий <code>&lt;a href&gt;</code>, не экранированный текст).
+    Дефолт «Добавить правило» (<code>openCreate</code>) <b>без</b>
+    <code>{{pay_url}}</code>, чтобы автоблок сработал; <code>openEdit</code>
+    подставляет сохранённый шаблон и дефолт не навязывает.
+    <br>
+    5) <b>Превью в модалке</b> не передаёт <code>users_price_id</code> — всегда
+    демо: текущий календарный месяц MSK и пример <code>/pm/examplePay</code>
+    (даже если у школы нет T‑Bank). Превью/тест с реальной строкой без T‑Bank —
+    без автоблока и без записи ссылки. С реальной строкой и T‑Bank — живой
+    <code>/pm/{code}</code>, Init по-прежнему нет.
+    <br>
+    6) <b>Открытие родителем.</b> <code>GET /pm/{code}</code> (throttle
+    <code>up-public-pay</code>, 40/мин с IP, без auth и без
+    <code>payment.method.tbankSBP</code>) → Init СБП + QR.
+    Это не кабинетный <code>/tinkoff/qr/{PaymentId}</code> (там нужен логин и право СБП).
+    Уже оплачено / ссылка истекла / T‑Bank выключили после выдачи / сумма вне диапазона —
+    статусная страница 200, не 500 и не пустой QR.
+    Повторное напоминание <b>продлевает</b> те же 30 дней и тот же
+    <code>short_code</code>. Смена <code>users_prices.price_cents</code> код не ломает:
+    при следующем открытии платёж переинициализируется.
+    <br>
+    7) <b>Витрина QR:</b> «К оплате» через <code>Money::formatRub</code> (копейки только
+    если ≠ 0), группа начисления, блок «Поставщик услуг» (то же юр. лицо, что при Init).
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/setting-prices-payment-notifications#sbp-pay-link">setting-prices-payment-notifications §6.1</a>,
+    <a href="/docs/documentation/payments#up-public-pay">payments §3.1.3</a>,
+    вкладка уведомлений —
+    <a href="/doc#setting-prices-payment-notifications-index">анонс конструктора (2026‑08)</a>.
+    Тесты: <code>PaymentNotificationsFeatureTest</code>,
+    <code>UserPricePublicPayFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>
+    (<code>openCreate</code> без <code>{{pay_url}}</code>, fallback QR ULP в blade).
+  </div>
+
   <h2 id="landing-parents-instruction-index">Лендинг: инструкция для родителей + PDF (2026‑09)</h2>
   <div class="note">
     Публичная распечатка <code>GET /lead/{landingSlug}/instruction</code> (<code>lead.instruction</code>):
@@ -46,7 +135,8 @@
     PDF: <code>GET /lead/{landingSlug}/instruction.pdf</code> (<code>lead.instruction.pdf</code>),
     attachment <code>instrukciya-{slug}.pdf</code>, Dompdf / DejaVu Sans, QR PNG из <code>App\Support\UrlQrCode</code>
     (те же модули, что у JS, на URL лендинга); ссылка логотипа без пробелов внутри <code>&lt;a&gt;</code>
-    и с <code>text-decoration: none</code> (иначе Dompdf рисует черту справа от картинки). Маршруты публичные (<code>throttle:60,1</code>, без auth):
+    и с <code>text-decoration: none</code> (иначе Dompdf рисует черту справа от картинки).
+    Вёрстка PDF плотнее HTML-превью (поля 10 мм, 11pt / line-height 1.35, QR 112px), чтобы лист с телефоном влез на <b>одну страницу A4</b>. Маршруты публичные (<code>throttle:60,1</code>, без auth):
     гость и пользователь без CRM-прав — 200, неактивный/чужой slug — 404, POST/PUT/PATCH/DELETE — 405.
     В CRM на <code>/admin/school-leads/landing</code> при заданном slug — кнопка «Инструкция для родителей»
     (новая вкладка, HTML, не PDF). JSON сохранения slug отдаёт <code>landing_url</code>, не <code>instruction_url</code> —
@@ -3826,6 +3916,8 @@
     <br>
     6) UI: переменные шаблона — скрываемый блок в модалке; превью — полное письмо (лого/футер);
     демо-месяц = текущий MSK (не захардкоженный сентябрь).
+    <br>
+    Ссылка СБП в письме (2026‑09) — <a href="/doc#payment-notifications-sbp-link-index">анонс выше</a>.
     <br><br>
     Карточка —
     <a href="/docs/documentation/setting-prices-payment-notifications">setting-prices-payment-notifications</a>;
@@ -4950,7 +5042,7 @@
     <br><br>
     <b>Multi-entity guard (2026‑06‑30):</b> при ≥2 активных юр. лицах Init T‑Bank запрещён, если у выбранной группы нет активной привязки <code>teams.legal_entity_id</code> с ShopCode; ошибка Init — «Для выбранной группы не настроено юр. лицо». Клубный взнос: кнопки T‑Bank скрываются JS до выбора группы с доступным ShopCode. Подробно — <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>, <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a>.
     <br><br>
-    <b>«Поставщик услуг» на витрине (2026‑07):</b> на <code>POST /payment</code>, <code>/payment/club-fee</code> и публичной странице оплаты абонемента <code>GET /pay/ulp/{token}</code> (при T‑Bank СБП) показывается строка с юр. лицом, которому уйдёт net-выплата и которое попадёт в чек CloudKassir — та же цепочка, что при Init (<code>PayableTeamResolver</code> → <code>LegalEntityResolver</code>). Формат: <code>{organization_name}, ИНН {tax_id}, {city}</code>. На витрине ученика без валидного юр. лица — «Обратитесь в школу», кнопки T‑Bank скрыты; на публичной ссылке — «Обратитесь в школу/клуб.» Робокасса на витрине не затрагивается. Подробно — <a href="/docs/documentation/payments#payment-checkout-service-provider">payments §3.1.2</a>, публичная СБП-страница — <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>.
+    <b>«Поставщик услуг» на витрине (2026‑07):</b> на <code>POST /payment</code>, <code>/payment/club-fee</code>, публичной странице абонемента <code>GET /p/{code}</code> / <code>/pay/ulp/{token}</code> и публичной странице месяца из письма <code>GET /pm/{code}</code> / <code>/pay/up/{token}</code> (при T‑Bank СБП) показывается строка с юр. лицом, которому уйдёт net-выплата и которое попадёт в чек CloudKassir — та же цепочка, что при Init (<code>PayableTeamResolver</code> → <code>LegalEntityResolver</code>). Формат: <code>{organization_name}, ИНН {tax_id}, {city}</code>. На витрине ученика без валидного юр. лица — «Обратитесь в школу», кнопки T‑Bank скрыты; на публичных ссылках — «Обратитесь в школу/клуб.» Робокасса на витрине не затрагивается. Подробно — <a href="/docs/documentation/payments#payment-checkout-service-provider">payments §3.1.2</a>, абонемент — <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>, месяц из письма — <a href="/docs/documentation/payments#up-public-pay">payments §3.1.3</a> / <a href="/doc#payment-notifications-sbp-link-index">анонс СБП в уведомлениях</a>.
     <br><br>
     <b>Семейный кабинет, оплата за выбранного ребёнка (2026‑08):</b> отдельный анонс
     <a href="/doc#family-student-payment-index">выше на этой странице</a>.
@@ -4984,18 +5076,19 @@
   <h2>Разделы</h2>
   <ul>
     <li><a href="/docs/documentation/dev-seed-data"><strong>Dev-фикстуры (SEED_DEV_DATA)</strong>: цепочка Dev*-сидеров, юр. лица/справочники/T‑Bank/history, GuardsDevSeedData, ограничения prod</a></li>
-    <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
+    <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), публичная СБП месяца из писем уведомлений (<code>/pm/{code}</code>, <a href="/doc#payment-notifications-sbp-link-index">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, автособытия «ученик добавил группу» (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer) и <b>«договор подписан»</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>, только admin школы, 7 суток), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
     <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>название партнёра в модалках</b> (<a href="/doc#chat-partner-name-index">анонс</a>: под ФИО в «Контакт» и под именем в «Группа», не вкладка «Аккаунт», не шапка), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
-    <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
+    <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, ссылка СБП <code>/pm/{code}</code> и автоблок «Оплатить через СБП», право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
     <li><a href="/docs/documentation/set-prices-cabinet-packages"><strong>Права setPrices.cabinetPackages.*</strong>: отображение типов абонементов на консоли (фиксированный / гибкий / разовое / постоплата); скрытые; не в базовых ролях</a></li>
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (логи <code>SUPERADMIN_ALL_OR_FILTER</code> + soft-scope отчётов §5 / reports-admin §2.4)</a></li>
+    <li><a href="/docs/documentation/partner-wallet">Кошелёк партнёра: <code>/partner-wallet</code>, изоляция <code>STRICT_CURRENT</code>, <code>wallet_balance_cents</code>, право <code>partnerWallet.view</code> (<a href="/doc#partner-wallet-isolation-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/partner-context">Партнёр‑контекст и SetPartner: current_partner, anti‑leak, блокировки</a></li>
     <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра); опциональные права в т.ч. <code>users.discount.manage</code>, <code>account.user.team.update</code></a></li>
     <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo; <b>метрики списка</b> — активные ученики, договоры, оборот и комиссия платформы по <code>operation_date</code> / снимку <code>tinkoff_payouts.platform_fee</code>, <a href="/doc#admin-partners-list-metrics">анонс</a> / <a href="/docs/documentation/account-partner-organization#partners-index-metrics">§3.1.1</a>), <code>PartnerLegacyLegalFields</code>, доступ guest 302/401 / 403, AJAX/non-AJAX, оплаты без fallback</a></li>

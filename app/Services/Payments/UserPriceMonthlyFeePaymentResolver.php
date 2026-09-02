@@ -2,6 +2,7 @@
 
 namespace App\Services\Payments;
 
+use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
 use App\Services\Postpay\PostpayMonth;
@@ -10,6 +11,7 @@ use App\Support\UserPriceTeamMembership;
 use App\Support\Money;
 use Carbon\Carbon;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
@@ -83,6 +85,69 @@ final class UserPriceMonthlyFeePaymentResolver
             'out_sum' => Money::fromCents($amountCents),
             'month_first_day' => $monthFirst,
             'team_id' => $resolvedTeamId,
+        ];
+    }
+
+    /**
+     * Публичная оплата по конкретной строке users_prices (ссылка из email).
+     * Членство в группе сейчас не требуется: долг привязан к строке начисления.
+     *
+     * @return array{user_price: UserPrice, amount_cents: int, out_sum: string, month_first_day: string, team_id: int}
+     */
+    public function resolvePublicPayForPartner(int $partnerId, UserPrice $userPrice): array
+    {
+        $userPrice->loadMissing(['user', 'lessonPackage', 'team']);
+
+        $user = $userPrice->user;
+        if (! $user || (int) $user->partner_id !== $partnerId) {
+            throw new HttpException(404, 'Начисление не найдено');
+        }
+
+        $teamId = (int) $userPrice->team_id;
+        if ($teamId <= 0) {
+            throw new UnprocessableEntityHttpException('Для начисления не указана группа. Обратитесь в школу.');
+        }
+
+        $team = Team::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey($teamId)
+            ->first();
+        if (! $team) {
+            throw new UnprocessableEntityHttpException('Группа начисления не найдена. Обратитесь в школу.');
+        }
+
+        try {
+            $monthFirst = Carbon::parse((string) $userPrice->new_month)->startOfMonth()->format('Y-m-d');
+        } catch (\Throwable) {
+            throw new UnprocessableEntityHttpException('Некорректный период оплаты.');
+        }
+
+        if ($userPrice->lessonPackage && $userPrice->lessonPackage->isPostpay()) {
+            $this->postpaySync->syncRow($userPrice);
+            $userPrice->refresh();
+            $userPrice->loadMissing(['user', 'lessonPackage', 'team']);
+
+            if (! PostpayMonth::isPayAvailableNow($monthFirst)) {
+                $label = PostpayMonth::payAvailableFromLabel($monthFirst);
+                throw new UnprocessableEntityHttpException('Оплата будет доступна с '.$label);
+            }
+        }
+
+        if ($userPrice->effective_is_paid) {
+            throw new UnprocessableEntityHttpException('Этот период уже оплачен.');
+        }
+
+        $amountCents = (int) ($userPrice->price_cents ?? 0);
+        if ($amountCents <= 0) {
+            throw new UnprocessableEntityHttpException('Неверная цена: к оплате должна быть сумма больше нуля.');
+        }
+
+        return [
+            'user_price' => $userPrice,
+            'amount_cents' => $amountCents,
+            'out_sum' => Money::fromCents($amountCents),
+            'month_first_day' => $monthFirst,
+            'team_id' => $teamId,
         ];
     }
 

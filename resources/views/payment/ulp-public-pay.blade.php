@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Оплата абонемента')
+@section('title', $pageTitle ?? 'Оплата абонемента')
 
 @section('content')
     <style>
@@ -90,9 +90,9 @@
     @parent
     <script>
         (function(){
-            const qrUrl = @json(route('ulp.public.pay.qr.json', ['token' => $token]));
-            const nspkPayloadUrl = @json(route('ulp.public.pay.qr.payload', ['token' => $token]));
-            const stateUrl = @json(route('ulp.public.pay.qr.state', ['token' => $token]));
+            const qrUrl = @json($qrJsonUrl ?? route('ulp.public.pay.qr.json', ['token' => $token]));
+            const nspkPayloadUrl = @json($qrPayloadUrl ?? route('ulp.public.pay.qr.payload', ['token' => $token]));
+            const stateUrl = @json($qrStateUrl ?? route('ulp.public.pay.qr.state', ['token' => $token]));
             const successUrl = @json($successUrl ?? url('/'));
             const serverMobile = @json(!empty($isMobileClient));
 

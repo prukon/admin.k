@@ -41,6 +41,8 @@ final class SchoolLeadLandingInstructionDocumentationContractTest extends TestCa
         $this->assertStringContainsString('img/logo.png', $chunk);
         $this->assertStringContainsString('онлайн-подписания договоров', $chunk);
         $this->assertStringContainsString('text-decoration: none', $chunk);
+        $this->assertStringContainsString('одну страницу A4', $chunk);
+        $this->assertStringContainsString('11pt', $chunk);
         $this->assertStringContainsString('SchoolLeadLandingInstructionDocumentationContractTest', $chunk);
         $this->assertStringContainsString('/doc#landing-parents-instruction-index', $html);
         $this->assertStringContainsString('school-leads-landing#4-2', $html);
@@ -78,6 +80,9 @@ final class SchoolLeadLandingInstructionDocumentationContractTest extends TestCa
         $this->assertStringContainsString('img/logo.png', $html);
         $this->assertStringContainsString('онлайн-подписания договоров', $html);
         $this->assertStringContainsString('text-decoration: none', $html);
+        $this->assertStringContainsString('одну страницу A4', $html);
+        $this->assertStringContainsString('11pt', $html);
+        $this->assertStringContainsString('10mm', $html);
         $this->assertStringNotContainsString('Место под QR-код на странице пустое', $html);
     }
 

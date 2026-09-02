@@ -34,13 +34,18 @@
     <a href="/docs/documentation/setting-prices-monthly-users">setting-prices-monthly-users</a>,
     <a href="/docs/documentation/postpay">postpay</a>,
     <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>,
-    <a href="/docs/documentation/reports-admin#reports-outgoing-emails">reports-admin §8</a>.
+    <a href="/docs/documentation/payments#up-public-pay">payments §3.1.3</a> (публичная СБП месяца),
+    <a href="/docs/documentation/reports-admin#reports-outgoing-emails">reports-admin §8</a>,
+    анонс <a href="/doc#payment-notifications-sbp-link-index">/doc — ссылка СБП в письме</a>.
   </div>
 
   <div class="ok">
     <b>Кратко.</b> Конструктор правил email-уведомлений по неоплаченным месячным начислениям
     <code>users_prices</code> в разрезе типов абонементов (<code>fixed</code> / <code>flexible</code> / <code>postpay</code>).
     Письма — на email ученика, <b>отдельно на каждую</b> строку начисления.
+    При готовом T‑Bank в письмо попадает ссылка СБП <code>/pm/{code}</code>
+    (или автоблок «Оплатить через СБП», если в шаблоне нет <code>{{pay_url}}</code>) —
+    <a href="#sbp-pay-link">§6.1</a>, <a href="/doc#payment-notifications-sbp-link-index">анонс на /doc</a>.
     Cron: ежедневно <b>10:00 Europe/Moscow</b>.
     Журнал писем — отчёт
     <a href="/docs/documentation/reports-admin#reports-outgoing-emails">«Исходящие письма»</a>
@@ -166,23 +171,60 @@
     <li><code>{{team}}</code> — <code>teams.title</code></li>
     <li><code>{{package}}</code> — <code>lesson_packages.name</code></li>
     <li><code>{{package_type}}</code> — человекочитаемый тип</li>
+    <li><code>{{pay_url}}</code> — HTTPS-ссылка на публичную оплату месяца через СБП
+      (<code>/pm/{short_code}</code>). Пустая строка, если T‑Bank не подключен,
+      сумма вне диапазона СБП (10 ₽ … 1 000 000 ₽), постоплата ещё недоступна
+      или начисление уже оплачено. Init банка при подстановке <b>не</b> выполняется.</li>
   </ul>
+  <p>Если в шаблоне <b>нет</b> <code>{{pay_url}}</code> и ссылка есть — в конец тела
+    автоматически добавляется блок «Оплатить через СБП» (кнопка + запасной URL).
+    Если T‑Bank нет — письмо уходит без ссылки и без автоблока.</p>
   <p>Значения переменных экранируются; HTML-разметка шаблона сохраняется.
     Базовая обёртка письма (<code>resources/views/emails/payment-notification.blade.php</code>):
     логотип <code>img/logo.png</code> сверху и футер
     «С уважением, Команда kidscrm.online» — как в welcome-письмах клиента.</p>
+
+  <h2 id="sbp-pay-link">6.1) Ссылка на оплату через СБП</h2>
+  <div class="ok">
+    Письмо ведёт на публичную QR-страницу месяца, тот же контур, что у абонемента
+    (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>),
+    но payable = <code>monthly_fee</code> по строке <code>users_prices</code>
+    (не <code>lesson_package_fee</code>).
+  </div>
+  <ul>
+    <li>Короткий URL: <code>GET /pm/{code}</code> (<code>up.public.pay.short</code>).
+      Длинный: <code>GET /pay/up/{token}</code> (64 hex) — для QR AJAX
+      (<code>/pay/up/{token}/qr/json|payload|state</code>). Не <code>/pay/ulp/</code>:
+      шаблон общий с абонементом, контроллер обязан передать <code>qrJsonUrl</code> /
+      <code>qrPayloadUrl</code> / <code>qrStateUrl</code>, иначе JS уйдёт на чужие маршруты
+      и QR не загрузится.</li>
+    <li>Таблица <code>user_price_public_pay_links</code>: UNIQUE по <code>users_price_id</code>,
+      token 64 hex, short_code 10 символов, TTL 30 дней.</li>
+    <li>При повторном напоминании тот же <code>short_code</code>, срок <b>продлевается</b>
+      (не ротируется). Init T‑Bank — при первом открытии страницы родителем.</li>
+    <li>Сумма только из <code>users_prices.price_cents</code>. Смена суммы в админке
+      не ломает код ссылки: при следующем открытии платёж переинициализируется.</li>
+    <li>Гость OK, throttle <code>up-public-pay</code> (40/мин с IP).</li>
+    <li>Карточка оплат: <a href="/docs/documentation/payments#up-public-pay">payments §3.1.3</a>.</li>
+  </ul>
 
   <h2 id="ui">7) UI вкладки</h2>
   <ul>
     <li>Текст шапки:
       «Правила email-рассылки:» / «Абонемент не оплачен.» / «Отправка в 10:00 (Europe/Moscow).»</li>
     <li>Дефолты «Добавить правило» (<code>openCreate</code>): типы fixed+flexible, день месяца = 5,
-      offset = текущий, правило включено.</li>
+      offset = текущий, правило включено. Тело письма <b>без</b> <code>{{pay_url}}</code> —
+      чтобы сработал автоблок «Оплатить через СБП». <code>openEdit</code> подставляет
+      сохранённый шаблон, дефолт не навязывает.</li>
     <li>При триггере overdue блок «Месяц начисления» скрывается (<code>syncTriggerUi</code>).</li>
     <li>Превью без <code>users_price_id</code> — <b>демо-данные</b>: текущий календарный месяц MSK
       + полная обёртка в <code>email_html</code> (iframe). Поле «Месяц начисления» правила на демо
-      <b>не влияет</b>.</li>
-    <li>Превью с <code>users_price_id</code> — подстановка из реальной строки начисления.</li>
+      <b>не влияет</b>. Демо всегда показывает пример <code>/pm/examplePay</code> и автоблок
+      (даже если у партнёра нет T‑Bank). Кнопки «Превью» / «Тест» в модалке
+      <code>users_price_id</code> не передают.</li>
+    <li>Превью с <code>users_price_id</code> — подстановка из реальной строки начисления
+      (при готовом T‑Bank создаётся/продлевается запись ссылки без Init).
+      Без T‑Bank автоблок и ссылка не добавляются (в отличие от демо).</li>
   </ul>
 
   <h2 id="examples">8) Типовые наборы правил (рекомендации)</h2>
@@ -207,11 +249,27 @@
   <h2 id="tests">10) Тесты</h2>
   <ul>
     <li><code>tests/Feature/Crm/SettingPrices/PaymentNotificationsFeatureTest.php</code> —
-      доступ, CRUD + field errors, non-AJAX JSON store, превью UX (текущий месяц + лого/футер),
-      test-send, диспетчеризация (offset −1, overdue, skip paid/email, идемпотентность),
-      изоляция партнёра, фильтр категории emails.</li>
+      доступ, CRUD + field errors, non-AJAX JSON store/preview/test-send,
+      превью UX (демо vs реальная строка, автоблок как настоящий <code>&lt;a href&gt;</code>,
+      <code>{{ pay_url }}</code> с пробелами без дубля), test-send, диспетчеризация
+      (offset −1, overdue, skip paid/email, идемпотентность),
+      изоляция партнёра (в т.ч. чужой <code>users_price_id</code> → 422
+      <code>errors.users_price_id</code>), фильтр категории emails,
+      автоблок СБП / <code>{{pay_url}}</code>, письмо без ссылки если нет T‑Bank /
+      сумма вне диапазона СБП.</li>
+    <li><code>tests/Feature/Crm/Payments/UserPricePublicPayFeatureTest.php</code> —
+      публичная страница <code>/pm/{code}</code>: Init при открытии, QR-маршруты
+      <code>/pay/up/…</code> (не fallback <code>/pay/ulp/</code>), сумма
+      <code>Money::formatRub</code>, матрица GET 200 для гостя / с правами / без
+      <code>payment.method.tbankSBP</code>, POST/PUT/PATCH/DELETE → 404/405/419
+      (не 500), JSON 404 на неизвестный token, ручная оплата / выключенный T‑Bank /
+      сумма выше максимума, постоплата до даты оплаты.</li>
     <li><code>tests/Unit/Services/PaymentNotifications/PaymentNotificationTriggerResolverTest.php</code></li>
-    <li><code>BladeInlineJsSyntaxTest::test_payment_notifications_modal_js_contracts_and_syntax</code></li>
+    <li><code>BladeInlineJsSyntaxTest::test_payment_notifications_modal_js_contracts_and_syntax</code>
+      — дефолт <code>openCreate</code> без <code>{{pay_url}}</code>,
+      <code>openEdit</code> не сбрасывает тело, превью/тест из модалки без
+      <code>users_price_id</code>, <code>node --check</code>.</li>
+    <li><code>BladeInlineJsSyntaxTest::test_ulp_public_pay_js_falls_back_to_ulp_qr_routes_unless_urls_injected</code></li>
   </ul>
 
   <h2 id="files">11) Ключевые файлы</h2>
@@ -219,10 +277,13 @@
     <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — метод вкладки</li>
     <li><code>app/Http/Controllers/Admin/PaymentNotificationRuleController.php</code></li>
     <li><code>app/Services/PaymentNotifications/*</code></li>
+    <li><code>app/Services/Payments/UserPricePublicPayService.php</code>,
+      <code>app/Http/Controllers/PublicUserPricePayController.php</code></li>
     <li><code>app/Mail/PaymentNotificationMail.php</code>, <code>resources/views/emails/payment-notification.blade.php</code></li>
     <li><code>app/Jobs/DispatchPaymentNotificationsJob.php</code>, <code>SendPaymentNotificationDispatchJob.php</code></li>
     <li><code>resources/views/admin/SettingPrices/payment-notifications.blade.php</code></li>
-    <li>Миграции: <code>2026_08_12_100000_*</code>, <code>100100_*</code>, <code>100200_*</code></li>
+    <li>Миграции: <code>2026_08_12_100000_*</code>, <code>100100_*</code>, <code>100200_*</code>,
+      <code>2026_09_02_001000_create_user_price_public_pay_links_table.php</code></li>
   </ul>
 </div>
 </body>

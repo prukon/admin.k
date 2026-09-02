@@ -49,6 +49,7 @@ use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\MyGroupController;
 use App\Http\Controllers\PartnerPaymentController;
 use App\Http\Controllers\PublicLessonPackagePayController;
+use App\Http\Controllers\PublicUserPricePayController;
 use App\Http\Controllers\Security\PhoneChangeController;
 use App\Http\Controllers\TinkoffAdminPartnerController;
 use App\Http\Controllers\TinkoffAdminPaymentController;
@@ -1329,6 +1330,25 @@ Route::middleware(['throttle:ulp-public-pay'])->group(function () {
     Route::get('/pay/ulp/{token}/qr/state', [PublicLessonPackagePayController::class, 'qrState'])
         ->where('token', '[a-f0-9]{64}')
         ->name('ulp.public.pay.qr.state');
+});
+
+// Публичная оплата месячного начисления по СБП (ссылка из email-уведомления)
+Route::middleware(['throttle:up-public-pay'])->group(function () {
+    Route::get('/pay/up/{token}', [PublicUserPricePayController::class, 'show'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('up.public.pay');
+    Route::get('/pm/{code}', [PublicUserPricePayController::class, 'showShort'])
+        ->where('code', '[A-Za-z0-9]{8,12}')
+        ->name('up.public.pay.short');
+    Route::get('/pay/up/{token}/qr/json', [PublicUserPricePayController::class, 'qrJson'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('up.public.pay.qr.json');
+    Route::get('/pay/up/{token}/qr/payload', [PublicUserPricePayController::class, 'qrPayload'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('up.public.pay.qr.payload');
+    Route::get('/pay/up/{token}/qr/state', [PublicUserPricePayController::class, 'qrState'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('up.public.pay.qr.state');
 });
 
 //CloudKassir webhook

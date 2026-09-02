@@ -7,7 +7,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1 class="h4 m-0">Кошелёк</h1>
             <div>
-                Баланс: <span id="walletBalance">{{ number_format((float)($partner->wallet_balance ?? 0), 2, ',', ' ') }}</span> ₽
+                Баланс: <span id="walletBalance">{{ number_format(((int) ($partner->wallet_balance_cents ?? 0)) / 100, 2, ',', ' ') }}</span> ₽
             </div>
         </div>
 
@@ -20,9 +20,12 @@
                             @csrf
                             <input type="hidden" name="partner_id" value="{{ $partner->id }}">
                             <div class="mb-3">
-                                <label class="form-label">Сумма, ₽</label>
-                                <input type="number" step="0.01" min="1" class="form-control" name="amount" required>
+                                <label class="form-label" for="walletTopupAmount">Сумма, ₽</label>
+                                <input type="number" step="0.01" min="1" class="form-control" id="walletTopupAmount" name="amount" required>
+                                <div class="invalid-feedback" data-error-for="amount"></div>
                             </div>
+                            <div class="invalid-feedback d-block" data-error-for="partner_id"></div>
+                            <div class="text-danger small mb-2 d-none" id="walletTopupFormError"></div>
                             {{--<div class="mb-3">--}}
                                 {{--<label class="form-label">Описание (необязательно)</label>--}}
                                 {{--<input type="text" class="form-control" name="description" placeholder="Пополнение баланса">--}}
@@ -113,10 +116,46 @@
                 txTable.ajax.reload(null, false);
             });
 
+            function clearWalletTopupErrors() {
+                var $form = $('#walletTopupForm');
+                $form.find('.is-invalid').removeClass('is-invalid');
+                $form.find('[data-error-for]').text('');
+                $('#walletTopupFormError').addClass('d-none').text('');
+            }
+
+            function showWalletTopupErrors(errors, fallbackMessage) {
+                var $form = $('#walletTopupForm');
+                var shown = false;
+
+                if (errors && typeof errors === 'object') {
+                    Object.keys(errors).forEach(function (field) {
+                        var messages = errors[field];
+                        var text = Array.isArray(messages) ? messages[0] : messages;
+                        if (!text) {
+                            return;
+                        }
+                        var $input = $form.find('[name="' + field + '"]');
+                        var $slot = $form.find('[data-error-for="' + field + '"]');
+                        if ($input.length) {
+                            $input.addClass('is-invalid');
+                        }
+                        if ($slot.length) {
+                            $slot.text(text);
+                            shown = true;
+                        }
+                    });
+                }
+
+                if (!shown) {
+                    $('#walletTopupFormError').removeClass('d-none').text(fallbackMessage || 'Ошибка сервера');
+                }
+            }
+
             // Ajax пополнение
             $('#walletTopupForm').on('submit', function(e) {
                 e.preventDefault();
 
+                clearWalletTopupErrors();
                 $('#topupBtn').prop('disabled', true).text('Создаём платёж...');
 
                 $.ajax({
@@ -127,13 +166,14 @@
                         if (res && res.ok && res.redirect) {
                             window.location = res.redirect;
                         } else {
-                            alert('Не удалось создать платёж');
+                            showWalletTopupErrors(null, 'Не удалось создать платёж');
                             $('#topupBtn').prop('disabled', false).text('Оплатить');
                         }
                     },
                     error: function(xhr) {
-                        const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Ошибка сервера';
-                        alert(msg);
+                        var json = xhr.responseJSON || {};
+                        var msg = json.message ? json.message : 'Ошибка сервера';
+                        showWalletTopupErrors(json.errors, msg);
                         $('#topupBtn').prop('disabled', false).text('Оплатить');
                     }
                 });

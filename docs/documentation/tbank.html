@@ -275,7 +275,15 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <h3>7.3 Доступы и изоляция по партнёру</h3>
   <ul>
     <li>Оплата картой: <code>POST /payments/tinkoff/create</code> — <code>can:payment.method.tbankCard</code>. СБП и QR: <code>POST /payments/tinkoff/sbp</code>, <code>/tinkoff/qr/…</code> — <code>can:payment.method.tbankSBP</code> (плюс общие <code>auth</code> и <code>2fa</code> для кабинета).</li>
-    <li>Без авторизации — редирект на страницу входа. Без соответствующего права — ответ <b>403</b>.</li>
+    <li>Без авторизации — редирект на страницу входа. Без соответствующего права — ответ <b>403</b>.
+      Это про кабинетные <code>/tinkoff/qr/{PaymentId}</code> и Init с витрины.
+      Публичные ссылки из писем/SMS <b>другие</b>: месяц <code>/pm/{code}</code>
+      (<a href="/doc#payment-notifications-sbp-link-index">анонс</a>,
+      <a href="/docs/documentation/payments#up-public-pay">payments §3.1.3</a>)
+      и абонемент <code>/p/{code}</code>
+      (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>) —
+      гость 200, право <code>payment.method.tbankSBP</code> не требуется, QR AJAX
+      на <code>/pay/up/…</code> и <code>/pay/ulp/…</code>, не на <code>/tinkoff/qr/…</code>.</li>
     <li><code>TinkoffQrController</code> сверяет <code>tinkoff_payments.partner_id</code> с <code>current_partner</code>; чужой <code>PaymentId</code> → <b>404</b> (в т.ч. для <code>/json</code>, <code>/payload</code> и <code>/state</code>).</li>
     <li>Параметр <code>partner_id</code> из формы при альтернативном <code>POST …/qr-init</code> не используется: партнёр берётся только из контекста (см. тесты безопасности).</li>
   </ul>

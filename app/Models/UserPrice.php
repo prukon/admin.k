@@ -49,6 +49,11 @@ class UserPrice extends Model
         return $this->belongsTo(UserLessonPackage::class, 'user_lesson_package_id');
     }
 
+    public function publicPayLink()
+    {
+        return $this->hasOne(UserPricePublicPayLink::class, 'users_price_id');
+    }
+
     public function manualPaidBy()
     {
         return $this->belongsTo(User::class, 'manual_paid_by');

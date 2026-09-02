@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Partner\CreatePartnerWalletTopupRequest;
 use App\Models\Partner;
 use App\Models\PartnerAccess;
 use App\Models\PartnerPayment;
@@ -20,7 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 
-class PartnerPaymentController extends Controller
+class PartnerPaymentController extends AdminBaseController
 {
 
 //    Страница Пополнить счет
@@ -240,20 +241,18 @@ class PartnerPaymentController extends Controller
     }
 
     // Создать платёж YooKassa на пополнение кошелька
-    public function createWalletTopupYookassa(Request $request)
+    public function createWalletTopupYookassa(CreatePartnerWalletTopupRequest $request)
     {
-        $request->validate([
-            'amount'     => 'required|numeric|min:1',
-            'partner_id' => 'required|exists:partners,id',
-            'description'=> 'nullable|string|max:255',
-        ]);
+        $data = $request->validated();
 
-        $partnerId = (int) $request->input('partner_id');
-        $amount    = (float) $request->input('amount');
-        $desc      = $request->input('description') ?: 'Пополнение баланса партнёра';
+        $partner = $this->currentUserPartnerOrFail();
+        $this->guardPartnerAccess((int) $data['partner_id']);
 
-        // (опционально) проверка, что пользователь имеет доступ к этому партнёру
-        $this->guardPartnerAccess($partnerId);
+        $partnerId = (int) $partner->id;
+        $amount    = (float) $data['amount'];
+        $desc      = (isset($data['description']) && is_string($data['description']) && $data['description'] !== '')
+            ? $data['description']
+            : 'Пополнение баланса партнёра';
 
         $client = new Client();
         $client->setAuth(config('yookassa.shop_id'), config('yookassa.secret_key'));
@@ -498,7 +497,7 @@ class PartnerPaymentController extends Controller
 
         $query = PartnerWalletTransaction::with(['partner','user'])
             ->where('partner_id', $partner->id)
-            ->select('*');
+            ->select('partner_wallet_transactions.*');
 
         return DataTables::of($query)
             ->addColumn('partner_name', fn($t) => optional($t->partner)->title ?? '—')
@@ -529,17 +528,19 @@ class PartnerPaymentController extends Controller
 
     private function guardPartnerAccess(int $partnerId): void
     {
-        // Если у вас есть логика принадлежности пользователя партнёру — проверьте здесь.
-        // Пока пропускаем (или добавьте свою проверку).
+        $currentPartnerId = $this->partnerContext->partnerId();
+        abort_if(
+            $currentPartnerId === null || (int) $partnerId !== (int) $currentPartnerId,
+            403,
+            'Нет доступа к кошельку этой школы.'
+        );
     }
 
     private function currentUserPartnerOrFail(): Partner
     {
-        // Верните партнёра, с которым сейчас работает пользователь
-        // Ниже — заглушка: либо через профиль пользователя, либо через выбранного партнёра в сессии.
-        // Замените на вашу реальную реализацию:
-        $partner = Partner::first();
-        abort_if(!$partner, 404, 'Партнёр не найден');
+        $partner = $this->partnerContext->partner();
+        abort_if($partner === null, 404, 'Партнёр не найден');
+
         return $partner;
     }
 
