@@ -197,6 +197,7 @@ final class ContractsAuditLogsFeatureTest extends ContractsFeatureTestCase
         $contract = $this->createDraftContractForAudit();
         Storage::put($contract->source_pdf_path, $this->minimalDocxBytes());
 
+        $this->seedPodpislonLegalEntity();
         $this->mockSuccessfulSend();
 
         $this->postJson(route('contracts.send', $contract), $this->validSendPayload())
@@ -222,6 +223,8 @@ final class ContractsAuditLogsFeatureTest extends ContractsFeatureTestCase
 
         $contract = $this->createDraftContractForAudit();
         Storage::put($contract->source_pdf_path, $this->minimalDocxBytes());
+
+        $this->seedPodpislonLegalEntity();
 
         Http::fake([
             '*' => Http::response([], 200),
@@ -257,6 +260,8 @@ final class ContractsAuditLogsFeatureTest extends ContractsFeatureTestCase
                 ],
             ], 200),
         ]);
+
+        $this->seedPodpislonLegalEntity();
 
         $student = User::factory()->create([
             'partner_id' => $this->partner->id,

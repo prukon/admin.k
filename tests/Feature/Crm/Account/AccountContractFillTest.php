@@ -76,6 +76,8 @@ class AccountContractFillTest extends CrmTestCase
 
     public function test_client_sign_sends_sms_via_provider(): void
     {
+        $this->seedPodpislonLegalEntity();
+
         Http::fake(['*' => Http::response([['status' => 15, 'status_text' => 'sent']], 200)]);
 
         $contract = $this->makeAwaitingContract();

@@ -46,6 +46,7 @@
         return (string) old('ceo.' . $key, '');
     };
     $smDetailsDefault = 'Выплата по договору, НДС не облагается';
+    $showPodpislonApiKey = !empty($showPodpislonApiKey);
 @endphp
 
 <div class="row g-3">
@@ -190,6 +191,24 @@
         </select>
         <div class="invalid-feedback d-block" data-error-for="is_enabled"></div>
     </div>
+
+    @if($showPodpislonApiKey)
+        <div class="col-12">
+            <h6 class="mb-0 mt-1">Подпислон</h6>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">API-ключ Подпислона</label>
+            <input type="password"
+                   class="form-control"
+                   name="podpislon_api_key"
+                   maxlength="255"
+                   autocomplete="new-password"
+                   value=""
+                   placeholder="{{ $prefix === 'edit' ? 'Оставьте пустым, чтобы не менять' : '' }}">
+            <div class="form-text js-podpislon-api-key-set-hint d-none">Ключ задан. Введите новый, чтобы заменить.</div>
+            <div class="invalid-feedback d-block" data-error-for="podpislon_api_key"></div>
+        </div>
+    @endif
 
     <input type="hidden"
            name="sm_details_template"

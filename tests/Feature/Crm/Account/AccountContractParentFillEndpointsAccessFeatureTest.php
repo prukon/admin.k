@@ -130,6 +130,8 @@ class AccountContractParentFillEndpointsAccessFeatureTest extends CrmTestCase
         ]);
         Storage::disk()->put($awaiting->source_pdf_path, '%PDF-1.4');
 
+        $this->seedPodpislonLegalEntity();
+
         Http::fake(['*' => Http::response([['status' => 15]], 200)]);
 
         $provider = Mockery::mock(SignatureProvider::class);

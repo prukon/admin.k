@@ -57,6 +57,8 @@ final class PhoneFormContractPersistenceFeatureTest extends ContractsFeatureTest
 
     public function test_contract_admin_send_persists_signer_phone_in_sign_request(): void
     {
+        $this->seedPodpislonLegalEntity();
+
         Http::fake(['*' => Http::response([['status' => 15, 'status_text' => 'sent']], 200)]);
 
         $student = User::factory()->create([

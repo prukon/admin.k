@@ -186,7 +186,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>school_leads.location_id</code></td><td>Nullable FK → <code>locations</code>, <code>nullOnDelete</code>.</td></tr>
       <tr><td><code>teams.location_id</code></td><td>Nullable FK → <code>locations</code>, <code>nullOnDelete</code>. Одна группа — один объект — см. <a href="/docs/documentation/location-team-bindings">location-team-bindings</a>.</td></tr>
       <tr><td><code>sport_types</code></td><td>Плоский справочник партнёра; <code>teams.sport_type_id</code> (nullable), <code>school_leads.sport_type_id</code> — см. <a href="/docs/documentation/admin-sport-types">admin-sport-types</a>.</td></tr>
-      <tr><td><code>partner_legal_entities</code></td><td>Юр. лица партнёра: реквизиты, <code>tinkoff_shop_code</code>, <code>is_default</code>, soft delete. <code>teams.legal_entity_id</code> (nullable FK) — см. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.</td></tr>
+      <tr><td><code>partner_legal_entities</code></td><td>Юр. лица партнёра: реквизиты, <code>tinkoff_shop_code</code>, <code>podpislon_api_key</code> (только superadmin), <code>is_default</code>, soft delete. <code>teams.legal_entity_id</code> (nullable FK) — см. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>, <a href="/doc#legal-entities-podpislon-key-index">анонс ключа Подпислона</a>.</td></tr>
     </tbody>
   </table>
   <p>Миграции: <code>2026_06_13_100000_create_districts_table.php</code>, <code>100001_add_district_id_to_locations_table.php</code>, <code>100002_add_district_id_to_school_leads_table.php</code>, <code>110000_add_districts_permissions.php</code>, <code>120000_remove_soft_deletes_from_districts_table.php</code>, <code>160000_add_admin_user_id_to_locations_table.php</code> (заменена на M2M), <code>170000_create_location_admin_user_table.php</code>.</p>
@@ -239,6 +239,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
     <li>DataTables: фильтры поиск / active-inactive; колонки «Регистрация в банке» (бейдж + hint при «Нет»), наименование через <code>displayTitle()</code>, <code>teams_count</code>, «Основное»; колонка ShopCode и кнопка «Регистрация» — только при <code>legal_entities.sm_register</code>.</li>
     <li>Привязка к группам — селект в модалках <code>/admin/teams</code> (если ≥2 активных юр. лиц).</li>
     <li>Оплаты T‑Bank: ShopCode через <code>LegalEntityResolver</code> — только <code>partner_legal_entities.tinkoff_shop_code</code> (без fallback на <code>partners</code>). См. <a href="/docs/documentation/account-partner-organization">account-partner-organization</a>.</li>
+    <li>API-ключ Подпислона — поле юрлица, только superadmin, не <code>PODPISLON_API_KEY</code>. См. <a href="/docs/documentation/admin-legal-entities#legal-entities-podpislon-key">admin-legal-entities §4.2.3</a>, <a href="/doc#legal-entities-podpislon-key-index">анонс</a>.</li>
   </ul>
 
   <h3 id="directories-lesson-packages">5.6) Абонементы (дубль) — <code>/admin/directories/lesson-packages</code></h3>

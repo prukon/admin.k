@@ -40,6 +40,7 @@ return [
 
     'podpislon' => [
         'base_url'       => env('PODPISLON_BASE_URL', 'https://podpislon.ru/integration'),
+        // Ключ для отправки документов берётся с юр. лица (partner_legal_entities.podpislon_api_key), не из .env.
         'key'            => env('PODPISLON_API_KEY'),
         'webhook_secret' => env('PODPISLON_WEBHOOK_SECRET'),
         'http_debug'     => env('PODPISLON_HTTP_DEBUG', false),      // для Guzzle on_stats/debug

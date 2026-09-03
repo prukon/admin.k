@@ -16,6 +16,7 @@ use App\Models\Partner;
 use App\Services\Contracts\ContractBillingService;
 use App\Services\Contracts\ContractPodpislonSendService;
 use App\Services\Contracts\ContractSmsCooldown;
+use App\Services\Signatures\PodpislonCredentialsException;
 use App\Services\Signatures\Providers\PodpislonProvider;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Support\Facades\Auth;
@@ -179,6 +180,11 @@ class ContractSigningController extends Controller
                 'code'    => 'resend_not_sent',
                 'links'   => $links,
             ], 422);
+        } catch (PodpislonCredentialsException $e) {
+            $sr->delete();
+            ContractSmsCooldown::release($contract->id);
+
+            return response()->json($e->toSendFailure(), 422);
         } catch (\Throwable $e) {
             $oldSrStatus = $sr->status;
             $sr->status = 'failed';
@@ -624,6 +630,7 @@ class ContractSigningController extends Controller
 
         if (!$contract->provider_doc_id) return null;
 
+        $pod->authenticateFor($contract);
         $list = $pod->list([(int)$contract->provider_doc_id], [], 1, true);
         return $list['items'][0] ?? null;
     }

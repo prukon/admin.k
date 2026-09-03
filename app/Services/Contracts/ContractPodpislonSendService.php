@@ -7,6 +7,8 @@ use App\Models\ContractEvent;
 use App\Models\ContractSignRequest;
 use App\Enums\AuditEvent;
 use App\Services\Audit\ContractAudit;
+use App\Services\Signatures\PodpislonCredentialsException;
+use App\Services\Signatures\PodpislonCredentialsResolver;
 use App\Services\Signatures\Providers\PodpislonProvider;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Support\Facades\Auth;
@@ -31,6 +33,14 @@ class ContractPodpislonSendService
         $cooldown = ContractSmsCooldown::tryAcquire($contract->id);
         if (!$cooldown['allowed']) {
             return ContractSmsCooldown::blockedResponse($cooldown['remaining']);
+        }
+
+        try {
+            app(PodpislonCredentialsResolver::class)->bindToContract($contract);
+        } catch (PodpislonCredentialsException $e) {
+            ContractSmsCooldown::release($contract->id);
+
+            return $e->toSendFailure();
         }
 
         $signerFio = trim(preg_replace('/\s+/', ' ', implode(' ', array_filter([
@@ -135,6 +145,11 @@ class ContractPodpislonSendService
                 'code'    => 'send_not_sent',
                 'links'   => $this->signingLinks($contract),
             ];
+        } catch (PodpislonCredentialsException $e) {
+            $sr->delete();
+            ContractSmsCooldown::release($contract->id);
+
+            return $e->toSendFailure();
         } catch (\Throwable $e) {
             $sr->status = 'failed';
             $sr->save();
@@ -230,6 +245,11 @@ class ContractPodpislonSendService
                 'message' => 'Провайдер не подтвердил отправку SMS.',
                 'code'    => 'resend_not_sent',
             ];
+        } catch (PodpislonCredentialsException $e) {
+            $sr->delete();
+            ContractSmsCooldown::release($contract->id);
+
+            return $e->toSendFailure();
         } catch (\Throwable $e) {
             $sr->status = 'failed';
             $sr->save();
@@ -262,6 +282,7 @@ class ContractPodpislonSendService
             return null;
         }
 
+        $pod->authenticateFor($contract);
         $list = $pod->list([(int) $contract->provider_doc_id], [], 1, true);
 
         return $list['items'][0] ?? null;

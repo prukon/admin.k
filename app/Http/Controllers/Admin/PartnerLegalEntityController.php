@@ -38,7 +38,9 @@ class PartnerLegalEntityController extends AdminBaseController
     {
         $this->requirePartnerId();
 
-        return view('admin.legal-entities.index');
+        return view('admin.legal-entities.index', [
+            'isSuperAdmin' => $this->isSuperAdmin(),
+        ]);
     }
 
     public function data(Request $request)
@@ -429,6 +431,19 @@ class PartnerLegalEntityController extends AdminBaseController
             $data['sm_details_template'] = self::SM_DETAILS_TEMPLATE_DEFAULT;
         }
 
+        if (array_key_exists('podpislon_api_key', $data)) {
+            $key = trim((string) $data['podpislon_api_key']);
+            if ($key === '') {
+                if ($isCreate) {
+                    $data['podpislon_api_key'] = null;
+                } else {
+                    unset($data['podpislon_api_key']);
+                }
+            } else {
+                $data['podpislon_api_key'] = $key;
+            }
+        }
+
         return $data;
     }
 
@@ -460,7 +475,7 @@ class PartnerLegalEntityController extends AdminBaseController
             ? $entity->business_type->value
             : (string) $entity->business_type;
 
-        return [
+        $payload = [
             'id' => $entity->id,
             'business_type' => $businessType,
             'title' => $entity->title,
@@ -484,6 +499,12 @@ class PartnerLegalEntityController extends AdminBaseController
             'is_default' => (int) $entity->is_default,
             'is_enabled' => (int) $entity->is_enabled,
         ];
+
+        if ($this->isSuperAdmin()) {
+            $payload['podpislon_api_key_set'] = $entity->hasPodpislonApiKey();
+        }
+
+        return $payload;
     }
 
     private function handleUniqueViolation(QueryException $e)
@@ -531,6 +552,7 @@ class PartnerLegalEntityController extends AdminBaseController
             'business_type' => $businessType,
             'organization_name' => $this->auditTextValue($entity->organization_name, 'не указано'),
             'tax_id' => $this->auditTextValue($entity->tax_id, 'не указано'),
+            'podpislon_api_key' => $entity->hasPodpislonApiKey() ? 'задан' : 'не задан',
             'is_default' => $entity->is_default ? 'Да' : 'Нет',
             'is_enabled' => $entity->is_enabled ? 'Да' : 'Нет',
         ];
@@ -545,6 +567,7 @@ class PartnerLegalEntityController extends AdminBaseController
             "Форма: {$snapshot['business_type']}",
             "Организация: {$snapshot['organization_name']}",
             "ИНН: {$snapshot['tax_id']}",
+            "API-ключ Подпислона: {$snapshot['podpislon_api_key']}",
             "Основное: {$snapshot['is_default']}",
             "Активность: {$snapshot['is_enabled']}",
         ]);
@@ -562,6 +585,7 @@ class PartnerLegalEntityController extends AdminBaseController
             'business_type' => 'Форма',
             'organization_name' => 'Организация',
             'tax_id' => 'ИНН',
+            'podpislon_api_key' => 'API-ключ Подпислона',
             'is_default' => 'Основное',
             'is_enabled' => 'Активность',
         ];

@@ -19,6 +19,10 @@ class PartnerLegalEntity extends Model
 
     protected $guarded = [];
 
+    protected $hidden = [
+        'podpislon_api_key',
+    ];
+
     protected $casts = [
         'partner_id' => 'int',
         'business_type' => PartnerLegalEntityBusinessType::class,
@@ -30,6 +34,7 @@ class PartnerLegalEntity extends Model
         'registered_at' => 'datetime',
         'bank_details_last_updated_at' => 'datetime',
         'registration_verified_at' => 'datetime',
+        'podpislon_api_key' => 'encrypted',
     ];
 
     public function partner(): BelongsTo
@@ -53,6 +58,11 @@ class PartnerLegalEntity extends Model
         }
 
         return trim((string) ($this->title ?? ''));
+    }
+
+    public function hasPodpislonApiKey(): bool
+    {
+        return trim((string) ($this->podpislon_api_key ?? '')) !== '';
     }
 
     /**

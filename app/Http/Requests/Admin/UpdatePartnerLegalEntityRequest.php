@@ -20,6 +20,7 @@ class UpdatePartnerLegalEntityRequest extends FormRequest
     {
         $this->normalizeLegalEntityCeoInput();
         $this->normalizeLegalEntityOrganizationNameInput();
+        $this->stripPodpislonApiKeyUnlessSuperAdmin();
 
         if ($this->has('vat') && $this->vat === '') {
             $this->merge(['vat' => null]);

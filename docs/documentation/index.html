@@ -28,6 +28,65 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="legal-entities-podpislon-key-index">Юр. лица: API-ключ Подпислона на каждом юрлице (2026‑09)</h2>
+  <div class="note">
+    Раньше ЭП организации в Подпислоне шла с одного ключа <code>PODPISLON_API_KEY</code> из <code>.env</code>
+    на всю CRM. PDF подставлял реквизиты нужного юрлица, а подпись в кабинете Подпислона — нет.
+    Сейчас ключ лежит на юрлице: у школы может быть 2+ юрлица, документы уходят с ЭП того,
+    которое выбрано для группы / зафиксировано на договоре.
+    Это <b>не</b> ShopCode T‑Bank и <b>не</b> плейсхолдер Word.
+    Вебхук Подпислона по-прежнему проверяет <code>PODPISLON_WEBHOOK_SECRET</code> из env.
+    <br><br>
+    1) <b>Где править.</b>
+    Только <code>superadmin</code>, модалки create/edit на <code>/admin/legal-entities</code>,
+    блок «Подпислон» после «Активен», <code>type=password</code>, <code>autocomplete=new-password</code>,
+    слот <code>data-error-for="podpislon_api_key"</code>.
+    Сотрудник школы поле не видит; POST/PUT с ключом от не-superadmin отбрасывается.
+    Пустое (и одни пробелы) при update ключ <b>не</b> затирает; подсказка «Ключ задан…» —
+    по флагу <code>podpislon_api_key_set</code>, plaintext в JSON и в input <b>нет</b>
+    (<code>fillForm</code> всегда <code>value = ''</code>; повторное открытие create —
+    <code>show.bs.modal</code> снова чистит поле и прячет hint).
+    После ShopCode поле <b>не</b> в <code>REGISTERED_CRUD_LOCKED_FIELDS</code>
+    (в отличие от р/с). Колонка зашифрована (<code>encrypted</code>), в модели <code>$hidden</code>.
+    Ключ из <code>.env</code> в карточки сам не копируется.
+    <br>
+    2) <b>Отправка.</b>
+    <code>PodpislonCredentialsResolver</code> берёт юрлицо как для плейсхолдеров
+    (<code>LegalEntityResolver::forTeamId</code>), но без молчаливого default при 2+ юрлицах
+    без <code>teams.legal_entity_id</code> — 422, поле <code>legal_entity_id</code>, код
+    <code>legal_entity_unresolved</code>.
+    При одном активном юрлице группа может быть без привязки — как у оплат.
+    Нет ключа — 422 <code>errors.podpislon_api_key</code> / <code>podpislon_api_key_missing</code>,
+    статус договора <b>не</b> <code>failed</code>, SMS-cooldown снимается, в Подпислон HTTP нет,
+    даже если в env задан <code>PODPISLON_API_KEY</code>.
+    CRM send, resend и подпись из кабинета (<code>POST …/sign</code>, redirect с теми же
+    <code>errors</code>) — одинаково.
+    После первой успешной резолюции пишется <code>contracts.legal_entity_id</code>
+    (статус/вебхук/скачивание PDF — тот же кабинет; soft-delete юрлица снимок не ломает).
+    Заголовок <code>X-Api-Key</code> — ключ этого юрлица.
+    <br>
+    3) <b>Что не менялось.</b>
+    Текст PDF по-прежнему из реквизитов юрлица группы.
+    T‑Bank / CloudKassir / <code>LegalEntityResolver</code> для оплат — как в
+    <a href="/doc#legal-entities-directories-2026-06">анонсе справочников 2026‑06</a> ниже: там ShopCode, не Подпислон.
+    Колокольчик при <code>signed</code> —
+    <a href="/doc#contract-signed-in-app-index">отдельный анонс</a>.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/admin-legal-entities#legal-entities-podpislon-key">admin-legal-entities §4.2.3</a>,
+    отправка —
+    <a href="/docs/documentation/contracts#contracts-podpislon">contracts §3.1</a>,
+    кабинет —
+    <a href="/docs/documentation/account-contract-fill">account-contract-fill</a>.
+    Тесты: <code>LegalEntitiesPodpislonApiKeyFeatureTest</code>,
+    <code>LegalEntitiesPodpislonApiKeyNonAjaxSafetyNetFeatureTest</code>,
+    <code>PodpislonCredentialsResolverTest</code>,
+    <code>PodpislonCredentialsHttpFeatureTest</code>,
+    <code>AccountContractFillPodpislonKeyFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_legal_entities_index_podpislon_api_key_js_contract_is_valid_javascript</code>,
+    <code>LegalEntitiesPodpislonKeyDocumentationContractTest</code>.
+  </div>
+
   <h2 id="teams-create-edit-toast-index">Группы: create/edit/delete без «OK» и без F5 (2026‑09)</h2>
   <div class="note">
     На <code>/admin/teams</code> после «Создать», «Обновить» и удаления группы
@@ -5482,9 +5541,9 @@
     Локальная и test-БД: при <code>SEED_DEV_DATA=true</code> в <code>.env</code> блок <code>Dev*</code>-сидеров в <code>DatabaseSeeder</code> создаёт детерминированные партнёры 1–3, юр. лица (<code>SHOP-DEV-*</code>), справочники районов/видов спорта, группы с <code>legal_entity_id</code>, правила комиссий T‑Bank, историю платежей/выплат, Robokassa (1–2) и глобальный T‑Bank. На production флаг выключен. Подробно — <a href="/docs/documentation/dev-seed-data">dev-seed-data</a>.
   </div>
 
-  <h2>Изменения в справочниках (юр. лица и группы, 2026‑06)</h2>
+  <h2 id="legal-entities-directories-2026-06">Изменения в справочниках (юр. лица и группы, 2026‑06)</h2>
   <div class="note">
-    <b>Юр. лица</b> (<code>/admin/legal-entities</code>): публичное наименование в списке и привязках — <code>PartnerLegalEntity::displayTitle()</code> (<code>organization_name</code> → fallback <code>title</code>); поле «Наименование организации» обязательно в модалках CRM; <b>корр. счёт</b> <code>bank_corr_account</code> (CRM-only; после ShopCode редактируется в CRM, р/с — нет) — <a href="/docs/documentation/admin-legal-entities#legal-entities-bank-corr">§4.2.2</a>; колонка «Регистрация в банке» — бейдж + иконка <code>i</code> с <code>KidsCrmTooltip</code>; ошибка удаления при привязанных группах — модалка <code>showErrorModal</code> (не <code>alert</code>); после удаления модалка редактирования не открывается повторно. Подробно — <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.
+    <b>Юр. лица</b> (<code>/admin/legal-entities</code>): публичное наименование в списке и привязках — <code>PartnerLegalEntity::displayTitle()</code> (<code>organization_name</code> → fallback <code>title</code>); поле «Наименование организации» обязательно в модалках CRM; <b>корр. счёт</b> <code>bank_corr_account</code> (CRM-only; после ShopCode редактируется в CRM, р/с — нет) — <a href="/docs/documentation/admin-legal-entities#legal-entities-bank-corr">§4.2.2</a>; колонка «Регистрация в банке» — бейдж + иконка <code>i</code> с <code>KidsCrmTooltip</code>; ошибка удаления при привязанных группах — модалка <code>showErrorModal</code> (не <code>alert</code>); после удаления модалка редактирования не открывается повторно. API-ключ Подпислона на юрлице (2026‑09) — <a href="/doc#legal-entities-podpislon-key-index">отдельный анонс</a>, не ShopCode. Подробно — <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.
     <br><br>
     <b>Группы</b> (<code>/admin/teams</code>): при <b>≥2 активных юр. лицах</b> поле «Юр. лицо» в модалках <b>обязательно</b>; без привязки группы T‑Bank недоступен (жёсткий guard). Колонка «Юр. лицо» — <code>displayTitle()</code> явной привязки; без привязки — «—». Подробно — <a href="/docs/documentation/admin-teams#legal-entities">admin-teams §5.2</a>, <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>.
     <br><br>
@@ -5591,15 +5650,15 @@
     <li><a href="/docs/documentation/admin-districts">Районы (админка): <code>/admin/districts</code> — <code>districts.view</code>, CRUD, multiselect объектов, аудит <code>district.*</code></a></li>
     <li><a href="/docs/documentation/admin-locations">Объекты (админка): <code>/admin/locations</code> — <code>locations.view</code> / <code>locations.manage</code>, M2M админов, привязка групп, аудит <code>location.*</code></a></li>
     <li><a href="/docs/documentation/admin-sport-types">Виды спорта (админка): <code>/admin/sport-types</code> — <code>sport_types.view</code> / <code>sport_types.manage</code>, вкладка «Справочники», аудит <code>sport_type.*</code></a></li>
-    <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>manage</code> / <code>sm_register</code>, модалки CRUD, <b>корр. счёт</b> (<code>bank_corr_account</code>, CRM-only + плейсхолдер договоров), карточка sm-register, ShopCode T‑Bank, guardrails, <code>LegalEntityResolver</code></a></li>
+    <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>manage</code> / <code>sm_register</code>, модалки CRUD, <b>корр. счёт</b> (<code>bank_corr_account</code>, CRM-only + плейсхолдер договоров), <b>API-ключ Подпислона</b> (только superadmin, не <code>.env</code> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), карточка sm-register, ShopCode T‑Bank, guardrails, <code>LegalEntityResolver</code></a></li>
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, <b>create/edit/delete без «OK» и без F5</b> (<a href="/doc#teams-create-edit-toast-index">анонс</a>, §1.2, toast <code>#kidsMainToast</code>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: сайдбар/h4 «Пользователи»; вкладка <b>«Клиенты»</b> (<code>/admin/users</code>, роль <code>user</code>, label «Клиент»); <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок — <a href="/doc#users-client-naming-index">анонс нейминга</a></a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата)</a></li>
-    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
-    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
     <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>create/edit без «OK» и без F5</b> (<a href="/doc#users-create-edit-toast-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>

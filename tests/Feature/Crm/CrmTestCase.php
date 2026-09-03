@@ -592,6 +592,19 @@ abstract class CrmTestCase extends TestCase
         }
     }
 
+    protected function seedPodpislonLegalEntity(
+        string $apiKey = 'test-podpislon-api-key',
+        ?Partner $partner = null,
+    ): PartnerLegalEntity {
+        $partner ??= $this->partner;
+
+        return PartnerLegalEntity::factory()->for($partner)->create([
+            'podpislon_api_key' => $apiKey,
+            'is_default' => true,
+            'is_enabled' => true,
+        ]);
+    }
+
     protected function schoolLeadClientParentEmail(string $localPart = 'lead-parent'): string
     {
         return $localPart . '-' . Str::lower(Str::random(10)) . '@example.com';

@@ -629,6 +629,7 @@ class ContractsController extends Controller
             /** @var \App\Services\Signatures\Providers\PodpislonProvider $pod */
             $pod = app(\App\Services\Signatures\Providers\PodpislonProvider::class);
             if (!$contract->provider_doc_id) return null;
+            $pod->authenticateFor($contract);
             $list = $pod->list([(int)$contract->provider_doc_id], [], 1, true);
             return $list['items'][0] ?? null;
         };

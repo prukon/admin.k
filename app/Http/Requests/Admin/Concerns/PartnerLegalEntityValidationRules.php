@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin\Concerns;
 
 use App\Enums\CloudKassirVatRate;
 use App\Enums\PartnerLegalEntityBusinessType;
+use App\Services\PartnerContext;
 use Illuminate\Validation\Rule;
 
 trait PartnerLegalEntityValidationRules
@@ -28,7 +29,7 @@ trait PartnerLegalEntityValidationRules
             $taxIdUnique->ignore($ignoreEntityId);
         }
 
-        return [
+        $rules = [
             'business_type' => ['required', 'string', Rule::in($this->businessTypeRuleValues())],
             'organization_name' => ['required', 'string', 'max:255'],
             'tax_id' => ['nullable', 'string', 'max:12', $taxIdUnique],
@@ -51,6 +52,30 @@ trait PartnerLegalEntityValidationRules
             'is_default' => ['nullable', 'boolean'],
             'is_enabled' => ['nullable', 'boolean'],
         ];
+
+        if ($this->isRequestSuperAdmin()) {
+            $rules['podpislon_api_key'] = ['nullable', 'string', 'max:255'];
+        }
+
+        return $rules;
+    }
+
+    protected function isRequestSuperAdmin(): bool
+    {
+        return app(PartnerContext::class)->isSuperAdmin($this->user());
+    }
+
+    protected function stripPodpislonApiKeyUnlessSuperAdmin(): void
+    {
+        if (! $this->isRequestSuperAdmin()) {
+            $this->request->remove('podpislon_api_key');
+
+            return;
+        }
+
+        if ($this->has('podpislon_api_key') && is_string($this->input('podpislon_api_key'))) {
+            $this->merge(['podpislon_api_key' => trim((string) $this->input('podpislon_api_key'))]);
+        }
     }
 
     protected function normalizeLegalEntityCeoInput(): void
@@ -103,6 +128,7 @@ trait PartnerLegalEntityValidationRules
             'ceo.phone' => 'телефон руководителя',
             'is_default' => 'основное юр. лицо',
             'is_enabled' => 'активность',
+            'podpislon_api_key' => 'API-ключ Подпислона',
         ];
     }
 
@@ -119,6 +145,8 @@ trait PartnerLegalEntityValidationRules
             'zip.regex' => 'Индекс должен содержать 6 цифр',
             'bank_corr_account.string' => 'Поле «Корреспондентский счёт» должно быть строкой.',
             'bank_corr_account.max' => 'Поле «Корреспондентский счёт» не должно превышать :max символов.',
+            'podpislon_api_key.string' => 'Поле «API-ключ Подпислона» должно быть строкой.',
+            'podpislon_api_key.max' => 'Поле «API-ключ Подпислона» не должно превышать :max символов.',
         ];
     }
 }

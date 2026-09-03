@@ -230,6 +230,8 @@ class AccountDocumentsPageAccessFeatureTest extends CrmTestCase
             ->get(route('account.documents.downloadOriginal', $contract))
             ->assertOk();
 
+        $this->seedPodpislonLegalEntity();
+
         Http::fake(['*' => Http::response([['status' => 15]], 200)]);
 
         $provider = Mockery::mock(SignatureProvider::class);

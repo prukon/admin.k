@@ -162,7 +162,7 @@ class AccountContractFillController extends Controller
 
         return redirect()
             ->route('account.documents.index', ['fill' => $contract->id])
-            ->withErrors(['sign' => $result['message'] ?? 'Не удалось отправить SMS.']);
+            ->withErrors($result['errors'] ?? ['sign' => $result['message'] ?? 'Не удалось отправить SMS.']);
     }
 
     /**

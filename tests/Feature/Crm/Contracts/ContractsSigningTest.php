@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Contracts;
 
 use App\Models\Contract;
 use App\Models\ContractSignRequest;
+use App\Models\PartnerLegalEntity;
 use App\Models\User;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Support\Facades\Http;
@@ -16,6 +17,8 @@ class ContractsSigningTest extends ContractsFeatureTestCase
     /** @test */
     public function send_first_time_uses_signature_provider_and_sets_status_sent_when_provider_confirms(): void
     {
+        $entity = $this->seedPodpislonLegalEntity();
+
         Http::fake([
             // PodpislonProvider::list (pollForSent)
             '*' => Http::response([
@@ -66,10 +69,49 @@ class ContractsSigningTest extends ContractsFeatureTestCase
 
         $contract->refresh();
         $this->assertSame(Contract::STATUS_SENT, $contract->status);
+        $this->assertSame($entity->id, (int) $contract->legal_entity_id);
 
         $this->assertDatabaseHas('contract_sign_requests', [
             'contract_id' => $contract->id,
             'status'      => 'sent',
+        ]);
+    }
+
+    /** @test */
+    public function send_is_blocked_when_legal_entity_has_no_podpislon_api_key(): void
+    {
+        PartnerLegalEntity::factory()->for($this->partner)->create([
+            'organization_name' => 'ИП Без ключа',
+            'is_enabled' => true,
+        ]);
+
+        $this->postJson('/client-contracts/' . $this->makeUnsignedDraft()->id . '/send', [
+            'signer_lastname' => 'Иванов',
+            'signer_firstname' => 'Иван',
+            'signer_phone' => '+7 (900) 111-22-33',
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('code', 'podpislon_api_key_missing')
+            ->assertJsonValidationErrors(['podpislon_api_key']);
+    }
+
+    private function makeUnsignedDraft(): Contract
+    {
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+
+        return Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'group_id'        => null,
+            'source_pdf_path' => 'documents/2026/01/source.pdf',
+            'source_sha256'   => str_repeat('e', 64),
+            'provider'        => 'podpislon',
+            'provider_doc_id' => null,
+            'status'          => Contract::STATUS_DRAFT,
         ]);
     }
 
@@ -100,6 +142,8 @@ class ContractsSigningTest extends ContractsFeatureTestCase
     /** @test */
     public function resend_uses_repeat_send_and_creates_event_when_confirmed(): void
     {
+        $this->seedPodpislonLegalEntity();
+
         Http::fake([
             '*repeat-send*' => Http::response(['status' => true], 200),
             // list() polling

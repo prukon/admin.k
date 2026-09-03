@@ -4750,6 +4750,59 @@ JS;
     }
 
     /**
+     * P1: legal-entities index — fillForm и show.bs.modal create не пишут ключ Подпислона в input.
+     */
+    public function test_legal_entities_index_podpislon_api_key_js_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/legal-entities/index.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('function fillForm(form, data)', $content);
+        $this->assertStringContainsString("podpislonKeyInput.value = ''", $content);
+        $this->assertStringContainsString("podpislonHint.classList.toggle('d-none', !data.podpislon_api_key_set)", $content);
+        $this->assertStringContainsString("podpislonHint.classList.add('d-none')", $content);
+        $this->assertStringNotContainsString('podpislon_api_key: data.podpislon_api_key', $content);
+        $this->assertStringContainsString("applyErrors(createForm, data.errors || {})", $content);
+        $this->assertStringContainsString("applyErrors(editForm, data.errors || {})", $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $found = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'podpislon_api_key')) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-le-podpislon-key-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in legal-entities podpislon_api_key script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($found, 'В legal-entities/index.blade.php не найден script с podpislon_api_key');
+    }
+
+    /**
      * P1: копирование {{variable}} в справочнике шаблонов договоров (в т.ч. Юр. лицо).
      */
     public function test_contract_template_variables_reference_copy_handler_contract_is_valid_javascript(): void

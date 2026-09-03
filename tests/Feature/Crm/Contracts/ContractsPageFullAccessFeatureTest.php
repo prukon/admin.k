@@ -264,6 +264,7 @@ final class ContractsPageFullAccessFeatureTest extends ContractsFeatureTestCase
             'signed' => false,
         ])->assertOk();
 
+        $this->seedPodpislonLegalEntity();
         $this->mockSuccessfulSend();
         $this->postJson(route('contracts.send', $draft), $this->validSendPayload())
             ->assertOk();

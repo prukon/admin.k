@@ -167,7 +167,10 @@
                     <div class="modal-body">
                         <form id="legalEntityCreateForm">
                             @csrf
-                            @include('admin.legal-entities.partials.crud-fields', ['prefix' => 'create'])
+                            @include('admin.legal-entities.partials.crud-fields', [
+                                'prefix' => 'create',
+                                'showPodpislonApiKey' => !empty($isSuperAdmin),
+                            ])
                         </form>
                     </div>
                     <div class="modal-footer">
@@ -190,7 +193,10 @@
                             @csrf
                             @method('put')
                             <input type="hidden" name="id" />
-                            @include('admin.legal-entities.partials.crud-fields', ['prefix' => 'edit'])
+                            @include('admin.legal-entities.partials.crud-fields', [
+                                'prefix' => 'edit',
+                                'showPodpislonApiKey' => !empty($isSuperAdmin),
+                            ])
                         </form>
                         <div class="mt-3">
                             @can('legal_entities.sm_register')
@@ -518,6 +524,15 @@
                     smDetailsHidden.value = data.sm_details_template || smDetailsDefault;
                 }
 
+                const podpislonKeyInput = form.querySelector('[name="podpislon_api_key"]');
+                if (podpislonKeyInput) {
+                    podpislonKeyInput.value = '';
+                }
+                const podpislonHint = form.querySelector('.js-podpislon-api-key-set-hint');
+                if (podpislonHint) {
+                    podpislonHint.classList.toggle('d-none', !data.podpislon_api_key_set);
+                }
+
                 toggleLegalEntityKpp(form);
                 setRegisteredFieldsLocked(form, !!data.is_registered);
             }
@@ -540,6 +555,14 @@
                 const smDetailsHidden = createForm.querySelector('.js-legal-entity-sm-details-value');
                 if (smDetailsHidden) {
                     smDetailsHidden.value = smDetailsDefault;
+                }
+                const podpislonHint = createForm.querySelector('.js-podpislon-api-key-set-hint');
+                if (podpislonHint) {
+                    podpislonHint.classList.add('d-none');
+                }
+                const podpislonKeyInput = createForm.querySelector('[name="podpislon_api_key"]');
+                if (podpislonKeyInput) {
+                    podpislonKeyInput.value = '';
                 }
             });
 

@@ -28,6 +28,7 @@ class PartnerLegalEntitySchemaFeatureTest extends CrmTestCase
             'bank_bik',
             'bank_account',
             'bank_corr_account',
+            'podpislon_api_key',
             'tinkoff_shop_code',
             'sm_register_status',
             'is_default',
@@ -48,7 +49,7 @@ class PartnerLegalEntitySchemaFeatureTest extends CrmTestCase
 
     public function test_snapshot_and_team_foreign_keys_exist(): void
     {
-        foreach (['teams', 'tinkoff_payments', 'tinkoff_payouts', 'fiscal_receipts'] as $table) {
+        foreach (['teams', 'tinkoff_payments', 'tinkoff_payouts', 'fiscal_receipts', 'contracts'] as $table) {
             $this->assertTrue(Schema::hasColumn($table, 'legal_entity_id'), "Missing {$table}.legal_entity_id");
         }
     }

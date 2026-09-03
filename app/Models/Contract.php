@@ -83,6 +83,11 @@ class Contract extends Model
         return $this->belongsTo(Team::class, 'group_id');
     }
 
+    public function legalEntity(): BelongsTo
+    {
+        return $this->belongsTo(PartnerLegalEntity::class, 'legal_entity_id');
+    }
+
     public function lastSignRequest(): HasOne
     {
         return $this->hasOne(ContractSignRequest::class)->latestOfMany();

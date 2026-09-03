@@ -27,7 +27,8 @@
 <div class="wrap">
   <p><a href="/doc">← К списку разделов</a></p>
   <h1>Юр. лица (админка): <code>/admin/legal-entities</code></h1>
-  <div class="small">Файл: <code>/docs/documentation/admin-legal-entities.html</code> · T‑Bank sm-register: <a href="/docs/documentation/tbank#legal-entities-shopcode">tbank §2.1</a> · группы: <a href="/docs/documentation/admin-teams#legal-entities">admin-teams</a> · обзор справочников: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a></div>
+  <div class="small">Файл: <code>/docs/documentation/admin-legal-entities.html</code> · T‑Bank sm-register: <a href="/docs/documentation/tbank#legal-entities-shopcode">tbank §2.1</a> · группы: <a href="/docs/documentation/admin-teams#legal-entities">admin-teams</a> · обзор справочников: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>
+    · анонс ключа Подпислона: <a href="/doc#legal-entities-podpislon-key-index">/doc</a></div>
 
   <div class="note">
     Справочник <strong>«Юр. лица»</strong> — реквизиты и ShopCode T‑Bank (sm-register) для каждого юридического лица партнёра (школы). Один партнёр может иметь несколько юр. лиц; одна группа привязана к одному юр. лицу (<code>teams.legal_entity_id</code>), одно юр. лицо — ко многим группам.<br>
@@ -47,7 +48,8 @@
     <li>снимки <code>legal_entity_id</code> на <code>tinkoff_payments</code>, <code>tinkoff_payouts</code>, <code>fiscal_receipts</code>;</li>
     <li><code>2026_06_27_160000_add_legal_entities_permissions.php</code> — права <code>legal_entities.view</code>, <code>legal_entities.manage</code>;</li>
     <li><code>2026_06_29_120000_add_legal_entities_sm_register_permission.php</code> — право <code>legal_entities.sm_register</code> (автовыдача ролям с <code>legal_entities.manage</code>);</li>
-    <li><code>2026_06_29_140000_drop_taxation_system_from_partners_and_legal_entities.php</code> — удалены поля <code>taxation_system</code> у партнёра и юр. лица (СНО для CloudKassir — только из <code>CLOUDKASSIR_TAXATION_SYSTEM</code>).</li>
+    <li><code>2026_06_29_140000_drop_taxation_system_from_partners_and_legal_entities.php</code> — удалены поля <code>taxation_system</code> у партнёра и юр. лица (СНО для CloudKassir — только из <code>CLOUDKASSIR_TAXATION_SYSTEM</code>);</li>
+    <li><code>2026_09_03_043000_add_podpislon_api_key_to_legal_entities_and_contracts.php</code> — <code>podpislon_api_key</code> на юр. лице, снимок <code>contracts.legal_entity_id</code>.</li>
   </ul>
 
   <table>
@@ -57,7 +59,7 @@
     <tbody>
       <tr>
         <td><code>partner_legal_entities</code></td>
-        <td><code>partner_id</code>, <code>business_type</code> (enum: <code>OOO</code>, <code>IP</code>, <code>ANO</code>, <code>NKO</code>), <code>title</code> (внутреннее; при создании из <code>partners.title</code>, в модалках CRM не показывается), <code>organization_name</code> (публичное наименование, обязательно в CRM), реквизиты (ИНН, КПП, ОГРН, адрес, банк, <code>bank_corr_account</code>), <code>ceo</code> (JSON), <code>sm_details_template</code>, <code>sms_name</code>, <code>tinkoff_shop_code</code>, <code>sm_register_status</code>, <code>vat</code> (ставка НДС для онлайн-чека), <code>is_default</code>, <code>is_enabled</code>, soft delete. Поля <code>taxation_system</code> <b>нет</b> (удалено). Уникальность ИНН: <code>(partner_id, tax_id)</code> среди не удалённых. В списках CRM — <code>displayTitle()</code> (<code>organization_name</code> → <code>title</code>).</td>
+        <td><code>partner_id</code>, <code>business_type</code> (enum: <code>OOO</code>, <code>IP</code>, <code>ANO</code>, <code>NKO</code>), <code>title</code> (внутреннее; при создании из <code>partners.title</code>, в модалках CRM не показывается), <code>organization_name</code> (публичное наименование, обязательно в CRM), реквизиты (ИНН, КПП, ОГРН, адрес, банк, <code>bank_corr_account</code>), <code>podpislon_api_key</code> (зашифрованный API-ключ Подпислона, только superadmin — §<a href="#legal-entities-podpislon-key">4.2.3</a>), <code>ceo</code> (JSON), <code>sm_details_template</code>, <code>sms_name</code>, <code>tinkoff_shop_code</code>, <code>sm_register_status</code>, <code>vat</code> (ставка НДС для онлайн-чека), <code>is_default</code>, <code>is_enabled</code>, soft delete. Поля <code>taxation_system</code> <b>нет</b> (удалено). Уникальность ИНН: <code>(partner_id, tax_id)</code> среди не удалённых. В списках CRM — <code>displayTitle()</code> (<code>organization_name</code> → <code>title</code>).</td>
       </tr>
       <tr>
         <td><code>teams.legal_entity_id</code></td>
@@ -171,6 +173,7 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
       <tr><td>Реквизиты для банка</td><td>Наименование банка, БИК, Расчётный счёт, <b>Корреспондентский счёт</b> (<code>bank_corr_account</code> — §<a href="#legal-entities-bank-corr">4.2.2</a>)</td></tr>
       <tr><td>Руководитель / ИП</td><td>Фамилия, Имя, Отчество, Телефон (<code>ceo.*</code>)</td></tr>
       <tr><td>Настройки</td><td>Ставка НДС (онлайн-чек), Основное юр. лицо, Активен</td></tr>
+      <tr><td>Подпислон</td><td>API-ключ (только superadmin, §<a href="#legal-entities-podpislon-key">4.2.3</a>)</td></tr>
     </tbody>
   </table>
   <ul>
@@ -208,6 +211,31 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
   <p class="small">В шаблонах договоров ключ <code>{{legal_entity_bank_corr_account}}</code> входит в группу «Юр. лицо»
     и подставляется при генерации PDF из <code>bank_corr_account</code> юрлица группы договора —
     см. <a href="/docs/documentation/contract-templates#legal-entity-variables">contract-templates §6.1</a>.</p>
+
+  <h3 id="legal-entities-podpislon-key">4.2.3) API-ключ Подпислона (<code>podpislon_api_key</code>)</h3>
+  <div class="note">
+    У одного кабинета Подпислона несколько компаний (партнёров CRM / юр. лиц), у каждой свой API-ключ и своя ЭП.
+    Ключ хранится на юр. лице, не глобально в <code>.env</code>. Редактирует только <code>superadmin</code> в модалках create/edit на
+    <code>/admin/legal-entities</code>. Школе поле не показывается; POST с ключом от не-superadmin отбрасывается.
+    Анонс: <a href="/doc#legal-entities-podpislon-key-index">/doc</a>.
+  </div>
+  <table>
+    <thead><tr><th>Что</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td>Колонка</td><td><code>partner_legal_entities.podpislon_api_key</code> — <code>text</code>, nullable, Laravel <code>encrypted</code> cast; модель <code>$hidden</code></td></tr>
+      <tr><td>UI</td><td>Блок «Подпислон» после «Активен»; <code>type=password</code>, <code>autocomplete=new-password</code>, <code>data-error-for="podpislon_api_key"</code>. Edit: пустое значение не меняет ключ; подсказка «Ключ задан…» по флагу <code>podpislon_api_key_set</code></td></tr>
+      <tr><td>Rules</td><td>Только superadmin: <code>nullable|string|max:255</code>. Не-superadmin: поле снимается в <code>prepareForValidation</code></td></tr>
+      <tr><td>JSON show</td><td>Superadmin: <code>podpislon_api_key_set</code> (bool), plaintext ключа нет. Школа: флага и ключа нет. <code>fillForm</code> не пишет ключ в input</td></tr>
+      <tr><td>После ShopCode</td><td>Ключ не в <code>REGISTERED_CRUD_LOCKED_FIELDS</code> — superadmin может менять после sm-register</td></tr>
+    </tbody>
+  </table>
+  <p class="small">
+    Отправка договора: <code>PodpislonCredentialsResolver</code> резолвит юр. лицо как для плейсхолдеров
+    (<code>LegalEntityResolver::forTeamId</code>), но без молчаливого default при 2+ юр. лицах.
+    Ключ обязателен — иначе 422, договор не уходит в «ошибка». После первой резолюции
+    <code>contracts.legal_entity_id</code> фиксируется, чтобы статус/вебхук/скачивание PDF шли в тот же кабинет.
+    Глобальный <code>PODPISLON_API_KEY</code> для отправки документов не используется.
+  </p>
 
   <h3>4.3) Карточка регистрации (<code>admin/legal-entities/show.blade.php</code>)</h3>
   <ul>
@@ -248,7 +276,7 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
       </tr>
       <tr>
         <td>После ShopCode через CRM-модалку разрешены</td>
-        <td><code>vat</code>, <code>is_default</code>, <code>is_enabled</code> (если нет групп), <code>bank_corr_account</code> (§<a href="#legal-entities-bank-corr">4.2.2</a>)</td>
+        <td><code>vat</code>, <code>is_default</code>, <code>is_enabled</code> (если нет групп), <code>bank_corr_account</code> (§<a href="#legal-entities-bank-corr">4.2.2</a>), <code>podpislon_api_key</code> (только superadmin, §<a href="#legal-entities-podpislon-key">4.2.3</a>)</td>
       </tr>
       <tr>
         <td>Повторный sm-register при наличии ShopCode</td>
@@ -326,6 +354,7 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
     <li><code>app/Http/Controllers/Admin/PartnerLegalEntityController.php</code></li>
     <li><code>app/Http/Controllers/Admin/PartnerLegalEntityColumnsSettingsController.php</code></li>
     <li><code>app/Services/PartnerLegalEntities/LegalEntityResolver.php</code>, <code>app/Support/PartnerLegalEntityMode.php</code></li>
+    <li><code>app/Services/Signatures/PodpislonCredentialsResolver.php</code>, <code>app/Services/Signatures/Providers/PodpislonProvider.php</code></li>
     <li><code>app/Services/Payments/PaymentService.php</code> (<code>isTbankAvailable</code>, <code>tbankAvailabilityError</code>)</li>
     <li><code>app/Services/Tinkoff/PartnerLegalEntitySmRegisterService.php</code></li>
     <li><code>app/Http/Requests/Admin/StorePartnerLegalEntityRequest.php</code>, <code>UpdatePartnerLegalEntityRequest.php</code></li>
@@ -339,6 +368,12 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
     <ul>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesFeatureTest.php</code> — базовый CRUD, права store</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesBankCorrAccountFeatureTest.php</code> — <code>bank_corr_account</code>: AJAX/non-AJAX, 422, guest/403, изоляция партнёра, UI порядок после р/с, не sm-locked, после регистрации CRM может менять к/с (р/с — нет), <code>fillForm</code></li>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesPodpislonApiKeyFeatureTest.php</code> — API-ключ Подпислона: guest/403, только superadmin, шифрование, игнор POST от школы, пустой/пробельный update не стирает ключ, 422 <code>errors.podpislon_api_key</code>, JSON/datatable/аудит без plaintext, поле после «Активен», не sm-locked, оба модальных input, <code>fillForm</code> + <code>show.bs.modal</code> create очищают ключ и прячут hint</li>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesPodpislonApiKeyNonAjaxSafetyNetFeatureTest.php</code> — native POST/PUT ключа: 302 + запись в БД, валидация 302 с <code>errors.podpislon_api_key</code>, школа не сохраняет ключ</li>
+      <li><code>tests/Feature/Crm/Contracts/PodpislonCredentialsResolverTest.php</code> — резолвер ключа: 1 юр. лицо, нет ключа, пробелы = нет ключа, multi-entity, snapshot <code>contracts.legal_entity_id</code>, soft-delete, чужой partner → <code>legal_entity_missing</code></li>
+      <li><code>tests/Feature/Crm/Contracts/PodpislonCredentialsHttpFeatureTest.php</code> — send/resend 422 без ключа (статус не <code>failed</code>, без SMS-cooldown, без HTTP в Подпислон и без <code>PODPISLON_API_KEY</code>), 2 юрлица без группы, <code>X-Api-Key</code> снимка, guest</li>
+      <li><code>tests/Feature/Crm/Account/AccountContractFillPodpislonKeyFeatureTest.php</code> — подпись из кабинета без ключа: redirect + <code>errors.podpislon_api_key</code></li>
+      <li><code>tests/Unit/Documentation/LegalEntitiesPodpislonKeyDocumentationContractTest.php</code> — анонс <a href="/doc#legal-entities-podpislon-key-index">/doc</a> совпадает с кодом</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesAccessFeatureTest.php</code> — guest / view / manage / sm_register</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesAjaxContractFeatureTest.php</code> — JSON-контракт, columns-settings, data</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesNonAjaxSafetyNetFeatureTest.php</code> — redirect 302 без AJAX</li>
@@ -349,12 +384,12 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
       <li><code>tests/Feature/Crm/PartnerLegalEntities/LegalEntityResolverTest.php</code>, <code>LegalEntityResolverGuardrailsTest.php</code></li>
       <li><code>tests/Feature/Crm/PartnerLegalEntities/MultiEntityTbankGuardAccessFeatureTest.php</code> — multi-entity guard: доступы групп/клубного взноса/Init, non-AJAX safety-net, <code>teamTbankCardAvailable</code></li>
       <li><code>tests/Feature/Crm/Teams/TeamLegalEntityFeatureTest.php</code>, <code>TeamLegalEntityDisplayGuardrailsFeatureTest.php</code>, <code>TeamLegalEntityRecentEnhancementsFeatureTest.php</code> — обязательный <code>legal_entity_id</code> при multi-entity, колонка «Юр. лицо»</li>
-      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS index/show/teams</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS index/show/teams; контракт <code>podpislon_api_key</code> в <code>fillForm</code> / create modal</li>
       <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — успех create/edit юр. лица — toast, не <code>showSuccessModal</code></li>
       <li><code>tests/Feature/Crm/Ui/ErrorModalFeatureTest.php</code> — <code>showErrorModal</code> в layout</li>
     </ul>
   </div>
-  <pre><code>php artisan test --env=testing tests/Feature/Crm/LegalEntities/ tests/Feature/Crm/PartnerLegalEntities/ tests/Feature/Crm/Teams/TeamLegalEntityFeatureTest.php tests/Feature/Crm/Teams/TeamLegalEntityDisplayGuardrailsFeatureTest.php tests/Feature/Crm/Teams/TeamLegalEntityRecentEnhancementsFeatureTest.php tests/Feature/Crm/Ui/ErrorModalFeatureTest.php</code></pre>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/LegalEntities/ tests/Feature/Crm/PartnerLegalEntities/ tests/Feature/Crm/Contracts/PodpislonCredentialsResolverTest.php tests/Feature/Crm/Contracts/PodpislonCredentialsHttpFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPodpislonKeyFeatureTest.php tests/Feature/Crm/Teams/TeamLegalEntityFeatureTest.php tests/Feature/Crm/Teams/TeamLegalEntityDisplayGuardrailsFeatureTest.php tests/Feature/Crm/Teams/TeamLegalEntityRecentEnhancementsFeatureTest.php tests/Feature/Crm/Ui/ErrorModalFeatureTest.php</code></pre>
 </div>
 </body>
 </html>

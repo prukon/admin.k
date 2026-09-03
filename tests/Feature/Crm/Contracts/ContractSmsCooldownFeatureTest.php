@@ -13,6 +13,11 @@ use Mockery;
 
 class ContractSmsCooldownFeatureTest extends ContractsFeatureTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seedPodpislonLegalEntity();
+    }
     /** @test */
     public function send_is_blocked_when_cooldown_cache_is_active(): void
     {

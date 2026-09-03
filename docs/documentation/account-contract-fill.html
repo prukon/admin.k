@@ -35,12 +35,15 @@
     · <a href="#account-documents-action-counter">§1.0 каунтер активных договоров</a>
     · <a href="#fill-modal-passport-email-errors">§2.6 паспорт / email / ошибки</a>
     · анонс <a href="/doc#account-contract-fill-modal-ux-index">/doc</a>
+    · ключ Подпислона: <a href="/doc#legal-entities-podpislon-key-index">/doc</a>
   </div>
 
   <h2>1) Назначение и доступ</h2>
   <div class="note">
     После создания договора в режиме «форма клиенту» (<code>creation_mode=template</code>) ученик (родитель в семейном кабинете)
-    видит задачу «Требуется заполнение», открывает модалку, заполняет поля из схемы шаблона, формирует PDF и подписывает договор по SMS (Подпислон).<br><br>
+    видит задачу «Требуется заполнение», открывает модалку, заполняет поля из схемы шаблона, формирует PDF и подписывает договор по SMS (Подпислон).
+    Без API-ключа юрлица подпись не уходит: redirect на fill с <code>errors.podpislon_api_key</code>, статус не <code>failed</code>
+    (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>).<br><br>
     Когда Подпислон подтверждает подпись (вебхук или ручная синхронизация статуса), договор становится <code>signed</code>
     и админы школы получают уведомление в колокольчик на 7 суток
     (<a href="/doc#contract-signed-in-app-index">анонс</a>,
@@ -276,6 +279,7 @@
   <div class="note">
     <ul>
       <li><code>AccountContractFillTest.php</code> — базовый fill, generate, sign</li>
+      <li><code>AccountContractFillPodpislonKeyFeatureTest.php</code> — подпись без API-ключа юрлица: redirect на fill, <code>errors.podpislon_api_key</code>, статус не <code>failed</code>, guest</li>
       <li><code>AccountContractFillFormFeatureTest.php</code> — UI полей, порядок, дата, маска телефона, sync профилей,
         подпись <code>parent_passport</code>, fallback <code>parent_email</code> ← <code>users.email</code>,
         <code>novalidate</code> + слоты Laravel-ошибок, 422 с подписью поля</li>

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use LogicException;
 use App\Models\User;
-
+use App\Services\Signatures\PodpislonCredentialsResolver;
 use Illuminate\Support\Facades\Auth; // ← добавили
 
 
@@ -27,14 +27,22 @@ class PodpislonProvider implements SignatureProvider
     public function __construct()
     {
         $this->baseUrl = rtrim((string)config('services.podpislon.base_url'), '/');
-        $this->apiKey = (string)config('services.podpislon.key');
+        $this->apiKey = '';
         $this->httpDebug = (bool)config('services.podpislon.http_debug', false); // <— ДОБАВИТЬ
         $this->uploadStrategy = (string)config('services.podpislon.upload_strategy', 'auto'); // auto|multipart|json
     }
 
+    public function authenticateFor(Contract $contract): void
+    {
+        $this->apiKey = app(PodpislonCredentialsResolver::class)->apiKeyForContract($contract);
+    }
 
     protected function headers(): array
     {
+        if ($this->apiKey === '') {
+            throw new \RuntimeException('PODPISLON: API-ключ юр. лица не установлен для запроса.');
+        }
+
         return [
             'X-Api-Key' => $this->apiKey,
             'Accept' => 'application/json',
@@ -65,8 +73,10 @@ class PodpislonProvider implements SignatureProvider
 
     public function send(Contract $contract, ContractSignRequest $request): array
     {
+        $this->authenticateFor($contract);
+
         if (!$this->baseUrl || !$this->apiKey) {
-            throw new \RuntimeException('PODPISLON: пустые base_url или api_key (.env).');
+            throw new \RuntimeException('PODPISLON: пустые base_url или api_key.');
         }
 
         // 0) Префлайт, чтобы сразу увидеть 401/сеть
@@ -311,6 +321,8 @@ class PodpislonProvider implements SignatureProvider
     {
         if (!$contract->provider_doc_id) return ['status' => 'draft'];
 
+        $this->authenticateFor($contract);
+
         $url = rtrim($this->baseUrl, '/') . '/';
         $resp = Http::withHeaders($this->headers())
             ->retry(2, 500)
@@ -356,6 +368,8 @@ class PodpislonProvider implements SignatureProvider
         if (!$contract->provider_doc_id) {
             throw new \RuntimeException('Нет provider_doc_id');
         }
+
+        $this->authenticateFor($contract);
 
         $url = rtrim($this->baseUrl, '/') . '/get-file';
         $resp = Http::withHeaders($this->headers())
@@ -560,6 +574,8 @@ class PodpislonProvider implements SignatureProvider
             throw new \RuntimeException('Нет provider_doc_id');
         }
 
+        $this->authenticateFor($contract);
+
         // Получаем документ с expand=package
         $list = $this->list([$contract->provider_doc_id], [], 1, true);
         $doc = $list['items'][0] ?? null;
@@ -588,6 +604,8 @@ class PodpislonProvider implements SignatureProvider
         if (!$package) {
             return ['ok' => false, 'error' => 'Нет package/provider_doc_id для ресенда'];
         }
+
+        $this->authenticateFor($contract);
 
         $url = rtrim($this->baseUrl, '/') . '/repeat-send';
         $payload = ['package' => (string)$package];
@@ -632,6 +650,8 @@ class PodpislonProvider implements SignatureProvider
             throw new \RuntimeException('Нет provider_doc_id');
         }
 
+        $this->authenticateFor($contract);
+
         $rid = 'LINKS-' . Str::uuid()->toString();
         Log::info('PODPISLON: LINKS start', ['rid' => $rid, 'provider_doc_id' => $contract->provider_doc_id]);
 
@@ -662,6 +682,8 @@ class PodpislonProvider implements SignatureProvider
         if (!$contract->provider_doc_id) {
             throw new \RuntimeException('Нет provider_doc_id');
         }
+
+        $this->authenticateFor($contract);
 
         $rid = 'RESENDSMART-' . Str::uuid()->toString();
         Log::info('PODPISLON: RESENDSMART start', ['rid' => $rid, 'provider_doc_id' => $contract->provider_doc_id]);

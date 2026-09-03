@@ -28,6 +28,7 @@
   <h1>Договоры (клиентские)</h1>
   <div class="small">Файл: <code>/docs/documentation/contracts.html</code> · раздел CRM: <code>/client-contracts</code> · оглавление: <a href="/doc">/doc</a>
     · создание со списка клиентов: <a href="/doc#users-contract-create-index">анонс</a>
+    · ключ Подпислона на юрлице: <a href="/doc#legal-entities-podpislon-key-index">анонс</a>
     · колокольчик при signed: <a href="/doc#contract-signed-in-app-index">анонс</a>
     · списание 70 ₽ в историю кошелька: <a href="/doc#partner-wallet-ledger-index">анонс</a></div>
 
@@ -143,9 +144,13 @@
     </tbody>
   </table>
 
-  <h3>3.1) Подпислон</h3>
+  <h3 id="contracts-podpislon">3.1) Подпислон</h3>
   <div class="note">
     Провайдер: <code>App\Services\Signatures\Providers\PodpislonProvider</code>.
+    API-ключ берётся с юр. лица договора (<code>partner_legal_entities.podpislon_api_key</code> через <code>PodpislonCredentialsResolver</code>), не из <code>PODPISLON_API_KEY</code>
+    (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>).
+    Резолюция юр. лица — <code>LegalEntityResolver::forTeamId(group_id, school_id)</code>; при 2+ юр. лицах без явной привязки группы отправка блокируется (422).
+    Без ключа — 422, статус договора не меняется на <code>failed</code>. После первой отправки пишется <code>contracts.legal_entity_id</code>.<br>
     В <code>PUT /add-document</code> передаются <code>name</code> (имя), <code>last_name</code> (фамилия), <code>second_name</code> (отчество), <code>phone</code> — из данных формы отправки (оператор может изменить перед SMS), не напрямую из БД после отправки.<br>
     После отправки в <code>contract_sign_requests</code> фиксируется снимок подписанта; сменить подписанта у уже созданного договора нельзя — только новый договор или новая отправка с новыми данными в форме.
   </div>
@@ -320,7 +325,8 @@
       <li><code>ContractTemplateLegalEntityVariablesFeatureTest.php</code> — см. <a href="/docs/documentation/contract-templates#legal-entity-variables-tests">contract-templates §6.1</a></li>
       <li><code>ContractsIndexAccessFeatureTest.php</code>, <code>ContractsAccessTest.php</code></li>
       <li><code>ContractsParentAndAccessTest.php</code> — родитель на show, подписант</li>
-      <li><code>ContractsSigningTest.php</code>, <code>ContractsSyncFeatureTest.php</code></li>
+      <li><code>ContractsSigningTest.php</code>, <code>PodpislonCredentialsHttpFeatureTest.php</code>, <code>PodpislonCredentialsResolverTest.php</code> — ключ юрлица, 422 без ключа / без юрлица, <code>X-Api-Key</code> не из <code>.env</code></li>
+      <li><code>ContractsSyncFeatureTest.php</code></li>
       <li><code>ContractSignedInAppNotification*FeatureTest.php</code> — колокольчик админам при первом <code>signed</code>
         (вебхук form/JSON, native GET и AJAX sync, @can кнопки, guest/403, UX ленты)</li>
       <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code></li>

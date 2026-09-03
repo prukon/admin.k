@@ -182,6 +182,9 @@
     (та же логика, что для оплат: явная привязка группы → при одном юрлице партнёра fallback на него → при multi-entity без привязки — пусто).
     Сервис: <code>ContractLegalEntityPlaceholderService</code> (assert при создании договора и при generate; значения мержатся в
     <code>ContractTemplateSystemPlaceholders</code>).
+    API-ключ Подпислона для онлайн-подписи — отдельное поле юр. лица (<code>podpislon_api_key</code>), не плейсхолдер Word;
+    см. <a href="/docs/documentation/admin-legal-entities#legal-entities-podpislon-key">admin-legal-entities §4.2.3</a>,
+    <a href="/doc#legal-entities-podpislon-key-index">анонс /doc</a>.
   </div>
   <table>
     <thead><tr><th>Плейсхолдер Word</th><th>Подпись в CRM</th><th>Колонка CRM</th></tr></thead>
