@@ -165,7 +165,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <form id="legalEntityCreateForm">
+                        <form id="legalEntityCreateForm" autocomplete="off">
                             @csrf
                             @include('admin.legal-entities.partials.crud-fields', [
                                 'prefix' => 'create',
@@ -189,7 +189,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <form id="legalEntityEditForm">
+                        <form id="legalEntityEditForm" autocomplete="off">
                             @csrf
                             @method('put')
                             <input type="hidden" name="id" />
@@ -443,17 +443,16 @@
             function setRegisteredFieldsLocked(form, locked) {
                 form.querySelectorAll('.js-legal-entity-sm-locked-mirror').forEach(el => el.remove());
                 form.querySelectorAll('.js-legal-entity-sm-locked').forEach(el => {
-                    if (el.tagName === 'SELECT') {
-                        el.disabled = locked;
-                        if (locked) {
-                            const hidden = document.createElement('input');
-                            hidden.type = 'hidden';
-                            hidden.name = el.name;
-                            hidden.value = el.value;
-                            hidden.className = 'js-legal-entity-sm-locked-mirror';
-                            el.parentNode.insertBefore(hidden, el.nextSibling);
-                        }
-                    } else {
+                    if (locked) {
+                        const hidden = document.createElement('input');
+                        hidden.type = 'hidden';
+                        hidden.name = el.name;
+                        hidden.value = el.value;
+                        hidden.className = 'js-legal-entity-sm-locked-mirror';
+                        el.parentNode.insertBefore(hidden, el.nextSibling);
+                    }
+                    el.disabled = locked;
+                    if (el.tagName !== 'SELECT') {
                         el.readOnly = locked;
                     }
                     el.classList.toggle('bg-light', locked);

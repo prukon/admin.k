@@ -177,9 +177,9 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
     </tbody>
   </table>
   <ul>
-    <li>Поле «Назначение платежа» (<code>sm_details_template</code>) в UI скрыто; при сохранении подставляется скрытое значение по умолчанию: <code>Выплата по договору, НДС не облагается</code> (<code>normalizeEntityPayload()</code>). Для зарегистрированных юр. лиц сравнение guardrail считает <code>null</code>/пустую строку и этот дефолт эквивалентными (ложная «смена» не даёт 422); реальная смена текста через CRM по-прежнему 422.</li>
+    <li>Поле «Назначение платежа» (<code>sm_details_template</code>) в UI скрыто; при сохранении подставляется скрытое значение по умолчанию: <code>Выплата по договору, НДС не облагается</code> (<code>normalizeEntityPayload()</code>). Для зарегистрированных юр. лиц сравнение guardrail считает <code>null</code>/пустую строку и этот дефолт эквивалентными (ложная «смена» не даёт 422); значение в БД через CRM после ShopCode <b>не перезаписывается</b>. Реальная смена текста через CRM по-прежнему 422.</li>
     <li>«Название для SMS/выписок» (<code>sms_name</code>) в модалках юр. лиц <b>нет</b> — оно на карточке организации партнёра / readonly в sm-форме с партнёра.</li>
-    <li>После регистрации в T‑Bank sm/bank-поля и CEO в модалке блокируются (<code>js-legal-entity-sm-locked</code> + guardrails на backend); подсказка в форме. Исключение: <code>bank_corr_account</code> (CRM-only, нет в sm-register) — остаётся редактируемым и <b>не</b> входит в <code>REGISTERED_CRUD_LOCKED_FIELDS</code>.</li>
+    <li>После регистрации в T‑Bank sm/bank-поля и CEO в модалке блокируются (<code>js-legal-entity-sm-locked</code> + hidden-зеркало значения + <code>disabled</code>, guardrails на backend); подсказка в форме. Исключение: <code>bank_corr_account</code> (CRM-only, нет в sm-register) — остаётся редактируемым и <b>не</b> входит в <code>REGISTERED_CRUD_LOCKED_FIELDS</code>. Телефон руководителя сравнивается по 11 цифрам (<code>RuPhone</code>): маска <code>+7 (999) 000-00-00</code> и снимок <code>+79990000000</code> — не 422. Если guardrail прошёл, locked-поля из CRUD <b>не пишутся</b> (форма не затирает лишние ключи <code>ceo</code> из T‑Bank).</li>
     <li>Валидация store/update: <code>organization_name</code> — <code>required</code> (<code>StorePartnerLegalEntityRequest</code> / <code>UpdatePartnerLegalEntityRequest</code>, trait <code>PartnerLegalEntityValidationRules</code>); сообщение «Введите наименование организации».</li>
   </ul>
 
@@ -378,7 +378,7 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesAjaxContractFeatureTest.php</code> — JSON-контракт, columns-settings, data</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesNonAjaxSafetyNetFeatureTest.php</code> — redirect 302 без AJAX</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesSmRegisterFeatureTest.php</code> — sm-register/patch/refresh/pull</li>
-      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesGuardrailsFeatureTest.php</code> — guardrails CRM</li>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesGuardrailsFeatureTest.php</code> — guardrails CRM; маска телефона CEO после ShopCode не даёт ложный 422; лишние ключи <code>ceo</code> не затираются</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesUiAndEnhancementsFeatureTest.php</code> — UI колонок, подписи полей, sm_details по умолчанию</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesRecentEnhancementsFeatureTest.php</code> — <code>displayTitle</code>, обязательное <code>organization_name</code>, hint «Регистрация в банке», <code>showErrorModal</code> при удалении</li>
       <li><code>tests/Feature/Crm/PartnerLegalEntities/LegalEntityResolverTest.php</code>, <code>LegalEntityResolverGuardrailsTest.php</code></li>

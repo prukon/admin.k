@@ -150,7 +150,7 @@ final class LegalEntitiesGuardrailsFeatureTest extends CrmTestCase
         $fresh = $entity->fresh();
         $this->assertSame(20, (int) $fresh->vat);
         $this->assertSame('30101810400000000555', $fresh->bank_corr_account);
-        $this->assertSame($smDetailsDefault, $fresh->sm_details_template);
+        $this->assertNull($fresh->sm_details_template);
     }
 
     public function test_registered_entity_rejects_real_sm_details_change_via_crud(): void
@@ -213,6 +213,79 @@ final class LegalEntitiesGuardrailsFeatureTest extends CrmTestCase
             ->assertJsonValidationErrors(['ceo']);
 
         $this->assertSame('Иванов', $entity->fresh()->ceo['lastName'] ?? null);
+    }
+
+    public function test_registered_entity_allows_crud_when_ceo_phone_mask_matches_stored_digits(): void
+    {
+        $smDetails = 'Выплата по договору, НДС не облагается';
+        $entity = PartnerLegalEntity::factory()
+            ->for($this->partner)
+            ->registered('SHOP-GUARD-CEO-MASK')
+            ->create([
+                'sm_details_template' => $smDetails,
+                'vat' => null,
+                'ceo' => [
+                    'lastName' => 'Иванов',
+                    'firstName' => 'Иван',
+                    'middleName' => 'Иванович',
+                    'phone' => '+79990000000',
+                    'email' => 'keep-from-tbank@example.com',
+                ],
+            ]);
+
+        $this->putJson(route('admin.legal-entities.update', $entity), [
+            'business_type' => PartnerLegalEntityBusinessType::OOO->value,
+            'organization_name' => $entity->organization_name ?: $entity->title,
+            'tax_id' => $entity->tax_id,
+            'sm_details_template' => $smDetails,
+            'ceo' => [
+                'lastName' => 'Иванов',
+                'firstName' => 'Иван',
+                'middleName' => 'Иванович',
+                'phone' => '+7 (999) 000-00-00',
+            ],
+            'vat' => 20,
+            'is_default' => true,
+            'is_enabled' => true,
+        ])->assertOk();
+
+        $fresh = $entity->fresh();
+        $this->assertSame(20, (int) $fresh->vat);
+        $this->assertSame('+79990000000', $fresh->ceo['phone'] ?? null);
+        $this->assertSame('keep-from-tbank@example.com', $fresh->ceo['email'] ?? null);
+        $this->assertSame('Иванов', $fresh->ceo['lastName'] ?? null);
+    }
+
+    public function test_registered_entity_allows_crud_when_ceo_phone_empty_and_mask_incomplete(): void
+    {
+        $smDetails = 'Выплата по договору, НДС не облагается';
+        $entity = PartnerLegalEntity::factory()
+            ->for($this->partner)
+            ->registered('SHOP-GUARD-CEO-EMPTY')
+            ->create([
+                'sm_details_template' => $smDetails,
+                'ceo' => null,
+            ]);
+
+        $this->putJson(route('admin.legal-entities.update', $entity), [
+            'business_type' => PartnerLegalEntityBusinessType::OOO->value,
+            'organization_name' => $entity->organization_name ?: $entity->title,
+            'tax_id' => $entity->tax_id,
+            'sm_details_template' => $smDetails,
+            'ceo' => [
+                'lastName' => '',
+                'firstName' => '',
+                'middleName' => '',
+                'phone' => '+7 (___) ___-__-__',
+            ],
+            'vat' => 20,
+            'is_default' => true,
+            'is_enabled' => true,
+        ])->assertOk();
+
+        $fresh = $entity->fresh();
+        $this->assertSame(20, (int) $fresh->vat);
+        $this->assertNull($fresh->ceo);
     }
 
     public function test_unregistered_entity_allows_tax_id_change_via_crud(): void

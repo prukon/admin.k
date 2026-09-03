@@ -17,6 +17,7 @@ use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
 use App\Services\Tinkoff\PartnerLegalEntitySmRegisterService;
 use App\Support\BuildsLogTable;
+use App\Support\RuPhone;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -231,6 +232,10 @@ class PartnerLegalEntityController extends AdminBaseController
 
         if ($guardResponse = $this->rejectRegisteredSmFieldChangesViaCrud($legalEntity, $data, $request)) {
             return $guardResponse;
+        }
+
+        if ($legalEntity->is_registered) {
+            $data = $this->excludeRegisteredLockedFieldsFromCrudPayload($data);
         }
 
         try {
@@ -683,6 +688,22 @@ class PartnerLegalEntityController extends AdminBaseController
         return null;
     }
 
+    /**
+     * После ShopCode locked-поля не пишем через CRM: иначе маска телефона и урезанный ceo из формы
+     * затирают снимок T‑Bank, даже когда guardrail счёл значения эквивалентными.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function excludeRegisteredLockedFieldsFromCrudPayload(array $data): array
+    {
+        foreach (self::REGISTERED_CRUD_LOCKED_FIELDS as $field) {
+            unset($data[$field]);
+        }
+
+        return $data;
+    }
+
     private function registeredFieldValueChanged(PartnerLegalEntity $entity, string $field, mixed $newValue): bool
     {
         $oldValue = $entity->{$field};
@@ -745,13 +766,35 @@ class PartnerLegalEntityController extends AdminBaseController
         $normalizedBefore = $this->normalizeCeoForJson($before);
         $normalizedAfter = $this->normalizeCeoForJson($after);
 
-        foreach (['lastName', 'firstName', 'middleName', 'phone'] as $key) {
-            if ($normalizedBefore[$key] !== $normalizedAfter[$key]) {
+        foreach (['lastName', 'firstName', 'middleName'] as $key) {
+            if (trim($normalizedBefore[$key]) !== trim($normalizedAfter[$key])) {
                 return true;
             }
         }
 
-        return false;
+        return ! $this->ceoPhonesEquivalent($normalizedBefore['phone'], $normalizedAfter['phone']);
+    }
+
+    private function ceoPhonesEquivalent(mixed $before, mixed $after): bool
+    {
+        $beforeDigits = $this->completeRuPhoneDigits($before);
+        $afterDigits = $this->completeRuPhoneDigits($after);
+
+        if ($beforeDigits !== null && $afterDigits !== null) {
+            return $beforeDigits === $afterDigits;
+        }
+
+        return $beforeDigits === null && $afterDigits === null;
+    }
+
+    private function completeRuPhoneDigits(mixed $phone): ?string
+    {
+        $digits = RuPhone::normalizeDigits(trim((string) ($phone ?? '')));
+        if ($digits === null || strlen($digits) !== 11) {
+            return null;
+        }
+
+        return $digits;
     }
 
     /**
