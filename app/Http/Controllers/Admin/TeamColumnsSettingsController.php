@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Models\UserTableSetting;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class TeamColumnsSettingsController extends Controller
 {
+    private const TABLE_KEY = 'teams_index';
+
     /**
      * Вернуть настройки колонок для таблицы "teams_index"
      */
@@ -17,7 +19,7 @@ class TeamColumnsSettingsController extends Controller
         $userId = Auth::id();
 
         $settings = UserTableSetting::where('user_id', $userId)
-            ->where('table_key', 'teams_index')
+            ->where('table_key', self::TABLE_KEY)
             ->first();
 
         $columns = $settings?->columns;
@@ -30,35 +32,23 @@ class TeamColumnsSettingsController extends Controller
     }
 
     /**
-     * Сохранить настройки колонок для таблицы "teams_index"
+     * Сохранить настройки колонок и/или «Показать N» для таблицы "teams_index"
      */
-    public function saveColumnsSettings(Request $request)
+    public function saveColumnsSettings(ColumnsSettingsWithPageLengthSaveRequest $request)
     {
         $userId = Auth::id();
+        $payload = $request->persistPayload();
 
-        $data = $request->validate([
-            'columns' => 'required|array',
-        ]);
-
-        $raw = $data['columns'];
-        $normalized = [];
-
-        foreach ($raw as $key => $value) {
-            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-            if ($bool === null) {
-                $bool = false;
-            }
-            $normalized[$key] = $bool;
+        if ($payload === []) {
+            return response()->json(['success' => true]);
         }
 
         UserTableSetting::updateOrCreate(
             [
                 'user_id'   => $userId,
-                'table_key' => 'teams_index',
+                'table_key' => self::TABLE_KEY,
             ],
-            [
-                'columns' => $normalized,
-            ]
+            $payload
         );
 
         return response()->json(['success' => true]);

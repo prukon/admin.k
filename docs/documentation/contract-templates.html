@@ -302,7 +302,8 @@
     <li><code>ContractPodpislonSendService</code> — SMS (CRM и кабинет)</li>
     <li><code>ContractInvitationEmailRenderer</code> — рендер письма-приглашения</li>
     <li><code>ContractCreationService</code> — создание договора template mode, billing, notify</li>
-    <li><code>ContractBillingService</code> — списание 70&nbsp;₽ и возврат при revoke</li>
+    <li><code>ContractBillingService</code> — списание 70&nbsp;₽ в <code>wallet_balance_cents</code>
+      и debit/credit в <code>partner_wallet_transactions</code>; возврат при revoke</li>
   </ul>
 
   <h2>10) Feature-тесты</h2>

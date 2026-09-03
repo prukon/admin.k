@@ -398,6 +398,29 @@ abstract class CrmTestCase extends TestCase
     }
 
     /**
+     * Маршруты настроек email-уведомлений по заявкам для smoke-тестов доступа (должны отдавать 200).
+     *
+     * @return list<array{method: string, url: string, data?: array<string, mixed>}>
+     */
+    protected function schoolLeadNotificationSettingsRoutesPayload(): array
+    {
+        return [
+            [
+                'method' => 'GET',
+                'url'    => route('admin.school-leads.notifications.show'),
+            ],
+            [
+                'method' => 'PUT',
+                'url'    => route('admin.school-leads.notifications.update'),
+                'data'   => [
+                    'emails'                         => ['leads-notify@example.test'],
+                    'email_notifications_disabled'   => false,
+                ],
+            ],
+        ];
+    }
+
+    /**
      * Вставка строки users_prices с обязательным team_id (схема после pivot).
      *
      * @param  Team|int|null  $team  Явная группа; иначе team_id пользователя или новая группа партнёра.

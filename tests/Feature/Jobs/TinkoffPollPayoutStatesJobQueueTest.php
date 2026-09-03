@@ -69,5 +69,38 @@ class TinkoffPollPayoutStatesJobQueueTest extends JobsTestCase
         $this->assertSame('COMPLETED', (string) $p->status);
         $this->assertNotNull($p->completed_at);
     }
+
+    public function test_queued_job_does_not_getstate_when_bank_payment_id_is_empty(): void
+    {
+        $partner = Partner::factory()->create([
+            'tinkoff_partner_id' => 'shopcode-queue-test-poll-empty',
+        ]);
+
+        PaymentSystem::factory()
+            ->tbank()
+            ->testMode()
+            ->create();
+
+        $p = TinkoffPayout::create([
+            'payment_id' => 1,
+            'partner_id' => $partner->id,
+            'deal_id' => 'deal-queue-test-poll-empty',
+            'amount' => 1000,
+            'is_final' => 1,
+            'status' => 'INITIATED',
+            'tinkoff_payout_payment_id' => null,
+            'when_to_run' => now()->subMinute(),
+        ]);
+
+        Http::fake();
+
+        dispatch(new TinkoffPollPayoutStatesJob());
+        $this->workQueueUntilEmpty();
+
+        Http::assertNothingSent();
+        $p->refresh();
+        $this->assertSame('INITIATED', (string) $p->status);
+        $this->assertNull($p->payload_state);
+    }
 }
 

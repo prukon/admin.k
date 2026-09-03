@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Mail;
 
 class SchoolLeadNotificationService
 {
+    public const MAX_EMAILS = 20;
+
     public function __construct(
         private readonly TelegramBotClient $telegram,
     ) {
@@ -27,19 +29,23 @@ class SchoolLeadNotificationService
             return;
         }
 
-        $this->sendEmails($schoolLead, (string) $partner->title);
+        $this->sendEmails($schoolLead, $partner);
         $this->sendTelegram($schoolLead, (string) $partner->title, $partner->school_leads_telegram_chat_id);
     }
 
-    private function sendEmails(SchoolLead $schoolLead, string $partnerTitle): void
+    private function sendEmails(SchoolLead $schoolLead, Partner $partner): void
     {
-        $recipients = $this->resolveAdminEmails((int) $schoolLead->partner_id);
+        if ($partner->school_leads_email_notifications_disabled) {
+            return;
+        }
+
+        $recipients = $this->resolveRecipients($partner);
 
         if ($recipients->isEmpty()) {
             return;
         }
 
-        $mailable = new NewSchoolLeadSubmission($schoolLead, $partnerTitle);
+        $mailable = new NewSchoolLeadSubmission($schoolLead, (string) $partner->title);
 
         foreach ($recipients as $email) {
             try {
@@ -48,6 +54,19 @@ class SchoolLeadNotificationService
                 report($e);
             }
         }
+    }
+
+    /**
+     * @return Collection<int, string>
+     */
+    public function resolveRecipients(Partner $partner): Collection
+    {
+        $configured = $partner->school_leads_notification_emails;
+        if (is_array($configured)) {
+            return $this->normalizeEmailList($configured);
+        }
+
+        return $this->resolveAdminEmails((int) $partner->id);
     }
 
     /**
@@ -72,15 +91,80 @@ class SchoolLeadNotificationService
             ->whereKey($partnerId)
             ->value('email');
 
-        if (is_string($partnerEmail) && $partnerEmail !== '') {
+        if (is_string($partnerEmail) && $this->isUsableEmail($partnerEmail)) {
             $emails->push($partnerEmail);
         }
 
-        return $emails
-            ->map(fn ($email) => trim((string) $email))
+        return $this->normalizeEmailList($emails->all());
+    }
+
+    /**
+     * @return list<array{email: string, label: string}>
+     */
+    public function suggestedEmailOptions(Partner $partner): array
+    {
+        $adminRoleId = Role::query()->where('name', 'admin')->value('id');
+        $options = [];
+        $seen = [];
+
+        if ($adminRoleId) {
+            $admins = User::query()
+                ->where('partner_id', $partner->id)
+                ->where('role_id', $adminRoleId)
+                ->whereNotNull('email')
+                ->where('email', '!=', '')
+                ->orderBy('lastname')
+                ->orderBy('name')
+                ->get(['id', 'name', 'lastname', 'email']);
+
+            foreach ($admins as $admin) {
+                $email = $this->normalizeEmail((string) $admin->email);
+                if ($email === '' || !$this->isUsableEmail($email) || isset($seen[$email])) {
+                    continue;
+                }
+                $seen[$email] = true;
+                $name = trim((string) $admin->full_name);
+                $options[] = [
+                    'email' => $email,
+                    'label' => $name !== '' ? $name . ' — ' . $email : $email,
+                ];
+            }
+        }
+
+        $partnerEmail = $this->normalizeEmail((string) ($partner->email ?? ''));
+        if ($this->isUsableEmail($partnerEmail) && !isset($seen[$partnerEmail])) {
+            $options[] = [
+                'email' => $partnerEmail,
+                'label' => 'Организация — ' . $partnerEmail,
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * @param  list<mixed>  $emails
+     * @return Collection<int, string>
+     */
+    public function normalizeEmailList(array $emails): Collection
+    {
+        return collect($emails)
+            ->map(fn ($email) => $this->normalizeEmail((string) $email))
             ->filter()
             ->unique()
             ->values();
+    }
+
+    public function normalizeEmail(string $email): string
+    {
+        return mb_strtolower(trim($email));
+    }
+
+    private function isUsableEmail(string $email): bool
+    {
+        $normalized = $this->normalizeEmail($email);
+
+        return $normalized !== '' && filter_var($normalized, FILTER_VALIDATE_EMAIL) !== false;
     }
 
     private function sendTelegram(SchoolLead $schoolLead, string $partnerTitle, ?string $chatId): void

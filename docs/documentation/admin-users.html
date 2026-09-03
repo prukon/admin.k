@@ -32,6 +32,7 @@
     Вкладка «<b>Клиенты</b>» в разделе CRM «Пользователи» — это <b>только ученики</b> (<code>roles.name = user</code>, UI-label «Клиент»).
     Тренеры, администраторы и кастомные роли — на отдельных вкладках (<a href="/docs/documentation/admin-users-section">обзор</a>, <a href="/docs/documentation/admin-trainers">тренеры</a>, <a href="/docs/documentation/admin-role-staff">администраторы и кастомные роли</a>).
     Анонс на <code>/doc</code>: <a href="/doc#users-client-naming-index">нейминг «Клиенты»</a>,
+    <a href="/doc#users-create-edit-toast-index">create/edit без «OK» и без F5</a>,
     <a href="/doc#users-import-parent-fill-index">дозапись родителя при импорте Excel</a>,
     <a href="/doc#users-contract-create-index">создать договор со списка клиентов</a>.
   </div>
@@ -42,6 +43,7 @@
     Сайдбар и h4 раздела остаются «Пользователи». Toolbar h1 и вкладка на этой странице — «Клиенты», фильтр — «Все клиенты».
     Модалки: «Создание клиента» / «Редактирование клиента» / «Удаление клиента».
     JSON: <code>Клиент создан успешно</code>, <code>Клиент успешно обновлён</code>, <code>Клиент успешно удалён</code> (ё);
+    toast create/edit: <code>message</code> сервера (fallback «Клиент успешно создан.» / «Клиент успешно обновлён.»);
     toast удаления: «Клиент успешно удален.» (е).
     Не переименовывали: «пользовательские поля», импорт «учеников из Excel», тренеры, сотрудники («Пользователь создан»),
     право <code>users.view</code> («Страница "Пользователи"»), свой профиль в ЛК («Пользователь успешно обновлен»),
@@ -127,8 +129,10 @@
     <code>UsersPageLengthFullAccessFeatureTest</code> (гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405),
     <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>,
     <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>.
-    Анонс — <a href="/doc#datatable-page-length-index">/doc</a>.
-    Тот же механизм на заявках — <a href="/docs/documentation/school-leads-widget#school-leads-page-length">school-leads-widget §5.1.4</a>.</p>
+    Анонс — <a href="/doc#datatable-page-length-index">/doc</a>
+    (канонический список всех 9 страниц — <a href="/doc#datatable-page-length-catalog">таблица</a>).
+    Тот же механизм на группах — <a href="/docs/documentation/admin-teams#teams-page-length">admin-teams §2.0</a>,
+    на заявках — <a href="/docs/documentation/school-leads-widget#school-leads-page-length">school-leads-widget §5.1.4</a>.</p>
 
   <h3>Индексы колонок DataTables</h3>
   <p class="small">Индексы фиксированы для сортировки на сервере (<code>UserController@data</code>, <code>order.0.column</code>). Сервер строит порядок колонок методом <code>usersListColumnKeys()</code> — он должен совпадать с массивом <code>columns</code> в JS (<code>admin/user.blade.php</code>).</p>
@@ -988,17 +992,34 @@
   <h3>4.5.4) Закрытие модалки create</h3>
   <p><code>#createUserModal</code> — атрибут <code>data-bs-backdrop="static"</code>: клик вне модалки не закрывает её (только «Закрыть» / крестик). Модалка edit — без static backdrop.</p>
 
-  <h3>4.5.5) AJAX-submit</h3>
+  <h3 id="user-ajax-submit">4.5.5) AJAX-submit</h3>
   <p>
     Обе формы: <code>e.preventDefault()</code> + <code>$.ajax</code> с <code>Accept: application/json</code>.
-    Успех <b>create</b> на <code>/admin/users</code> — <code>showSuccessModal</code> + reload
-    (на заявках эта create-модалка не подключается — callback <code>onSchoolLeadUserCreated</code>).
-    Успех <b>PATCH карточки</b> — <code>showSuccessModal("Редактирование клиента", …, 1)</code> + reload.
+    Успех <b>create</b> на <code>/admin/users</code> — закрытие <code>#createUserModal</code>,
+    <code>$('#users-table').DataTable().ajax.reload(null, false)</code>, toast
+    <code>window.showToast</code> с <code>message</code> сервера
+    (без welcome — «Клиент создан успешно»; с письмом — «Клиент создан.» + текст §5.1)
+    или fallback «Клиент успешно создан.», сброс формы (в т.ч. группы Select2 и чекбокс «Отправить письмо»).
+    Partial create на заявках <b>не</b> подключается: лид → клиент — свой JS
+    (<a href="/docs/documentation/school-leads-widget#school-lead-create-client-button">school-leads-widget §5.7</a>).
+    Ветка <code>success-handler === 'school-leads-table'</code> / <code>onSchoolLeadUserCreated</code>
+    в create-JS есть, на вкладке «Клиенты» атрибута у формы нет.
+    Успех <b>PATCH карточки</b> — закрытие <code>#editUserModal</code>, тот же reload таблицы,
+    toast с <code>message</code> сервера (обычно «Клиент успешно обновлён»)
+    или fallback «Клиент успешно обновлён.».
     Успех <b>удаления</b> из edit — toast <code>window.showToast('Клиент успешно удален.', 'success')</code>
     (таблица DataTables без F5), не success-модалка.
     Ошибки 422 — подсветка полей, раскрытие аккордеонов с ошибками (<code>syncStudentUserAccordionsForErrors</code>).
-    Non-AJAX POST create → redirect на <code>admin.user1</code>, запись создаётся (<code>UserControllerTest::test_store_non_ajax_redirects_and_creates_user</code>).
-    Анонс toast — <a href="/doc#success-toast-instead-of-modal-index">/doc</a>.
+    Non-AJAX POST/PATCH без <code>X-Requested-With</code> → redirect на <code>admin.user1</code>, запись создаётся (<code>UserControllerTest::test_store_non_ajax_redirects_and_creates_user</code>, <code>AdminUsersCreateEditToastNonAjaxSafetyNetFeatureTest</code>).
+    Анонс — <a href="/doc#users-create-edit-toast-index">create/edit без F5</a>,
+    перечень toast — <a href="/doc#success-toast-instead-of-modal-index">/doc</a>.
+    Тесты: <code>AdminUsersCreateEditToastAccessFeatureTest</code>,
+    <code>AdminUsersCreateEditToastAjaxContractFeatureTest</code>,
+    <code>AdminUsersCreateEditToastNonAjaxSafetyNetFeatureTest</code>,
+    <code>AdminUsersCreateEditToastUiContractsFeatureTest</code>,
+    <code>AdminUsersCreateEditToastFullAccessFeatureTest</code>,
+    <code>UsersCreateEditToastDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_create_and_edit_user_success_without_reload_js_is_valid_and_uses_toast</code>.
   </p>
 
   <h3 id="user-delete-clears-email">4.5.6) Удаление: освобождение email</h3>
@@ -1073,6 +1094,7 @@
       <tr><td>Тело</td><td><code>custom[{slug}]</code> — значения для <code>user_field_values</code></td></tr>
       <tr><td>Валидация</td><td><code>custom.*</code> nullable string; slug должен существовать у <code>UserField</code> текущего партнёра</td></tr>
       <tr><td>Запись</td><td>Только поля с <code>editable</code> для роли актора</td></tr>
+      <tr><td>Нет <code>custom</code></td><td>Штатно: поля не трогаем, в лог <b>не</b> пишем «custom отсутствует» (<code>UserService::update</code> / <code>update2</code>)</td></tr>
     </tbody>
   </table>
   <p class="small"><code>custom</code> не передаётся в <code>User::create</code> — извлекается до <code>UserService::store()</code>.</p>
@@ -1102,7 +1124,7 @@
     Сценарии: (1) ручное «Добавить» с чекбоксом <code>send_welcome_email</code> — ученик / тренер / сотрудник (§5.1.4);
     (2) конвертация лида (<code>school_lead_id</code>) — всегда (§5.1.1);
     (3) повторная отправка нового пароля из edit ученика (§5.1.2).<br>
-    <b>Не путать</b> с ручной сменой пароля («Изменить пароль» → <code>POST /admin/user/{id}/update-password</code>, право <code>users.password.update</code>, без email, всплывайка — <a href="/doc#admin-password-change-toast-index">анонс</a>) и с уведомлением админам о <b>новой заявке</b> (<code>NewSchoolLeadSubmission</code>, см. <a href="/docs/documentation/school-leads-widget#7">school-leads-widget §7</a>).
+    <b>Не путать</b> с ручной сменой пароля («Изменить пароль» → <code>POST /admin/user/{id}/update-password</code>, право <code>users.password.update</code>, без email, всплывайка — <a href="/doc#admin-password-change-toast-index">анонс</a>) и с уведомлением о <b>новой заявке</b> (<code>NewSchoolLeadSubmission</code>, список email настраивается кнопкой «Уведомления» на вкладке «Заявки» — <a href="/doc#school-leads-email-notifications-index">анонс</a>, <a href="/docs/documentation/school-leads-widget#7">school-leads-widget §7</a>).
     Импорт Excel welcome-письмо <b>не</b> отправляет (§<a href="#user-import">8</a>).
   </div>
 
@@ -1512,7 +1534,14 @@
       <li><code>tests/Feature/Crm/Users/AdminUserPasswordUpdateNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX POST пишет пароль; валидация 302 + session <code>errors.password</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUserPasswordUpdateUiContractsFeatureTest.php</code> — всплывайка <code>#kidsMainToast</code>, скрытый блок при первом открытии, клик ученика — jQuery <code>.show()</code>, тренер — <code>display: block</code>, @can, три JS-пути (админы / ученики / тренеры)</li>
       <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php::test_admin_password_change_js_paths_show_toast_and_skip_same_password</code> — <code>node --check</code> toast + skip повторного пароля</li>
-      <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — удаление ученика, смена пароля ученика и повторная отправка пароля по почте: toast, не success-модалка; сохранение карточки по-прежнему модалка</li>
+      <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — create/edit/удаление ученика, смена пароля ученика и повторная отправка пароля по почте: toast, не success-модалка</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersCreateEditToastAccessFeatureTest.php</code> — гость / без <code>users.view</code> / со правом: GET страницы, POST create, PATCH edit</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersCreateEditToastAjaxContractFeatureTest.php</code> — JSON 200 <code>message</code> для toast («Клиент создан успешно» / «Клиент успешно обновлён»), 422 <code>errors.name</code>/<code>errors.lastname</code>, чужой партнёр 404</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersCreateEditToastNonAjaxSafetyNetFeatureTest.php</code> — POST/PATCH без <code>X-Requested-With</code> → 302 на <code>/admin/users</code> + запись в БД; валидация 302 + session errors</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersCreateEditToastUiContractsFeatureTest.php</code> — UX-баг success-модалки + F5: toast, закрытие модалки, <code>ajax.reload(null, false)</code>, оба пути <code>editUserLink2</code>/<code>editUserLink</code>, дефолт чекбокса «Отправить письмо», ветка заявок без toast вкладки</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersCreateEditToastFullAccessFeatureTest.php</code> — гость / 403 / 200, чужие глаголы не 500, изоляция партнёра</li>
+      <li><code>tests/Unit/Documentation/UsersCreateEditToastDocumentationContractTest.php</code> — анонс <code>/doc#users-create-edit-toast-index</code> и §4.5.5 совпадают с JS</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php::test_create_and_edit_user_success_without_reload_js_is_valid_and_uses_toast</code> — <code>node --check</code> create/edit без reload</li>
       <li><code>tests/Feature/Crm/Users/ClientWelcomeCredentialsFullAccessFeatureTest.php</code> — доступ guest/403/200, UI-маркеры, foreign partner 404, не-ученик 422</li>
       <li><code>tests/Feature/Crm/Users/ClientWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX redirect + AJAX JSON-контракт для store/resend</li>
       <li><code>tests/Feature/Crm/Parents/StudentParentSyncServiceTest.php</code> — логика <code>syncForStudent</code>, отвязка, не-ученик</li>
@@ -1533,6 +1562,7 @@
       <li><code>tests/Feature/Crm/Users/UserTableSettingsControllerTest.php</code> — columns-settings</li>
       <li><code>tests/Feature/Crm/Users/UsersPageLengthFeatureTest.php</code> — §2.0 персональный page_length, UX повторного открытия, 422 по полям, гость/403</li>
       <li><code>tests/Feature/Crm/Users/UsersPageLengthFullAccessFeatureTest.php</code> — §2.0 доступ: гость / без <code>users.view</code> / viewer / admin; PUT/PATCH/DELETE → 404/405</li>
+      <li><code>tests/Feature/Crm/Ui/DatatablePageLengthCatalogFeatureTest.php</code> — канонический список 9 страниц с persist «Показать N» (в т.ч. <code>/admin/users</code>)</li>
       <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code>, <code>TrainerSyncAndTeamsFeatureTest.php</code> — роль trainer</li>
     </ul>
     Запуск колонки «Договор»: <code>php artisan test --env=testing tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.

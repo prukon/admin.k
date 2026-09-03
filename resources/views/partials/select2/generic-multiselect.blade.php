@@ -114,6 +114,13 @@
                 font-size: 0.8125rem;
                 line-height: 1.3;
                 color: #495057;
+                white-space: normal;
+                overflow: visible;
+                word-break: break-word;
+            }
+
+            .select2-dropdown.kids-crm-generic-ms-dropdown .select2-results__option {
+                white-space: normal;
             }
 
             .generic-multiselect-field .select2-container--bootstrap-5 .select2-selection.select2-selection--multiple {
@@ -141,6 +148,105 @@
                 box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
                 background: #f8fafc !important;
                 background-color: #f8fafc !important;
+            }
+
+            /* tags: поле как chip-input, не как однострочный form-select */
+            .generic-multiselect-field--tags .select2-container--bootstrap-5 .select2-selection.select2-selection--multiple {
+                height: auto !important;
+                min-height: calc(1.5em + 0.5rem + 2px) !important;
+                padding: 0.2rem 0.45rem !important;
+                font-size: 0.8125rem !important;
+                line-height: 1.35 !important;
+                color: #212529 !important;
+                background: #fff !important;
+                background-color: #fff !important;
+                border: 1px solid #e3e6ea !important;
+                border-radius: 0.5rem !important;
+                overflow: visible !important;
+            }
+
+            .generic-multiselect-field--tags .select2-container .select2-selection__rendered {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                align-items: center !important;
+                gap: 0.2rem !important;
+                overflow: visible !important;
+                white-space: normal !important;
+            }
+
+            .generic-multiselect-field--tags .select2-container--focus .select2-selection--multiple,
+            .generic-multiselect-field--tags .select2-container--open .select2-selection--multiple {
+                background: #fff !important;
+                background-color: #fff !important;
+            }
+
+            .generic-multiselect-field--tags .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered .select2-selection__choice {
+                display: inline-flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                margin: 0 !important;
+                padding: 0.06rem 0.28rem 0.06rem 0.32rem !important;
+                font-size: 0.8125rem !important;
+                line-height: 1.25 !important;
+                font-weight: 500 !important;
+                color: #212529 !important;
+                background: #cfe2ff !important;
+                background-color: #cfe2ff !important;
+                border: 1px solid #b6d4fe !important;
+                border-radius: 999px !important;
+                box-shadow: none !important;
+                cursor: default !important;
+                max-width: 100%;
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: unset !important;
+            }
+
+            .generic-multiselect-field--tags .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered .select2-selection__choice .select2-selection__choice__remove {
+                position: relative !important;
+                width: 0.5rem !important;
+                height: 0.5rem !important;
+                min-width: 0.5rem !important;
+                margin: 0 0.15rem 0 0 !important;
+                padding: 0 !important;
+                border: 0 !important;
+                opacity: 0.55 !important;
+                background-size: 0.5rem auto !important;
+                background-position: center !important;
+                order: -1;
+            }
+
+            .generic-multiselect-field--tags .select2-container--bootstrap-5 .select2-selection--multiple .select2-search,
+            .generic-multiselect-field--tags .select2-container--bootstrap-5 .select2-selection--multiple .select2-search.select2-search--inline,
+            .generic-multiselect-field--tags .select2-container--bootstrap-5 .select2-selection.kids-crm-ms-selection .select2-selection__rendered > .select2-search.select2-search--inline,
+            .generic-multiselect-field--tags .select2-container--bootstrap-5 .select2-selection.kids-crm-ms-selection.select2-selection--multiple .select2-search.select2-search--inline {
+                display: flex !important;
+                align-items: center !important;
+                float: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 1 1 100% !important;
+                min-width: 0 !important;
+                height: auto !important;
+                margin: 0 !important;
+            }
+
+            .generic-multiselect-field--tags .select2-container--bootstrap-5 .select2-selection--multiple .select2-search .select2-search__field,
+            .generic-multiselect-field--tags .select2-container--bootstrap-5 .select2-selection--multiple .select2-search--inline .select2-search__field,
+            .generic-multiselect-field--tags .select2-container--bootstrap-5 .select2-selection.kids-crm-ms-selection .select2-search--inline .select2-search__field {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                min-height: 1.1rem !important;
+                height: auto !important;
+                font-size: 0.8125rem !important;
+                line-height: 1.35 !important;
+                color: #212529 !important;
+                box-sizing: border-box !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
             }
 
             .kids-crm-generic-ms-select2.select2-container--bootstrap-5 .select2-selection--multiple.is-invalid {
@@ -241,6 +347,17 @@
                     }
 
                     const $rendered = $container.find('.select2-selection__rendered');
+
+                    if ($select.data('kidsCrmMsTags') === true) {
+                        $rendered.find('.kids-crm-generic-ms-summary').remove();
+                        if (window.KidsCrmMultiselectChipStyles) {
+                            KidsCrmMultiselectChipStyles.apply($select, { skipSummary: true });
+                            window.requestAnimationFrame(function () {
+                                KidsCrmMultiselectChipStyles.apply($select, { skipSummary: true });
+                            });
+                        }
+                        return;
+                    }
                     const texts = $select.find('option:selected').map(function () {
                         return $(this).text();
                     }).get();
@@ -382,6 +499,101 @@
                     window.requestAnimationFrame(runSync);
                 }
 
+                function unbindTagSearchKeyboard($select) {
+                    const prev = $select.data('kidsCrmMsKeydown');
+                    if (prev && prev.node && prev.handler) {
+                        prev.node.removeEventListener('keydown', prev.handler, true);
+                    }
+                    $select.removeData('kidsCrmMsKeydown');
+                }
+
+                function tagSearchFields($select) {
+                    const instance = $select.data('select2');
+                    let $fields = $select.next('.select2-container').find('.select2-search__field');
+                    if (instance && instance.$dropdown) {
+                        $fields = $fields.add(instance.$dropdown.find('.select2-search__field'));
+                    }
+                    return $fields;
+                }
+
+                function clearTagSearchField($select) {
+                    tagSearchFields($select).val('');
+                }
+
+                function expandTagSearchField($select) {
+                    if ($select.data('kidsCrmMsTags') !== true) {
+                        return;
+                    }
+
+                    const $fields = tagSearchFields($select);
+                    $fields.css('width', '100%');
+
+                    const placeholder = String(
+                        $fields.first().attr('placeholder')
+                        || $select.data('placeholder')
+                        || ''
+                    );
+                    if (placeholder) {
+                        $fields.attr('size', String(placeholder.length));
+                    }
+
+                    const instance = $select.data('select2');
+                    if (instance && instance.selection && typeof instance.selection.resizeSearch === 'function') {
+                        instance.selection.resizeSearch = function () {
+                            this.$search.css('width', '100%');
+                        };
+                    }
+                }
+
+                function removeLastTagChoice($select) {
+                    const values = getSelectedIds($select);
+                    if (!values.length) {
+                        return;
+                    }
+
+                    const next = values.slice(0, -1);
+                    $select.val(next.length ? next : null).trigger('change');
+                    syncSelectionSummary($select);
+                    syncDropdownCheckboxes($select);
+                }
+
+                function bindTagSearchKeyboard($select) {
+                    unbindTagSearchKeyboard($select);
+
+                    const $container = $select.next('.select2-container');
+                    if ($select.data('kidsCrmMsTags') !== true || !$container.length) {
+                        return;
+                    }
+
+                    const node = $container.get(0);
+                    const handler = function (e) {
+                        const isBackspace = e.key === 'Backspace' || e.which === 8;
+                        if (!isBackspace) {
+                            return;
+                        }
+
+                        if (!getSelectedIds($select).length) {
+                            return;
+                        }
+
+                        const term = String((e.target && e.target.value) || '');
+                        if (term.indexOf('@') !== -1) {
+                            return;
+                        }
+
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        if (e.target && 'value' in e.target) {
+                            e.target.value = '';
+                        }
+                        clearTagSearchField($select);
+                        removeLastTagChoice($select);
+                    };
+
+                    node.addEventListener('keydown', handler, true);
+                    $select.data('kidsCrmMsKeydown', { node: node, handler: handler });
+                }
+
                 function bindEvents($select) {
                     $select.off(namespace);
 
@@ -404,6 +616,15 @@
                                 .addClass('is-checked');
                         }
 
+                        if ($select.data('kidsCrmMsTags') === true) {
+                            clearTagSearchField($select);
+                            expandTagSearchField($select);
+                            window.requestAnimationFrame(function () {
+                                clearTagSearchField($select);
+                                expandTagSearchField($select);
+                            });
+                        }
+
                         scheduleSyncDropdownCheckboxes($select);
                     });
 
@@ -423,8 +644,12 @@
                     });
 
                     $select.on('select2:open' + namespace, function () {
+                        expandTagSearchField($select);
                         scheduleSyncDropdownCheckboxes($select);
                     });
+
+                    bindTagSearchKeyboard($select);
+                    expandTagSearchField($select);
                 }
 
                 window.KidsCrmGenericMultiselectSelect2 = {
@@ -436,20 +661,21 @@
                         }
 
                         if ($select.data('select2')) {
+                            unbindTagSearchKeyboard($select);
                             $select.off(namespace);
                             $select.select2('destroy');
                         }
 
                         const $dropdownParent = normalizeDropdownParent($select, options.dropdownParent);
 
-                        $select.select2({
+                        const select2Options = {
                             theme: 'bootstrap-5',
                             width: '100%',
                             placeholder: $select.data('placeholder') || options.placeholder || 'Выберите значения',
                             language: select2Language,
                             allowClear: options.allowClear === true,
                             multiple: true,
-                            closeOnSelect: false,
+                            closeOnSelect: options.tags === true,
                             dropdownParent: $dropdownParent && $dropdownParent.length ? $dropdownParent : undefined,
                             containerCssClass: 'kids-crm-generic-ms-select2',
                             selectionCssClass: 'kids-crm-ms-selection',
@@ -457,7 +683,25 @@
                             templateResult: function (data) {
                                 return formatOption(data, getSelectedIds($select));
                             }
-                        });
+                        };
+
+                        if (options.tags === true) {
+                            select2Options.tags = true;
+                            if (Array.isArray(options.tokenSeparators)) {
+                                select2Options.tokenSeparators = options.tokenSeparators;
+                            }
+                            if (typeof options.createTag === 'function') {
+                                select2Options.createTag = options.createTag;
+                            }
+                        }
+
+                        $select.data('kidsCrmMsTags', options.tags === true);
+                        $select.closest('.generic-multiselect-field').toggleClass(
+                            'generic-multiselect-field--tags',
+                            options.tags === true
+                        );
+
+                        $select.select2(select2Options);
 
                         bindEvents($select);
                         syncSelectionSummary($select);

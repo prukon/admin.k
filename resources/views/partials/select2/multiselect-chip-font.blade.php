@@ -22,7 +22,8 @@
             line-height: inherit !important;
         }
 
-        .select2-container--bootstrap-5 li.select2-selection__choice.kids-crm-ms-chip {
+        .select2-container--bootstrap-5 .select2-selection.kids-crm-ms-selection.select2-selection--multiple .select2-selection__rendered .select2-selection__choice,
+        .select2-container--bootstrap-5 .select2-selection__choice.kids-crm-ms-chip {
             display: inline-flex !important;
             flex-direction: row !important;
             align-items: center !important;
@@ -39,7 +40,8 @@
             cursor: default !important;
         }
 
-        .select2-container--bootstrap-5 li.select2-selection__choice.kids-crm-ms-chip.kids-crm-ms-summary {
+        .select2-container--bootstrap-5 .select2-selection.kids-crm-ms-selection.select2-selection--multiple .select2-selection__rendered .select2-selection__choice.kids-crm-ms-summary,
+        .select2-container--bootstrap-5 .select2-selection__choice.kids-crm-ms-chip.kids-crm-ms-summary {
             background: transparent !important;
             border: 0 !important;
             padding: 0 0.2rem 0 0 !important;
@@ -47,7 +49,8 @@
             max-width: 100%;
         }
 
-        .select2-container--bootstrap-5 li.select2-selection__choice.kids-crm-ms-chip .select2-selection__choice__remove {
+        .select2-container--bootstrap-5 .select2-selection.kids-crm-ms-selection.select2-selection--multiple .select2-selection__rendered .select2-selection__choice .select2-selection__choice__remove,
+        .select2-container--bootstrap-5 .select2-selection__choice.kids-crm-ms-chip .select2-selection__choice__remove {
             position: relative !important;
             width: 0.5rem !important;
             height: 0.5rem !important;
@@ -61,7 +64,7 @@
             order: -1;
         }
 
-        .select2-container--bootstrap-5 li.select2-selection__choice.kids-crm-ms-chip .select2-selection__choice__remove:hover {
+        .select2-container--bootstrap-5 .select2-selection__choice.kids-crm-ms-chip .select2-selection__choice__remove:hover {
             opacity: 0.9 !important;
             background-color: transparent !important;
         }
@@ -156,7 +159,9 @@
                     });
 
                     const selectedCount = ($select.val() || []).length;
-                    $container.toggleClass('kids-crm-ms-summary-mode', selectedCount >= 3);
+                    const skipSummary = options.skipSummary === true
+                        || $select.data('kidsCrmMsTags') === true;
+                    $container.toggleClass('kids-crm-ms-summary-mode', !skipSummary && selectedCount >= 3);
                 }
             };
         })(window, window.jQuery);

@@ -125,4 +125,86 @@ final class PartnerWalletAjaxContractFeatureTest extends CrmTestCase
             $this->assertNotSame('', trim((string) $response->json('message')));
         }
     }
+
+    public function test_topup_ajax_without_partner_id_returns_422_partner_error(): void
+    {
+        $this->postJson(route('partner.wallet.topup'), [
+            'amount' => 100,
+        ], $this->walletAjaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['partner_id'])
+            ->assertJsonPath('errors.partner_id.0', 'Не указана школа.');
+
+        $this->assertTopupDidNotCreateTransaction();
+    }
+
+    public function test_topup_ajax_with_non_numeric_amount_returns_422_amount_error(): void
+    {
+        $this->assertJsonHasFieldError(
+            $this->postJson(route('partner.wallet.topup'), [
+                'amount' => 'abc',
+                'partner_id' => $this->partner->id,
+            ], $this->walletAjaxHeaders()),
+            'amount'
+        );
+        $this->assertTopupDidNotCreateTransaction();
+    }
+
+    public function test_topup_ajax_with_amount_above_maximum_returns_422_amount_error(): void
+    {
+        $this->postJson(route('partner.wallet.topup'), [
+            'amount' => 100000000,
+            'partner_id' => $this->partner->id,
+        ], $this->walletAjaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['amount'])
+            ->assertJsonPath('errors.amount.0', 'Сумма слишком большая.');
+
+        $this->assertTopupDidNotCreateTransaction();
+    }
+
+    public function test_empty_history_returns_datatable_json_not_empty_200(): void
+    {
+        $json = $this->getJson($this->walletTransactionsUrl(), $this->walletAjaxHeaders())
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data'])
+            ->json();
+
+        $this->assertNotSame('', trim((string) json_encode($json)));
+        $this->assertSame(0, (int) $json['recordsTotal']);
+        $this->assertSame([], $json['data']);
+    }
+
+    public function test_transactions_ajax_labels_credit_and_debit_for_current_partner(): void
+    {
+        $credit = $this->makeWalletTx($this->partner->id, $this->user->id, 'hist-credit', [
+            'type' => 'credit',
+            'status' => 'succeeded',
+            'amount_cents' => 15000,
+        ]);
+        $debit = $this->makeWalletTx($this->partner->id, $this->user->id, 'hist-debit', [
+            'type' => 'debit',
+            'status' => 'succeeded',
+            'amount_cents' => 7000,
+            'provider' => 'manual',
+        ]);
+        $this->makeWalletTx($this->foreignPartner->id, $this->foreignUser->id, 'hist-foreign-debit', [
+            'type' => 'debit',
+        ]);
+
+        $json = $this->getJson($this->walletTransactionsUrl(), $this->walletAjaxHeaders())
+            ->assertOk()
+            ->json();
+
+        $this->assertSame(2, (int) $json['recordsTotal']);
+        $byId = collect($json['data'])->keyBy(static fn (array $row) => (int) $row['id']);
+
+        $this->assertSame('Пополнение', $byId[$credit->id]['type']);
+        $this->assertSame(150.0, (float) $byId[$credit->id]['amount']);
+        $this->assertStringContainsString('Успешно', (string) $byId[$credit->id]['status']);
+
+        $this->assertSame('Списание', $byId[$debit->id]['type']);
+        $this->assertSame(70.0, (float) $byId[$debit->id]['amount']);
+        $this->assertStringContainsString('Успешно', (string) $byId[$debit->id]['status']);
+    }
 }

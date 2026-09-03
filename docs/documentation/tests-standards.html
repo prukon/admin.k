@@ -209,6 +209,7 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
 
   <h3>5.5) Референсные тестовые файлы</h3>
   <ul class="small">
+    <li><code>tests/Feature/Crm/Ui/DatatablePageLengthCatalogFeatureTest.php</code> — канонический список страниц, где «Показать N» пишется в <code>user_table_settings.page_length</code> (9 URL / <code>table_key</code> / blade; HTTP save + сверка документации) — <a href="/doc#datatable-page-length-catalog">/doc</a></li>
     <li><code>tests/Feature/Database/DevSeedStackFeatureTest.php</code> — целостность dev-фикстур (<code>SEED_DEV_DATA</code>, юр. лица, комиссии, history) — <a href="/docs/documentation/dev-seed-data">dev-seed-data</a></li>
     <li><code>tests/Feature/Crm/SportTypes/SportTypesNonAjaxSafetyNetFeatureTest.php</code>, <code>SportTypesAjaxContractFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Districts/DistrictsNonAjaxSafetyNetFeatureTest.php</code>, <code>DistrictsAjaxContractFeatureTest.php</code></li>
@@ -224,8 +225,10 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
     <li><code>tests/Feature/Crm/PartnerLegalEntities/MultiEntityTbankGuardAccessFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/UserPricePublicPayFeatureTest.php</code> — публичная СБП-страница месяца (<code>/pm/{code}</code>) из email-уведомлений: Init при открытии, QR на <code>/pay/up/*</code> (не ULP-fallback), сумма через <code>Money::formatRub</code>, доступы гость/с правами/без СБП, §<a href="/docs/documentation/payments#up-public-pay">payments 3.1.3</a></li>
     <li><code>tests/Feature/Crm/PartnerWallet/PartnerWalletPartnerIsolationFeatureTest.php</code> —
-      кошелёк <code>/partner-wallet</code>: изоляция, Access/Ajax/NonAjax/UX/FullAccess,
-      <a href="/docs/documentation/partner-wallet">partner-wallet</a></li>
+      кошелёк <code>/partner-wallet</code>: изоляция, Access/Ajax/NonAjax/UX/FullAccess/Webhook,
+      леджер договоров <code>ContractBillingWalletLedgerFeatureTest</code>,
+      <a href="/docs/documentation/partner-wallet">partner-wallet</a>,
+      <a href="/doc#partner-wallet-ledger-index">анонс</a></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — локальный <code>seedTbankForPartner()</code> (образец до выноса в <code>CrmTestCase</code>); базовый flow public-pay-link</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — UI checkout на <code>/p/{code}</code> и <code>/pay/ulp/{token}</code>, доступы, JSON QR (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>)</li>
   </ul>

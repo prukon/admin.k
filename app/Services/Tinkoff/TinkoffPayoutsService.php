@@ -286,6 +286,10 @@ class TinkoffPayoutsService
 
     public function pollState(TinkoffPayout $payout): TinkoffPayout
     {
+        if (! filled($payout->tinkoff_payout_payment_id)) {
+            return $payout;
+        }
+
         $cfg = $this->resolveE2cConfig((int) $payout->partner_id);
         $req = [
             'TerminalKey' => $cfg['terminal_key'],

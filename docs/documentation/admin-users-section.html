@@ -76,7 +76,8 @@
 
   <div class="warn">
     <b>Не путать:</b> вкладка «Клиенты» показывает только <b>учеников</b> (<code>role_id</code> системной роли <code>user</code>, UI-label «Клиент»). Общий заголовок раздела и пункт сайдбара остаются «Пользователи». Администраторы, тренеры и кастомные роли — на своих вкладках. Журнал <code>/schedule</code> по-прежнему фильтрует только активных учеников — см. <a href="/docs/documentation/schedule-journal#student-list">schedule-journal §2.1</a>.
-    Анонс: <a href="/doc#users-client-naming-index">/doc — нейминг «Клиенты»</a>.
+    Анонс: <a href="/doc#users-client-naming-index">/doc — нейминг «Клиенты»</a>,
+    <a href="/doc#users-create-edit-toast-index">create/edit без F5</a>.
   </div>
 
   <h3>2.1) Какие роли попадают во вкладки</h3>
@@ -94,7 +95,7 @@
 
   <h2>3) Общий UI</h2>
   <ul>
-    <li>Заголовок страницы раздела: <code>Пользователи</code> (h4, сайдбар тот же). Вкладка учеников и toolbar <code>h1</code> на <code>/admin/users</code>: <code>Клиенты</code>. Модалки ученика: «Создание клиента» / «Редактирование клиента» / «Удаление клиента». JSON: <code>Клиент создан успешно</code>, <code>Клиент успешно обновлён</code>, <code>Клиент успешно удалён</code>. Toast удаления: <code>Клиент успешно удален.</code> (е). Тренеры и сотрудники этот копирайт не получают. Право <code>users.view</code> в матрице прав по-прежнему «Страница "Пользователи"»; группа прав — «Управление клиентами»; label роли <code>user</code> — «Клиент».</li>
+    <li>Заголовок страницы раздела: <code>Пользователи</code> (h4, сайдбар тот же). Вкладка учеников и toolbar <code>h1</code> на <code>/admin/users</code>: <code>Клиенты</code>. Модалки ученика: «Создание клиента» / «Редактирование клиента» / «Удаление клиента». JSON: <code>Клиент создан успешно</code>, <code>Клиент успешно обновлён</code>, <code>Клиент успешно удалён</code>. Toast create/edit на вкладке: закрытие модалки, <code>ajax.reload(null, false)</code>, <code>window.showToast</code> с <code>message</code> сервера (fallback «Клиент успешно создан.» / «Клиент успешно обновлён.»), не success-модалка и не F5 (<a href="/doc#users-create-edit-toast-index">анонс</a>). Toast удаления: <code>Клиент успешно удален.</code> (е). Лид → клиент — свой toast на заявках, не эта модалка. Тренеры и сотрудники этот копирайт не получают. Право <code>users.view</code> в матрице прав по-прежнему «Страница "Пользователи"»; группа прав — «Управление клиентами»; label роли <code>user</code> — «Клиент».</li>
     <li>На каждой вкладке — toolbar (добавить, фильтры, колонки), DataTables через <code>KidsCrmDataTable.create</code> — см. <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials</a>.</li>
     <li>На вкладке «Клиенты» (<code>/admin/users</code>) дополнительно — кнопка «Импорт» при праве <code>users.import</code>
       (см. <a href="/docs/documentation/admin-users#user-import">admin-users §8</a>,
@@ -132,6 +133,12 @@
       <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingAjaxContractFeatureTest.php</code> — JSON store/update/delete: <code>Клиент создан успешно</code> / <code>Клиент успешно обновлён</code> / <code>Клиент успешно удалён</code>; 422 <code>errors.name</code>/<code>errors.lastname</code>; сотрудник — «Пользователь создан»; ЛК — «Пользователь успешно обновлен»; чужой партнёр 404</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingNonAjaxSafetyNetFeatureTest.php</code> — POST/PATCH без <code>X-Requested-With</code> → 302 на <code>/admin/users</code> + запись в БД; валидация 302 + session errors; DELETE без AJAX всё равно JSON «Клиент успешно удалён»</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingFullAccessFeatureTest.php</code> — гость 302/401; без <code>users.view</code> 403; без <code>settings.roles.view</code> / <code>trainers.view</code> 403; admin 200; PUT/PATCH/DELETE на GET-страницы → 404/405; чужой партнёр 404</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersCreateEditToastAccessFeatureTest.php</code>,
+        <code>AdminUsersCreateEditToastAjaxContractFeatureTest.php</code>,
+        <code>AdminUsersCreateEditToastNonAjaxSafetyNetFeatureTest.php</code>,
+        <code>AdminUsersCreateEditToastUiContractsFeatureTest.php</code>,
+        <code>AdminUsersCreateEditToastFullAccessFeatureTest.php</code> — create/edit без success-модалки и без F5: toast, DataTables reload, 422 под полями, гость/403</li>
+      <li><code>tests/Unit/Documentation/UsersCreateEditToastDocumentationContractTest.php</code> — анонс <code>/doc#users-create-edit-toast-index</code> совпадает с JS</li>
       <li><code>tests/Unit/Documentation/UsersClientNamingDocumentationContractTest.php</code> — анонс <code>/doc#users-client-naming-index</code> совпадает с Blade/контроллерами (сайдбар «Пользователи», JSON «Клиент…», негативы)</li>
       <li><code>tests/Feature/Crm/Users/UserDeleteClearsEmailFeatureTest.php</code> — soft delete любой учётки обнуляет <code>users.email</code> (<a href="/docs/documentation/admin-users#user-delete-clears-email">admin-users §4.5.6</a>)</li>
       <li><code>tests/Feature/Crm/Users/UserDeleteClearsEmailAjaxContractFeatureTest.php</code>,

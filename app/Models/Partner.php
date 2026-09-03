@@ -37,6 +37,9 @@ class Partner extends Model
         'vat' => 'integer',
 
         'registration_verified_at' => 'datetime',
+
+        'school_leads_notification_emails' => 'array',
+        'school_leads_email_notifications_disabled' => 'boolean',
     ];
 
 

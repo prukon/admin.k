@@ -456,12 +456,34 @@
                         return;
                     }
 
-                    showSuccessModal(
-                        "Создание клиента",
-                        (response && response.message) ? response.message : "Клиент успешно создан.",
-                        1
-                    );
-                    window.location.reload();
+                    var createModalEl = document.getElementById('createUserModal');
+                    var createModalInstance = bootstrap.Modal.getInstance(createModalEl);
+                    if (createModalInstance) {
+                        createModalInstance.hide();
+                    }
+
+                    if ($.fn.DataTable.isDataTable('#users-table')) {
+                        $('#users-table').DataTable().ajax.reload(null, false);
+                    }
+
+                    $form.find('.is-invalid').removeClass('is-invalid');
+                    $form.find('.invalid-feedback').remove();
+                    $form.find('[data-error-for="team_ids"]').text('');
+                    $form[0]?.reset?.();
+                    resetCreateUserHealthFields();
+                    resetCreateUserCommentSexFields();
+                    $('#create-send-welcome-email').prop('checked', true);
+                    syncCreateWelcomeCredentialsUi();
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        var $teams = $form.find('#createStudentTeamIds');
+                        if ($teams.length) {
+                            KidsCrmGenericMultiselectSelect2.setValues($teams, []);
+                        }
+                    }
+
+                    if (typeof window.showToast === 'function') {
+                        window.showToast((response && response.message) ? response.message : 'Клиент успешно создан.', 'success');
+                    }
                 },
                 error: function (xhr) {
                     // Валидация Laravel

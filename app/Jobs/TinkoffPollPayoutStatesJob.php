@@ -17,6 +17,8 @@ class TinkoffPollPayoutStatesJob implements ShouldQueue
     public function handle(TinkoffPayoutsService $svc): void
     {
         // Статусы, которые могут перейти в финальные при polling (GetState).
+        // Без банковского PaymentId GetState даёт ErrorCode 201 — такие строки шлёт
+        // TinkoffRunScheduledPayoutsJob, не эта джоба.
         $list = TinkoffPayout::whereIn('status', [
             'INITIATED',
             'NEW',
@@ -25,6 +27,8 @@ class TinkoffPollPayoutStatesJob implements ShouldQueue
             'CREDIT_CHECKING',
             'COMPLETING',
         ])
+            ->whereNotNull('tinkoff_payout_payment_id')
+            ->where('tinkoff_payout_payment_id', '!=', '')
             ->orderByDesc('updated_at')
             ->limit(200)
             ->get();

@@ -21,10 +21,11 @@
                             <input type="hidden" name="partner_id" value="{{ $partner->id }}">
                             <div class="mb-3">
                                 <label class="form-label" for="walletTopupAmount">Сумма, ₽</label>
-                                <input type="number" step="0.01" min="1" class="form-control" id="walletTopupAmount" name="amount" required>
-                                <div class="invalid-feedback" data-error-for="amount"></div>
+                                <input type="number" step="0.01" min="1" class="form-control @error('amount') is-invalid @enderror" id="walletTopupAmount" name="amount" required>
+                                <div class="invalid-feedback @error('amount') d-block @enderror" data-error-for="amount">@error('amount'){{ $message }}@enderror</div>
                             </div>
-                            <div class="invalid-feedback d-block" data-error-for="partner_id"></div>
+                            <div class="invalid-feedback d-block" data-error-for="partner_id">@error('partner_id'){{ $message }}@enderror</div>
+                            <div class="invalid-feedback d-block" data-error-for="description">@error('description'){{ $message }}@enderror</div>
                             <div class="text-danger small mb-2 d-none" id="walletTopupFormError"></div>
                             {{--<div class="mb-3">--}}
                                 {{--<label class="form-label">Описание (необязательно)</label>--}}

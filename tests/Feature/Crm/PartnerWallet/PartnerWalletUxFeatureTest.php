@@ -58,6 +58,7 @@ final class PartnerWalletUxFeatureTest extends CrmTestCase
         $this->assertDoesNotMatchRegularExpression('/\bvalue="[^"]+"/', $amountChunk);
         $this->assertStringContainsString('data-error-for="amount"', $html);
         $this->assertStringContainsString('data-error-for="partner_id"', $html);
+        $this->assertStringNotContainsString('Укажите сумму.', $html);
     }
 
     public function test_foreign_school_admin_sees_own_partner_id_and_balance_not_first_partner(): void
@@ -127,5 +128,54 @@ final class PartnerWalletUxFeatureTest extends CrmTestCase
         $this->assertStringContainsString('Платёж обрабатывается', $html);
         $this->assertStringContainsString('href="/partner-wallet"', $html);
         $this->assertStringContainsString('Вернуться в кошелёк', $html);
+    }
+
+    public function test_sidebar_balance_for_superadmin_is_selected_partner_not_user_partner(): void
+    {
+        $this->partner->forceFill(['wallet_balance_cents' => 246800])->save();
+        $this->foreignPartner->forceFill(['wallet_balance_cents' => 975300])->save();
+
+        $this->asSuperadmin();
+        $this->withSession([
+            'current_partner' => $this->foreignPartner->id,
+            '2fa:passed' => true,
+        ]);
+
+        $html = $this->get(route('partner.wallet'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('9 753', $html);
+        $this->assertStringNotContainsString('2 468', $html);
+    }
+
+    public function test_appservice_provider_wallet_balance_uses_partner_context(): void
+    {
+        $src = (string) file_get_contents(app_path('Providers/AppServiceProvider.php'));
+        $this->assertStringContainsString('PartnerContext::class)->partnerId()', $src);
+        $this->assertStringNotContainsString("session('partner_id')", $src);
+        $this->assertStringNotContainsString('auth()->user()->partner_id ??', $src);
+    }
+
+    public function test_amount_input_has_min_one_and_csrf_token(): void
+    {
+        $this->asAdmin();
+
+        $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/<input[^>]*min="1"[^>]*id="walletTopupAmount"[^>]*>/',
+            $html
+        );
+        $this->assertStringContainsString('name="_token"', $html);
+    }
+
+    public function test_sidebar_does_not_say_partner_not_selected_when_school_is_chosen(): void
+    {
+        $this->asAdmin();
+
+        $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('Партнёр не выбран', $html);
+        $this->assertStringContainsString('(пополнить)', $html);
     }
 }

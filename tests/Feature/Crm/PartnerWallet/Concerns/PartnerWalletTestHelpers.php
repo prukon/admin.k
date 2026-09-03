@@ -127,9 +127,12 @@ trait PartnerWalletTestHelpers
             ->all();
     }
 
-    protected function makeWalletTx(int $partnerId, int $userId, string $description): PartnerWalletTransaction
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    protected function makeWalletTx(int $partnerId, int $userId, string $description, array $overrides = []): PartnerWalletTransaction
     {
-        return PartnerWalletTransaction::query()->create([
+        return PartnerWalletTransaction::query()->create(array_merge([
             'partner_id' => $partnerId,
             'user_id' => $userId,
             'type' => 'credit',
@@ -139,7 +142,61 @@ trait PartnerWalletTestHelpers
             'status' => 'succeeded',
             'description' => $description,
             'meta' => null,
+        ], $overrides));
+    }
+
+    protected function makePendingYookassaTx(int $partnerId, int $userId, int $amountCents = 7000): PartnerWalletTransaction
+    {
+        return $this->makeWalletTx($partnerId, $userId, 'Пополнение баланса партнёра', [
+            'amount_cents' => $amountCents,
+            'provider' => 'yookassa',
+            'status' => 'pending',
+            'payment_id' => 'yk-pending-'.uniqid('', true),
         ]);
+    }
+
+    protected function yookassaAllowedIp(): string
+    {
+        return '77.75.156.11';
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function postWalletWebhookJson(string $url, array $payload, ?string $ip = null): TestResponse
+    {
+        return $this->withServerVariables(['REMOTE_ADDR' => $ip ?? $this->yookassaAllowedIp()])
+            ->postJson($url, $payload);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadataExtra
+     * @return array<string, mixed>
+     */
+    protected function yookassaWalletWebhookPayload(
+        PartnerWalletTransaction $tx,
+        string $event = 'payment.succeeded',
+        array $metadataExtra = [],
+        ?string $amountValue = null,
+    ): array {
+        $amount = $amountValue ?? number_format(((int) $tx->amount_cents) / 100, 2, '.', '');
+
+        return [
+            'event' => $event,
+            'object' => [
+                'id' => $tx->payment_id ?: 'yk-object-'.$tx->id,
+                'amount' => [
+                    'value' => $amount,
+                    'currency' => 'RUB',
+                ],
+                'metadata' => array_merge([
+                    'wallet_transaction_id' => (string) $tx->id,
+                    'partner_id' => (string) $tx->partner_id,
+                    'user_id' => (string) ($tx->user_id ?? 0),
+                    'scope' => 'partner_wallet_topup',
+                ], $metadataExtra),
+            ],
+        ];
     }
 
     protected function useDummyYookassaCredentials(): void

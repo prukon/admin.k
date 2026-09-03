@@ -67,6 +67,12 @@ class TeamController extends AdminBaseController
             ? PartnerAdminUserOptions::forPartner($partnerId)
             : collect();
 
+        $authUserId = Auth::id();
+        $teamsPageLength = UserTableSetting::pageLengthForUser(
+            $authUserId !== null ? (int) $authUserId : null,
+            'teams_index'
+        );
+
         return view('admin.team', compact(
             'weekdays',
             'trainerOptions',
@@ -76,6 +82,7 @@ class TeamController extends AdminBaseController
             'legalEntityOptions',
             'multiLegalEntityMode',
             'adminOptions',
+            'teamsPageLength',
         ));
     }
 

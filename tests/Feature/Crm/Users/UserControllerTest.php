@@ -11,7 +11,9 @@ use App\Models\Team;
 use App\Models\User;
 use App\Models\UserField;
 use App\Models\UserFieldValue;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -1673,6 +1675,39 @@ class UserControllerTest extends CrmTestCase
         $this->assertCount(0, $logs);
     }
 
+    public function test_update_without_custom_does_not_log_missing_custom_warning(): void
+    {
+        $warnings = [];
+        Event::listen(MessageLogged::class, function (MessageLogged $event) use (&$warnings): void {
+            if ($event->level === 'warning') {
+                $warnings[] = $event->message;
+            }
+        });
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Иван',
+            'lastname' => 'Петров',
+            'email' => 'ivan-nocustom@example.com',
+            'is_enabled' => 1,
+            'birthday' => '2010-01-01',
+        ]);
+
+        $this->patchJson('/admin/users/'.$user->id, [
+            'name' => 'Иван',
+            'lastname' => 'Петров',
+            'email' => 'ivan-nocustom@example.com',
+            'is_enabled' => 1,
+            'birthday' => '2010-01-01',
+        ])->assertOk();
+
+        $customWarnings = array_values(array_filter(
+            $warnings,
+            static fn (string $message): bool => str_contains($message, 'custom отсутствует')
+                || str_contains($message, 'Данные custom отсутствуют')
+        ));
+        $this->assertSame([], $customWarnings);
+    }
 
     /**
      * [P1] Успешное удаление пользователя своего партнёра + лог

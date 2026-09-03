@@ -104,6 +104,7 @@
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankAdminPayoutsAjaxFeatureTest.php</code> — endpoint <code>/total</code>, фильтр <code>payer_id</code>, Select2 endpoints <code>partners-search</code>/<code>payers-search</code>.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsPageFeatureTest.php</code>, <code>TbankPayoutsSectionFullAccessFeatureTest.php</code> — полный доступ к разделу, в т.ч. ключ <code>legal_entity_organization</code> в defaults колонок.</li>
     <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php</code> / <code>ReportsAndPayoutsPageLengthFullAccessFeatureTest.php</code> — персональный «Показать N» на <code>/admin/tinkoff/payouts</code> (<code>table_key = tinkoff_payouts_index</code>).</li>
+    <li><code>tests/Feature/Crm/Ui/DatatablePageLengthCatalogFeatureTest.php</code> — канонический список всех 9 страниц с persist «Показать N», включая выплаты.</li>
   </ul>
   <div class="note">
     <b>Карточка выплаты</b> <code>/admin/tinkoff/payouts/{id}</code> строку «Организация» по снимку <b>не показывает</b> (на момент документирования — только список и карточка платежа T‑Bank).

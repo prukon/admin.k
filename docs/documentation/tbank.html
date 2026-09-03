@@ -139,6 +139,9 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <div class="note">
     Выплаты партнёру выполняются через e2c API:
     <code>/e2c/v2/Init</code> → <code>/e2c/v2/Payment</code> → (при необходимости) <code>/e2c/v2/GetState</code>.
+    <code>GetState</code> зовут только если уже есть банковский <code>tinkoff_payout_payment_id</code>
+    (иначе банк отвечает ErrorCode 201 «PaymentId не должно быть пустым»).
+    Отложенные <code>INITIATED</code> без id опрашивает <code>TinkoffRunScheduledPayoutsJob</code> через Init, не polling.
     <br>Статусы банка (A2C_V2): <code>NEW</code>, <code>AUTHORIZING</code>, <code>CHECKING</code>, <code>CREDIT_CHECKING</code>, <code>CHECKED</code>, <code>COMPLETING</code>, <code>COMPLETED</code>, <code>REJECTED</code>.
   </div>
   <ul>
@@ -356,7 +359,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     </li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankPollPayoutStatesJobTest.php</code>
       <ul>
-        <li><b>Polling</b>: <code>TinkoffPollPayoutStatesJob</code> переводит выплату из промежуточного статуса в <code>COMPLETED</code> через <code>GetState</code>.</li>
+        <li><b>Polling</b>: <code>TinkoffPollPayoutStatesJob</code> переводит выплату из промежуточного статуса в <code>COMPLETED</code> через <code>GetState</code>. Без <code>tinkoff_payout_payment_id</code> (и при пустой строке) HTTP в банк <b>не</b> уходит, статус не меняется; <code>pollState()</code> тоже выходит сразу.</li>
       </ul>
     </li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutManualTest.php</code>

@@ -47,6 +47,8 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
             ['DELETE', route('admin.school-leads.statuses.destroy', ['schoolLeadStatus' => $deleteStatus->id])],
             ['GET', route('admin.school-leads.columns-settings.get')],
             ['POST', route('admin.school-leads.columns-settings.save')],
+            ['GET', route('admin.school-leads.notifications.show')],
+            ['PUT', route('admin.school-leads.notifications.update')],
             ['PUT', route('admin.school-leads.update', ['schoolLead' => $this->lead->id])],
         ];
     }
@@ -78,9 +80,12 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
                 'PUT' => str_contains($url, 'statuses') ? [
                     'name'  => 'Гость update',
                     'color' => '#ffc107',
+                ] : (str_contains($url, 'notifications') ? [
+                    'emails'                         => ['guest-notify@example.test'],
+                    'email_notifications_disabled'   => false,
                 ] : [
                     'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
-                ],
+                ]),
                 default => [],
             };
 
@@ -109,6 +114,11 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
         ])->assertForbidden();
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $this->lead->id]), [
             'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
+        ])->assertForbidden();
+        $this->getJson(route('admin.school-leads.notifications.show'))->assertForbidden();
+        $this->putJson(route('admin.school-leads.notifications.update'), [
+            'emails' => ['denied@example.test'],
+            'email_notifications_disabled' => false,
         ])->assertForbidden();
     }
 
@@ -181,6 +191,22 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
                 'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
                 'comment' => 'Проверка доступа',
             ]);
+
+        $this->getJson(route('admin.school-leads.notifications.show'))
+            ->assertOk()
+            ->assertJsonStructure([
+                'emails',
+                'emails_configured',
+                'email_notifications_disabled',
+                'suggested_emails',
+            ]);
+
+        $this->putJson(route('admin.school-leads.notifications.update'), [
+            'emails' => ['viewer-notify@example.test'],
+            'email_notifications_disabled' => false,
+        ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
     }
 
     public function test_admin_with_school_leads_view_all_endpoints_return_ok(): void

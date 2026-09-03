@@ -1035,6 +1035,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('/admin/school-leads/statuses/{schoolLeadStatus}', [\App\Http\Controllers\Admin\SchoolLeadStatusController::class, 'destroy'])->name('admin.school-leads.statuses.destroy');
         Route::get('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.school-leads.columns-settings.get');
         Route::post('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.school-leads.columns-settings.save');
+        Route::get('/admin/school-leads/notifications', [\App\Http\Controllers\Admin\SchoolLeadNotificationSettingsController::class, 'show'])->name('admin.school-leads.notifications.show');
+        Route::put('/admin/school-leads/notifications', [\App\Http\Controllers\Admin\SchoolLeadNotificationSettingsController::class, 'update'])->name('admin.school-leads.notifications.update');
         Route::put('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'update'])->name('admin.school-leads.update');
     });
 

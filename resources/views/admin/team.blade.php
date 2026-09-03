@@ -478,6 +478,7 @@
                         status_label: true,
                         actions: true,
                     },
+                    persistPageLength: true,
                     urls: {
                         get: '/admin/teams/columns-settings',
                         save: '/admin/teams/columns-settings',
@@ -485,6 +486,7 @@
                     csrfToken: $('meta[name="csrf-token"]').attr('content'),
                 },
                 dataTable: {
+                    pageLength: @json((int) ($teamsPageLength ?? 10)),
                     ajax: {
                         url: '/admin/teams/data',
                         type: 'GET',

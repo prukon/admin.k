@@ -66,6 +66,76 @@ class SchoolLeadNotificationTest extends TestCase
         });
     }
 
+    public function test_submit_sends_only_configured_notification_emails(): void
+    {
+        Mail::fake();
+
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response([
+                'success' => true,
+                'score'   => 0.9,
+            ], 200),
+        ]);
+
+        $partner = Partner::factory()->create([
+            'email' => 'org@school.test',
+            'school_leads_notification_emails' => ['custom-lead@example.test'],
+            'school_leads_email_notifications_disabled' => false,
+        ]);
+
+        $adminRoleId = Role::where('name', 'admin')->value('id');
+        User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id'    => $adminRoleId,
+            'email'      => 'admin@school.test',
+        ]);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $partner->id);
+
+        $this->postJson(route('widget.school-lead.submit', ['widgetKey' => $widget->widget_key]), [
+            'name'             => 'Анна',
+            'phone'            => '+7 999 000-11-22',
+            'consent_accepted' => '1',
+            'recaptcha_token'  => 'fake-token',
+        ])->assertOk();
+
+        Mail::assertSent(NewSchoolLeadSubmission::class, function (NewSchoolLeadSubmission $mail) {
+            return $mail->hasTo('custom-lead@example.test');
+        });
+        Mail::assertNotSent(NewSchoolLeadSubmission::class, function (NewSchoolLeadSubmission $mail) {
+            return $mail->hasTo('admin@school.test') || $mail->hasTo('org@school.test');
+        });
+    }
+
+    public function test_submit_skips_email_when_partner_disabled_notifications(): void
+    {
+        Mail::fake();
+
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response([
+                'success' => true,
+                'score'   => 0.9,
+            ], 200),
+        ]);
+
+        $partner = Partner::factory()->create([
+            'email' => 'org@school.test',
+            'school_leads_notification_emails' => ['custom-lead@example.test'],
+            'school_leads_email_notifications_disabled' => true,
+        ]);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $partner->id);
+
+        $this->postJson(route('widget.school-lead.submit', ['widgetKey' => $widget->widget_key]), [
+            'name'             => 'Анна',
+            'phone'            => '+7 999 000-11-22',
+            'consent_accepted' => '1',
+            'recaptcha_token'  => 'fake-token',
+        ])->assertOk();
+
+        Mail::assertNothingSent();
+    }
+
     public function test_submit_sends_telegram_when_partner_chat_id_configured(): void
     {
         Mail::fake();
@@ -94,6 +164,42 @@ class SchoolLeadNotificationTest extends TestCase
         Http::assertSent(function ($request) {
             return str_contains($request->url(), 'api.telegram.org')
                 && $request['chat_id'] === '-100999888777'
+                && str_contains($request['text'], 'Анна');
+        });
+    }
+
+    public function test_submit_still_sends_telegram_when_email_notifications_disabled(): void
+    {
+        Mail::fake();
+
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response([
+                'success' => true,
+                'score'   => 0.9,
+            ], 200),
+            'https://api.telegram.org/*' => Http::response(['ok' => true], 200),
+        ]);
+
+        $partner = Partner::factory()->create([
+            'email' => 'org@school.test',
+            'school_leads_notification_emails' => ['custom-lead@example.test'],
+            'school_leads_email_notifications_disabled' => true,
+            'school_leads_telegram_chat_id' => '-100555444333',
+        ]);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $partner->id);
+
+        $this->postJson(route('widget.school-lead.submit', ['widgetKey' => $widget->widget_key]), [
+            'name'             => 'Анна',
+            'phone'            => '+7 999 000-11-22',
+            'consent_accepted' => '1',
+            'recaptcha_token'  => 'fake-token',
+        ])->assertOk();
+
+        Mail::assertNothingSent();
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'api.telegram.org')
+                && $request['chat_id'] === '-100555444333'
                 && str_contains($request['text'], 'Анна');
         });
     }

@@ -53,11 +53,18 @@
                                             <!-- Фиксированная сумма -->
                                             @csrf
                                             {{--                            <input type="hidden" name="client_id" value="{{ $client->id }}"> <!-- client_id передаётся скрыто -->--}}
-                                            {{--                                            <input type="hidden" name="partner_id" value="{{ $partner->id }}">--}}
-                                            <input type="hidden" name="partner_id" value="1">
+                                            <input type="hidden" name="partner_id" value="{{ $partner->id }}">
                                             <input type="hidden" name="amount" value="2500.00">
                                             <input type="hidden" name="days" value="29">
                                             <input type="hidden" name="description" value="Учет до 200 пользователей">
+
+                                            <div class="invalid-feedback d-block" data-error-for="partner_id">@error('partner_id'){{ $message }}@enderror</div>
+                                            <div class="invalid-feedback d-block" data-error-for="amount">@error('amount'){{ $message }}@enderror</div>
+                                            <div class="invalid-feedback d-block" data-error-for="days">@error('days'){{ $message }}@enderror</div>
+                                            <div class="invalid-feedback d-block" data-error-for="description">@error('description'){{ $message }}@enderror</div>
+                                            @error('message')
+                                                <div class="text-danger small mb-2">{{ $message }}</div>
+                                            @enderror
 
                                             <!-- Укажите здесь фиксированную сумму -->
                                             <button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить
@@ -83,7 +90,7 @@
                                         {{--</ul>--}}
                                         {{--<form action="{{route('createPaymentYookassa')}}" method="post">--}}
                                             {{--@csrf--}}
-                                            {{--<input type="hidden" name="partner_id" value="1">--}}
+                                            {{--<input type="hidden" name="partner_id" value="{{ $partner->id }}">--}}
                                             {{--<input type="hidden" name="amount" value="27000.00">--}}
                                             {{--<input type="hidden" name="days" value="365">--}}
                                             {{--<input type="hidden" name="description" value="Учет до 200 пользователей">--}}

@@ -197,6 +197,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <ul>
     <li>Первая вкладка раздела «Справочники»; URL без изменений (<code>/admin/teams</code>).</li>
     <li>DataTables, фильтры, модалки create/edit, привязка объектов и тренеров — см. admin-teams. Клик по названию группы — модалка edit (<code>edit-team-link</code>).</li>
+    <li>Успех create/edit/delete — toast <code>window.showToast</code> («Группа создана успешно» / «Группа успешно обновлена» / «Группа успешно удалена.»), не <code>showSuccessModal</code>, без F5. См. <a href="/docs/documentation/admin-teams#team-ajax-submit">admin-teams §1.2</a>, <a href="/doc#teams-create-edit-toast-index">анонс</a>.</li>
     <li>При <code>locations.view</code> — фильтры по объекту, району объекта и администратору объекта (<code>location_id</code>, <code>district_id</code>, <code>admin_user_id</code> — id админа в pivot; значение <code>none</code> для «без привязки» / «без района» / «без администратора»).</li>
     <li>Право <code>groups.view</code> обязательно для доступа к странице и всем её endpoint'ам.</li>
   </ul>
@@ -349,6 +350,8 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>GenericMultiselectFullAccessFeatureTest.php</code> (Ui)</td><td>Единый Select2 multiselect: partial, UI на districts/users, AJAX/non-AJAX контракты, доступ 200/403/guest</td></tr>
       <tr><td><code>BladeInlineJsSyntaxTest.php</code> (Ui)</td><td><code>node --check</code> inline-JS в blade с AJAX-submit (districts, users, generic-multiselect); toast объектов create/edit/delete</td></tr>
       <tr><td><code>LocationsToastDocumentationContractTest.php</code> (Unit)</td><td>Анонс /doc и admin-locations: toast create/edit/delete объектов, не <code>showSuccessModal</code></td></tr>
+      <tr><td><code>TeamsToastDocumentationContractTest.php</code> (Unit)</td><td>Анонс <code>/doc#teams-create-edit-toast-index</code> и admin-teams: toast create/edit/delete групп, не <code>showSuccessModal</code></td></tr>
+      <tr><td><code>TeamsCreateEditToastAccessFeatureTest.php</code> … <code>FullAccessFeatureTest.php</code></td><td>Группы create/edit/delete без success-модалки: гость/403, AJAX JSON + 422 по полям, non-AJAX POST 302, PATCH/DELETE JSON 200, UX-баг toast</td></tr>
     </tbody>
   </table>
 

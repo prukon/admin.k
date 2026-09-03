@@ -27,7 +27,15 @@ final class SystemMonitorsOpsNonAjaxSafetyNetFeatureTest extends SystemMonitorsT
             ->assertOk()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('window_hours', 24)
-            ->assertJsonPath('till.failed_intents', 0);
+            ->assertJsonPath('till.failed_intents', 0)
+            ->assertJsonPath('day.turnover', 0)
+            ->assertJsonPath('day.commission', 0)
+            ->assertJsonPath('day.payments_count', 0)
+            ->assertJsonPath('yesterday.turnover', 0)
+            ->assertJsonPath('yesterday.commission', 0)
+            ->assertJsonPath('yesterday.payments_count', 0);
+        $this->assertIsInt($response->json('day.turnover'));
+        $this->assertIsInt($response->json('yesterday.payments_count'));
         $this->assertStringContainsString(
             'json',
             strtolower((string) $response->headers->get('content-type'))

@@ -54,7 +54,20 @@ final class GenericMultiselectFullAccessFeatureTest extends CrmTestCase
         $source = (string) file_get_contents($path);
 
         $this->assertStringContainsString('window.KidsCrmGenericMultiselectSelect2', $source);
-        $this->assertStringContainsString('closeOnSelect: false', $source);
+        $this->assertStringContainsString('closeOnSelect: options.tags === true', $source);
+        $this->assertStringContainsString('if (options.tags === true)', $source);
+        $this->assertStringContainsString('select2Options.tags = true', $source);
+        $this->assertStringContainsString('generic-multiselect-field--tags', $source);
+        $this->assertStringContainsString('height: auto !important', $source);
+        $this->assertStringContainsString('#cfe2ff', $source);
+        $this->assertStringContainsString('kidsCrmMsTags', $source);
+        $this->assertStringContainsString('clearTagSearchField', $source);
+        $this->assertStringContainsString('bindTagSearchKeyboard', $source);
+        $this->assertStringContainsString('removeLastTagChoice', $source);
+        $this->assertStringContainsString('expandTagSearchField', $source);
+        $this->assertStringContainsString("addEventListener('keydown', handler, true)", $source);
+        $this->assertStringContainsString('resizeSearch', $source);
+        $this->assertStringContainsString('word-break: break-word', $source);
         $this->assertStringContainsString('.select2-results__option[aria-selected]', $source);
         $this->assertStringContainsString('window.KidsCrmUserStudentTeamsSelect2 = window.KidsCrmGenericMultiselectSelect2', $source);
         $this->assertStringContainsString('.generic-multiselect-field .select2-container--bootstrap-5 .select2-selection.select2-selection--multiple', $source);
@@ -72,6 +85,22 @@ final class GenericMultiselectFullAccessFeatureTest extends CrmTestCase
         $this->assertStringContainsString('generic-multiselect-field', $source);
         $this->assertStringNotContainsString('js-user-student-teams-select', $source);
         $this->assertStringNotContainsString('teamsSelect2Profile', $source);
+    }
+
+    public function test_school_leads_notifications_modal_uses_generic_multiselect(): void
+    {
+        $this->asAdmin();
+
+        $this->get(route('admin.school-leads'))
+            ->assertOk()
+            ->assertSee('id="schoolLeadNotificationEmailsField"', false)
+            ->assertSee('id="schoolLeadNotificationEmails"', false)
+            ->assertSee('generic-multiselect-field', false)
+            ->assertSee('generic-multiselect-field--tags', false)
+            ->assertSee('js-generic-multiselect-select', false)
+            ->assertSee('KidsCrmGenericMultiselectSelect2.init', false)
+            ->assertSee('KidsCrmGenericMultiselectSelect2.setValues', false)
+            ->assertSee('KidsCrmGenericMultiselectSelect2.markInvalid', false);
     }
 
     public function test_districts_index_renders_unified_generic_multiselect_assets(): void

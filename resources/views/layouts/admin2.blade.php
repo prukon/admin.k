@@ -446,8 +446,8 @@
 
                         @php
                             /** @var \App\Models\Partner|null $cp */
-                            $cp = app()->bound('current_partner') ? app('current_partner') : null;
-                            $balance = $cp ? (((int) $cp->wallet_balance_cents) / 100) : ($partnerWalletBalance ?? null);
+                            $cp = app(\App\Services\PartnerContext::class)->partner();
+                            $balance = $cp ? (((int) $cp->wallet_balance_cents) / 100) : null;
                         @endphp
 
                         @can('partnerWallet.view')

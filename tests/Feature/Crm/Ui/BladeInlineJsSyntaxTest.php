@@ -40,6 +40,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'admin trainers create welcome email ajax' => ['admin/trainers/index.blade.php'];
         yield 'admin role staff create welcome email ajax' => ['admin/role_staff/index.blade.php'];
         yield 'school leads tab ajax handlers' => ['admin/school-leads/tabs/leads.blade.php'];
+        yield 'school leads notification settings modal' => ['admin/school-leads/partials/notification-settings.blade.php'];
         yield 'account user parent form' => ['account/users.blade.php'];
         yield 'outgoing emails report tab' => ['admin/report/outgoing_emails.blade.php'];
         yield 'fiscal receipts report tab' => ['admin/report/fiscal_receipts.blade.php'];
@@ -2012,6 +2013,7 @@ JS;
             'admin/report/payment_intents.blade.php',
             'admin/report/payment_monthly.blade.php',
             'admin/school-leads/tabs/leads.blade.php',
+            'admin/team.blade.php',
             'admin/user.blade.php',
         ], $hits);
 
@@ -2025,6 +2027,11 @@ JS;
                 'file' => resource_path('views/admin/user.blade.php'),
                 'pageLength' => 'pageLength: @json((int) ($usersPageLength ?? 10))',
                 'prefix' => 'blade-js-users-page-length',
+            ],
+            "KidsCrmDataTable.create('#teams-table'" => [
+                'file' => resource_path('views/admin/team.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($teamsPageLength ?? 10))',
+                'prefix' => 'blade-js-teams-page-length',
             ],
             "KidsCrmDataTable.create('#payments-table'" => [
                 'file' => resource_path('views/admin/report/payment.blade.php'),
@@ -2579,6 +2586,8 @@ JS;
         $this->assertStringContainsString('clear();', $content);
         $this->assertStringContainsString('if (!response.ok)', $content);
         $this->assertStringContainsString('node.textContent', $content);
+        $this->assertStringContainsString("ops-monitors__label\">Сегодня", $content);
+        $this->assertStringContainsString("ops-monitors__label\">Вчера", $content);
         $this->assertStringContainsString("ops-monitors__label\">Очередь", $content);
         $this->assertStringContainsString("ops-monitors__label\">Касса", $content);
         $this->assertStringContainsString("ops-monitors__label\">500", $content);
@@ -2593,6 +2602,25 @@ JS;
         $this->assertStringContainsString("setText('queue-worker'", $content);
         $this->assertStringContainsString("setText('welcome-count'", $content);
         $this->assertStringContainsString("setText('welcome-user'", $content);
+        $this->assertStringContainsString("setText('day-turnover'", $content);
+        $this->assertStringContainsString("setText('day-commission'", $content);
+        $this->assertStringContainsString("setText('day-count'", $content);
+        $this->assertStringContainsString("data-role=\"day-turnover\"", $content);
+        $this->assertStringContainsString("data-role=\"day-commission\"", $content);
+        $this->assertStringContainsString("data-role=\"day-count\"", $content);
+        $this->assertStringContainsString("setText('yesterday-turnover'", $content);
+        $this->assertStringContainsString("setText('yesterday-commission'", $content);
+        $this->assertStringContainsString("setText('yesterday-count'", $content);
+        $this->assertStringContainsString("data-role=\"yesterday-turnover\"", $content);
+        $this->assertStringContainsString("data-role=\"yesterday-commission\"", $content);
+        $this->assertStringContainsString("data-role=\"yesterday-count\"", $content);
+        $this->assertStringContainsString('var day = data.day || {}', $content);
+        $this->assertStringContainsString('var yesterday = data.yesterday || {}', $content);
+        $this->assertStringContainsString("setText('day-turnover', '—', 'is-muted')", $content);
+        $this->assertStringContainsString("setText('yesterday-turnover', '—', 'is-muted')", $content);
+        $this->assertStringContainsString("day.turnover == null ? '—' : day.turnover", $content);
+        $this->assertStringContainsString("yesterday.turnover == null ? '—' : yesterday.turnover", $content);
+        $this->assertStringNotContainsString('toLocaleString', $content);
         $this->assertStringContainsString('countTone(welcome.missing_count)', $content);
         $this->assertStringContainsString("welcome.last_user_id", $content);
         $this->assertStringContainsString("welcome.last_user_id ? ('#' + welcome.last_user_id) : '—'", $content);
@@ -3614,6 +3642,10 @@ JS;
         $this->assertStringContainsString('id="walletTopupAmount"', $content);
         $this->assertStringContainsString('data-error-for="amount"', $content);
         $this->assertStringContainsString('data-error-for="partner_id"', $content);
+        $this->assertStringContainsString("@error('amount')", $content);
+        $this->assertStringContainsString("@error('partner_id')", $content);
+        $this->assertStringContainsString("@error('description')", $content);
+        $this->assertStringContainsString("{{ \$message }}", $content);
         $this->assertStringContainsString("url: '/partner-wallet/transactions'", $content);
         $this->assertStringContainsString("url: '/partner-wallet/topup'", $content);
 
@@ -3631,11 +3663,42 @@ JS;
         $this->assertStringContainsString('[data-error-for="', $content);
         $this->assertStringNotContainsString('Partner::first()', $content);
 
+        $this->assertSame(1, substr_count($content, "$('#reloadTable').on('click'"));
+        $this->assertStringContainsString('txTable.ajax.reload', $content);
+        $this->assertStringContainsString('window.location = res.redirect', $content);
+        $this->assertStringNotContainsString("$('#walletTopupAmount').val('')", $content);
+        $this->assertStringNotContainsString('$("#walletTopupAmount").val("")', $content);
+        $this->assertStringContainsString("$('#topupBtn').prop('disabled', false).text('Оплатить')", $content);
+
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $path,
             "$('#walletTopupForm').on('submit'",
             'blade-js-partner-wallet-topup'
         );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "$('#reloadTable').on('click'",
+            'blade-js-partner-wallet-reload-table'
+        );
+    }
+
+    /**
+     * /partner-payment: hidden partner_id из текущей школы, ошибки под полями, не value="1".
+     */
+    public function test_partner_service_payment_form_uses_current_partner_id(): void
+    {
+        $path = resource_path('views/payment/paymentPartner.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('name="partner_id" value="{{ $partner->id }}"', $content);
+        $this->assertStringNotContainsString('name="partner_id" value="1"', $content);
+        $this->assertStringContainsString('data-error-for="partner_id"', $content);
+        $this->assertStringContainsString('data-error-for="amount"', $content);
+        $this->assertStringContainsString('data-error-for="days"', $content);
+        $this->assertStringContainsString('data-error-for="description"', $content);
+        $this->assertStringContainsString("route('createPaymentYookassa')", $content);
+        $this->assertStringContainsString("route('partner.payment.data')", $content);
     }
 
     /**
@@ -3734,6 +3797,82 @@ JS;
         }
 
         $this->assertTrue($found, 'В debt.blade.php не найден script с refreshDebtReportTotal');
+    }
+
+    /**
+     * Модалка уведомлений заявок: Select2 tags, preventDefault, ошибки под полями,
+     * повторное открытие перечитывает GET, галочка не обнуляет emails в payload.
+     */
+    public function test_school_leads_notification_settings_modal_ajax_uses_select2_tags(): void
+    {
+        $path = resource_path('views/admin/school-leads/partials/notification-settings.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("\$form.on('submit'", $content);
+        $this->assertStringContainsString('e.preventDefault()', $content);
+        $this->assertStringContainsString("method: 'PUT'", $content);
+        $this->assertStringContainsString('js-generic-multiselect-select', $content);
+        $this->assertStringContainsString('generic-multiselect-field--tags', $content);
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.init', $content);
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.setValues', $content);
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.markInvalid', $content);
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.clearInvalid', $content);
+        $this->assertStringContainsString('tokenSeparators: [\',\']', $content);
+        $this->assertStringNotContainsString("tokenSeparators: [',', ' ']", $content);
+        $this->assertStringContainsString('!isLikelyEmail(email)', $content);
+        $this->assertStringContainsString('createTag', $content);
+        $this->assertStringContainsString('isLikelyEmail', $content);
+        $this->assertStringNotContainsString("language: @include('partials.select2.ru')", $content);
+        $this->assertStringNotContainsString('$select.select2({', $content);
+        $this->assertStringContainsString('showNotificationErrors(body.errors)', $content);
+        $this->assertStringContainsString('data-error-for="emails"', $content);
+        $this->assertStringContainsString('data-error-for="email_notifications_disabled"', $content);
+        $this->assertStringContainsString("field.indexOf('emails.') === 0 ? 'emails'", $content);
+        $this->assertSame(1, substr_count($content, "\$form.on('submit'"));
+        $this->assertSame(1, substr_count($content, 'loadNotificationSettings();'));
+        $this->assertStringContainsString("\$modal.on('shown.bs.modal'", $content);
+        $this->assertStringNotContainsString("\$modal.on('show.bs.modal'", $content);
+        $this->assertStringContainsString('rebuildEmailOptions(data.suggested_emails || [], data.emails || [])', $content);
+        $this->assertStringContainsString("\$disabled.prop('checked', !!data.email_notifications_disabled)", $content);
+        $this->assertStringContainsString('syncEmailFieldVisibility();', $content);
+        $this->assertStringContainsString("toggleClass('d-none', off)", $content);
+        $this->assertStringContainsString('id="schoolLeadNotificationEmailsField"', $content);
+        $this->assertSame(1, substr_count($content, 'initEmailSelect2();'));
+        $this->assertStringNotContainsString('syncEmailSelectDisabled', $content);
+        $this->assertStringNotContainsString('$select.prop(\'disabled\'', $content);
+        $this->assertStringContainsString('emails: $select.val() || []', $content);
+        $this->assertStringContainsString("email_notifications_disabled: \$disabled.is(':checked') ? 1 : 0", $content);
+        $this->assertStringNotContainsString("emails: \$disabled.is(':checked') ? []", $content);
+        $this->assertSame(1, substr_count($content, 'instance.hide()'));
+        $this->assertStringNotContainsString('elseif', $content);
+
+        $submitPos = strpos($content, "\$form.on('submit'");
+        $hidePos = strpos($content, 'instance.hide()');
+        $this->assertNotFalse($submitPos);
+        $this->assertNotFalse($hidePos);
+        $this->assertGreaterThan($submitPos, $hidePos);
+        $failAfterHide = strpos($content, '.fail(function (xhr) {', $hidePos);
+        $this->assertNotFalse(
+            $failAfterHide,
+            'Fail-обработчик submit должен идти после закрытия модалки в .done, а не содержать hide.'
+        );
+
+        $leadsPath = resource_path('views/admin/school-leads/tabs/leads.blade.php');
+        $leads = (string) file_get_contents($leadsPath);
+        $this->assertStringContainsString('data-bs-target="#schoolLeadNotificationsModal"', $leads);
+        $this->assertSame(1, substr_count($leads, 'data-bs-target="#schoolLeadNotificationsModal"'));
+        $this->assertStringContainsString("@include('admin.school-leads.partials.notification-settings')", $leads);
+
+        $indexPath = resource_path('views/admin/school-leads/index.blade.php');
+        $index = (string) file_get_contents($indexPath);
+        $this->assertStringContainsString("@include('partials.select2.generic-multiselect')", $index);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'KidsCrmGenericMultiselectSelect2.init',
+            'blade-js-school-leads-notifications'
+        );
     }
 
     /**
@@ -5298,14 +5437,16 @@ JS;
         $create = (string) file_get_contents($createPath);
         $this->assertStringContainsString('id="createUserModalLabel">Создание клиента</h5>', $create);
         $this->assertStringContainsString('e.preventDefault()', $create);
-        $this->assertStringContainsString("showSuccessModal(\n                        \"Создание клиента\"", $create);
-        $this->assertStringContainsString('(response && response.message) ? response.message : "Клиент успешно создан."', $create);
+        $this->assertStringContainsString("window.showToast((response && response.message) ? response.message : 'Клиент успешно создан.', 'success')", $create);
+        $this->assertStringContainsString('$(\'#users-table\').DataTable().ajax.reload(null, false)', $create);
         $this->assertStringContainsString("\$form.data('success-handler') === 'school-leads-table'", $create);
+        $this->assertStringNotContainsString('showSuccessModal', $create);
+        $this->assertStringNotContainsString('window.location.reload()', $create);
         $this->assertStringNotContainsString('Создание пользователя', $create);
         $this->assertStringNotContainsString('Пользователь успешно создан', $create);
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $createPath,
-            "showSuccessModal(\n                        \"Создание клиента\"",
+            "window.showToast((response && response.message) ? response.message : 'Клиент успешно создан.', 'success')",
             'blade-js-create-user-client-naming'
         );
 
@@ -5323,7 +5464,9 @@ JS;
         $this->assertStringContainsString('function editUserLink2()', $edit);
         $this->assertStringContainsString('function editUserLink()', $edit);
         $this->assertStringContainsString('function editUserForm()', $edit);
-        $this->assertStringContainsString('showSuccessModal("Редактирование клиента", "Клиент успешно обновлён.", 1);', $edit);
+        $this->assertStringContainsString("window.showToast(response.message || 'Клиент успешно обновлён.', 'success')", $edit);
+        $this->assertStringContainsString('$(\'#users-table\').DataTable().ajax.reload(null, false)', $edit);
+        $this->assertStringNotContainsString('showSuccessModal("Редактирование клиента"', $edit);
         $this->assertStringContainsString('window.showToast(\'Клиент успешно удален.\', \'success\');', $edit);
         $this->assertStringContainsString('showConfirmDeleteModal(', $edit);
         $this->assertStringContainsString('"Удаление клиента"', $edit);
@@ -5386,6 +5529,16 @@ JS;
     public function test_listed_success_actions_use_toast_instead_of_success_modal(): void
     {
         $cases = [
+            'student-create' => [
+                'path' => resource_path('views/includes/modal/createUser.blade.php'),
+                'toast' => "window.showToast((response && response.message) ? response.message : 'Клиент успешно создан.', 'success')",
+                'absent' => 'showSuccessModal',
+            ],
+            'student-edit' => [
+                'path' => resource_path('views/includes/modal/editUser.blade.php'),
+                'toast' => "window.showToast(response.message || 'Клиент успешно обновлён.', 'success')",
+                'absent' => 'showSuccessModal("Редактирование клиента"',
+            ],
             'student-delete' => [
                 'path' => resource_path('views/includes/modal/editUser.blade.php'),
                 'toast' => 'Клиент успешно удален.',
@@ -5435,6 +5588,21 @@ JS;
                 'path' => resource_path('views/admin/locations/index.blade.php'),
                 'toast' => 'Объект успешно удалён.',
                 'absent' => "showSuccessModal('Удаление объекта'",
+            ],
+            'team-create' => [
+                'path' => resource_path('views/includes/modal/createTeam.blade.php'),
+                'toast' => "window.showToast((data && data.message) ? data.message : 'Группа создана успешно', 'success')",
+                'absent' => 'showSuccessModal',
+            ],
+            'team-edit' => [
+                'path' => resource_path('views/includes/modal/editTeam.blade.php'),
+                'toast' => "window.showToast(response.message || 'Группа успешно обновлена', 'success')",
+                'absent' => 'showSuccessModal("Редактирование группы"',
+            ],
+            'team-delete' => [
+                'path' => resource_path('views/includes/modal/editTeam.blade.php'),
+                'toast' => 'Группа успешно удалена.',
+                'absent' => 'showSuccessModal("Удаление группы"',
             ],
             'trainer-type-save' => [
                 'path' => public_path('js/trainer-types.js'),
@@ -5554,6 +5722,112 @@ JS;
             $locationsJs,
             'Удаление объекта: toast после закрытия #confirmDeleteModal, иначе оверлей z-index 1900 его перекрывает'
         );
+
+        $createTeamJs = (string) file_get_contents(resource_path('views/includes/modal/createTeam.blade.php'));
+        $this->assertStringContainsString(
+            "window.showToast((data && data.message) ? data.message : 'Группа создана успешно', 'success')",
+            $createTeamJs,
+            'Создание группы: toast #kidsMainToast после AJAX-успеха'
+        );
+        $this->assertStringContainsString('$(\'#teams-table\').DataTable().ajax.reload(null, false)', $createTeamJs);
+
+        $editTeamJs = (string) file_get_contents(resource_path('views/includes/modal/editTeam.blade.php'));
+        $this->assertStringContainsString(
+            "window.showToast(response.message || 'Группа успешно обновлена', 'success')",
+            $editTeamJs,
+            'Редактирование группы: toast #kidsMainToast после AJAX-успеха'
+        );
+        $this->assertStringContainsString(
+            "window.showToast('Группа успешно удалена.', 'success')",
+            $editTeamJs,
+            'Удаление группы: toast #kidsMainToast после AJAX-успеха'
+        );
+        $this->assertStringContainsString(
+            "confirmEl.addEventListener('hidden.bs.modal', showDeletedToast, { once: true })",
+            $editTeamJs,
+            'Удаление группы: toast после закрытия #confirmDeleteModal'
+        );
+    }
+
+    /**
+     * UX-баг: create/edit ученика звали showSuccessModal + reload.
+     * После фикса — toast, закрытие модалки, DataTables ajax.reload(null, false).
+     * Два пути открытия edit (editUserLink2 / editUserLink) не сабмитят форму.
+     */
+    public function test_create_and_edit_user_success_without_reload_js_is_valid_and_uses_toast(): void
+    {
+        $createPath = resource_path('views/includes/modal/createUser.blade.php');
+        $editPath = resource_path('views/includes/modal/editUser.blade.php');
+
+        $create = (string) file_get_contents($createPath);
+        $this->assertStringContainsString('e.preventDefault()', $create);
+        $this->assertStringContainsString("window.showToast((response && response.message) ? response.message : 'Клиент успешно создан.', 'success')", $create);
+        $this->assertStringContainsString('$(\'#users-table\').DataTable().ajax.reload(null, false)', $create);
+        $this->assertStringContainsString('createModalInstance.hide()', $create);
+        $this->assertStringNotContainsString('showSuccessModal', $create);
+        $this->assertStringNotContainsString('window.location.reload()', $create);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $createPath,
+            "window.showToast((response && response.message) ? response.message : 'Клиент успешно создан.', 'success')",
+            'blade-js-create-user-toast-without-reload'
+        );
+
+        $edit = (string) file_get_contents($editPath);
+        $this->assertStringContainsString('function editUserForm()', $edit);
+        $this->assertStringContainsString("window.showToast(response.message || 'Клиент успешно обновлён.', 'success')", $edit);
+        $this->assertStringContainsString('$(\'#users-table\').DataTable().ajax.reload(null, false)', $edit);
+        $this->assertStringNotContainsString('showSuccessModal("Редактирование клиента"', $edit);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $editPath,
+            'function editUserForm()',
+            'blade-js-edit-user-toast-without-reload'
+        );
+    }
+
+    /**
+     * UX-баг: create/edit/delete группы звали showSuccessModal + reload.
+     * После фикса — toast, закрытие модалки, DataTables ajax.reload(null, false).
+     * Название и кнопка «Редактировать» делят .edit-team-link, submit один.
+     */
+    public function test_create_and_edit_team_success_without_reload_js_is_valid_and_uses_toast(): void
+    {
+        $createPath = resource_path('views/includes/modal/createTeam.blade.php');
+        $editPath = resource_path('views/includes/modal/editTeam.blade.php');
+        $indexPath = resource_path('views/admin/team.blade.php');
+
+        $create = (string) file_get_contents($createPath);
+        $this->assertStringContainsString('e.preventDefault()', $create);
+        $this->assertStringContainsString("window.showToast((data && data.message) ? data.message : 'Группа создана успешно', 'success')", $create);
+        $this->assertStringContainsString('$(\'#teams-table\').DataTable().ajax.reload(null, false)', $create);
+        $this->assertStringContainsString('createModalInstance.hide()', $create);
+        $this->assertStringNotContainsString('showSuccessModal', $create);
+        $this->assertStringNotContainsString('window.location.reload()', $create);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $createPath,
+            "window.showToast((data && data.message) ? data.message : 'Группа создана успешно', 'success')",
+            'blade-js-create-team-toast-without-reload'
+        );
+
+        $edit = (string) file_get_contents($editPath);
+        $this->assertStringContainsString("$('#update-team-btn').on('click'", $edit);
+        $this->assertStringContainsString("window.showToast(response.message || 'Группа успешно обновлена', 'success')", $edit);
+        $this->assertStringContainsString("window.showToast('Группа успешно удалена.', 'success')", $edit);
+        $this->assertStringContainsString('$(\'#teams-table\').DataTable().ajax.reload(null, false)', $edit);
+        $this->assertStringContainsString(
+            "confirmEl.addEventListener('hidden.bs.modal', showDeletedToast, { once: true })",
+            $edit
+        );
+        $this->assertStringNotContainsString('showSuccessModal("Редактирование группы"', $edit);
+        $this->assertStringNotContainsString('showSuccessModal("Удаление группы"', $edit);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $editPath,
+            'function deleteTeam()',
+            'blade-js-edit-team-toast-without-reload'
+        );
+
+        $index = (string) file_get_contents($indexPath);
+        $this->assertStringContainsString("linkClass: 'edit-team-link'", $index);
+        $this->assertStringContainsString('class="btn btn-sm btn-outline-primary edit-team-link"', $index);
     }
 
     /**

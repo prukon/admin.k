@@ -28,6 +28,299 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="teams-create-edit-toast-index">Группы: create/edit/delete без «OK» и без F5 (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/teams</code> после «Создать», «Обновить» и удаления группы
+    открывалась success-модалка («Группа успешно создана/отредактирована/удалена»)
+    и по «OK» шла <code>location.reload()</code> (<code>showSuccessModal(..., 1)</code>).
+    Сабмит уже был AJAX; мешали лишний клик и полная перезагрузка списка.
+    Это учебные группы справочника (<code>teams</code>, право <code>groups.view</code>),
+    не кнопка «Создать группу» в чате
+    (<a href="/doc#chat-groups-index">ручные чаты</a>)
+    и не авто-чат учебной группы
+    (<a href="/doc#chat-team-groups-index">анонс</a>).
+    <br><br>
+    1) <b>Успех.</b>
+    Модалка закрывается (<code>#createTeamModal</code> / <code>#editTeamModal</code>).
+    Таблица <code>#teams-table</code> обновляется
+    <code>$('#teams-table').DataTable().ajax.reload(null, false)</code>
+    (если таблица уже DataTable) — страница, фильтры и пагинация не сбрасываются.
+    Справа снизу — общая всплывайка <code>#kidsMainToast</code> /
+    <code>window.showToast</code>.
+    Create: JSON <code>message</code> «Группа создана успешно», fallback UI тот же.
+    PATCH: «Группа успешно обновлена» (<code>response.message</code> или fallback).
+    Delete: UI «Группа успешно удалена.» (точка); JSON длиннее
+    («Группа и её связь с пользователями успешно помечены как удалённые»).
+    Toast удаления — после <code>hidden.bs.modal</code> у
+    <code>#confirmDeleteModal</code> (оверлей confirm z-index 1900 иначе перекрывает).
+    Не <code>showSuccessModal</code> и не F5.
+    После create форма сбрасывается (мультиселект тренеров
+    <code>KidsCrmGenericMultiselectSelect2.setValues(..., [])</code>;
+    первая опция «Активен» снова дефолт браузера — как при первом открытии).
+    <br>
+    2) <b>Что не менялось.</b>
+    422 — ошибки под полями (<code>errors.title</code> «Введите название» и др.), toast успеха нет.
+    Non-AJAX <code>POST /admin/teams</code> без <code>X-Requested-With</code> → 302 на
+    <code>/admin/teams</code>, запись (и авто-чат) есть.
+    Non-AJAX <code>PATCH</code> / <code>DELETE</code> по-прежнему JSON 200 с
+    <code>message</code>, не 302 — так в
+    <a href="/doc#chat-team-groups-index">анонсе авто-чата</a>
+    и <code>ChatTeamGroupThreadNonAjaxSafetyNetFeatureTest</code>.
+    <code>PATCH</code> группу переименовывает, чат — нет.
+    Soft-delete группы чат не удаляет.
+    Два HTML-триггера edit (ссылка названия <code>linkClass: 'edit-team-link'</code>
+    и кнопка «Редактировать» с тем же классом) — один GET
+    <code>$(document).on('click', '.edit-team-link')</code>;
+    submit один (<code>#update-team-btn</code>), delete один (<code>deleteTeam()</code>).
+    Без <code>trainers.view</code> / <code>locations.view</code> / <code>schedule.view</code>
+    селекты скрыты, toast тот же.
+    Клиенты, объекты, партнёры — этот копирайт и этот JS не получают
+    (клиенты — <a href="/doc#users-create-edit-toast-index">свой анонс</a>).
+    <br>
+    3) <b>Список toast.</b> Create/edit/delete группы добавлены в общий перечень
+    <a href="/doc#success-toast-instead-of-modal-index">успех без лишнего «OK»</a>
+    (раньше «CRUD групп» был в исключениях).
+    <br><br>
+    Подробно — <a href="/docs/documentation/admin-teams#team-ajax-submit">admin-teams §1.2</a>.
+    Тесты: <code>TeamsCreateEditToastAccessFeatureTest</code>,
+    <code>TeamsCreateEditToastAjaxContractFeatureTest</code>,
+    <code>TeamsCreateEditToastNonAjaxSafetyNetFeatureTest</code>,
+    <code>TeamsCreateEditToastUiContractsFeatureTest</code>,
+    <code>TeamsCreateEditToastFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_create_and_edit_team_success_without_reload_js_is_valid_and_uses_toast</code>,
+    <code>TeamsToastDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="partner-wallet-ledger-index">Кошелёк: история договоров и ошибки под полями (2026‑09)</h2>
+  <div class="note">
+    На <code>/partner-wallet</code> школа пополняет баланс ЮKassa и видит историю
+    <code>partner_wallet_transactions</code> только своей школы
+    (<a href="/doc#partner-wallet-isolation-index">изоляция</a>).
+    Раньше создание договора снимало 70 ₽ с <code>wallet_balance_cents</code>,
+    но строки в истории не было (SMS уже писала). Сейчас договоры пишут ту же таблицу.
+    Абонплата CRM 2500 ₽ — это <code>partner_payments</code>
+    (<a href="/doc#partner-service-payment-isolation-index">оплата сервиса</a>), не кошелёк.
+    <br><br>
+    1) <b>Списания и возвраты.</b> PDF и шаблон: debit «Создание договора»,
+    <code>provider=manual</code>, <code>meta.reason=contract_create</code>,
+    <code>lockForUpdate</code>. Отзыв <code>awaiting_client_fill</code>: credit
+    «Возврат: отзыв договора», <code>provider=refund</code>; исходный debit остаётся
+    <code>succeeded</code> (у SMS при ошибке отправки исходный debit помечается
+    <code>failed</code>). Баланс как раньше, дважды не списывается.
+    Старые договорные списания без строки не бэкфиллят.
+    <br>
+    2) <b>Пополнение.</b> Форма ≥ 1 ₽, <code>partner_id</code> = current.
+    AJAX 422 — тексты в <code>data-error-for</code> (amount / partner_id / description).
+    Native POST без JS: 302 + session errors, после редиректа тот же слот через
+    <code>@error</code>; у суммы ещё <code>is-invalid</code>; поле без <code>old()</code>.
+    Вебхук ЮKassa зачисляет на <code>tx.partner_id</code>, даже если
+    <code>metadata.partner_id</code> другой. Сайдбар — <code>PartnerContext</code>,
+    без копеек.
+    <br>
+    3) <b>Тесты.</b>
+    <code>ContractBillingWalletLedgerFeatureTest</code>,
+    <code>PartnerWalletWebhookFeatureTest</code>,
+    <code>PartnerWalletNonAjaxSafetyNetFeatureTest</code>,
+    <code>PartnerWalletPartnerIsolationFeatureTest</code>,
+    <code>PartnerWalletAjaxContractFeatureTest</code>,
+    <code>PartnerWalletAccessFeatureTest</code>,
+    <code>PartnerWalletUxFeatureTest</code>,
+    <code>PartnerWalletFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>PartnerWalletDocumentationContractTest</code>.
+    Подробно — <a href="/docs/documentation/partner-wallet">partner-wallet</a>,
+    <a href="/docs/documentation/contracts">contracts</a>,
+    <a href="/docs/documentation/money">money</a>.
+    Анонс: <a href="/doc#partner-wallet-ledger-index">/doc#partner-wallet-ledger-index</a>.
+  </div>
+
+  <h2 id="school-leads-email-notifications-index">Заявки: кнопка «Уведомления» и список email (2026‑09)</h2>
+  <div class="note">
+    На вкладке «Заявки» (<code>/admin/school-leads</code>) бывшая кнопка toolbar «Настройки»
+    называется <b>«Статусы»</b> (модалка статусов не менялась). Рядом — <b>«Уведомления»</b>
+    (иконка колокольчика): стандартная Bootstrap-модалка
+    <code>#schoolLeadNotificationsModal</code> (не на весь экран), не колокольчик in-app
+    в шапке кабинета.
+    <br><br>
+    1) <b>Кому письма.</b> Пока настройки ни разу не сохраняли
+    (<code>partners.school_leads_notification_emails = null</code>) — как раньше:
+    все пользователи роли <code>admin</code> текущего партнёра с email +
+    <code>partners.email</code>. После сохранения — <b>только</b> на указанный список
+    (не подмешиваем админов обратно). Сохранённый пустой массив — это не «ещё не настраивали»:
+    legacy-fallback на админов <b>не</b> срабатывает, писем нет.
+    Галочка «Не получать email-уведомления» (<code>partners.school_leads_email_notifications_disabled</code>) отключает письма; Telegram
+    (<code>partners.school_leads_telegram_chat_id</code>, вкладка «Виджет для сайта»)
+    от галочки <b>не</b> зависит. Оба публичных submit (виджет и
+    <code>/lead/{slug}</code>) используют <code>SchoolLeadNotificationService</code>.
+    <br>
+    2) <b>UI.</b> Select2 через <code>partials.select2.generic-multiselect</code>
+    (<code>KidsCrmGenericMultiselectSelect2.init</code>, <code>tags: true</code>,
+    обёртка <code>generic-multiselect-field--tags</code>): выбранные адреса — чипы
+    (не однострочный form-select). Выбрать email админов
+    или ввести другой адрес (Enter / запятая; тег только если строка похожа на email).
+    Backspace снимает последний выбранный адрес целиком (не стирает ФИО посимвольно).
+    Порядок в модалке: галочка «Не получать email-уведомления», затем список email.
+    Галочка скрывает поле Select2. В подсказках только админы и организация с валидным email (без «Организация —», если почты нет).
+    Первый HTML страницы: select пустой,
+    галочка снята, select не <code>disabled</code> — значения подставляются GET при
+    <code>shown.bs.modal</code>. Повторное открытие снова делает GET (несохранённые правки сбрасываются).
+    GET сам список в БД не пишет. На вкладках «Страница заявки» и «Виджет для сайта»
+    этой модалки нет; текст виджета указывает на кнопку «Уведомления» вкладки «Заявки».
+    <br>
+    3) <b>Сохранение.</b> Право <code>schoolLeads.view</code>.
+    <code>GET/PUT /admin/school-leads/notifications</code> (имена
+    <code>admin.school-leads.notifications.show</code> /
+    <code>.update</code>) регистрируются <b>до</b> <code>PUT …/{schoolLead}</code>.
+    GET JSON: <code>emails</code>, <code>emails_configured</code>,
+    <code>email_notifications_disabled</code>, <code>suggested_emails</code>
+    (админ/организация без валидного email не предлагаются).
+    AJAX PUT: 200 <code>success</code> / <code>message</code> / <code>emails</code> /
+    <code>email_notifications_disabled</code>; 422 — <code>errors.emails</code>
+    (и <code>emails.0</code> → под поле списка). Без галочки нужен ≥1 корректный email,
+    максимум 20; с галочкой список может быть пустым. AJAX всегда шлёт текущие
+    <code>$select.val()</code>, даже если галочка включена (адреса не затираются).
+    Модалка закрывается только в <code>.done</code>. Non-AJAX PUT (и native POST +
+    <code>_method=PUT</code>) → 302 на вкладку «Заявки», запись в БД; снятая галочка
+    в native-форме не передаётся — сервер считает уведомления включёнными.
+    <br>
+    4) <b>Не путать.</b> Колокольчик in-app — <a href="/doc#in-app-notifications-index">анонс</a>.
+    Конструктор писем об оплате — <a href="/doc#setting-prices-payment-notifications-index">анонс</a>.
+    Welcome родителю при «Создать клиента» — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>.
+    B2B-лиды kidscrm и глобальный <code>TELEGRAM_CHAT_ID</code> — не этот канал.
+    <br><br>
+    Подробно — <a href="/docs/documentation/school-leads-widget#school-leads-email-notifications">school-leads-widget §5.1.5</a>,
+    отправка — <a href="/docs/documentation/school-leads-widget#7">§7</a>,
+    лендинг — <a href="/docs/documentation/school-leads-landing">school-leads-landing §9</a>.
+    Тесты: <code>SchoolLeadNotificationSettingsFeatureTest</code>,
+    <code>SchoolLeadNotificationSettingsFullAccessFeatureTest</code>,
+    <code>SchoolLeadNotificationSettingsNonAjaxSafetyNetFeatureTest</code>,
+    <code>SchoolLeadNotificationSettingsAjaxContractFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_school_leads_notification_settings_modal_ajax_uses_select2_tags</code>,
+    <code>SchoolLeadNotificationTest</code>,
+    <code>SchoolLeadLandingNotificationFeatureTest</code>,
+    <code>SchoolLeadEmailNotificationsDocumentationContractTest</code>.
+    Анонс: <a href="/doc#school-leads-email-notifications-index">/doc#school-leads-email-notifications-index</a>.
+  </div>
+
+  <h2 id="ops-day-kpi-index">Пульт: строки «Сегодня» / «Вчера» (2026‑09)</h2>
+  <div class="note">
+    В оверлее <b>Пульт</b> (<code>#js-ops-monitors</code>) сразу под заголовком —
+    две строки цифр: <b>Сегодня</b>, затем <b>Вчера</b>, затем «Очередь».
+    Каждая: оборотка / комиссия платформы / число успешных T‑Bank
+    (слэш <code>ops-monitors__slash</code>). Без ссылок, без «₽», без пробелов тысяч.
+    Это <b>не</b> скользящие 24 ч остальных строк пульта и <b>не</b> отчёт «Платежи»
+    (там фильтр школы и колонки банка).
+    Родительский оверлей — <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a>.
+    <br><br>
+    1) <b>Окно.</b> Календарный день <code>Europe/Moscow</code>
+    (<code>now()-&gt;startOfDay()</code>, полуинтервал
+    <code>[start, start+1 день)</code> по <code>payments.operation_date</code>).
+    00:00:00 — сегодня; 23:59:59 предыдущего дня — вчера.
+    Сессия <code>current_partner</code> снимок <b>не</b> режет: все школы.
+    <br>
+    2) <b>Что входит.</b> <code>payments.summ_cents &gt; 0</code> и признак T‑Bank
+    как в отчёте «Платежи»: непустой после <code>TRIM</code>
+    <code>deal_id</code> / <code>payment_id</code> / <code>payment_status</code>
+    (достаточно одного). Офлайн, Robokassa, нулевая сумма и одни пробелы в маркерах —
+    нет. Оборотка = <code>round(SUM(summ_cents) / 100)</code>, целое.
+    Счётчик — число таких платежей.
+    <br>
+    3) <b>Комиссия.</b> Пересчёт из включённых
+    <code>tinkoff_commission_rules</code> (как шапка отчёта «Платежи»:
+    <code>max(round(amount × platform_percent/100), platform_min_fixed)</code>),
+    не снимок <code>tinkoff_payouts.platform_fee</code>.
+    Правило партнёр+метод раньше глобального; метод — из
+    <code>tinkoff_payments</code> по <code>partner_id</code>+<code>deal_id</code>.
+    Нет включённого правила или <code>platform_percent = 0</code> без min —
+    комиссия 0, оборотка и счётчик остаются.
+    Последний возврат (<code>refunds.id</code> DESC) со статусом
+    <code>pending</code> / <code>succeeded</code> комиссию этого платежа не суммирует;
+    оборотку и счётчик оставляет. <code>failed</code> комиссию не снимает.
+    <br>
+    4) <b>JSON / HTTP / UX.</b> В <code>OpsMonitor::snapshot()</code> ключи
+    <code>day</code> и <code>yesterday</code>:
+    <code>turnover</code>, <code>commission</code>, <code>payments_count</code> — int.
+    <code>GET /cabinet/system-monitors/ops</code> (и native GET) — тот же JSON.
+    Гость — редирект/401, без права — 403 без этих ключей и без утечки оборотки,
+    мутации — 405. Персональный флаг GET <b>не</b> закрывает.
+    Первый HTML — «…» во всех <code>data-role="day-*"</code> /
+    <code>yesterday-*</code> (даже если в БД уже есть платежи; то же при выкл. флаге).
+    После опроса <code>0</code> рисуется как <code>0</code>, не «—».
+    Сеть / 403 / payload без ключей <code>day</code>/<code>yesterday</code> —
+    leftover сбрасывается в «—» (<code>textContent</code>, не <code>toLocaleString</code>).
+    Без <code>settings.systemMonitors.view</code> строк в разметке нет
+    (<code>SystemMonitors::canView()</code>).
+    <br><br>
+    Подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
+    чат — <a href="/docs/documentation/chat#ops-monitors-overlay">chat §пульт</a>,
+    формула комиссий — <a href="/docs/documentation/reports-payments">reports-payments</a>.
+    Тесты: <code>SystemMonitorsOpsDayFeatureTest</code>,
+    <code>SystemMonitorsOpsDayUxFeatureTest</code>,
+    <code>SystemMonitorsOpsDayAccessFeatureTest</code>,
+    <code>SystemMonitorsOpsAjaxContractFeatureTest</code>,
+    <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>OpsDayKpiDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="users-create-edit-toast-index">Клиенты: create/edit без «OK» и без F5 (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/users</code> после «Добавить» и после сохранения карточки
+    открывалась success-модалка «Клиент успешно создан/обновлён» и по «OK»
+    шла <code>location.reload()</code> (у create ещё и сразу <code>window.location.reload()</code>).
+    Сабмит уже был AJAX; мешали лишний клик и полная перезагрузка списка.
+    <br><br>
+    1) <b>Успех на вкладке «Клиенты».</b>
+    Модалка закрывается (<code>#createUserModal</code> / <code>#editUserModal</code>).
+    Таблица <code>#users-table</code> обновляется
+    <code>$('#users-table').DataTable().ajax.reload(null, false)</code>
+    (если таблица уже DataTable) — страница и фильтры не сбрасываются.
+    Справа снизу — общая всплывайка <code>#kidsMainToast</code> /
+    <code>window.showToast</code> (текст JSON <code>message</code>:
+    без welcome — «Клиент создан успешно» / PATCH «Клиент успешно обновлён»;
+    с <code>send_welcome_email</code> — префикс «Клиент создан.» плюс текст письма,
+    см. admin-users §5.1;
+    fallback UI, если <code>message</code> пуст: «Клиент успешно создан.» /
+    «Клиент успешно обновлён.»).
+    Не <code>showSuccessModal</code> и не F5.
+    После create форма сбрасывается (группы Select2, чекбокс «Отправить письмо»
+    снова включён — как при первом открытии).
+    <br>
+    2) <b>Что не менялось.</b>
+    422 — ошибки под полями, аккордеоны с ошибками раскрываются, toast успеха нет.
+    Non-AJAX POST/PATCH без <code>X-Requested-With</code> → 302 на
+    <code>/admin/users</code>, запись в БД есть.
+    Удаление из edit по-прежнему toast «Клиент успешно удален.» (е) без reload.
+    На заявках <code>createUser.blade.php</code> <b>не</b> подключается:
+    «Создать клиента» у лида — свой POST на <code>admin.user.store</code>
+    и toast «Клиент создан.» (или <code>message</code> с письмом),
+    reload таблицы заявок, не <code>#users-table</code>
+    (<a href="/docs/documentation/school-leads-widget#school-lead-create-client-button">school-leads-widget §5.7</a>).
+    В JS create на вкладке остаётся ветка
+    <code>success-handler === 'school-leads-table'</code>
+    (<code>onSchoolLeadUserCreated</code>, без toast вкладки); на
+    <code>/admin/users</code> у формы этого атрибута нет.
+    Два пути открытия карточки (<code>editUserLink2</code> / <code>editUserLink</code>) —
+    только GET гидратация; submit один (<code>editUserForm</code>).
+    Тренеры, сотрудники, партнёры, аватар — этот копирайт и этот JS не получают.
+    Учебные группы на <code>/admin/teams</code> — свой toast, не этот JS
+    (<a href="/doc#teams-create-edit-toast-index">анонс групп</a>).
+    <br>
+    3) <b>Список toast.</b> Эта пара create/edit добавлена в общий перечень
+    <a href="/doc#success-toast-instead-of-modal-index">успех без лишнего «OK»</a>
+    (раньше там были в исключениях).
+    <br><br>
+    Подробно — <a href="/docs/documentation/admin-users#user-ajax-submit">admin-users §4.5.5</a>,
+    нейминг — <a href="/doc#users-client-naming-index">анонс «Клиенты»</a>.
+    Тесты: <code>AdminUsersCreateEditToastAccessFeatureTest</code>,
+    <code>AdminUsersCreateEditToastAjaxContractFeatureTest</code>,
+    <code>AdminUsersCreateEditToastNonAjaxSafetyNetFeatureTest</code>,
+    <code>AdminUsersCreateEditToastUiContractsFeatureTest</code>,
+    <code>AdminUsersCreateEditToastFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_create_and_edit_user_success_without_reload_js_is_valid_and_uses_toast</code>,
+    <code>UsersCreateEditToastDocumentationContractTest</code>.
+  </div>
+
   <h2 id="partner-wallet-isolation-index">Кошелёк партнёра: изоляция по школе (2026‑09)</h2>
   <div class="note">
     Страница <code>/partner-wallet</code> раньше брала партнёра через <code>Partner::first()</code>:
@@ -47,7 +340,9 @@
     при <code>@can('partnerWallet.view')</code>. DataTables
     <code>GET /partner-wallet/transactions</code> —
     <code>WHERE partner_id = current</code>; чужие строки не в <code>data</code> /
-    <code>recordsTotal</code>. Hidden <code>partner_id</code> в форме = current.
+    <code>recordsTotal</code>. В историю текущей школы попадают пополнения ЮKassa, SMS
+    и (после леджера) создание/отзыв договора; старые договорные списания без строки
+    не видны. Hidden <code>partner_id</code> в форме = current.
     Поле суммы при GET пустое (нет <code>value</code>).
     <br>
     3) <b>Пополнение.</b> <code>POST /partner-wallet/topup</code>,
@@ -56,18 +351,25 @@
     «Нельзя пополнить кошелёк другой школы.» (до ЮKassa запись не создаётся).
     <code>guardPartnerAccess()</code> — запасной <b>403</b>, если ID всё же не совпал;
     в одном запросе после 422 до guard очередь не доходит. Транзакция пишется с ID из
-    контекста. AJAX: тексты под полями (<code>data-error-for="amount"</code> /
+    контекста.     AJAX: тексты под полями (<code>data-error-for="amount"</code> /
     <code>partner_id</code>), не <code>alert()</code>. Native POST без JS: валидация →
-    302 на <code>/partner-wallet</code> + session errors. Ответ шлюза ЮKassa —
+    302 на <code>/partner-wallet</code> + session errors, после редиректа текст в том же
+    <code>data-error-for</code> через <code>@error</code> (сумма без <code>old()</code>). Ответ шлюза ЮKassa —
     JSON <code>{ok, redirect}</code> или 500 <code>{ok:false, message}</code>
     (pending уже своей школы).
     <br>
     4) <b>После оплаты.</b> <code>GET /partner-wallet/success</code> (то же право) —
     «Платёж обрабатывается», статус меняет вебхук (зачисление в
-    <code>wallet_balance_cents</code>). Публичные
+    <code>wallet_balance_cents</code> партнёра <code>tx.partner_id</code>, даже если
+    <code>metadata.partner_id</code> другой). Публичные
     <code>POST /partner-wallet/webhook</code> и <code>POST /webhook/yookassa</code>
-    (scope <code>partner_wallet_topup</code>) — без логина, фильтр IP ЮKassa;
-    это одна транзакция по <code>metadata.wallet_transaction_id</code>, не список всех школ.
+    (scope <code>partner_wallet_topup</code>) — без логина и CSRF, фильтр IP ЮKassa;
+    чужой IP → 403, не редирект на логин. Битый payload:
+    wallet-webhook → 400, единый <code>/webhook/yookassa</code> → 422.
+    Повтор <code>payment.succeeded</code> идемпотентен (баланс не удваивается).
+    <code>payment.canceled</code> и расхождение суммы — без зачисления.
+    PATCH/DELETE на <code>/partner-wallet</code> нет (404/405). Browser/E2E
+    после «Оплатить» не гоняем: редирект на ЮKassa.
     <br>
     5) <b>Тесты.</b>
     <code>PartnerWalletPartnerIsolationFeatureTest</code>,
@@ -76,11 +378,50 @@
     <code>PartnerWalletNonAjaxSafetyNetFeatureTest</code>,
     <code>PartnerWalletUxFeatureTest</code>,
     <code>PartnerWalletFullAccessFeatureTest</code>,
+    <code>PartnerWalletWebhookFeatureTest</code>,
+    <code>ContractBillingWalletLedgerFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest</code>,
     <code>PartnerWalletDocumentationContractTest</code>.
     Подробно — <a href="/docs/documentation/partner-wallet">partner-wallet</a>,
     <a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a>,
-    деньги — <a href="/docs/documentation/money">money</a>.
+    деньги — <a href="/docs/documentation/money">money</a>,
+    леджер договоров — <a href="/doc#partner-wallet-ledger-index">анонс</a>.
+  </div>
+
+  <h2 id="partner-service-payment-isolation-index">Оплата сервиса: изоляция по школе (2026‑09)</h2>
+  <div class="note">
+    Страница <code>/partner-payment/recharge</code> раньше слала скрытый
+    <code>partner_id</code> <code>value="1"</code> (Исток). История
+    <code>/partner-payment/history</code> и <code>/partner-payment/data</code>
+    не фильтровала по школе.
+    Сейчас это обычный CRM-экран: только текущая школа.
+    <br><br>
+    1) <b>Контекст.</b> <code>PartnerContext</code> / <code>STRICT_CURRENT</code>.
+    Право <code>servicePayments.view</code> (не в базовой роли admin — выдаётся явно).
+    Hidden <code>partner_id</code> = current, не <code>1</code>.
+    <br>
+    2) <b>Оплата.</b> <code>POST payment/service/yookassa</code>,
+    <code>CreatePartnerServicePaymentRequest</code>: чужой
+    <code>partner_id</code> → <b>422</b> / 302
+    <code>errors.partner_id</code> «Нельзя оплатить сервис за другую школу.»
+    (до ЮKassa запись не создаётся). Запись <code>partner_payments.partner_id</code>
+    из контекста. Период <code>partner_accesses</code> — последний активный доступ
+    <b>этой</b> школы, не <code>max(end_date)</code> по всей таблице.
+    Ошибки под полями (<code>data-error-for="partner_id"</code> /
+    <code>amount</code> / <code>days</code> / <code>description</code>).
+    <br>
+    3) <b>История.</b> <code>GET /partner-payment/data</code> —
+    <code>WHERE partner_id = current</code>. Superadmin — школа из переключателя.
+    <br>
+    4) <b>Сайдбар кошелька.</b> Баланс из <code>PartnerContext</code>,
+    не <code>user.partner_id</code> / <code>session('partner_id')</code>.
+    <br>
+    5) <b>Тесты.</b>
+    <code>PartnerServicePaymentPartnerIsolationFeatureTest</code>,
+    <code>PartnerServicePaymentAccessFeatureTest</code>,
+    <code>PartnerServicePaymentDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>.
+    Подробно — <a href="/docs/documentation/partner-service-payments">partner-service-payments</a>.
   </div>
 
   <h2 id="payment-notifications-sbp-link-index">Уведомления об оплате: ссылка СБП (2026‑09)</h2>
@@ -611,7 +952,10 @@
     контраст пузырька — <a href="/doc#kids-tooltip-contrast-index">KidsCrmTooltip</a>,
     подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
     чат — <a href="/docs/documentation/chat#ops-monitors-overlay">chat §пульт</a>.
-    Тесты: <code>SystemMonitorsOpsAjaxContractFeatureTest</code>,
+    Тесты:     <code>SystemMonitorsOpsAjaxContractFeatureTest</code>,
+    <code>SystemMonitorsOpsDayFeatureTest</code>,
+    <code>SystemMonitorsOpsDayUxFeatureTest</code>,
+    <code>SystemMonitorsOpsDayAccessFeatureTest</code>,
     <code>SystemMonitorsOpsUxFeatureTest</code>,
     <code>SystemMonitorsOpsAccessFeatureTest</code>,
     <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code>,
@@ -848,12 +1192,16 @@
     <code>system-monitor</code>) в стеке
     <code>#system-monitors-stack</code> (<code>z-index: 20000</code>)
     <b>над</b> <code>#js-online-users</code> и бейджем Reverb.
-    Шесть строк цифр, без ссылок на отчёты. Ховер у каждого числа —
+    Восемь строк цифр, без ссылок на отчёты. Первые — <b>Сегодня</b> и <b>Вчера</b>
+    (оборотка / комиссия платформы / число успешных T‑Bank за календарный день,
+    все школы, не скользящие 24 ч). Ховер у каждого числа —
     <code>KidsCrmTooltip</code> (partial <code>tooltip-hint</code>, scope hint),
     что это за число: непрозрачный пузырёк (белый текст на <code>#111827</code>),
     поверх оверлея читается.
     Тот же тоггл и
     <code>can(settings.systemMonitors.view)</code>, что у онлайна.
+    Инкремент строк «Сегодня» / «Вчера» —
+    <a href="/doc#ops-day-kpi-index">/doc#ops-day-kpi-index</a>.
     Superadmin — <code>Gate::before</code>. Сессия <code>current_partner</code>
     снимок <b>не</b> режет (все школы). JSON-оверлея диагностики на
     <code>/cabinet</code> нет. Не парсим <code>laravel.log</code>.
@@ -862,8 +1210,24 @@
     <code>error</code>, 500, лида без welcome.
     Строка «Вход» (неверный пароль / неизвестный email / неверный 2FA) — 72 часа.
     Просроченные выплаты T‑Bank — «уже просрочены», без окна.
+    Строка «Сегодня» — текущий календарный день Europe/Moscow.
+    Строка «Вчера» — предыдущий календарный день.
     <br>
-    2) <b>Строки.</b> Очередь: воркер / cron / <code>jobs</code> /
+    2) <b>Строки.</b> Сегодня (сразу под заголовком «Пульт»), затем Вчера:
+    оборотка / комиссия платформы / число успешных T‑Bank
+    (<code>payments.summ_cents &gt; 0</code>, <code>operation_date</code> за день,
+    признак T‑Bank как в отчёте «Платежи»:
+    <code>deal_id</code> / <code>payment_id</code> / <code>payment_status</code>;
+    офлайн и Robokassa не входят).
+    Комиссия — пересчёт из <code>tinkoff_commission_rules</code>
+    (как шапка отчёта «Платежи», не снимок <code>tinkoff_payouts.platform_fee</code>);
+    возврат <code>pending</code>/<code>succeeded</code> комиссию не суммирует.
+    JSON <code>day</code> / <code>yesterday</code>: <code>turnover</code>, <code>commission</code>,
+    <code>payments_count</code> — целые рубли без разделителей тысяч.
+    Первый HTML — «…», даже если в БД уже есть платежи; <code>0</code> рисуется как <code>0</code>, не «—».
+    Сбой <code>refresh()</code> (сеть / 403) и payload без ключей <code>day</code>/<code>yesterday</code>
+    сбрасывают leftover цифры в «—». Без права строки в разметке нет.
+    Очередь: воркер / cron / <code>jobs</code> /
     <code>failed_jobs</code> / просроченные выплаты
     (<code>QueueStatusSnapshot::compact()</code>, без LIKE по payload).
     Касса: просроченные выплаты, <code>payment_intents.status=failed</code>
@@ -912,6 +1276,7 @@
     Form Request <code>OpsMonitorRequest</code>,
     снимок <code>OpsMonitor::snapshot()</code>).
     Всегда JSON: <code>ok</code>, <code>window_hours</code>,
+    <code>day</code>, <code>yesterday</code>,
     <code>queue</code>, <code>till</code>, <code>errors</code>,
     <code>gateways</code>, <code>auth</code>, <code>welcome</code>.
     Нативный GET — JSON, не HTML. Гость — редирект / 401. Без права — 403.
@@ -935,6 +1300,9 @@
     Тесты: <code>SystemMonitorsOpsFeatureTest</code>,
     <code>SystemMonitorsOpsAccessFeatureTest</code>,
     <code>SystemMonitorsOpsAjaxContractFeatureTest</code>,
+    <code>SystemMonitorsOpsDayFeatureTest</code>,
+    <code>SystemMonitorsOpsDayUxFeatureTest</code>,
+    <code>SystemMonitorsOpsDayAccessFeatureTest</code>,
     <code>SystemMonitorsOpsAuthAttemptsFeatureTest</code>,
     <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code>,
     <code>SystemMonitorsOpsUxFeatureTest</code>,
@@ -943,6 +1311,7 @@
     <code>SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest</code>,
     <code>LogOutgoingEmailMailableClassFeatureTest</code>,
     <code>OpsWelcomeMailableDocumentationContractTest</code>,
+    <code>OpsDayKpiDocumentationContractTest</code>,
     <code>BladeInlineJsSyntaxTest</code>.
   </div>
 
@@ -1894,7 +2263,8 @@
     Подробно — <a href="/doc#online-users-overlay-index">оверлей «Онлайн»</a>.
     <br>
     4) <b>Пульт.</b> Тот же стек, <code>#js-ops-monitors</code> над онлайном.
-    Шесть строк цифр + <code>KidsCrmTooltip</code>. GET
+    Восемь строк цифр + <code>KidsCrmTooltip</code>. Первые — «Сегодня» и «Вчера»
+    (T‑Bank за календарный день). GET
     <code>/cabinet/system-monitors/ops</code>
     (<code>cabinet.system-monitors.ops</code>,
     Form Request <code>OpsMonitorRequest</code>,
@@ -1902,6 +2272,7 @@
     Ховер последней 500 — <code>last_message</code>
     (<a href="/doc#ops-errors-detail-index">анонс ховера / ViewException / ring</a>).
     Welcome — <a href="/doc#ops-welcome-mailable-index">тип письма / тема «Доступ в личный кабинет»</a>.
+    Сегодня / Вчера — <a href="/doc#ops-day-kpi-index">/doc#ops-day-kpi-index</a>.
     Опрос раз в 5 с. Подробно — <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>.
     <br><br>
     Подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
@@ -1924,6 +2295,10 @@
     <code>SystemMonitorsOpsFeatureTest</code>,
     <code>SystemMonitorsOpsAccessFeatureTest</code>,
     <code>SystemMonitorsOpsAjaxContractFeatureTest</code>,
+    <code>SystemMonitorsOpsDayFeatureTest</code>,
+    <code>SystemMonitorsOpsDayUxFeatureTest</code>,
+    <code>SystemMonitorsOpsDayAccessFeatureTest</code>,
+    <code>OpsDayKpiDocumentationContractTest</code>,
     <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code>,
     <code>SystemMonitorsOpsUxFeatureTest</code>,
     <code>SystemMonitorsOpsWelcomeAccountingFeatureTest</code>,
@@ -2011,9 +2386,10 @@
     Аудит: «Удален клиент: …».
     Non-AJAX POST/PATCH без <code>X-Requested-With</code> → 302 на
     <code>/admin/users</code>, запись в БД есть (не пустой 200).
-    Create на вкладке по-прежнему <code>showSuccessModal</code> + reload
-    (<a href="/doc#success-toast-instead-of-modal-index">анонс всплывайки</a>:
-    create ученика в списке «не toast»).
+    Create и PATCH карточки на вкладке — toast <code>window.showToast</code>
+    + AJAX reload DataTables, без <code>showSuccessModal</code> и без F5
+    (<a href="/doc#users-create-edit-toast-index">анонс create/edit без F5</a>,
+    <a href="/doc#success-toast-instead-of-modal-index">общий список всплывайки</a>).
     <br>
     3) <b>Что не менялось.</b> Пункт сайдбара и h4 «Пользователи».
     Право <code>users.view</code> в матрице — «Страница "Пользователи"»
@@ -2029,8 +2405,9 @@
     <code>editUserLink2</code> и <code>editUserLink</code> (открытие карточки).
     Заголовок модалки статический («Редактирование клиента»); ни один путь
     его не перезаписывает. Submit — один <code>editUserForm</code>.
-    Create: дефолт <code>showSuccessModal("Создание клиента", …)</code>
-    и ветка <code>school-leads-table</code> (toast «Клиент создан.» у лида).
+    Create: дефолт toast <code>window.showToast</code> (текст <code>message</code>
+    сервера, fallback «Клиент успешно создан.») + reload таблицы без F5;
+    ветка <code>school-leads-table</code> (toast «Клиент создан.» у лида).
     <br>
     5) <b>Деплой.</b> Blade сразу. Живые БД — миграция
     <code>2026_08_18_221000_rename_user_client_labels.php</code>
@@ -2374,11 +2751,23 @@
     1) <b>Где toast, без перезагрузки страницы.</b>
     Удаление ученика из edit (<code>DELETE /admin/user/{id}</code>, текст UI
     «Клиент успешно удален.» — буква «е»; JSON <code>success</code> с «ё»).
+    Create и PATCH карточки ученика на <code>/admin/users</code>
+    (модалка закрывается, DataTables <code>ajax.reload(null, false)</code>,
+    toast с <code>message</code> сервера: обычно «Клиент создан успешно» /
+    «Клиент успешно обновлён»; fallback UI «Клиент успешно создан.» /
+    «Клиент успешно обновлён.») —
+    <a href="/doc#users-create-edit-toast-index">отдельный анонс</a>.
     CRUD карточки тренера (create/edit/delete: <code>message</code> сервера или fallback
     «Тренер успешно создан.» / «обновлён» / «удалён»).
     Создание администратора (<code>message</code> сервера, обычно «Пользователь создан»).
     Юр. лицо create/edit («Юр. лицо создано» / «обновлено»).
     Объект create/edit/delete: UI «Объект создан» / «Объект обновлён» / «Объект успешно удалён.» (JSON <code>message</code> — «Объект создан» / «Объект обновлён» / «Объект удалён»).
+    CRUD учебной группы на <code>/admin/teams</code> (create/edit: модалка закрывается,
+    DataTables <code>ajax.reload(null, false)</code>, toast с <code>message</code> сервера
+    «Группа создана успешно» / «Группа успешно обновлена»; delete: UI «Группа успешно удалена.»,
+    JSON <code>message</code> — «Группа и её связь с пользователями успешно помечены как удалённые»;
+    toast после <code>hidden.bs.modal</code> у <code>#confirmDeleteModal</code>) —
+    <a href="/doc#teams-create-edit-toast-index">отдельный анонс</a>.
     Типы тренера: «Тип тренера сохранён» / «удалён».
     «Создать клиента» у лида: <code>window.showToast</code> (общий), не локальный
     <code>#mainToast</code> заявок.
@@ -2398,11 +2787,8 @@
     (<code>POST /admin/users/{id}/send-welcome-credentials</code>).
     <br>
     2) <b>Не в списке</b> — по-прежнему success-модалка (часто с reload):
-    «Добавить» на вкладке «Клиенты» (<code>/admin/users</code>, модалка «Создание клиента»: <code>showSuccessModal</code> + reload;
-    из заявки create-модалка ученика не подключается),
-    сохранение карточки ученика (PATCH + reload),
     «Применить» слева всем группам на «по месяцам»,
-    CRUD групп и партнёров, аватар, настройки сайта.
+    CRUD партнёров, аватар, настройки сайта.
     <br>
     3) <b>Два JS-пути.</b> Регрессия часто в дубликате: доп. платёж — Vite и
     <code>public/js</code>; тренер — create, edit и delete в одном blade;
@@ -2414,7 +2800,19 @@
     <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest</code>,
     <code>SuccessToastInsteadOfModalUiContractsFeatureTest</code>
     (UX-баг лишнего OK и негатив «не из списка → модалка»),
+    <code>AdminUsersCreateEditToastAccessFeatureTest</code>,
+    <code>AdminUsersCreateEditToastAjaxContractFeatureTest</code>,
+    <code>AdminUsersCreateEditToastNonAjaxSafetyNetFeatureTest</code>,
+    <code>AdminUsersCreateEditToastUiContractsFeatureTest</code>,
+    <code>AdminUsersCreateEditToastFullAccessFeatureTest</code>,
+    <code>UsersCreateEditToastDocumentationContractTest</code>,
     <code>LocationsToastDocumentationContractTest</code> (объект create/edit/delete),
+    <code>TeamsToastDocumentationContractTest</code> (группа create/edit/delete),
+    <code>TeamsCreateEditToastAccessFeatureTest</code>,
+    <code>TeamsCreateEditToastAjaxContractFeatureTest</code>,
+    <code>TeamsCreateEditToastNonAjaxSafetyNetFeatureTest</code>,
+    <code>TeamsCreateEditToastUiContractsFeatureTest</code>,
+    <code>TeamsCreateEditToastFullAccessFeatureTest</code>,
     <code>CustomPaymentsToastDocumentationContractTest</code>,
     <code>SettingsRoleDeleteWithoutReloadFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest::test_listed_success_actions_use_toast_instead_of_success_modal</code>.
@@ -3210,26 +3608,29 @@
     что и видимость колонок: поле <code>page_length</code>.
     Номер страницы (<code>start</code>) <b>не</b> пишем.
     <br><br>
-    1) <b>Где включено</b> (opt-in <code>persistPageLength: true</code>, свой <code>table_key</code>):
-    <a href="/docs/documentation/school-leads-widget#school-leads-page-length">/admin/school-leads</a>
-    (<code>school_leads_index</code>, право <code>schoolLeads.view</code>);
-    <a href="/docs/documentation/admin-users#users-page-length">/admin/users</a>
-    (<code>users_index</code>, <code>users.view</code>);
-    <a href="/docs/documentation/reports-payments">/admin/reports/payments</a>
-    (<code>reports_payments</code>),
-    <a href="/docs/documentation/reports-admin#reports-page-length">/admin/reports/payments/monthly</a>
-    (<code>reports_payments_monthly</code>),
-    <a href="/docs/documentation/reports-admin#reports-page-length">/admin/reports/ltv</a>
-    (<code>reports_ltv</code>) — право <code>reports.view</code>;
-    <a href="/docs/documentation/reports-admin#reports-page-length">/admin/reports/payment-intents</a>
-    (<code>reports_payment_intents</code>, <code>reports.payment.intents.view</code>);
-    <a href="/docs/documentation/reports-admin#reports-page-length">/admin/reports/fiscal-receipts</a>
-    (<code>reports_fiscal_receipts</code>, <code>reports.fiscal.receipts.view</code>);
-    <a href="/docs/documentation/tbank-admin-payouts">/admin/tinkoff/payouts</a>
-    (<code>tinkoff_payouts_index</code>, <code>tbank.payouts.manage</code>).
+    1) <b>Где включено</b> (opt-in <code>persistPageLength: true</code>, свой <code>table_key</code>).
+    Канонический список — таблица ниже; HTTP-каталог —
+    <code>DatatablePageLengthCatalogFeatureTest</code>.
+    <table id="datatable-page-length-catalog">
+      <thead>
+        <tr><th>Страница</th><th>URL</th><th><code>table_key</code></th><th>Право</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Клиенты</td><td><a href="/docs/documentation/admin-users#users-page-length"><code>/admin/users</code></a></td><td><code>users_index</code></td><td><code>users.view</code></td></tr>
+        <tr><td>Группы</td><td><a href="/docs/documentation/admin-teams#teams-page-length"><code>/admin/teams</code></a></td><td><code>teams_index</code></td><td><code>groups.view</code></td></tr>
+        <tr><td>Заявки</td><td><a href="/docs/documentation/school-leads-widget#school-leads-page-length"><code>/admin/school-leads</code></a></td><td><code>school_leads_index</code></td><td><code>schoolLeads.view</code></td></tr>
+        <tr><td>Все платежи</td><td><a href="/docs/documentation/reports-payments"><code>/admin/reports/payments</code></a></td><td><code>reports_payments</code></td><td><code>reports.view</code></td></tr>
+        <tr><td>Платежи по месяцам</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payments/monthly</code></a></td><td><code>reports_payments_monthly</code></td><td><code>reports.view</code></td></tr>
+        <tr><td>LTV</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/ltv</code></a></td><td><code>reports_ltv</code></td><td><code>reports.view</code></td></tr>
+        <tr><td>Платежные запросы</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payment-intents</code></a></td><td><code>reports_payment_intents</code></td><td><code>reports.payment.intents.view</code></td></tr>
+        <tr><td>Фискальные чеки</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/fiscal-receipts</code></a></td><td><code>reports_fiscal_receipts</code></td><td><code>reports.fiscal.receipts.view</code></td></tr>
+        <tr><td>Выплаты T‑Bank</td><td><a href="/docs/documentation/tbank-admin-payouts"><code>/admin/tinkoff/payouts</code></a></td><td><code>tinkoff_payouts_index</code></td><td><code>tbank.payouts.manage</code></td></tr>
+      </tbody>
+    </table>
     <br>
     2) <b>Старт таблицы.</b> PHP читает сохранённое значение и передаёт в Blade
     (<code>$leadsPageLength</code>, <code>$usersPageLength</code>,
+    <code>$teamsPageLength</code>,
     <code>$paymentsPageLength</code>, <code>$paymentsMonthlyPageLength</code>,
     <code>$ltvPageLength</code>, <code>$paymentIntentsPageLength</code>,
     <code>$fiscalReceiptsPageLength</code>, <code>$payoutsPageLength</code>).
@@ -3264,10 +3665,13 @@
     <a href="/docs/documentation/reusable-ui-partials#persist-page-length">reusable-ui-partials § persistPageLength</a>,
     <a href="/docs/documentation/school-leads-widget#school-leads-page-length">заявки §5.1.4</a>,
     <a href="/docs/documentation/admin-users#users-page-length">ученики §2.0</a>,
+    <a href="/docs/documentation/admin-teams#teams-page-length">группы §2.0</a>,
     <a href="/docs/documentation/reports-admin#reports-page-length">отчёты §1.1</a>,
     <a href="/docs/documentation/tbank-admin-payouts">выплаты T‑Bank</a>.
-    Тесты: <code>SchoolLeadsPageLengthFeatureTest</code> / <code>FullAccess</code>,
+    Тесты: <code>DatatablePageLengthCatalogFeatureTest</code> (ровно эти 9 URL / <code>table_key</code> / blade),
+    <code>SchoolLeadsPageLengthFeatureTest</code> / <code>FullAccess</code>,
     <code>UsersPageLengthFeatureTest</code> / <code>FullAccess</code>,
+    <code>TeamsPageLengthFeatureTest</code> / <code>FullAccess</code>,
     <code>ReportsAndPayoutsPageLengthFeatureTest</code> / <code>FullAccess</code>,
     <code>BladeInlineJsSyntaxTest</code>
     (POST только <code>page_length</code>; opt-in только перечисленные blade;
@@ -3277,6 +3681,8 @@
     и <a href="/docs/documentation/reports-admin#reports-page-length">reports-admin §1.1</a>.</p>
   <p id="users-page-length-index" class="small">Ученики (<code>/admin/users</code>) — в <a href="#datatable-page-length-index">анонсе «Показать N»</a>
     и <a href="/docs/documentation/admin-users#users-page-length">admin-users §2.0</a>.</p>
+  <p id="teams-page-length-index" class="small">Группы (<code>/admin/teams</code>) — в <a href="#datatable-page-length-index">анонсе «Показать N»</a>
+    и <a href="/docs/documentation/admin-teams#teams-page-length">admin-teams §2.0</a>.</p>
   <p id="school-leads-page-length-index" class="small">Заявки (<code>/admin/school-leads</code>) — в <a href="#datatable-page-length-index">анонсе «Показать N»</a>
     и <a href="/docs/documentation/school-leads-widget#school-leads-page-length">school-leads-widget §5.1.4</a>.</p>
 
@@ -5155,7 +5561,8 @@
     <li><a href="/docs/documentation/set-prices-cabinet-packages"><strong>Права setPrices.cabinetPackages.*</strong>: отображение типов абонементов на консоли (фиксированный / гибкий / разовое / постоплата); скрытые; не в базовых ролях</a></li>
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (логи <code>SUPERADMIN_ALL_OR_FILTER</code> + soft-scope отчётов §5 / reports-admin §2.4)</a></li>
-    <li><a href="/docs/documentation/partner-wallet">Кошелёк партнёра: <code>/partner-wallet</code>, изоляция <code>STRICT_CURRENT</code>, <code>wallet_balance_cents</code>, право <code>partnerWallet.view</code> (<a href="/doc#partner-wallet-isolation-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/partner-wallet">Кошелёк партнёра: <code>/partner-wallet</code>, изоляция <code>STRICT_CURRENT</code>, история договоров/SMS, <code>wallet_balance_cents</code>, право <code>partnerWallet.view</code> (<a href="/doc#partner-wallet-ledger-index">леджер</a>, <a href="/doc#partner-wallet-isolation-index">изоляция</a>)</a></li>
+    <li><a href="/docs/documentation/partner-service-payments">Оплата сервиса: <code>/partner-payment</code>, изоляция <code>STRICT_CURRENT</code>, <code>CreatePartnerServicePaymentRequest</code>, право <code>servicePayments.view</code> (<a href="/doc#partner-service-payment-isolation-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/partner-context">Партнёр‑контекст и SetPartner: current_partner, anti‑leak, блокировки</a></li>
     <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра); опциональные права в т.ч. <code>users.discount.manage</code>, <code>account.user.team.update</code></a></li>
     <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo; <b>метрики списка</b> — активные ученики, договоры, оборот и комиссия платформы по <code>operation_date</code> / снимку <code>tinkoff_payouts.platform_fee</code>, <a href="/doc#admin-partners-list-metrics">анонс</a> / <a href="/docs/documentation/account-partner-organization#partners-index-metrics">§3.1.1</a>), <code>PartnerLegacyLegalFields</code>, доступ guest 302/401 / 403, AJAX/non-AJAX, оплаты без fallback</a></li>
@@ -5185,7 +5592,7 @@
     <li><a href="/docs/documentation/admin-locations">Объекты (админка): <code>/admin/locations</code> — <code>locations.view</code> / <code>locations.manage</code>, M2M админов, привязка групп, аудит <code>location.*</code></a></li>
     <li><a href="/docs/documentation/admin-sport-types">Виды спорта (админка): <code>/admin/sport-types</code> — <code>sport_types.view</code> / <code>sport_types.manage</code>, вкладка «Справочники», аудит <code>sport_type.*</code></a></li>
     <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>manage</code> / <code>sm_register</code>, модалки CRUD, <b>корр. счёт</b> (<code>bank_corr_account</code>, CRM-only + плейсхолдер договоров), карточка sm-register, ShopCode T‑Bank, guardrails, <code>LegalEntityResolver</code></a></li>
-    <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
+    <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, <b>create/edit/delete без «OK» и без F5</b> (<a href="/doc#teams-create-edit-toast-index">анонс</a>, §1.2, toast <code>#kidsMainToast</code>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: сайдбар/h4 «Пользователи»; вкладка <b>«Клиенты»</b> (<code>/admin/users</code>, роль <code>user</code>, label «Клиент»); <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок — <a href="/doc#users-client-naming-index">анонс нейминга</a></a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
@@ -5195,8 +5602,8 @@
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
-    <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
-    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы (<code>lockUser</code>, на клиентах — <a href="/doc#users-contract-create-index">анонс</a>), <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
+    <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>create/edit без «OK» и без F5</b> (<a href="/doc#users-create-edit-toast-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
+    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>кнопка «Уведомления»</b> — список email о новых заявках, галочка «не получать», Telegram на вкладке виджета — <a href="/doc#school-leads-email-notifications-index">анонс</a>, §5.1.5 / §7, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы (<code>lockUser</code>, на клиентах — <a href="/doc#users-contract-create-index">анонс</a>), <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, <b>инструкция для родителей</b> <code>/instruction</code> и PDF <code>/instruction.pdf</code> (телефон только из query, не из <code>partners.phone</code>), CRM-кнопка открывает <b>модалку телефона</b> → <code>POST /admin/school-leads/instruction-preview</code> (<a href="/doc#landing-parents-instruction-index">анонс</a>, §4.2 / §8), каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), блок «Об услуге» — адрес / вид спорта / стоимость / период без расписания (<a href="/doc#landing-team-info-rows-index">анонс</a>, §5.4.2), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
     <li><a href="/docs/documentation/partner-self-registration"><strong>Саморегистрация школы с лендинга</strong>: кнопка «Регистрация» (школа, не ученик), <code>/partner/register</code>, native POST → 302 <code>/cabinet</code>, флаг <code>PARTNER_SELF_REGISTRATION_ENABLED</code>, заглушка при закрытии — <a href="/doc#partner-self-registration-index">анонс</a></a></li>

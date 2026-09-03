@@ -56,6 +56,7 @@
     анонс переключателя <a href="/doc#system-monitors-index">/doc</a>,
     анонс списка <a href="/doc#online-users-overlay-index">оверлей «Онлайн»</a>,
     анонс пульта <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>,
+    строки Сегодня / Вчера <a href="/doc#ops-day-kpi-index">/doc#ops-day-kpi-index</a>,
     ховер 500 / ViewException / ring
     <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a>.
     JSON-оверлея на <code>/cabinet</code> нет.
@@ -70,7 +71,7 @@
       <tr><td>GET</td><td><code>/get-team-details</code></td><td><code>getTeamDetails</code></td><td><code>dashboard.view</code></td><td>JSON: ученики группы (pivot <code>team_user</code>)</td></tr>
       <tr><td>POST</td><td><code>/cabinet/active-student</code></td><td><code>cabinet.active-student.switch</code></td><td><code>auth</code> + <code>2fa</code></td><td>Семейный переключатель ребёнка (session). См. <a href="/docs/documentation/parents-and-family-cabinet#family-cabinet">parents-and-family-cabinet §5</a></td></tr>
       <tr><td>POST</td><td><code>/cabinet/system-monitors</code></td><td><code>cabinet.system-monitors.update</code></td><td><code>settings.systemMonitors.view</code></td><td>Персональный флаг системных мониторов. См. <a href="#system-monitors">§ мониторы</a></td></tr>
-      <tr><td>GET</td><td><code>/cabinet/system-monitors/online-users</code></td><td><code>cabinet.system-monitors.online-users</code></td><td><code>settings.systemMonitors.view</code></td><td>Снимок онлайн-пользователей по партнёрам. См. <a href="#system-monitors">§ мониторы</a></td></tr>
+      <tr><td>GET</td><td><code>/cabinet/system-monitors/ops</code></td><td><code>cabinet.system-monitors.ops</code></td><td><code>settings.systemMonitors.view</code></td><td>JSON-снимок пульта (в т.ч. <code>day</code> / <code>yesterday</code>). См. <a href="#system-monitors">§ мониторы</a>, <a href="/doc#ops-day-kpi-index">анонс Сегодня/Вчера</a></td></tr>
     </tbody>
   </table>
   <p>Middleware для консоли (<code>/cabinet</code>, <code>get-user-details</code>, <code>get-team-details</code>):
@@ -480,7 +481,7 @@
     (<a href="/doc#chat-presence-index">presence</a>) —
     <a href="/doc#online-users-overlay-index">анонс оверлея «Онлайн»</a>.</p>
   <p>Оверлей <code>#js-ops-monitors</code> («Пульт») в том же стеке над онлайном:
-    шесть строк цифр (очередь, касса, 500, шлюзы, вход, welcome), ховер
+    восемь строк цифр (сегодня, вчера, очередь, касса, 500, шлюзы, вход, welcome), ховер
     <code>KidsCrmTooltip</code> у каждого числа, без ссылок.
     Пузырёк непрозрачный (белый на <code>#111827</code>, opacity 1,
     <code>z-index: 20050</code>), текст читается и поверх тёмного пульта —
@@ -489,7 +490,13 @@
     <code>QueueStatusSnapshot::compact()</code> (вкладка «Очереди» — <code>full()</code>,
     для не-superadmin по-прежнему режет выплаты текущим партнёром; пульт — все школы).
     GET <code>/cabinet/system-monitors/ops</code>, Form Request
-    <code>OpsMonitorRequest</code>. Окно 24 ч (просроченные выплаты — без окна;
+    <code>OpsMonitorRequest</code>. Строки «Сегодня» и «Вчера» сразу под заголовком:
+    T‑Bank за календарный день (оборотка / комиссия из правил как в отчёте
+    «Платежи» / число успешных), JSON <code>day</code> / <code>yesterday</code>
+    целыми рублями без разделителей тысяч. Первый кадр «…» (не цифры из БД);
+    <code>0</code> не «—»; сеть / 403 / payload без <code>day</code> сбрасывают leftover.
+    Анонс — <a href="/doc#ops-day-kpi-index">/doc#ops-day-kpi-index</a>.
+    Окно 24 ч (просроченные выплаты — без окна;
     строка «Вход» — 72 ч). Неизвестный email считается. Истёкший код 2FA в auth не пишется.
     Ховер входа: email / пароль или код 2FA / IP / время из
     <code>auth.recent_logins</code> и <code>auth.recent_2fa</code>
@@ -566,6 +573,10 @@
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersUxFeatureTest.php</code> — первый кадр с пустым списком (и при выкл. флаге); cabinet/чат/настройки; XSS-экранирование ФИО; ошибка fetch / 403 снимает людей; повторное включение не плодит второй poller</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsFeatureTest.php</code> — GET пульта: гость/403/200, стек над онлайном и Reverb, опрос только при включённом флаге</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAjaxContractFeatureTest.php</code> — JSON 500/шлюзы без email/password/PAN; вход 72 ч, <code>auth.recent_logins</code> с введёнными email/паролем/IP; <code>auth.login_failed</code> без пароля; окно 24 ч остальное, все партнёры, Handler 500 vs 4xx/CSRF, <code>ViewException</code> unwrap / без previous / вложенная / Ignition, ring <code>errors.recent</code> (20, 24 ч, path без query), битый cache не 500, ученик с правом видит recent без PII в 500, cache шлюзов на Http::fake, неизвестный email считается, неверный/истёкший 2FA, welcome без/с письмом и STATUS_FAILED, sent без <code>mailable_class</code> по теме «Доступ в личный кабинет», чужой mailable / другая тема — missing, compact vs full overdue</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsDayFeatureTest.php</code> — строки «Сегодня» / «Вчера»: T‑Bank за календарный день, оборотка / комиссия из правил / счётчик, без офлайна, дни не смешиваются, все партнёры, возврат без комиссии, полночь, min_fixed, disabled rule, failed refund</li>
+      <li><code>tests/Unit/Documentation/OpsDayKpiDocumentationContractTest.php</code> — анонс <code>/doc#ops-day-kpi-index</code> не противоречит коду: календарный день, T‑Bank TRIM, комиссия из правил, leftover, 403 без утечки</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsDayUxFeatureTest.php</code> — первый кадр «…» при платежах в БД; 0 не «—»; без пробелов тысяч; 403/сеть и payload без ключей сбрасывают leftover 150000; login и без права строк нет</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsDayAccessFeatureTest.php</code> — гость / 403 без ключей <code>day</code>/<code>yesterday</code> и без утечки оборотки; оператор/тренер/ученик JSON и native GET целые; мутации не пустой 200</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsWelcomeAccountingFeatureTest.php</code> — ложный «нет письма» у 9 клиентов с <code>sent</code> без типа; реально missing; SMTP sent без <code>notifiable_id</code>; «Имя &lt;email&gt;»; статус sending; last_user_id; чужая школа; create из лида AJAX и native POST → пульт 0; 403/гость без id и email</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsWelcomeAccountingUxFeatureTest.php</code> — первый кадр Welcome «…» не «9»; login без строки; paint 0 не #470; paint 9 + #id; 403 сбрасывает leftover 9; missing_count 0 рисует «0» не «—»</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest.php</code> — гость / 403 / 200 JSON и native GET welcome без email; trainer/ученик с правом; POST/PATCH/PUT/DELETE не пустой 200</li>

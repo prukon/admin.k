@@ -7,16 +7,24 @@ namespace App\Support;
 use App\Mail\ClientWelcomeCredentialsMail;
 use App\Models\FiscalReceipt;
 use App\Models\OutgoingEmailLog;
+use App\Models\Payment;
 use App\Models\PaymentIntent;
+use App\Models\Refund;
 use App\Models\SchoolLead;
+use App\Models\TinkoffCommissionRule;
+use App\Models\TinkoffPayment;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\ViewException;
 use Throwable;
 
 /**
  * Операционный снимок «Пульт»: счётчики за 24 часа и last-ok/last-fail шлюзов.
+ * Строка «Сегодня» / «Вчера»: T‑Bank за календарный день (оборотка / комиссия из правил / число успешных).
  * Исключения / шлюзы: email / phone / password / PAN в JSON не кладём.
  * Строка «Вход»: за 72 часа в JSON есть введённые email/пароль/код 2FA и IP (только cache, не my_logs).
  */
@@ -55,9 +63,17 @@ final class OpsMonitor
         $since = now()->subHours(self::WINDOW_HOURS);
         $errors = self::errorSnapshot();
 
+        $todayStart = now()->startOfDay();
+        $rules = TinkoffCommissionRule::query()
+            ->where('is_enabled', true)
+            ->orderByRaw('partner_id is null, method is null')
+            ->get();
+
         return [
             'ok' => true,
             'window_hours' => self::WINDOW_HOURS,
+            'day' => self::calendarDaySnapshot($todayStart, $rules),
+            'yesterday' => self::calendarDaySnapshot($todayStart->copy()->subDay(), $rules),
             'queue' => [
                 'worker' => $queue['worker_status'],
                 'scheduler' => $queue['scheduler_status'],
@@ -96,6 +112,194 @@ final class OpsMonitor
             ],
             'welcome' => self::welcomeSnapshot($since),
         ];
+    }
+
+    /**
+     * T‑Bank за календарный день: оборотка / комиссия платформы / число успешных.
+     * Комиссия — та же формула, что отчёт «Платежи» (правила, не снимок platform_fee).
+     * Возврат pending/succeeded комиссию не суммирует; оборотку и счётчик оставляет.
+     *
+     * @param  Collection<int, TinkoffCommissionRule>|null  $rules
+     * @return array{turnover: int, commission: int, payments_count: int}
+     */
+    private static function calendarDaySnapshot(\DateTimeInterface $dayStart, ?Collection $rules = null): array
+    {
+        $start = Carbon::parse($dayStart)->startOfDay();
+        $end = $start->copy()->addDay();
+
+        /** @var Collection<int, Payment> $payments */
+        $payments = Payment::query()
+            ->where('summ_cents', '>', 0)
+            ->where('operation_date', '>=', $start->toDateTimeString())
+            ->where('operation_date', '<', $end->toDateTimeString())
+            ->where(function (Builder $query): void {
+                self::constrainTbankPayments($query);
+            })
+            ->get(['id', 'partner_id', 'deal_id', 'summ_cents']);
+
+        $turnoverCents = (int) $payments->sum('summ_cents');
+
+        return [
+            'turnover' => (int) round($turnoverCents / 100),
+            'commission' => (int) round(self::sumDayPlatformCommission($payments, $rules)),
+            'payments_count' => $payments->count(),
+        ];
+    }
+
+    /**
+     * Признак T‑Bank как в отчёте «Платежи»: deal_id / payment_id / payment_status.
+     *
+     * @param  Builder<Payment>  $query
+     */
+    private static function constrainTbankPayments(Builder $query): void
+    {
+        $query->where(function (Builder $inner): void {
+            $inner->where(function (Builder $deal): void {
+                $deal->whereNotNull('deal_id')->whereRaw("TRIM(deal_id) <> ''");
+            })->orWhere(function (Builder $pid): void {
+                $pid->whereNotNull('payment_id')->whereRaw("TRIM(CAST(payment_id AS CHAR)) <> ''");
+            })->orWhere(function (Builder $status): void {
+                $status->whereNotNull('payment_status')->whereRaw("TRIM(CAST(payment_status AS CHAR)) <> ''");
+            });
+        });
+    }
+
+    /**
+     * @param  Collection<int, Payment>  $payments
+     * @param  Collection<int, TinkoffCommissionRule>|null  $rules
+     */
+    private static function sumDayPlatformCommission(Collection $payments, ?Collection $rules = null): float
+    {
+        if ($payments->isEmpty()) {
+            return 0.0;
+        }
+
+        $rules ??= TinkoffCommissionRule::query()
+            ->where('is_enabled', true)
+            ->orderByRaw('partner_id is null, method is null')
+            ->get();
+
+        $methods = self::tbankMethodsByPartnerDeal($payments);
+        $blocking = self::blockingRefundPaymentIds($payments);
+
+        $sum = 0.0;
+        foreach ($payments as $payment) {
+            if (isset($blocking[(int) $payment->id])) {
+                continue;
+            }
+
+            $partnerId = (int) ($payment->partner_id ?? 0);
+            $dealId = trim((string) ($payment->deal_id ?? ''));
+            $method = $dealId !== '' ? ($methods[$partnerId.'|'.$dealId] ?? null) : null;
+            $rule = self::pickDayCommissionRule($rules, $partnerId, $method);
+            $feeCents = self::calcFeeCents(
+                (int) $payment->summ_cents,
+                (float) ($rule->platform_percent ?? 0.00),
+                (float) ($rule->platform_min_fixed ?? 0.00)
+            );
+            $sum += round($feeCents / 100, 2);
+        }
+
+        return $sum;
+    }
+
+    /**
+     * @param  Collection<int, Payment>  $payments
+     * @return array<string, string|null>
+     */
+    private static function tbankMethodsByPartnerDeal(Collection $payments): array
+    {
+        $dealIds = $payments
+            ->map(static fn (Payment $row): string => trim((string) ($row->deal_id ?? '')))
+            ->filter(static fn (string $dealId): bool => $dealId !== '')
+            ->unique()
+            ->values();
+
+        if ($dealIds->isEmpty()) {
+            return [];
+        }
+
+        $rows = TinkoffPayment::query()
+            ->whereIn('deal_id', $dealIds->all())
+            ->orderByDesc('id')
+            ->get(['partner_id', 'deal_id', 'method']);
+
+        $map = [];
+        foreach ($rows as $row) {
+            $key = (int) $row->partner_id.'|'.(string) $row->deal_id;
+            if (array_key_exists($key, $map)) {
+                continue;
+            }
+            $method = $row->method;
+            $map[$key] = is_string($method) && trim($method) !== '' ? (string) $method : null;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  Collection<int, Payment>  $payments
+     * @return array<int, true>
+     */
+    private static function blockingRefundPaymentIds(Collection $payments): array
+    {
+        $ids = $payments->pluck('id')->map(static fn ($id): int => (int) $id)->all();
+        if ($ids === []) {
+            return [];
+        }
+
+        $refunds = Refund::query()
+            ->whereIn('payment_id', $ids)
+            ->orderByDesc('id')
+            ->get(['payment_id', 'status']);
+
+        $latest = [];
+        foreach ($refunds as $refund) {
+            $paymentId = (int) $refund->payment_id;
+            if (array_key_exists($paymentId, $latest)) {
+                continue;
+            }
+            $latest[$paymentId] = (string) ($refund->status ?? '');
+        }
+
+        $blocking = [];
+        foreach ($latest as $paymentId => $status) {
+            if (in_array($status, ['pending', 'succeeded'], true)) {
+                $blocking[$paymentId] = true;
+            }
+        }
+
+        return $blocking;
+    }
+
+    /**
+     * @param  Collection<int, TinkoffCommissionRule>  $rules
+     */
+    private static function pickDayCommissionRule(Collection $rules, int $partnerId, ?string $method): TinkoffCommissionRule
+    {
+        $chosen = $rules->first(static function (TinkoffCommissionRule $rule) use ($partnerId, $method): bool {
+            $partnerOk = ($rule->partner_id === null) || ((int) $rule->partner_id === $partnerId);
+            $methodOk = ($rule->method === null) || ((string) $rule->method === (string) $method);
+
+            return $partnerOk && $methodOk;
+        });
+
+        return $chosen ?: new TinkoffCommissionRule([
+            'acquiring_percent' => 2.49,
+            'acquiring_min_fixed' => 3.49,
+            'payout_percent' => 0.10,
+            'payout_min_fixed' => 0.00,
+            'platform_percent' => 0.00,
+            'platform_min_fixed' => 0.00,
+        ]);
+    }
+
+    private static function calcFeeCents(int $amountCents, float $percent, float $minFixedRub): int
+    {
+        $fee = (int) round($amountCents * ($percent / 100));
+        $min = (int) round($minFixedRub * 100);
+
+        return max($fee, $min);
     }
 
     public static function recordException(Throwable $e): void

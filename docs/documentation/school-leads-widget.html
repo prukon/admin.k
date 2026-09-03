@@ -39,6 +39,7 @@
     После создания клиента из лида статус заявки по-прежнему меняется (таблица и модалка) — <a href="#school-lead-linked-status">§5.5.4</a>;
     кнопка «Создать клиента» показывает в ховере все обязательные поля — <a href="#school-lead-create-client-button">§5.7</a>.
     Автосопоставление родителя из справочника при заявке с лендинга — <a href="#school-lead-parent-match">§5.5.5</a>.<br>
+    Email о новой заявке — кнопка «Уведомления» на вкладке «Заявки» (<a href="#school-leads-email-notifications">§5.1.5</a>, анонс <a href="/doc#school-leads-email-notifications-index">/doc</a>); Telegram по-прежнему на вкладке виджета.<br>
     В таблице: порядок <b>ребёнок → родитель → статус → объект → секция → телефон</b>, затем остальные (в т.ч. «Договор»); без колонки «Действия»; правка по клику на ФИО родителя; удаление заявок из CRM недоступно — <a href="#school-leads-actions-column">§5.5.3</a>, анонс <a href="/doc#school-leads-column-order-2026-08">/doc</a>.<br>
     <b>Не путать</b> с разделом «Лиды партнёров» (<code>/admin/partner-leads</code>, таблица <code>partner_leads</code>) — там B2B-заявки с лендинга kidscrm «подключить школу к платформе».
   </div>
@@ -73,6 +74,8 @@
     <li><code>school_leads</code> — заявки: <code>partner_id</code>, <code>source</code> (<code>widget</code> | <code>landing</code>), <code>name</code>, <code>phone</code>, <code>school_lead_status_id</code> (FK на <code>school_lead_statuses</code>, nullable), поля родителя/ребёнка (лендинг), <code>parent_id</code> (nullable FK на <code>parents</code>, автосопоставление с лендинга — §5.5.5), <code>parent_match_reason</code> / <code>parent_match_count</code> / <code>parent_match_confirmed</code>, <code>location_id</code>, <code>sport_type_id</code> (лендинг, nullable), <code>team_id</code> (лендинг), флаги особенностей, <code>needs_contact_help</code>, <code>user_id</code> (nullable — ученик после конвертации), UTM, <code>page_url</code>, <code>referrer</code>, согласие ПДн (<code>consent_accepted_at</code>, <code>policy_url</code> — у лендинга null), SoftDeletes на модели (legacy; из CRM удаление заявок недоступно — §5.5.3). Миграции: <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>, <code>2026_06_16_140000_create_school_lead_statuses_and_migrate_school_leads.php</code> (таблица статусов, FK, удаление колонки <code>status</code> enum), <code>2026_08_07_010000_add_parent_match_to_school_leads_table.php</code>.</li>
     <li><code>partner_telegram_link_tokens</code> — одноразовые токены для привязки Telegram через <code>/start</code> (срок жизни ~30 мин).</li>
     <li><code>partners.school_leads_telegram_chat_id</code> — Chat ID для уведомлений партнёра в Telegram.</li>
+    <li><code>partners.school_leads_notification_emails</code> — JSON-список email для уведомлений о новых заявках (nullable: пока не сохраняли — шлём admin + <code>partners.email</code>).</li>
+    <li><code>partners.school_leads_email_notifications_disabled</code> — не слать email о заявках.</li>
   </ul>
   <p class="small">Поля лендинга и публичные маршруты <code>/lead/…</code> — <a href="/docs/documentation/school-leads-landing">school-leads-landing.html</a>.</p>
 
@@ -168,6 +171,8 @@
       <tr><td>POST</td><td><code>/admin/school-leads/statuses</code></td><td><code>can:schoolLeads.view</code></td><td>Создать кастомный статус. AJAX → JSON; non-AJAX → <b>302</b> на страницу раздела</td></tr>
       <tr><td>PUT</td><td><code>/admin/school-leads/statuses/{schoolLeadStatus}</code></td><td><code>can:schoolLeads.view</code></td><td>Изменить кастомный статус. AJAX → JSON; non-AJAX → <b>302</b></td></tr>
       <tr><td>DELETE</td><td><code>/admin/school-leads/statuses/{schoolLeadStatus}</code></td><td><code>can:schoolLeads.view</code></td><td>Удалить кастомный статус (если есть заявки: AJAX → 422, non-AJAX → 302 с ошибками). Успех: AJAX → JSON; non-AJAX → <b>302</b></td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/notifications</code></td><td><code>can:schoolLeads.view</code></td><td>JSON настроек email-уведомлений: <code>emails</code>, <code>emails_configured</code>, <code>email_notifications_disabled</code>, <code>suggested_emails</code> (§5.1.5). Маршрут регистрируется <b>до</b> <code>PUT …/{schoolLead}</code></td></tr>
+      <tr><td>PUT</td><td><code>/admin/school-leads/notifications</code></td><td><code>can:schoolLeads.view</code></td><td>Сохранить список email и галочку «не получать». AJAX → JSON; non-AJAX → <b>302</b>. Без галочки нужен ≥1 валидный email (иначе AJAX → 422 <code>errors.emails</code>; non-AJAX → 302 + session errors)</td></tr>
     </tbody>
   </table>
   <div class="warn">
@@ -178,7 +183,7 @@
   <h3>5.1) Интерфейс страницы списка</h3>
   <p class="small">View списка заявок: <code>resources/views/admin/school-leads/index.blade.php</code> (вкладка «Заявки» → <code>tabs/leads.blade.php</code>), стили toolbar — <code>resources/css/admin-list-toolbar.css</code> (см. <a href="/docs/documentation/reusable-ui-partials">переиспользуемые UI-блоки</a> и отчёт <a href="/docs/documentation/reports-payments">«Платежи»</a>).</p>
   <ul>
-    <li><b>Toolbar</b> — заголовок «Заявки», счётчики по всему партнёру (не зависят от фильтров таблицы), кнопки «Настройки» (модалка статусов, §5.4) и «История»:
+    <li><b>Toolbar</b> — заголовок «Заявки», счётчики по всему партнёру (не зависят от фильтров таблицы), кнопки «Статусы» (модалка статусов, §5.4), «Уведомления» (модалка email, §5.1.5) и «История»:
       <ul>
         <li><b>Новых</b> — заявки в системном статусе «Новый» (<code>school_lead_status_id</code> = id системной записи <code>code = new</code>); то же значение, что badge у пункта «Лиды» в сайдбаре (<a href="#school-leads-sidebar-counter">§3.1</a>);</li>
         <li><b>Всего</b> — все неудалённые заявки партнёра.</li>
@@ -230,7 +235,7 @@
       </tr>
       <tr>
         <td>Динамика статусов</td>
-        <td>После CRUD в модалке «Настройки» — <code>KidsCrmFilterMultiselectSelect2.rebuild()</code> + <code>setValues()</code> (пересборка опций и панели чекбоксов)</td>
+        <td>После CRUD в модалке «Статусы» — <code>KidsCrmFilterMultiselectSelect2.rebuild()</code> + <code>setValues()</code> (пересборка опций и панели чекбоксов)</td>
       </tr>
     </tbody>
   </table>
@@ -293,16 +298,64 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       <code>{ ключ: bool }</code> / <code>[]</code> не менялся. Сохранение колонок не сбрасывает
       <code>page_length</code>.</li>
     <li>Лендинг и виджет заявок без opt-in. Полный список страниц с <code>persistPageLength: true</code>
-      (ученики, отчёты, выплаты T‑Bank) — <a href="/doc#datatable-page-length-index">/doc</a>.
+      — <a href="/doc#datatable-page-length-catalog">таблица на /doc</a>
+      (<code>/admin/users</code>, <code>/admin/teams</code>, отчёты, выплаты T‑Bank).
       Остальные админские таблицы на пресете не пишут N, пока нет
       <code>persistPageLength: true</code> и поддержки <code>page_length</code> в их columns-settings.</li>
   </ul>
   <p class="small">Тесты: <code>SchoolLeadsPageLengthFeatureTest</code> (HTTP 200/403/422/302, UX: повторное открытие страницы держит N, скрытие колонок не сбрасывает N, <code>start</code> не пишется, лендинг/виджет без opt-in),
     <code>SchoolLeadsPageLengthFullAccessFeatureTest</code> (гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405),
+    <code>DatatablePageLengthCatalogFeatureTest</code> (заявки в каноническом списке 9 страниц),
     <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>
     (POST только <code>page_length</code>, без <code>columns</code>/<code>start</code>),
     <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>.
     Анонс — <a href="/doc#datatable-page-length-index">/doc</a>.</p>
+
+  <h3 id="school-leads-email-notifications">5.1.5) Email-уведомления о новых заявках</h3>
+  <p>Кнопка <b>«Уведомления»</b> (иконка колокольчика) в toolbar вкладки «Заявки» открывает стандартную Bootstrap-модалку
+    <code>#schoolLeadNotificationsModal</code> (не на весь экран). Telegram по-прежнему настраивается на вкладке «Виджет для сайта».</p>
+  <ul>
+    <li><b>Поля.</b> Сначала галочка «Не получать email-уведомления», затем Select2 через
+      <code>@include('partials.select2.generic-multiselect')</code>
+      (<code>js-generic-multiselect-select</code>, обёртка <code>generic-multiselect-field--tags</code>,
+      <code>KidsCrmGenericMultiselectSelect2.init</code> с <code>tags: true</code>) —
+      выбранные адреса — чипы (не однострочный form-select), без сводки «ещё N шт.».
+      Выбрать email админов организации или ввести другой адрес (Enter / запятая).
+      В подсказках нет админа/организации без валидного email.
+      Backspace снимает последний выбранный адрес целиком.
+      Галочка скрывает поле Select2 (<code>#schoolLeadNotificationEmailsField</code>) и отключает рассылку;
+      список email при сохранении не затирается.</li>
+    <li><b>Хранение.</b> На партнёре: <code>partners.school_leads_notification_emails</code> (JSON-список, nullable) и
+      <code>partners.school_leads_email_notifications_disabled</code> (bool, по умолчанию <code>false</code>).
+      Миграция <code>2026_09_03_010000_add_school_leads_notification_settings_to_partners_table.php</code>.</li>
+    <li><b>Валидация.</b> <code>UpdateSchoolLeadNotificationSettingsRequest</code>: без галочки — <code>emails</code> обязателен, min 1, каждый <code>email:filter</code>, max 20 адресов; с галочкой список может быть пустым. Ошибки 422 в JSON, тексты на русском под полями (<code>emails</code>, <code>email_notifications_disabled</code>).</li>
+    <li><b>Отправка.</b> <code>SchoolLeadNotificationService</code>: галочка включена → письма не шлём; список сохранён → только на него; колонка ещё <code>null</code> (ни разу не сохраняли) → как раньше: все admin партнёра + <code>partners.email</code>.</li>
+    <li><b>Первое открытие.</b> HTML модалки: Select2 пустой, галочка снята, select не <code>disabled</code>.
+      Значения подставляются только после GET на <code>shown.bs.modal</code> (не при первом рендере страницы и не без открытия).
+      Повторное открытие снова делает GET — несохранённые правки в Select2 сбрасываются.
+      GET сам по себе список в БД не сохраняет (<code>emails_configured = false</code>, колонка остаётся <code>null</code>).</li>
+    <li><b>Сохранение.</b> AJAX PUT всегда шлёт текущие <code>$select.val()</code>, даже если галочка включена (адреса не затираются).
+      Модалка закрывается только в <code>.done</code>. 422 не пишут пустой список.
+      Non-AJAX PUT (без <code>X-Requested-With</code>) → 302 на вкладку «Заявки», запись в БД.
+      Снятая галочка в native-форме не передаётся — сервер считает уведомления включёнными.</li>
+    <li><b>Негатив «не X → не Y».</b> Если список уже сохранён — GET не подмешивает admin/email организации в <code>emails</code> (они остаются в <code>suggested_emails</code>).
+      Админ или организация без валидного email в <code>suggested_emails</code> не предлагаются (нет пункта «Организация —»).
+      Сохранённый пустой массив — это не «ещё не настраивали»: legacy-fallback на админов не срабатывает.
+      Галочка email не отключает Telegram.</li>
+    <li>Право: <code>schoolLeads.view</code>. Partial: <code>admin/school-leads/partials/notification-settings.blade.php</code>.
+      На вкладках «Страница заявки» и «Виджет для сайта» модалки нет; текст виджета указывает на кнопку «Уведомления» вкладки «Заявки».</li>
+  </ul>
+  <p class="small">Тесты: <code>SchoolLeadNotificationSettingsFeatureTest</code> (toolbar «Статусы»/«Уведомления», галочка перед Select2, пустой select и снятая галочка в HTML,
+    GET/PUT, 422 под <code>emails</code>, без валидного email админ/организация не в подсказках, legacy-рассылка / пустой сохранённый список без fallback, Telegram при выключенном email),
+    <code>SchoolLeadNotificationSettingsFullAccessFeatureTest</code> (гость / без права 403 / viewer / admin / без организации / изоляция сессии / чужие методы / лендинг и виджет без модалки),
+    <code>SchoolLeadNotificationSettingsNonAjaxSafetyNetFeatureTest</code> (PUT и native POST+_method=PUT → 302 + БД; 422 не затирает; GET show не пустой HTML),
+    <code>SchoolLeadNotificationSettingsAjaxContractFeatureTest</code> (JSON 200/422, prefill до первого save, кастомный список не подменяет админами, галочка сохраняет emails, max 20),
+    <code>BladeInlineJsSyntaxTest::test_school_leads_notification_settings_modal_ajax_uses_select2_tags</code>
+    (<code>node --check</code>, <code>preventDefault</code>, GET на <code>shown.bs.modal</code>, payload не обнуляет emails, hide только в <code>.done</code>),
+    <code>SchoolLeadNotificationTest</code> (виджет: кастомный список / skip email / Telegram при галочке),
+    <code>SchoolLeadLandingNotificationFeatureTest</code> (лендинг submit — те же правила).
+    Browser/E2E (P2) нет: в проекте нет Dusk для этой страницы.
+    Анонс — <a href="/doc#school-leads-email-notifications-index">/doc#school-leads-email-notifications-index</a>.</p>
 
   <h3>5.2) Параметры <code>GET /admin/school-leads/data</code></h3>
   <table>
@@ -411,7 +464,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <p class="small">Район и объект заявки — поля <code>school_leads.district_id</code> и <code>school_leads.location_id</code>; в карточке ученика объекта нет (см. <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>).</p>
 
   <h3 id="school-lead-statuses">5.4) Настраиваемые статусы заявок</h3>
-  <p>Справочник <code>school_lead_statuses</code> в разрезе партнёра. Управление — кнопка <b>«Настройки»</b> (иконка шестерёнки) в toolbar вкладки «Заявки» → модалка «Настройки статусов заявок».</p>
+  <p>Справочник <code>school_lead_statuses</code> в разрезе партнёра. Управление — кнопка <b>«Статусы»</b> (иконка шестерёнки) в toolbar вкладки «Заявки» → модалка «Настройки статусов заявок».</p>
   <table>
     <thead>
       <tr><th>Тип</th><th>Описание</th><th>Ограничения</th></tr>
@@ -772,7 +825,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li>Ошибка отправки письма не откатывает создание ученика: <code>welcome_email_sent: false</code>, в <code>message</code> — предупреждение.</li>
   </ul>
     <p class="small">Тесты: <code>SchoolLeadClientWelcomeCredentialsFeatureTest.php</code>, <code>FamilyStudentLoginOnCreateFeatureTest.php</code>, <code>ClientWelcomeCredentialsFullAccessFeatureTest.php</code>, <code>ClientWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code>, <code>SystemMonitorsOpsWelcomeAccountingFeatureTest.php</code>; синтаксис JS — <code>BladeInlineJsSyntaxTest</code> (<code>leads.blade.php</code>).</p>
-  <p class="small">Отдельного маршрута у заявок для создания клиента нет. Partial <code>includes/modal/createUser.blade.php</code> на странице заявок <b>не подключается</b> (используется только на <a href="/docs/documentation/admin-users">/admin/users</a>).</p>
+  <p class="small">Отдельного маршрута у заявок для создания клиента нет. Partial <code>includes/modal/createUser.blade.php</code> на странице заявок <b>не подключается</b> (используется только на <a href="/docs/documentation/admin-users">/admin/users</a>; успех «Добавить» там — toast вкладки клиентов, <a href="/doc#users-create-edit-toast-index">анонс</a>).</p>
 
   <h3 id="school-lead-contract-inline">5.8) Создание договора без ухода со страницы заявок</h3>
   <ul>
@@ -854,13 +907,17 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     Глобальные B2B-уведомления на <code>TELEGRAM_CHAT_ID</code> (лиды с лендинга kidscrm через <code>LandingPageController::notifyTelegram</code>) после этого из Telegram API приходить не будут, пока не настроен общий обработчик или отдельный бот для B2B.
   </div>
 
-  <h2>7) Уведомления о новой заявке</h2>
+  <h2 id="7">7) Уведомления о новой заявке</h2>
   <p>После успешного submit (<code>POST /widget/…/submit</code> или <code>POST /lead/…/submit</code>) вызывается <code>SchoolLeadNotificationService</code>:</p>
   <ul>
-    <li><b>Email</b> — всем пользователям с ролью <code>admin</code> текущего партнёра (с email) + email организации из <code>partners.email</code>. Mailable: <code>App\Mail\NewSchoolLeadSubmission</code>; для лендинга с заполненными полями — строки «Район», «Объект», «Услуга» в теле письма.</li>
-    <li><b>Telegram</b> — в <code>partners.school_leads_telegram_chat_id</code>, если заполнен. Бот: <code>TELEGRAM_BOT_TOKEN</code>. Для <code>source = landing</code> сообщение дополнено данными ребёнка, района, объекта и услуги.</li>
+    <li><b>Email</b> — настраивается в CRM кнопкой «Уведомления» на вкладке «Заявки» (§5.1.5).
+      Если настройки ещё не сохраняли: всем пользователям с ролью <code>admin</code> текущего партнёра (с email) + email организации из <code>partners.email</code>.
+      Если список сохранён — только на него. Галочка «Не получать email-уведомления» отключает письма.
+      Mailable: <code>App\Mail\NewSchoolLeadSubmission</code>; для лендинга с заполненными полями — строки «Район», «Объект», «Услуга» в теле письма.</li>
+    <li><b>Telegram</b> — в <code>partners.school_leads_telegram_chat_id</code>, если заполнен. Бот: <code>TELEGRAM_BOT_TOKEN</code>. Для <code>source = landing</code> сообщение дополнено данными ребёнка, района, объекта и услуги. Не зависит от галочки email.</li>
   </ul>
-  <p class="small">B2B-лиды по-прежнему используют глобальный <code>TELEGRAM_CHAT_ID</code> в <code>LandingPageController</code> — это другой канал.</p>
+  <p class="small">На вкладке «Виджет для сайта» текст про email указывает на кнопку «Уведомления» вкладки «Заявки». B2B-лиды по-прежнему используют глобальный <code>TELEGRAM_CHAT_ID</code> в <code>LandingPageController</code> — это другой канал.
+    Анонс — <a href="/doc#school-leads-email-notifications-index">/doc#school-leads-email-notifications-index</a>.</p>
 
   <h2>8) Переменные окружения (.env)</h2>
   <table>
@@ -881,10 +938,10 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <ul>
     <li>Модели: <code>App\Models\SchoolLead</code> (<code>user()</code>, <code>schoolLeadStatus()</code>, <code>team()</code>, <code>source</code>), <code>SchoolLeadStatus</code>, <code>User</code> (<code>schoolLead()</code>), <code>PartnerWidget</code>, <code>PartnerTelegramLinkToken</code></li>
     <li>Сервисы: <code>PartnerWidgetService</code>, <code>PartnerTelegramLinkService</code>, <code>SchoolLeadNotificationService</code>, <code>SchoolLeadLandingService</code>, <code>TelegramBotClient</code>, <code>SchoolLeads\LatestUserContractLookup</code></li>
-    <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>SchoolLeadLandingController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolLeadStatusController</code>, <code>Admin\SchoolLeadColumnsSettingsController</code>, <code>Admin\SchoolWidgetController</code>, <code>Admin\SchoolLeadLandingController</code>, <code>Admin\UserController</code> (привязка <code>user_id</code> к лиду), <code>Contracts\ContractsController</code> (<code>create</code> с <code>user_id</code>), <code>TelegramSchoolLeadWebhookController</code></li>
-    <li>Request: <code>SubmitSchoolLeadRequest</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code>, <code>StoreSchoolLeadStatusRequest</code>, <code>UpdateSchoolLeadStatusRequest</code>, <code>SchoolLeadColumnsSettingsSaveRequest</code>, <code>User\StoreRequest</code> (<code>school_lead_id</code>)</li>
-    <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code>, <code>170000_add_user_id_to_school_leads_table.php</code>, <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>, <code>2026_05_30_120000_add_landing_slug_to_partner_widgets_table.php</code>, <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>, <code>2026_06_16_140000_create_school_lead_statuses_and_migrate_school_leads.php</code>, <code>2026_06_17_120000_update_system_school_lead_new_status_color.php</code>, <code>2026_08_16_003000_add_page_length_to_user_table_settings_table.php</code></li>
-    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ <code>tabs/leads.blade.php</code>, <code>partials/edit-lead-modal.blade.php</code>, <code>partials/status-settings.blade.php</code>), <code>admin/users/_parent_form.blade.php</code>, <code>includes/modal/_student_health_fields.blade.php</code>, <code>contracts/partials/create-modal.blade.php</code> (встроен на странице заявок при <code>contracts.view</code>); сайдбар — <code>resources/views/includes/sidebar.blade.php</code> (§3.1); View composer — <code>App\Providers\AppServiceProvider</code>; стили inline-статуса — <code>resources/css/datatables-columns.css</code></li>
+    <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>SchoolLeadLandingController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolLeadStatusController</code>, <code>Admin\SchoolLeadNotificationSettingsController</code>, <code>Admin\SchoolLeadColumnsSettingsController</code>, <code>Admin\SchoolWidgetController</code>, <code>Admin\SchoolLeadLandingController</code>, <code>Admin\UserController</code> (привязка <code>user_id</code> к лиду), <code>Contracts\ContractsController</code> (<code>create</code> с <code>user_id</code>), <code>TelegramSchoolLeadWebhookController</code></li>
+    <li>Request: <code>SubmitSchoolLeadRequest</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code>, <code>StoreSchoolLeadStatusRequest</code>, <code>UpdateSchoolLeadStatusRequest</code>, <code>UpdateSchoolLeadNotificationSettingsRequest</code>, <code>SchoolLeadColumnsSettingsSaveRequest</code>, <code>User\StoreRequest</code> (<code>school_lead_id</code>)</li>
+    <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>2026_09_03_010000_add_school_leads_notification_settings_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code>, <code>170000_add_user_id_to_school_leads_table.php</code>, <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>, <code>2026_05_30_120000_add_landing_slug_to_partner_widgets_table.php</code>, <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>, <code>2026_06_16_140000_create_school_lead_statuses_and_migrate_school_leads.php</code>, <code>2026_06_17_120000_update_system_school_lead_new_status_color.php</code>, <code>2026_08_16_003000_add_page_length_to_user_table_settings_table.php</code></li>
+    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ <code>tabs/leads.blade.php</code>, <code>partials/edit-lead-modal.blade.php</code>, <code>partials/status-settings.blade.php</code>, <code>partials/notification-settings.blade.php</code>), <code>admin/users/_parent_form.blade.php</code>, <code>includes/modal/_student_health_fields.blade.php</code>, <code>contracts/partials/create-modal.blade.php</code> (встроен на странице заявок при <code>contracts.view</code>); сайдбар — <code>resources/views/includes/sidebar.blade.php</code> (§3.1); View composer — <code>App\Providers\AppServiceProvider</code>; стили inline-статуса — <code>resources/css/datatables-columns.css</code></li>
   </ul>
 
   <h2>10) Автотесты</h2>
@@ -899,7 +956,7 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/SchoolLeadsPageLeng
     <li><code>tests/Feature/Public/SchoolLeadLandingSlugPublicFeatureTest.php</code> — slug в URL, legacy key → 404</li>
     <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadLandingSlugFeatureTest.php</code> — CRM: сохранение и валидация slug</li>
     <li><code>tests/Feature/Public/SchoolLeadLandingFullFeatureTest.php</code> — полный функционал лендинга</li>
-    <li><code>tests/Feature/Public/SchoolLeadNotificationTest.php</code> — email / Telegram при submit</li>
+    <li><code>tests/Feature/Public/SchoolLeadNotificationTest.php</code> — email / Telegram при submit; сохранённый список email; галочка «не получать»</li>
     <li><code>tests/Feature/Public/SchoolLeadTelegramWebhookFeatureTest.php</code> — webhook, токены</li>
   </ul>
   <p><b>CRM: заявки и виджет</b></p>
@@ -948,6 +1005,13 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/SchoolLeadsPageLeng
     <li><code>SchoolLeadStatusesFeatureTest.php</code> — справочник статусов: системный «Новый» (цвет <code>#a0fe62</code>), CRUD, валидация, фильтр <code>status_ids[]</code>, stats, inline payload, виджет → системный статус</li>
     <li><code>SchoolLeadsInlineStatusUiFeatureTest.php</code> — inline UI статуса: разметка кастомного меню, порядок колонки «Статус», заголовок «Отображать» в модалке, цветные <code>status_badge_style</code> в data и PUT</li>
     <li><code>SchoolLeadStatusesPageFullAccessFeatureTest.php</code> — доступ 200/403 к странице и всем endpoint'ам статусов при <code>schoolLeads.view</code></li>
+    <li><code>SchoolLeadNotificationSettingsFeatureTest.php</code> — §5.1.5: toolbar «Статусы» / «Уведомления», HTML модалки (пустой select, галочка снята, не modal-xl), GET/PUT JSON, 422 под <code>emails</code>, галочка без email, non-AJAX 302, изоляция партнёра, legacy-рассылка / пустой сохранённый список без fallback, Telegram при выключенном email</li>
+    <li><code>SchoolLeadNotificationSettingsFullAccessFeatureTest.php</code> — гость 302/401, без <code>schoolLeads.view</code> → 403, viewer сохраняет, admin 200, без организации → logout, чужой партнёр по сессии не читается, POST/PATCH/DELETE → 404/405, вкладки лендинг/виджет без модалки</li>
+    <li><code>SchoolLeadNotificationSettingsNonAjaxSafetyNetFeatureTest.php</code> — PUT и native POST+_method=PUT → 302 + запись; 422 не затирает список; снятая галочка = уведомления включены; AJAX JSON 200</li>
+    <li><code>SchoolLeadNotificationSettingsAjaxContractFeatureTest.php</code> — JSON 200/422 <code>errors[emails]</code>, GET не сохраняет prefill, кастомный список не дополняется админами, 422/max 21 не пишут БД, disable сохраняет адреса</li>
+    <li><code>BladeInlineJsSyntaxTest.php</code> — <code>test_school_leads_notification_settings_modal_ajax_uses_select2_tags</code>: <code>node --check</code>, один submit, GET на каждое <code>shown.bs.modal</code>, payload <code>$select.val()</code> даже при галочке, hide только в <code>.done</code></li>
+    <li><code>SchoolLeadNotificationTest.php</code> — публичный виджет: кастомный список, skip email, Telegram не зависит от галочки</li>
+    <li><code>SchoolLeadLandingNotificationFeatureTest.php</code> — публичный лендинг submit: те же правила email/Telegram</li>
     <li><code>SchoolLeadCrudFeatureTest.php</code>, <code>SchoolLeadManagementTest.php</code> — CRUD заявок, смена <code>school_lead_status_id</code>, anti-leak</li>
     <li><code>SchoolWidgetAccessFeatureTest.php</code>, <code>SchoolWidgetTelegramAutoLinkTest.php</code> — вкладка виджета и Telegram</li>
     <li><code>SchoolLeadLandingAdminAccessFeatureTest.php</code> — вкладка «Страница заявки»</li>

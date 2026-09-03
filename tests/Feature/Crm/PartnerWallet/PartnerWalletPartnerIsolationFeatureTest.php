@@ -174,4 +174,51 @@ final class PartnerWalletPartnerIsolationFeatureTest extends CrmTestCase
             ->where('partner_id', $this->partner->id)
             ->count());
     }
+
+    public function test_superadmin_viewing_foreign_school_cannot_topup_own_school_id(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession([
+            'current_partner' => $this->foreignPartner->id,
+            '2fa:passed' => true,
+        ]);
+
+        $this->postJson(route('partner.wallet.topup'), [
+            'amount' => 100,
+            'partner_id' => $this->partner->id,
+        ], $this->walletAjaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['partner_id'])
+            ->assertJsonPath('errors.partner_id.0', 'Нельзя пополнить кошелёк другой школы.');
+
+        $this->assertTopupDidNotCreateTransaction();
+    }
+
+    public function test_foreign_admin_history_does_not_show_webhook_credit_written_to_first_partner(): void
+    {
+        $firstSchoolTx = $this->makeWalletTx($this->partner->id, $this->user->id, 'istok-credit', [
+            'provider' => 'yookassa',
+            'status' => 'succeeded',
+            'amount_cents' => 7000,
+        ]);
+        $own = $this->makeWalletTx($this->foreignPartner->id, $this->foreignUser->id, 'own-credit', [
+            'provider' => 'yookassa',
+            'status' => 'succeeded',
+            'amount_cents' => 7000,
+        ]);
+
+        $foreignAdmin = $this->createUserWithRole('admin', $this->foreignPartner);
+        $this->actingAs($foreignAdmin);
+        $this->withSession([
+            'current_partner' => $this->foreignPartner->id,
+            '2fa:passed' => true,
+        ]);
+
+        $json = $this->getJson($this->walletTransactionsUrl())->assertOk()->json();
+        $ids = $this->walletTxIds($json);
+
+        $this->assertContains($own->id, $ids);
+        $this->assertNotContains($firstSchoolTx->id, $ids);
+        $this->assertSame(1, (int) $json['recordsTotal']);
+    }
 }

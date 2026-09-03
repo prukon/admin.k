@@ -28,7 +28,8 @@
   <h1>Договоры (клиентские)</h1>
   <div class="small">Файл: <code>/docs/documentation/contracts.html</code> · раздел CRM: <code>/client-contracts</code> · оглавление: <a href="/doc">/doc</a>
     · создание со списка клиентов: <a href="/doc#users-contract-create-index">анонс</a>
-    · колокольчик при signed: <a href="/doc#contract-signed-in-app-index">анонс</a></div>
+    · колокольчик при signed: <a href="/doc#contract-signed-in-app-index">анонс</a>
+    · списание 70 ₽ в историю кошелька: <a href="/doc#partner-wallet-ledger-index">анонс</a></div>
 
   <h2>1) Назначение и доступ</h2>
   <div class="note">
@@ -48,7 +49,7 @@
     <tbody>
       <tr><td>GET</td><td><code>/client-contracts</code></td><td>Список (DataTables) и модалка «Создать договор» (<code>#createContractModal</code>)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/create</code></td><td>Redirect на <code>/client-contracts?create=1</code> (опционально <code>&amp;user_id=</code>)</td></tr>
-      <tr><td>POST</td><td><code>/client-contracts</code></td><td>Сохранение договора, списание с баланса партнёра</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts</code></td><td>Сохранение договора (PDF или template): списание 70 ₽ с баланса и debit в <code>partner_wallet_transactions</code> текущей школы</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/check-balance</code></td><td>Предпроверка баланса перед submit модалки создания</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/users-search</code></td><td>AJAX Select2: поиск учеников (в т.ч. <code>parent_full_name</code> для модалки)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
@@ -248,6 +249,12 @@
     списание <b>70&nbsp;₽</b>, статус <code>awaiting_client_fill</code>, <code>fill_expires_at</code> +7 дней,
     redirect на <code>GET /client-contracts/{id}</code> (карточка), не на index.
     Flash: «Договор создан. С баланса списано 70 ₽. Клиенту отправлено уведомление в личный кабинет (и на email, если указан).»<br><br>
+    Списание идёт через <code>ContractBillingService</code>:
+    <code>partners.wallet_balance_cents</code> минус 70 ₽ и debit в
+    <code>partner_wallet_transactions</code> («Создание договора», <code>meta.reason=contract_create</code>).
+    Отзыв <code>awaiting_client_fill</code> возвращает 70 ₽ на баланс и пишет credit
+    «Возврат: отзыв договора» (<code>provider=refund</code>); исходный debit остаётся
+    <code>succeeded</code>.<br><br>
     Ученик чужого партнёра → <b>422</b> (<code>ContractCreationService</code>).
     Недостаточный баланс → redirect на index с <code>?create=1</code>, ошибка в <code>wallet</code> (ValidationException).
   </div>
@@ -264,7 +271,7 @@
   <table>
     <thead><tr><th>Действие CRM</th><th>URL / поведение</th></tr></thead>
     <tbody>
-      <tr><td>Отзыв до заполнения</td><td><code>POST …/revoke</code> в статусе <code>awaiting_client_fill</code> — возврат 70&nbsp;₽, статус <code>revoked</code></td></tr>
+      <tr><td>Отзыв до заполнения</td><td><code>POST …/revoke</code> в статусе <code>awaiting_client_fill</code> — возврат 70&nbsp;₽ на баланс и credit в кошельке, статус <code>revoked</code></td></tr>
       <tr><td>Email-приглашение</td><td><code>ContractClientFillInvitationMail</code>; текст из версии шаблона — см. <a href="/docs/documentation/contract-templates#53-email-edittemplateemailmodal">contract-templates §5.3</a></td></tr>
       <tr><td>Заполнение родителем</td><td><code>/account-settings/documents</code> — см. <a href="/docs/documentation/account-contract-fill">account-contract-fill</a>;
         <b>каунтер активных договоров</b> в сайдбаре и на вкладке —
@@ -317,6 +324,7 @@
       <li><code>ContractSignedInAppNotification*FeatureTest.php</code> — колокольчик админам при первом <code>signed</code>
         (вебхук form/JSON, native GET и AJAX sync, @can кнопки, guest/403, UX ленты)</li>
       <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code></li>
+      <li><code>ContractBillingWalletLedgerFeatureTest.php</code> — PDF/template: debit в кошельке текущей школы; отзыв awaiting_client_fill — credit, исходный debit succeeded; недостаток средств без строки</li>
       <li><code>ContractRevokeRefundTest.php</code> — revoke awaiting_client_fill + refund</li>
     </ul>
     <p><b>Раздел «Документы» (вкладки + шаблоны):</b></p>

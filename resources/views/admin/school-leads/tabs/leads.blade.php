@@ -45,11 +45,22 @@
                                 class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
                                 data-bs-toggle="modal"
                                 data-bs-target="#schoolLeadStatusesModal"
-                                title="Настройки статусов">
+                                title="Статусы заявок">
                             <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
                                 <i class="fas fa-cog payments-report-toolbar-icon"></i>
                             </span>
-                            <span class="payments-report-toolbar-label d-none d-sm-inline">Настройки</span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Статусы</span>
+                        </button>
+
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#schoolLeadNotificationsModal"
+                                title="Уведомления о заявках">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-bell payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Уведомления</span>
                         </button>
 
                         <button type="button"
@@ -267,6 +278,7 @@
 </div>
 
 @include('admin.school-leads.partials.status-settings')
+@include('admin.school-leads.partials.notification-settings')
 
 @include('admin.school-leads.partials.edit-lead-modal')
 

@@ -77,6 +77,35 @@ final class TeamsPageToolbarFeatureTest extends CrmTestCase
         $this->assertLessThan($columnsPos, $filtersPos);
     }
 
+    public function test_create_edit_delete_success_use_toast_instead_of_success_modal(): void
+    {
+        $html = $this->get(route('admin.team.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(
+            "window.showToast((data && data.message) ? data.message : 'Группа создана успешно', 'success')",
+            $html
+        );
+        $this->assertStringContainsString(
+            "window.showToast(response.message || 'Группа успешно обновлена', 'success')",
+            $html
+        );
+        $this->assertStringContainsString(
+            "window.showToast('Группа успешно удалена.', 'success')",
+            $html
+        );
+        $this->assertStringContainsString(
+            "confirmEl.addEventListener('hidden.bs.modal', showDeletedToast, { once: true })",
+            $html
+        );
+        $this->assertStringContainsString('$(\'#teams-table\').DataTable().ajax.reload(null, false)', $html);
+        $this->assertStringContainsString('id="kidsMainToast"', $html);
+        $this->assertStringNotContainsString('showSuccessModal("Создание группы"', $html);
+        $this->assertStringNotContainsString('showSuccessModal("Редактирование группы"', $html);
+        $this->assertStringNotContainsString('showSuccessModal("Удаление группы"', $html);
+    }
+
     public function test_teams_page_hides_trainer_filter_without_trainers_view(): void
     {
         $actor = $this->createUserWithoutPermission('trainers.view', $this->partner);

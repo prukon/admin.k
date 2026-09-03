@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Оплата сервиса</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .small { color: #555; font-size: 13px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/docs/documentation/">← К оглавлению</a> · в кабинете также <code>/doc</code>
+    · анонс <a href="/doc#partner-service-payment-isolation-index">/doc#partner-service-payment-isolation-index</a></p>
+  <h1>Оплата сервиса</h1>
+  <div class="small">Страницы <code>/partner-payment/recharge</code> и
+    <code>/partner-payment/history</code> · право <code>servicePayments.view</code> ·
+    обычная CRM-страница (<code>STRICT_CURRENT</code>).</div>
+
+  <div class="ok" style="margin-top:12px">
+    Это <b>не</b> кошелёк. Абонплата KidsCRM (2 500 ₽ / 30 дней) пишется в
+    <code>partner_payments</code> + <code>partner_accesses</code>.
+    Кошелёк школы — <a href="/docs/documentation/partner-wallet">partner-wallet</a>.
+  </div>
+
+  <h2 id="access">1) Доступ</h2>
+  <ul>
+    <li>Маршруты в группе <code>auth</code> + <code>2fa</code> + <code>can:servicePayments.view</code>.</li>
+    <li>Право в группе permissions <code>partner</code>, <b>не</b> в базовой роли <code>admin</code>
+      (<code>config/role_base_permissions.php</code> закомментирован).</li>
+    <li>Без права — 403 (JSON и web). Гость — 302 на логин / 401 JSON.</li>
+  </ul>
+
+  <h2 id="isolation">2) Изоляция по партнёру</h2>
+  <table>
+    <thead>
+    <tr><th>Поверхность</th><th>Что ограничено</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>GET /partner-payment/recharge</code></td>
+        <td>Hidden <code>partner_id</code> = current (<code>PartnerContext</code>),
+          не хардкод <code>value="1"</code>.</td>
+      </tr>
+      <tr>
+        <td><code>GET /partner-payment/history</code>,
+            <code>GET /partner-payment/data</code></td>
+        <td>DataTables: <code>WHERE partner_payments.partner_id = current</code>.
+          Чужие строки не в <code>data</code> / <code>recordsTotal</code>.</td>
+      </tr>
+      <tr>
+        <td><code>POST payment/service/yookassa</code></td>
+        <td><code>CreatePartnerServicePaymentRequest</code>: <code>partner_id</code>
+          обязан совпасть с current — иначе <b>422</b> / 302
+          <code>errors.partner_id</code> «Нельзя оплатить сервис за другую школу.»
+          (до ЮKassa запись не создаётся). Запись —
+          <code>partner_id</code> из <code>PartnerContext</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="warn">
+    Период доступа при создании платежа считает
+    <code>latestActiveAccessEndDateForPartner</code>: последний активный
+    <code>partner_accesses.end_date</code> <b>этой</b> школы через
+    <code>partner_payments.partner_id</code>. Не
+    <code>PartnerAccess::max('end_date')</code> по всей таблице (иначе новая школа
+    получала бы период в хвосте Истока).
+  </div>
+
+  <h2 id="errors">3) Ошибки</h2>
+  <ul>
+    <li>Валидация в <code>CreatePartnerServicePaymentRequest</code> (rules / attributes / messages).</li>
+    <li>Native POST: 302 назад + <code>session errors[field]</code> под полями
+      (<code>data-error-for="partner_id"</code>, <code>amount</code>, <code>days</code>,
+      <code>description</code>).</li>
+    <li>AJAX / <code>postJson</code>: 422, тексты из <code>errors[field]</code>.</li>
+  </ul>
+
+  <h2 id="code">4) Код и тесты</h2>
+  <ul>
+    <li>Контроллер: <code>App\Http\Controllers\PartnerPaymentController</code>.</li>
+    <li>Request: <code>App\Http\Requests\Partner\CreatePartnerServicePaymentRequest</code>.</li>
+    <li>Тесты:
+      <code>PartnerServicePaymentPartnerIsolationFeatureTest</code>,
+      <code>PartnerServicePaymentAccessFeatureTest</code>,
+      <code>PartnerServicePaymentDocumentationContractTest</code>,
+      <code>BladeInlineJsSyntaxTest::test_partner_service_payment_form_uses_current_partner_id</code>.</li>
+  </ul>
+  <p class="small">Контекст: <a href="/docs/documentation/partner-context">partner-context</a>,
+    кошелёк: <a href="/docs/documentation/partner-wallet">partner-wallet</a>,
+    деньги: <a href="/docs/documentation/money">money</a>.</p>
+</div>
+</body>
+</html>

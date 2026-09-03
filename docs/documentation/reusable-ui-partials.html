@@ -485,23 +485,35 @@ dataTable: {
   <ul>
     <li>Смена селекта → <code>POST</code> на <code>columnsSettings.urls.save</code> с полем <code>page_length</code> (без <code>columns</code>).</li>
     <li>Ошибка 422: текст <code>errors.page_length</code> под <code>.dataTables_length</code> (<code>.kids-dt-page-length-error</code>).</li>
-    <li>Сейчас включено на
-      <a href="/docs/documentation/school-leads-widget#school-leads-page-length">/admin/school-leads</a>
-      (<code>school_leads_index</code>),
-      <a href="/docs/documentation/admin-users#users-page-length">/admin/users</a>
-      (<code>users_index</code>),
-      <a href="/docs/documentation/reports-payments">/admin/reports/payments</a>
-      (<code>reports_payments</code>),
-      <a href="/docs/documentation/reports-admin#reports-page-length">monthly / LTV / payment-intents / fiscal-receipts</a>
-      и <a href="/docs/documentation/tbank-admin-payouts">/admin/tinkoff/payouts</a>
-      (<code>tinkoff_payouts_index</code>). Номер страницы не сохраняется.
-      Задолженности и исходящие письма — без opt-in.</li>
+    <li>Номер страницы не сохраняется. Задолженности и исходящие письма — без opt-in.</li>
   </ul>
-  <p class="small">Тесты: <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>
+  <p>Канонический список страниц, где N пишется в <code>user_table_settings.page_length</code>:</p>
+  <table id="persist-page-length-catalog">
+    <thead>
+      <tr><th>Страница</th><th>URL</th><th><code>table_key</code></th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Клиенты</td><td><a href="/docs/documentation/admin-users#users-page-length"><code>/admin/users</code></a></td><td><code>users_index</code></td></tr>
+      <tr><td>Группы</td><td><a href="/docs/documentation/admin-teams#teams-page-length"><code>/admin/teams</code></a></td><td><code>teams_index</code></td></tr>
+      <tr><td>Заявки</td><td><a href="/docs/documentation/school-leads-widget#school-leads-page-length"><code>/admin/school-leads</code></a></td><td><code>school_leads_index</code></td></tr>
+      <tr><td>Все платежи</td><td><a href="/docs/documentation/reports-payments"><code>/admin/reports/payments</code></a></td><td><code>reports_payments</code></td></tr>
+      <tr><td>Платежи по месяцам</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payments/monthly</code></a></td><td><code>reports_payments_monthly</code></td></tr>
+      <tr><td>LTV</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/ltv</code></a></td><td><code>reports_ltv</code></td></tr>
+      <tr><td>Платежные запросы</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payment-intents</code></a></td><td><code>reports_payment_intents</code></td></tr>
+      <tr><td>Фискальные чеки</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/fiscal-receipts</code></a></td><td><code>reports_fiscal_receipts</code></td></tr>
+      <tr><td>Выплаты T‑Bank</td><td><a href="/docs/documentation/tbank-admin-payouts"><code>/admin/tinkoff/payouts</code></a></td><td><code>tinkoff_payouts_index</code></td></tr>
+    </tbody>
+  </table>
+  <p class="small">Тесты: <code>DatatablePageLengthCatalogFeatureTest</code> (ровно эти 9 URL / <code>table_key</code> / blade),
+    <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>
     (тело POST: только <code>page_length</code>, gate <code>persistPageLength !== true</code>),
     <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>
     (<code>node --check</code> на opted-in blade + исходнике пресета),
-    <code>ReportsAndPayoutsPageLengthFeatureTest</code>.</p>
+    <code>ReportsAndPayoutsPageLengthFeatureTest</code>,
+    <code>UsersPageLengthFeatureTest</code>,
+    <code>TeamsPageLengthFeatureTest</code>,
+    <code>SchoolLeadsPageLengthFeatureTest</code>.
+    Анонс — <a href="/doc#datatable-page-length-index">/doc</a>.</p>
 
   <h3>Эталонные страницы</h3>
   <ul>
@@ -566,7 +578,8 @@ dataTable: {
   <p>
     Multiselect на Select2 (theme bootstrap-5): чекбоксы в dropdown, chip-теги, сводка «первая группа, ещё N шт.» при 3+ выбранных
     (<code>KidsCrmTooltip.renderList</code> / <code>init</code> / <code>dispose</code>).
-    <b>Dropdown не закрывается</b> при выборе пункта (<code>closeOnSelect: false</code>).
+    <b>Dropdown не закрывается</b> при выборе пункта (<code>closeOnSelect: false</code>), кроме режима <code>tags</code>
+    (email в модалке «Уведомления»: после выбора список закрывается).
     Синхронизация галочек в списке — через <code>.select2-results__option[aria-selected]</code> (не через устаревший класс <code>--selectable</code>).
     Оболочка поля — как у соседних <code>form-control</code> (класс-обёртка <code>.generic-multiselect-field</code>).
   </p>
@@ -603,7 +616,10 @@ dataTable: {
 
   <h3>JS API модалок (<code>window.KidsCrmGenericMultiselectSelect2</code>)</h3>
   <ul>
-    <li><code>init($select, { dropdownParent, placeholder, allowClear })</code> — инициализация; <code>dropdownParent</code> по умолчанию — <code>.modal-content</code> ближайшей модалки (можно передать явно: <code>$('#districtEditModal')</code>).</li>
+    <li><code>init($select, { dropdownParent, placeholder, allowClear, tags, tokenSeparators, createTag })</code> — инициализация; <code>dropdownParent</code> по умолчанию — <code>.modal-content</code> ближайшей модалки (можно передать явно: <code>$('#districtEditModal')</code>).
+      <code>tags: true</code> — свободный ввод (заявки: email в модалке «Уведомления»); без этой опции теги не включаются.
+      Поле с тегами: обёртка <code>generic-multiselect-field--tags</code> (чипы, высота auto, без сводки «ещё N шт.»).
+      Плейсхолдер на всю ширину поля; Backspace снимает последний чип целиком (поисковая строка после выбора очищается).</li>
     <li><code>initAll($root, options)</code> — все <code>.js-generic-multiselect-select</code> внутри <code>$root</code>.</li>
     <li><code>setValues($select, ids)</code> — заполнить при открытии edit.</li>
     <li><code>reset($select)</code> — очистить create-модалку.</li>
@@ -639,6 +655,7 @@ dataTable: {
     <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — <code>locationCreateTeamIds</code>, <code>locationEditTeamIds</code>, <code>admin_user_ids[]</code> (при <code>locations.manage</code>).</li>
     <li><a href="/docs/documentation/admin-districts">/admin/districts</a> — <code>districtCreateLocationIds</code>, <code>districtEditLocationIds</code> (<code>location_ids[]</code>).</li>
     <li><a href="/docs/documentation/schedule-journal">/schedule</a> — модалка «Управление группами» (<code>journalUserTeamIds</code>).</li>
+    <li><a href="/docs/documentation/school-leads-widget#school-leads-email-notifications">/admin/school-leads</a> — модалка «Уведомления», <code>emails[]</code> (<code>tags: true</code>).</li>
   </ul>
   <p class="small">
     Статическая проверка inline-JS в blade с AJAX-обработчиками — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code>
@@ -690,13 +707,20 @@ dataTable: {
     При показе обёртка переносится в <code>document.body</code>, предыдущий экземпляр Bootstrap Toast <code>dispose()</code>, delay 2500&nbsp;ms.
     Объекты: create/edit — toast сразу после AJAX (<code>data.message</code> «Объект создан» / «Объект обновлён»).
     Удаление из-под confirm (объекты): toast «Объект успешно удалён.» после <code>hidden.bs.modal</code> у <code>#confirmDeleteModal</code> — иначе полноэкранный оверлей confirm его перекрывает.
+    Учебные группы на <code>/admin/teams</code>: create/edit — toast <code>data.message</code> / <code>response.message</code> («Группа создана успешно» / «Группа успешно обновлена»), DataTables <code>ajax.reload(null, false)</code>; delete — UI «Группа успешно удалена.» после <code>hidden.bs.modal</code> у confirm (как у объектов)
+    (<a href="/doc#teams-create-edit-toast-index">анонс</a>).
     Типы тренера: подтверждение тоже <code>showConfirmDeleteModal</code> (не <code>window.confirm</code>); toast после успешного AJAX <code>DELETE</code> (confirm к этому моменту уже закрывается очередью), модалка <code>#trainerTypesModal</code> остаётся на списке.
   </div>
   <p>
     Смена пароля в карточке админа / ученика / тренера использует эту всплывайку («Пароль успешно изменен»), а не success-модалку (запасного <code>showSuccessModal</code> нет).
-    Полный список действий с toast и исключений (сохранение карточки ученика, «Добавить» ученика, «Применить» слева всем группам, CRUD групп/партнёров) —
+    Полный список действий с toast и исключений («Применить» слева всем группам, CRUD партнёров) —
     <a href="/doc#success-toast-instead-of-modal-index">анонс на /doc</a>.
     Заявки школы по-прежнему могут иметь <b>свой</b> локальный <code>#mainToast</code> — «Создать клиента» зовёт <code>window.showToast</code> (общий), не локальный.
+    Create/edit ученика на <code>/admin/users</code> — та же общая всплывайка, модалка закрывается, DataTables
+    <code>ajax.reload(null, false)</code>, не F5
+    (<a href="/doc#users-create-edit-toast-index">анонс</a>).
+    Create/edit/delete учебной группы — тот же toast, не F5
+    (<a href="/doc#teams-create-edit-toast-index">анонс</a>).
     Смена пароля в карточке — <a href="/doc#admin-password-change-toast-index">/doc</a>.
     См. также <a href="/docs/documentation/admin-role-staff#staff-password-change">admin-role-staff §3.4</a>.
   </p>
@@ -708,8 +732,12 @@ dataTable: {
     <code>LocationsFeatureTest::test_index_create_and_edit_success_use_toast</code>,
     <code>LocationsFeatureTest::test_index_edit_modal_has_confirm_delete_button</code>,
     <code>LocationsToastDocumentationContractTest</code>,
+    <code>TeamsToastDocumentationContractTest</code>,
+    <code>TeamsCreateEditToastUiContractsFeatureTest</code>,
     <code>SettingsRoleDeleteWithoutReloadFeatureTest</code> (удаление роли без reload),
     <code>BladeInlineJsSyntaxTest::test_listed_success_actions_use_toast_instead_of_success_modal</code> (<code>node --check</code>).
+    Create/edit ученика на вкладке «Клиенты»: <code>AdminUsersCreateEditToastUiContractsFeatureTest</code>,
+    <code>UsersCreateEditToastDocumentationContractTest</code>.
     Удаление типа тренера: <code>TrainerTypesUiContractsFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest::test_trainer_types_js_contract_is_valid_javascript</code>,
     <code>TrainerTypeDeleteUiDocumentationContractTest</code>.

@@ -57,6 +57,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $chunk);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-day-kpi-index', $chunk);
         $this->assertStringContainsString('last_message', $chunk);
         $this->assertStringContainsString('вход — 72 ч', $chunk);
         $this->assertStringContainsString('KidsCrmTooltip', $chunk);
@@ -76,6 +77,10 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOpsFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsAccessFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsAjaxContractFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsDayFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsDayUxFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsDayAccessFeatureTest', $chunk);
+        $this->assertStringContainsString('OpsDayKpiDocumentationContractTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsNonAjaxSafetyNetFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsUxFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFeatureTest', $chunk);
@@ -160,6 +165,12 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('#js-online-users', $chunk);
         $this->assertStringContainsString('KidsCrmTooltip', $chunk);
         $this->assertStringContainsString('#111827', $chunk);
+        $this->assertStringContainsString('Сегодня', $chunk);
+        $this->assertStringContainsString('Вчера', $chunk);
+        $this->assertStringContainsString('календарный день', $chunk);
+        $this->assertStringContainsString('<code>day</code>', $chunk);
+        $this->assertStringContainsString('<code>yesterday</code>', $chunk);
+        $this->assertStringContainsString('tinkoff_commission_rules', $chunk);
         $this->assertStringContainsString('24 часа', $chunk);
         $this->assertStringContainsString('72 часа', $chunk);
         $this->assertStringContainsString('auth.recent_logins', $chunk);
@@ -176,6 +187,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('getPathInfo()', $chunk);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-day-kpi-index', $chunk);
         $this->assertStringContainsString('last_message', $chunk);
         $this->assertStringContainsString('innerHTML', $chunk);
         $this->assertStringContainsString('leftover', $chunk);
@@ -199,6 +211,10 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('chat#ops-monitors-overlay', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsUxFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsAjaxContractFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsDayFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsDayUxFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsDayAccessFeatureTest', $chunk);
+        $this->assertStringContainsString('OpsDayKpiDocumentationContractTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingUxFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest', $chunk);
@@ -237,12 +253,18 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('partner.switch', $chunk);
         $this->assertStringContainsString('OnlineUsersMonitorRequest', $chunk);
         $this->assertStringContainsString('#js-ops-monitors', $chunk);
+        $this->assertStringContainsString('Сегодня', $chunk);
+        $this->assertStringContainsString('Вчера', $chunk);
+        $this->assertStringContainsString('календарный день', $chunk);
+        $this->assertStringContainsString('<code>day</code>', $chunk);
+        $this->assertStringContainsString('<code>yesterday</code>', $chunk);
         $this->assertStringContainsString('OpsMonitorRequest', $chunk);
         $this->assertStringContainsString('OpsMonitor::snapshot()', $chunk);
         $this->assertStringContainsString('/cabinet/system-monitors/ops', $chunk);
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $chunk);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-day-kpi-index', $chunk);
         $this->assertStringContainsString('KidsCrmTooltip', $chunk);
         $this->assertStringContainsString('/doc#kids-tooltip-contrast-index', $chunk);
         $this->assertStringContainsString('STATUS_FAILED', $chunk);
@@ -281,6 +303,10 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOpsFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsAccessFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsAjaxContractFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsDayFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsDayUxFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsDayAccessFeatureTest', $html);
+        $this->assertStringContainsString('OpsDayKpiDocumentationContractTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingUxFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest', $html);
@@ -308,6 +334,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $html);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $html);
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $html);
+        $this->assertStringContainsString('/doc#ops-day-kpi-index', $html);
         $this->assertStringContainsString('JSON-оверлея на <code>/cabinet</code> нет', $html);
         $this->assertStringContainsString('settings.reverbOverlay.manage', $html);
         $this->assertStringContainsString('SystemMonitorsPermissionCatalogFeatureTest', $html);
@@ -322,6 +349,9 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('оверлей Reverb', $controller);
         $this->assertStringContainsString('оверлей онлайн по партнёрам', $controller);
         $this->assertStringContainsString('оверлей Пульт', $controller);
+        $this->assertStringContainsString('календарный день', $controller);
+        $this->assertStringContainsString('Europe/Moscow', $controller);
+        $this->assertStringContainsString('leftover', $controller);
         $this->assertStringContainsString('last_message', $controller);
         $this->assertStringContainsString('ViewException', $controller);
         $this->assertStringContainsString('errors.recent', $controller);
@@ -346,6 +376,11 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
 
         $this->assertStringContainsString('#js-ops-monitors', $chunk);
         $this->assertStringContainsString('без ссылок', $chunk);
+        $this->assertStringContainsString('Сегодня', $chunk);
+        $this->assertStringContainsString('Вчера', $chunk);
+        $this->assertStringContainsString('календарный день', $chunk);
+        $this->assertStringContainsString('<code>day</code>', $chunk);
+        $this->assertStringContainsString('<code>yesterday</code>', $chunk);
         $this->assertStringContainsString('last_message', $chunk);
         $this->assertStringContainsString('innerHTML', $chunk);
         $this->assertStringContainsString('ViewException', $chunk);
@@ -354,6 +389,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $chunk);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-day-kpi-index', $chunk);
     }
 
     private function docFile(string $name): string

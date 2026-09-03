@@ -15,6 +15,8 @@ class SchoolLeadsAuthorizationTest extends CrmTestCase
             'admin.school-leads.update'                 => 'can:schoolLeads.view',
             'admin.school-leads.columns-settings.get'   => 'can:schoolLeads.view',
             'admin.school-leads.columns-settings.save'  => 'can:schoolLeads.view',
+            'admin.school-leads.notifications.show'     => 'can:schoolLeads.view',
+            'admin.school-leads.notifications.update'   => 'can:schoolLeads.view',
         ];
 
         foreach ($expected as $routeName => $middleware) {

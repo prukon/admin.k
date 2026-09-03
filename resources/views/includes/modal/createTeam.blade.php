@@ -287,14 +287,23 @@
                             throw new Error(`Ошибка HTTP: ${status}`);
                         }
 
-                        if (data.message) {
-                            teamForm.reset();
-                            if (window.KidsCrmGenericMultiselectSelect2 && $createTrainersSelect.length) {
-                                KidsCrmGenericMultiselectSelect2.setValues($createTrainersSelect, []);
-                            }
-                            showSuccessModal("Создание группы", "Группа успешно создана.", 1);
-                        } else {
-                            throw new Error('Произошла ошибка при создании группы.');
+                        teamForm.reset();
+                        if (window.KidsCrmGenericMultiselectSelect2 && $createTrainersSelect.length) {
+                            KidsCrmGenericMultiselectSelect2.setValues($createTrainersSelect, []);
+                        }
+
+                        const createModalEl = document.getElementById('createTeamModal');
+                        const createModalInstance = bootstrap.Modal.getInstance(createModalEl);
+                        if (createModalInstance) {
+                            createModalInstance.hide();
+                        }
+
+                        if ($.fn.DataTable.isDataTable('#teams-table')) {
+                            $('#teams-table').DataTable().ajax.reload(null, false);
+                        }
+
+                        if (typeof window.showToast === 'function') {
+                            window.showToast((data && data.message) ? data.message : 'Группа создана успешно', 'success');
                         }
                     })
                     .catch(error => {

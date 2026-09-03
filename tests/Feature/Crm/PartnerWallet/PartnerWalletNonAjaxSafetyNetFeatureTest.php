@@ -124,4 +124,113 @@ final class PartnerWalletNonAjaxSafetyNetFeatureTest extends CrmTestCase
         $response->assertSee('Платёж обрабатывается', false);
         $response->assertSee('/partner-wallet', false);
     }
+
+    public function test_non_ajax_topup_without_partner_id_redirects_with_partner_error(): void
+    {
+        $response = $this->from(route('partner.wallet'))
+            ->post(route('partner.wallet.topup'), [
+                '_token' => csrf_token(),
+                'amount' => 100,
+            ]);
+
+        $this->assertNotSame(200, $response->getStatusCode());
+        $response->assertStatus(302);
+        $response->assertRedirect(route('partner.wallet'));
+        $response->assertSessionHasErrors(['partner_id']);
+        $this->assertTopupDidNotCreateTransaction();
+    }
+
+    public function test_after_validation_redirect_amount_field_stays_empty(): void
+    {
+        $html = $this->from(route('partner.wallet'))
+            ->followingRedirects()
+            ->post(route('partner.wallet.topup'), [
+                '_token' => csrf_token(),
+                'partner_id' => $this->partner->id,
+            ])
+            ->assertOk()
+            ->getContent();
+
+        $amountPos = strpos($html, 'id="walletTopupAmount"');
+        $this->assertNotFalse($amountPos);
+        $chunk = substr($html, $amountPos, 220);
+        $this->assertDoesNotMatchRegularExpression('/\bvalue="[^"]+"/', $chunk);
+        $this->assertStringContainsString('is-invalid', $this->walletAmountInputHtml($html));
+        $this->assertWalletFieldSlotContains($html, 'amount', 'Укажите сумму.');
+        $this->assertWalletFieldSlotNotContains($html, 'partner_id', 'Укажите сумму.');
+    }
+
+    public function test_after_validation_redirect_partner_error_is_shown_under_partner_field(): void
+    {
+        $html = $this->from(route('partner.wallet'))
+            ->followingRedirects()
+            ->post(route('partner.wallet.topup'), [
+                '_token' => csrf_token(),
+                'amount' => 100,
+                'partner_id' => $this->foreignPartner->id,
+            ])
+            ->assertOk()
+            ->getContent();
+
+        $this->assertWalletFieldSlotContains($html, 'partner_id', 'Нельзя пополнить кошелёк другой школы.');
+        $this->assertWalletFieldSlotNotContains($html, 'amount', 'Нельзя пополнить кошелёк другой школы.');
+    }
+
+    public function test_first_open_does_not_show_validation_errors_under_fields(): void
+    {
+        $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
+
+        $this->assertWalletFieldSlotNotContains($html, 'amount', 'Укажите сумму.');
+        $this->assertWalletFieldSlotNotContains($html, 'partner_id', 'Нельзя пополнить кошелёк другой школы.');
+        $this->assertStringNotContainsString('is-invalid', $this->walletAmountInputHtml($html));
+    }
+
+    public function test_after_validation_redirect_description_error_is_shown_under_description_slot(): void
+    {
+        $html = $this->from(route('partner.wallet'))
+            ->followingRedirects()
+            ->post(route('partner.wallet.topup'), [
+                '_token' => csrf_token(),
+                'amount' => 100,
+                'partner_id' => $this->partner->id,
+                'description' => str_repeat('x', 256),
+            ])
+            ->assertOk()
+            ->getContent();
+
+        $this->assertWalletFieldSlotContains($html, 'description', 'Описание не должно превышать 255 символов.');
+        $this->assertTopupDidNotCreateTransaction();
+    }
+
+    private function walletAmountInputHtml(string $html): string
+    {
+        $this->assertTrue(
+            (bool) preg_match('/<input\b[^>]*id="walletTopupAmount"[^>]*>/', $html, $match),
+            'Не найден input#walletTopupAmount'
+        );
+
+        return $match[0];
+    }
+
+    private function assertWalletFieldSlotContains(string $html, string $field, string $message): void
+    {
+        $this->assertTrue(
+            (bool) preg_match(
+                '/data-error-for="'.preg_quote($field, '/').'"[^>]*>\s*'.preg_quote($message, '/').'\s*<\/div>/u',
+                $html
+            ),
+            "Ожидали «{$message}» в data-error-for=\"{$field}\""
+        );
+    }
+
+    private function assertWalletFieldSlotNotContains(string $html, string $field, string $message): void
+    {
+        $this->assertFalse(
+            (bool) preg_match(
+                '/data-error-for="'.preg_quote($field, '/').'"[^>]*>\s*'.preg_quote($message, '/').'\s*<\/div>/u',
+                $html
+            ),
+            "Не ожидали «{$message}» в data-error-for=\"{$field}\""
+        );
+    }
 }

@@ -196,6 +196,10 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOpsFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsAccessFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsAjaxContractFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsDayFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsDayUxFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsDayAccessFeatureTest', $html);
+        $this->assertStringContainsString('OpsDayKpiDocumentationContractTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsNonAjaxSafetyNetFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsUxFeatureTest', $html);
         $this->assertStringContainsString('users.system_monitors', $html);

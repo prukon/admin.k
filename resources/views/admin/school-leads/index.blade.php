@@ -1,6 +1,7 @@
 @extends('layouts.admin2')
 
 @include('partials.select2.filter-multiselect')
+@include('partials.select2.generic-multiselect')
 
 @section('content')
     <div class="main-content">

@@ -121,6 +121,9 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('js-filter-multiselect-select', false)
             ->assertSee('KidsCrmFilterMultiselectSelect2', false)
             ->assertSee('id="schoolLeadStatusesModal"', false)
+            ->assertSee('id="schoolLeadNotificationsModal"', false)
+            ->assertSee('>Статусы</span>', false)
+            ->assertSee('>Уведомления</span>', false)
             ->assertSee('schoolLeadStatusRoutes', false)
             ->assertSee('renderLeadStatusInlineSelect', false)
             ->assertSee('lead-status-inline-picker', false)
@@ -220,7 +223,7 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
                     ])->id,
                 ],
             ],
-        ], $this->schoolLeadStatusManagementRoutesPayload());
+        ], $this->schoolLeadStatusManagementRoutesPayload(), $this->schoolLeadNotificationSettingsRoutesPayload());
     }
 
     /**

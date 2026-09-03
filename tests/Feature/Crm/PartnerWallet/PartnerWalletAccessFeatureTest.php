@@ -134,4 +134,35 @@ final class PartnerWalletAccessFeatureTest extends CrmTestCase
         $this->assertGuest();
         $response->assertSessionHasErrors(['email' => 'Ваша организация недоступна.']);
     }
+
+    public function test_disallowed_methods_on_wallet_do_not_return_500_or_empty_200(): void
+    {
+        $this->asAdmin();
+
+        foreach (['PATCH', 'DELETE', 'PUT'] as $method) {
+            $response = $this->call($method, route('partner.wallet'), ['_token' => csrf_token()]);
+            $this->assertNotSame(500, $response->getStatusCode(), $method.' /partner-wallet');
+            $this->assertNotSame(200, $response->getStatusCode(), $method.' не должен давать бессмысленный 200');
+            $this->assertContains($response->getStatusCode(), [404, 405]);
+        }
+    }
+
+    public function test_public_wallet_webhook_is_not_behind_login(): void
+    {
+        Auth::logout();
+
+        $response = $this->postJson(route('partner.wallet.webhook'), [
+            'event' => 'payment.succeeded',
+            'object' => [
+                'id' => 'x',
+                'amount' => ['value' => '10.00'],
+            ],
+        ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(401, $response->getStatusCode());
+        $this->assertNotSame(302, $response->getStatusCode());
+        $this->assertContains($response->getStatusCode(), [400, 403, 404, 422]);
+        $this->assertNotSame('', trim((string) $response->getContent()));
+    }
 }

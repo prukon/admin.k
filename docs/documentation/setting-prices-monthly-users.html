@@ -152,7 +152,9 @@
     24 месяца с сентября 2025 по август 2027 (старт и длина — <code>MONTHLY_SELECT_MIN_DATE</code>
     / <code>monthlySelectWindow</code> в контроллере). Если session или
     <code>prices_last_month</code> раньше сентября 2025, страница открывает сентябрь 2025
-    и запоминает его. POST <code>update-date</code> по-прежнему принимает строку месяца
+    и запоминает его. Запись в <code>settings</code>: <code>name = prices_last_month</code>,
+    значение в колонке <code>text</code> (не <code>key</code>/<code>value</code> — таких колонок нет).
+    POST <code>update-date</code> по-прежнему принимает строку месяца
     (в т.ч. 2024) — урезан только UI-селект.
     Тесты: <code>SettingPricesMonthlySelectWindowFeatureTest</code>,
     <code>SettingPricesMonthlySelectWindowJsContractTest</code>,

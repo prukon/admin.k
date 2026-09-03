@@ -1093,8 +1093,15 @@
                         data: $form.serialize(),
                         headers: {'Accept': 'application/json'}, // Laravel вернёт JSON для 422
                         success: function (response) {
-                            showSuccessModal("Редактирование клиента", "Клиент успешно обновлён.", 1);
-                            // при желании: обновить список/закрыть модалку и т.п.
+                            bootstrap.Modal.getInstance(document.getElementById('editUserModal'))?.hide();
+
+                            if ($.fn.DataTable.isDataTable('#users-table')) {
+                                $('#users-table').DataTable().ajax.reload(null, false);
+                            }
+
+                            if (typeof window.showToast === 'function') {
+                                window.showToast(response.message || 'Клиент успешно обновлён.', 'success');
+                            }
                         },
                         error: function (xhr) {
                             // Валидация

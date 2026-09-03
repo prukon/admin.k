@@ -26,7 +26,8 @@
 <body>
 <div class="wrap">
   <p class="small"><a href="/docs/documentation/">← К оглавлению</a> · в кабинете также <code>/doc</code>
-    · анонс <a href="/doc#partner-wallet-isolation-index">/doc#partner-wallet-isolation-index</a></p>
+    · анонс леджера <a href="/doc#partner-wallet-ledger-index">/doc#partner-wallet-ledger-index</a>
+    · изоляция <a href="/doc#partner-wallet-isolation-index">/doc#partner-wallet-isolation-index</a></p>
   <h1>Кошелёк партнёра</h1>
   <div class="small">Страница <code>/partner-wallet</code> · право <code>partnerWallet.view</code> · обычная CRM-страница (<code>STRICT_CURRENT</code>).</div>
 
@@ -77,7 +78,9 @@
             <code>POST /webhook/yookassa</code> (scope <code>partner_wallet_topup</code>)</td>
         <td>Публично, без auth/CSRF, фильтр IP ЮKassa. Это <b>не</b> <code>STRICT_CURRENT</code>:
           одна транзакция по <code>metadata.wallet_transaction_id</code>, зачисление на
-          <code>tx.partner_id</code>. Не список всех школ.</td>
+          <code>tx.partner_id</code> даже если <code>metadata.partner_id</code> указывает
+          другую школу. Не список всех школ. Чужой IP → 403, не логин.
+          Битый payload: этот URL → 400; <code>/webhook/yookassa</code> → 422.</td>
       </tr>
     </tbody>
   </table>
@@ -89,23 +92,32 @@
   <h2 id="money">3) Деньги</h2>
   <ul>
     <li>БД: <code>partners.wallet_balance_cents</code>, <code>partner_wallet_transactions.amount_cents</code>.</li>
+    <li>Списание 70 ₽ за создание договора (<code>ContractBillingService::chargeCreationFee</code>)
+      и возврат при отзыве <code>awaiting_client_fill</code> пишут ту же таблицу, что SMS:
+      debit <code>Создание договора</code> / credit <code>Возврат: отзыв договора</code>,
+      <code>lockForUpdate</code>, баланс как раньше не удваивается. Старые списания без строки не бэкфиллят.</li>
     <li>Форма пополнения принимает рубли; HTML <code>min="1"</code>; Request:
       <code>required|numeric|min:1|max:99999999.99</code>, сообщение «Сумма должна быть не меньше 1 ₽.»</li>
     <li>Запись — <code>Money::toCentsOrFail</code>.</li>
     <li>На странице баланс рендерится из <code>wallet_balance_cents</code>, не из legacy <code>wallet_balance</code>,
       всегда две копейки (<code>number_format(..., 2)</code>).</li>
     <li>Сайдбар: тот же <code>wallet_balance_cents</code> текущего партнёра
-      (<code>app('current_partner')</code>), без копеек (<code>number_format(..., 0)</code>).
-      Это отображение, не другая колонка БД.</li>
+      (<code>PartnerContext::partner()</code>), без копеек (<code>number_format(..., 0)</code>).
+      Это отображение, не другая колонка БД. Composer <code>partnerWalletBalance</code>
+      тоже из <code>PartnerContext::partnerId()</code>, не <code>user.partner_id</code>
+      и не <code>session('partner_id')</code>.</li>
   </ul>
 
   <h2 id="errors">4) Ошибки пополнения</h2>
   <ul>
     <li>Валидация в <code>CreatePartnerWalletTopupRequest</code> (rules / attributes / messages).</li>
     <li>AJAX (<code>postJson</code> / <code>X-Requested-With</code>): 422, тексты из <code>errors[field]</code>
-      под полями (<code>data-error-for="amount"</code>, <code>data-error-for="partner_id"</code>), не <code>alert()</code>.</li>
+      под полями (<code>data-error-for="amount"</code>, <code>data-error-for="partner_id"</code>,
+      <code>data-error-for="description"</code>), не <code>alert()</code>.</li>
     <li>Non-AJAX POST без JS: валидация → 302 на <code>/partner-wallet</code> + <code>session errors[field]</code>
-      (не пустой 200). Успешный/шлюзовой путь создаёт <code>pending</code> в
+      (не пустой 200). После редиректа тот же слот <code>data-error-for</code> показывает текст через
+      <code>@error</code> (сумма — ещё <code>is-invalid</code>). Поле суммы по-прежнему без
+      <code>value</code> / <code>old()</code>. Успешный/шлюзовой путь создаёт <code>pending</code> в
       <code>partner_wallet_transactions</code> текущей школы и отвечает JSON 200/500
       (как SMS send: не 302 на ЮKassa, пока контроллер всегда <code>response()->json</code>).</li>
     <li><code>Client::setAuth()</code> вызывается <b>до</b> <code>try</code>. Не-int / битый
@@ -132,10 +144,15 @@
     <li><code>payment.canceled</code> → статус <code>canceled</code>, баланс не трогаем.
       Уже финальный статус — идемпотентный <code>{ok:true}</code>.</li>
     <li>Расхождение суммы вебхука и <code>tx.amount_cents</code> → 422, без зачисления.</li>
+    <li>Повтор <code>payment.succeeded</code> по уже succeeded-строке — <code>{ok:true}</code>,
+      баланс не плюсуется второй раз.</li>
     <li>Два входа (оба в CSRF except):
       <code>PartnerPaymentController::ykWalletWebhook</code> на <code>/partner-wallet/webhook</code>
       и <code>YooKassaWebhookController</code> на <code>/webhook/yookassa</code>
-      (ветка <code>metadata.scope === partner_wallet_topup</code>). Логика зачисления одинаковая.</li>
+      (ветка <code>metadata.scope === partner_wallet_topup</code>). Логика зачисления одинаковая;
+      валидация битого payload разная (400 vs 422).</li>
+    <li>GET на webhook / PATCH DELETE на страницу кошелька — не 500 (404/405).
+      Browser/E2E после «Оплатить» нет: уход на ЮKassa.</li>
   </ul>
 
   <h2 id="code">7) Код и тесты</h2>
@@ -151,12 +168,15 @@
       <code>PartnerWalletNonAjaxSafetyNetFeatureTest</code>,
       <code>PartnerWalletUxFeatureTest</code>,
       <code>PartnerWalletFullAccessFeatureTest</code>,
+      <code>PartnerWalletWebhookFeatureTest</code>,
       <code>BladeInlineJsSyntaxTest::test_partner_wallet_topup_ajax_prevents_native_submit_and_shows_field_errors</code>,
-      <code>PartnerWalletDocumentationContractTest</code>.</li>
+      <code>PartnerWalletDocumentationContractTest</code>,
+      <code>ContractBillingWalletLedgerFeatureTest</code>.</li>
   </ul>
   <p class="small">Контекст партнёра: <a href="/docs/documentation/partner-context">partner-context</a>,
     руководство: <a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a>,
-    канон денег: <a href="/docs/documentation/money">money</a>.</p>
+    канон денег: <a href="/docs/documentation/money">money</a>,
+    анонс леджера: <a href="/doc#partner-wallet-ledger-index">/doc#partner-wallet-ledger-index</a>.</p>
 </div>
 </body>
 </html>

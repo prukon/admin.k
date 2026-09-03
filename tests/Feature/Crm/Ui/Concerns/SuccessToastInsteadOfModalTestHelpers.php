@@ -80,6 +80,12 @@ trait SuccessToastInsteadOfModalTestHelpers
                 'deny'  => 'locations.view',
             ],
             [
+                'key'   => 'teams',
+                'route' => 'admin.team.index',
+                'grant' => ['groups.view'],
+                'deny'  => 'groups.view',
+            ],
+            [
                 'key'   => 'school-leads',
                 'route' => 'admin.school-leads',
                 'grant' => ['schoolLeads.view'],

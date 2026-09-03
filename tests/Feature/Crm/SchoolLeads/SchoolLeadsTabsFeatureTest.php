@@ -106,6 +106,9 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
         $this->assertStringContainsString('id="copyIframeBtn"', $html);
         $this->assertStringContainsString('id="connectTelegramBtn"', $html);
         $this->assertStringContainsString('Подключить Telegram', $html);
+        $this->assertStringContainsString('кнопкой «Уведомления»', $html);
+        $this->assertStringContainsString(route('admin.school-leads'), $html);
+        $this->assertStringNotContainsString('Email отправляется всем пользователям с ролью', $html);
         $this->assertStringNotContainsString('id="leads-table"', $html);
         $this->assertStringNotContainsString('id="schoolLeadsReportToolbar"', $html);
     }

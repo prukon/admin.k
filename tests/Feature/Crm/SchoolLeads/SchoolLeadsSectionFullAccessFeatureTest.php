@@ -420,7 +420,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
                     'comment' => 'Section smoke',
                 ],
             ],
-        ], $this->schoolLeadStatusManagementRoutesPayload());
+        ], $this->schoolLeadStatusManagementRoutesPayload(), $this->schoolLeadNotificationSettingsRoutesPayload());
     }
 
     /**

@@ -63,6 +63,16 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
             $layoutSuccessJsPos,
             'Toast в footer layout после successModal, не внутри #editUserModal: повторное открытие карточки не пересобирает всплывайку'
         );
+        $this->assertStringContainsString(
+            "window.showToast(response.message || 'Клиент успешно обновлён.', 'success')",
+            $html
+        );
+        $this->assertStringContainsString(
+            "window.showToast((response && response.message) ? response.message : 'Клиент успешно создан.', 'success')",
+            $html
+        );
+        $this->assertStringNotContainsString('showSuccessModal("Редактирование клиента"', $html);
+        $this->assertStringNotContainsString('showSuccessModal("Создание клиента"', $html);
     }
 
     public function test_shared_toast_partial_sits_above_confirm_and_error_modals(): void
@@ -123,9 +133,76 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString("showSuccessModal('Редактирование объекта'", $editChunk);
     }
 
+    public function test_team_delete_shows_toast_after_confirm_modal_is_hidden(): void
+    {
+        $js = (string) file_get_contents(resource_path('views/includes/modal/editTeam.blade.php'));
+        $deletePos = strpos($js, 'function deleteTeam()');
+        $this->assertNotFalse($deletePos);
+        $chunk = substr($js, $deletePos, 2800);
+
+        $this->assertStringContainsString("window.showToast('Группа успешно удалена.', 'success')", $chunk);
+        $this->assertStringContainsString(
+            "confirmEl.addEventListener('hidden.bs.modal', showDeletedToast, { once: true })",
+            $chunk
+        );
+        $this->assertStringContainsString("'Accept': 'application/json'", $chunk);
+        $this->assertStringNotContainsString('showSuccessModal("Удаление группы"', $chunk);
+
+        $toastPos = strpos($chunk, "window.showToast('Группа успешно удалена.', 'success')");
+        $listenerPos = strpos($chunk, "confirmEl.addEventListener('hidden.bs.modal', showDeletedToast");
+        $this->assertNotFalse($toastPos);
+        $this->assertNotFalse($listenerPos);
+        $this->assertLessThan(
+            $listenerPos,
+            $toastPos,
+            'showDeletedToast с текстом тоста объявляется до слушателя hidden.bs.modal'
+        );
+    }
+
+    public function test_team_create_and_edit_show_toast_after_ajax_success(): void
+    {
+        $create = (string) file_get_contents(resource_path('views/includes/modal/createTeam.blade.php'));
+        $createPos = strpos($create, 'function createTeam()');
+        $this->assertNotFalse($createPos);
+        $createChunk = substr($create, $createPos);
+        $this->assertStringContainsString(
+            "window.showToast((data && data.message) ? data.message : 'Группа создана успешно', 'success')",
+            $createChunk
+        );
+        $this->assertStringContainsString('$(\'#teams-table\').DataTable().ajax.reload(null, false)', $createChunk);
+        $this->assertStringContainsString("if (typeof window.showToast === 'function')", $createChunk);
+        $this->assertStringContainsString('createModalInstance.hide()', $createChunk);
+        $this->assertStringNotContainsString('showSuccessModal', $createChunk);
+
+        $edit = (string) file_get_contents(resource_path('views/includes/modal/editTeam.blade.php'));
+        $editPos = strpos($edit, "$('#update-team-btn').on('click'");
+        $this->assertNotFalse($editPos);
+        $editEnd = strpos($edit, 'function deleteTeam()', $editPos);
+        $this->assertNotFalse($editEnd);
+        $editChunk = substr($edit, $editPos, $editEnd - $editPos);
+        $this->assertStringContainsString(
+            "window.showToast(response.message || 'Группа успешно обновлена', 'success')",
+            $editChunk
+        );
+        $this->assertStringContainsString('$(\'#teams-table\').DataTable().ajax.reload(null, false)', $editChunk);
+        $this->assertStringContainsString("if (typeof window.showToast === 'function')", $editChunk);
+        $this->assertStringContainsString("$('#editTeamModal').modal('hide')", $editChunk);
+        $this->assertStringNotContainsString('showSuccessModal("Редактирование группы"', $editChunk);
+    }
+
     public function test_each_listed_success_trigger_uses_shared_toast_instead_of_success_modal(): void
     {
         $cases = [
+            'student-create' => [
+                'path'  => resource_path('views/includes/modal/createUser.blade.php'),
+                'toast' => "window.showToast((response && response.message) ? response.message : 'Клиент успешно создан.', 'success')",
+                'absent'=> 'showSuccessModal',
+            ],
+            'student-edit' => [
+                'path'  => resource_path('views/includes/modal/editUser.blade.php'),
+                'toast' => "window.showToast(response.message || 'Клиент успешно обновлён.', 'success')",
+                'absent'=> 'showSuccessModal("Редактирование клиента"',
+            ],
             'student-delete' => [
                 'path'  => resource_path('views/includes/modal/editUser.blade.php'),
                 'toast' => "window.showToast('Клиент успешно удален.', 'success')",
@@ -175,6 +252,21 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
                 'path'  => resource_path('views/admin/locations/index.blade.php'),
                 'toast' => "window.showToast('Объект успешно удалён.', 'success')",
                 'absent'=> "showSuccessModal('Удаление объекта'",
+            ],
+            'team-create' => [
+                'path'  => resource_path('views/includes/modal/createTeam.blade.php'),
+                'toast' => "window.showToast((data && data.message) ? data.message : 'Группа создана успешно', 'success')",
+                'absent'=> 'showSuccessModal',
+            ],
+            'team-edit' => [
+                'path'  => resource_path('views/includes/modal/editTeam.blade.php'),
+                'toast' => "window.showToast(response.message || 'Группа успешно обновлена', 'success')",
+                'absent'=> 'showSuccessModal("Редактирование группы"',
+            ],
+            'team-delete' => [
+                'path'  => resource_path('views/includes/modal/editTeam.blade.php'),
+                'toast' => "window.showToast('Группа успешно удалена.', 'success')",
+                'absent'=> 'showSuccessModal("Удаление группы"',
             ],
             'trainer-type-save' => [
                 'path'  => public_path('js/trainer-types.js'),
@@ -310,15 +402,29 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
 
         $editUser = (string) file_get_contents(resource_path('views/includes/modal/editUser.blade.php'));
         $this->assertStringContainsString(
+            "window.showToast(response.message || 'Клиент успешно обновлён.', 'success')",
+            $editUser,
+            'Сохранение карточки ученика — toast, не success-модалка'
+        );
+        $this->assertStringNotContainsString(
             'showSuccessModal("Редактирование клиента"',
             $editUser,
-            'Сохранение карточки ученика не в списке toast'
+            'Сохранение карточки ученика больше не зовёт success-модалку'
         );
         $this->assertStringNotContainsString(
             "showSuccessModal('Отправка пароля'",
             $editUser,
             'Welcome-пароль по почте — toast, не success-модалка'
         );
+
+        $createUser = (string) file_get_contents(resource_path('views/includes/modal/createUser.blade.php'));
+        $this->assertStringContainsString(
+            "window.showToast((response && response.message) ? response.message : 'Клиент успешно создан.', 'success')",
+            $createUser,
+            '«Добавить» клиента — toast, не success-модалка'
+        );
+        $this->assertStringNotContainsString('showSuccessModal', $createUser);
+        $this->assertStringNotContainsString('window.location.reload()', $createUser);
     }
 
     public function test_reopening_create_or_edit_modal_does_not_rebuild_shared_toast_markup(): void

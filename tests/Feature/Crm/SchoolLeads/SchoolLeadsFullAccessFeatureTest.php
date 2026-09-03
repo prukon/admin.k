@@ -567,7 +567,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
                     'location_id' => $locationId,
                 ],
             ],
-        ], $this->schoolLeadStatusManagementRoutesPayload());
+        ], $this->schoolLeadStatusManagementRoutesPayload(), $this->schoolLeadNotificationSettingsRoutesPayload());
     }
 
     /**

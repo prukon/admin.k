@@ -104,7 +104,7 @@ class SettingPricesController extends AdminBaseController
     /**
      * Текущий месяц для партнёра:
      * 1) session('prices_month')
-     * 2) settings по партнёру (key = prices_last_month)
+     * 2) settings по партнёру (name = prices_last_month, колонка text)
      * 3) текущий месяц
      */
     protected function getCurrentMonthString(int $partnerId): string
@@ -118,10 +118,10 @@ class SettingPricesController extends AdminBaseController
 
         try {
             $dbMonth = Setting::where('partner_id', $partnerId)
-                ->where('key', 'prices_last_month')
-                ->value('value');
+                ->where('name', 'prices_last_month')
+                ->value('text');
 
-            if ($dbMonth) {
+            if (is_string($dbMonth) && trim($dbMonth) !== '') {
                 return $dbMonth;
             }
         } catch (\Throwable $e) {
@@ -181,10 +181,10 @@ class SettingPricesController extends AdminBaseController
             Setting::updateOrCreate(
                 [
                     'partner_id' => $partnerId,
-                    'key'        => 'prices_last_month',
+                    'name'       => 'prices_last_month',
                 ],
                 [
-                    'value' => $monthString,
+                    'text' => $monthString,
                 ]
             );
         } catch (\Throwable $e) {

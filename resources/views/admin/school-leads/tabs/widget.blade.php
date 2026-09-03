@@ -22,8 +22,9 @@
 
         <h5>Уведомления о новых заявках</h5>
         <p class="text-muted small">
-            Email отправляется всем пользователям с ролью <strong>admin</strong> вашей организации
-            и на email организации ({{ $partner->email ?: 'не указан' }}).
+            Email-уведомления настраиваются на вкладке
+            <a href="{{ route('admin.school-leads') }}">«Заявки»</a>
+            кнопкой «Уведомления».
         </p>
 
         @if ($telegramConfigured)

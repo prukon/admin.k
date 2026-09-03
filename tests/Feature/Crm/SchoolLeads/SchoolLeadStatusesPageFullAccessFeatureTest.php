@@ -198,7 +198,8 @@ final class SchoolLeadStatusesPageFullAccessFeatureTest extends CrmTestCase
                     ],
                 ],
             ],
-            $this->schoolLeadStatusManagementRoutesPayload()
+            $this->schoolLeadStatusManagementRoutesPayload(),
+            $this->schoolLeadNotificationSettingsRoutesPayload()
         );
     }
 }

@@ -1,9 +1,59 @@
-{{-- Пульт: шесть строк счётчиков. Ховер — KidsCrmTooltip scope hint (data-kids-tooltip-hint). --}}
+{{-- Пульт: восемь строк счётчиков. Ховер — KidsCrmTooltip scope hint (data-kids-tooltip-hint). --}}
 <div id="js-ops-monitors"
     class="ops-monitors system-monitor"
     data-url="{{ route('cabinet.system-monitors.ops') }}"
     aria-live="polite">
     <div class="ops-monitors__title">Пульт</div>
+    <div class="ops-monitors__row">
+        <span class="ops-monitors__label">Сегодня</span>
+        <span class="ops-monitors__vals">
+            @include('partials.ui.tooltip-hint', [
+                'title' => 'Оборотка T‑Bank за текущий календарный день (все школы, summ_cents > 0)',
+                'placement' => 'left',
+                'wrapperClass' => '',
+                'innerHtml' => '<span data-role="day-turnover">…</span>',
+            ])
+            <span class="ops-monitors__slash">/</span>
+            @include('partials.ui.tooltip-hint', [
+                'title' => 'Комиссия платформы T‑Bank за текущий календарный день (все школы, как в отчёте «Платежи»: правила, не снимок выплаты)',
+                'placement' => 'left',
+                'wrapperClass' => '',
+                'innerHtml' => '<span data-role="day-commission">…</span>',
+            ])
+            <span class="ops-monitors__slash">/</span>
+            @include('partials.ui.tooltip-hint', [
+                'title' => 'Число успешных платежей T‑Bank за текущий календарный день (все школы, summ_cents > 0)',
+                'placement' => 'left',
+                'wrapperClass' => '',
+                'innerHtml' => '<span data-role="day-count">…</span>',
+            ])
+        </span>
+    </div>
+    <div class="ops-monitors__row">
+        <span class="ops-monitors__label">Вчера</span>
+        <span class="ops-monitors__vals">
+            @include('partials.ui.tooltip-hint', [
+                'title' => 'Оборотка T‑Bank за вчерашний календарный день (все школы, summ_cents > 0)',
+                'placement' => 'left',
+                'wrapperClass' => '',
+                'innerHtml' => '<span data-role="yesterday-turnover">…</span>',
+            ])
+            <span class="ops-monitors__slash">/</span>
+            @include('partials.ui.tooltip-hint', [
+                'title' => 'Комиссия платформы T‑Bank за вчерашний календарный день (все школы, как в отчёте «Платежи»: правила, не снимок выплаты)',
+                'placement' => 'left',
+                'wrapperClass' => '',
+                'innerHtml' => '<span data-role="yesterday-commission">…</span>',
+            ])
+            <span class="ops-monitors__slash">/</span>
+            @include('partials.ui.tooltip-hint', [
+                'title' => 'Число успешных платежей T‑Bank за вчерашний календарный день (все школы, summ_cents > 0)',
+                'placement' => 'left',
+                'wrapperClass' => '',
+                'innerHtml' => '<span data-role="yesterday-count">…</span>',
+            ])
+        </span>
+    </div>
     <div class="ops-monitors__row">
         <span class="ops-monitors__label">Очередь</span>
         <span class="ops-monitors__vals">
@@ -372,6 +422,12 @@
         }
 
         function clear() {
+            setText('day-turnover', '—', 'is-muted');
+            setText('day-commission', '—', 'is-muted');
+            setText('day-count', '—', 'is-muted');
+            setText('yesterday-turnover', '—', 'is-muted');
+            setText('yesterday-commission', '—', 'is-muted');
+            setText('yesterday-count', '—', 'is-muted');
             setText('queue-worker', '—', 'is-muted');
             setText('queue-scheduler', '—', 'is-muted');
             setText('queue-jobs', '—', 'is-muted');
@@ -403,6 +459,16 @@
                 clear();
                 return;
             }
+            var day = data.day || {};
+            setText('day-turnover', String(day.turnover == null ? '—' : day.turnover), day.turnover == null ? 'is-muted' : '');
+            setText('day-commission', String(day.commission == null ? '—' : day.commission), day.commission == null ? 'is-muted' : '');
+            setText('day-count', String(day.payments_count == null ? '—' : day.payments_count), day.payments_count == null ? 'is-muted' : '');
+
+            var yesterday = data.yesterday || {};
+            setText('yesterday-turnover', String(yesterday.turnover == null ? '—' : yesterday.turnover), yesterday.turnover == null ? 'is-muted' : '');
+            setText('yesterday-commission', String(yesterday.commission == null ? '—' : yesterday.commission), yesterday.commission == null ? 'is-muted' : '');
+            setText('yesterday-count', String(yesterday.payments_count == null ? '—' : yesterday.payments_count), yesterday.payments_count == null ? 'is-muted' : '');
+
             var queue = data.queue || {};
             var worker = workerLabel(queue.worker && queue.worker.code);
             var scheduler = schedulerLabel(queue.scheduler && queue.scheduler.code);

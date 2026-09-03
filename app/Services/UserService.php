@@ -51,13 +51,6 @@ class UserService
         $currentUser = auth()->user();
 
         try {
-            // Проверяем, что данные пришли
-            if (!empty($data['custom']) && is_array($data['custom'])) {
-                Log::info('Полученные кастомные поля:', $data['custom']);
-            } else {
-                Log::warning('Данные custom отсутствуют или не являются массивом.');
-            }
-
             // Исключаем 'custom' из основного массива
             $userData = array_diff_key($data, ['custom' => '']);
 
@@ -144,8 +137,6 @@ class UserService
                         Log::warning("Поле с slug {$slug} не найдено в базе.");
                     }
                 }
-            } else {
-                Log::warning('Поле custom отсутствует или не является массивом.');
             }
         } catch (\Exception $e) {
             Log::error('Ошибка при обновлении пользователя:', [
@@ -161,12 +152,6 @@ class UserService
         $currentUser = auth()->user();
 
         try {
-            if (!empty($data['custom']) && is_array($data['custom'])) {
-                Log::info('Полученные кастомные поля:', $data['custom']);
-            } else {
-                Log::warning('Данные custom отсутствуют или не являются массивом.');
-            }
-
             // Исключаем 'custom', родителя и группы из основного массива users
             $teamIds = array_key_exists('team_ids', $data) ? (array) $data['team_ids'] : null;
             $parentPayload = $this->studentParentSync->extractParentPayload($data);
@@ -284,8 +269,6 @@ class UserService
                         Log::warning("Поле с slug {$slug} не найдено в базе.");
                     }
                 }
-            } else {
-                Log::warning('Поле custom отсутствует или не является массивом.');
             }
 
             $partnerId = (int) ($user->partner_id ?? 0);

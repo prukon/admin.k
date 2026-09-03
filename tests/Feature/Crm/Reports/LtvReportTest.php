@@ -5,7 +5,9 @@ namespace Tests\Feature\Crm\Reports;
 use App\Models\Location;
 use App\Models\Partner;
 use App\Models\Payment;
+use App\Models\Team;
 use App\Models\User;
+use App\Services\TeamUserSyncService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
@@ -230,6 +232,86 @@ class LtvReportTest extends CrmTestCase
         $this->assertNotNull($row);
         $this->assertEquals(300.0, (float) $row['total_price']);
         $this->assertEquals(3, (int) $row['payment_count']);
+    }
+
+    /**
+     * [P1] Поиск DataTables по ФИО не ищет агрегаты payments.payment_count (иначе SQLSTATE 42S22).
+     */
+    public function test_ltv_datatables_search_by_name_does_not_query_aggregate_columns(): void
+    {
+        $partner = Partner::factory()->create();
+        $actor = $this->createUserWithRole('superadmin', $partner);
+        $this->actingAs($actor);
+
+        $hit = User::factory()->create([
+            'partner_id' => $partner->id,
+            'lastname' => 'ХармУникLtv',
+            'name' => 'Иван',
+        ]);
+        $miss = User::factory()->create([
+            'partner_id' => $partner->id,
+            'lastname' => 'Другой',
+            'name' => 'Пётр',
+        ]);
+
+        Payment::factory()->create([
+            'user_id' => $hit->id,
+            'summ_cents' => 10000,
+        ]);
+        Payment::factory()->create([
+            'user_id' => $miss->id,
+            'summ_cents' => 20000,
+        ]);
+
+        $response = $this->withSession(['current_partner' => $partner->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.ltv.data', [
+                'draw' => 1,
+                'search' => ['value' => 'ХармУникLtv'],
+            ]))
+            ->assertOk()
+            ->json();
+
+        $ids = collect($response['data'])->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+        $this->assertContains($hit->id, $ids);
+        $this->assertNotContains($miss->id, $ids);
+    }
+
+    /**
+     * [P1] Поиск DataTables по названию группы.
+     */
+    public function test_ltv_datatables_search_by_team_title(): void
+    {
+        $partner = Partner::factory()->create();
+        $actor = $this->createUserWithRole('superadmin', $partner);
+        $this->actingAs($actor);
+
+        $team = Team::factory()->create([
+            'partner_id' => $partner->id,
+            'title' => 'ГруппаХармLtv',
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'lastname' => 'БезСовпадения',
+            'team_id' => $team->id,
+        ]);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $team->id]);
+        Payment::factory()->create([
+            'user_id' => $student->id,
+            'summ_cents' => 10000,
+        ]);
+
+        $response = $this->withSession(['current_partner' => $partner->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.ltv.data', [
+                'draw' => 1,
+                'search' => ['value' => 'ГруппаХармLtv'],
+            ]))
+            ->assertOk()
+            ->json();
+
+        $ids = collect($response['data'])->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+        $this->assertContains($student->id, $ids);
     }
 
     /**

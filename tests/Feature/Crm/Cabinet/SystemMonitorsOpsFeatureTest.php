@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 /**
- * Оверлей «Пульт»: шесть строк, GET /cabinet/system-monitors/ops, тот же тоггл.
+ * Оверлей «Пульт»: восемь строк, GET /cabinet/system-monitors/ops, тот же тоггл.
  *
  * @see \Tests\Feature\Crm\Teams\TeamControllerTest::test_store_non_ajax_redirects_and_creates_team
  */

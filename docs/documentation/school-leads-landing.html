@@ -300,9 +300,12 @@
   <h2>9) Уведомления</h2>
   <p>После успешного <code>POST /lead/…/submit</code> вызывается <code>SchoolLeadNotificationService::notify</code> — те же каналы, что у виджета:</p>
   <ul>
-    <li><b>Email</b> — admin'ы партнёра + <code>partners.email</code>; шаблон <code>emails/new_school_lead.blade.php</code> — блоки «Район», «Объект», «Услуга» при наличии данных</li>
-    <li><b>Telegram</b> — в <code>partners.school_leads_telegram_chat_id</code>; для лендинга: район, объект, услуга, флаг «помочь с секцией»</li>
+    <li><b>Email</b> — настройка на вкладке «Заявки» (кнопка «Уведомления», <a href="/docs/documentation/school-leads-widget#school-leads-email-notifications">school-leads-widget §5.1.5</a>): сохранённый список или, пока не сохраняли, admin'ы партнёра + <code>partners.email</code>; шаблон <code>emails/new_school_lead.blade.php</code> — блоки «Район», «Объект», «Услуга» при наличии данных</li>
+    <li><b>Telegram</b> — в <code>partners.school_leads_telegram_chat_id</code>; для лендинга: район, объект, услуга, флаг «помочь с секцией». Не зависит от галочки «Не получать email-уведомления».</li>
   </ul>
+  <p class="small">Тесты публичного submit: <code>SchoolLeadLandingNotificationFeatureTest</code> (кастомный список / skip email / Telegram при галочке),
+    плюс CRM-настройки — <a href="/docs/documentation/school-leads-widget#school-leads-email-notifications">school-leads-widget §5.1.5</a>,
+    анонс — <a href="/doc#school-leads-email-notifications-index">/doc#school-leads-email-notifications-index</a>.</p>
 
   <h2>10) Модель <code>partner_widgets</code></h2>
   <p>Миграции: <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>, <code>2026_05_30_120000_add_landing_slug_to_partner_widgets_table.php</code>.</p>
@@ -395,6 +398,10 @@
       <tr>
         <td><code>SchoolLeadLandingParentMatchFeatureTest.php</code></td>
         <td>Автосопоставление родителя при submit: email / телефон (10 цифр) / ФИ с count; приоритет email над phone</td>
+      </tr>
+      <tr>
+        <td><code>SchoolLeadLandingNotificationFeatureTest.php</code></td>
+        <td>Публичный submit: письма только на сохранённый список; галочка отключает email, но не Telegram</td>
       </tr>
       <tr>
         <td><code>SchoolLeadLandingSingleOptionFeatureTest.php</code></td>

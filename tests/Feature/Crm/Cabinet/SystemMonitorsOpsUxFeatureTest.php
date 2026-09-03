@@ -34,6 +34,8 @@ final class SystemMonitorsOpsUxFeatureTest extends SystemMonitorsTestCase
         }
         $this->assertStringContainsString('data-kids-tooltip-hint', $html);
         $this->assertStringContainsString('Неуспешные Init оплаты', $html);
+        $this->assertStringContainsString('>Сегодня</span>', $html);
+        $this->assertStringContainsString('>Вчера</span>', $html);
         $this->assertStringContainsString('>Очередь</span>', $html);
         $this->assertStringContainsString('>Касса</span>', $html);
         $this->assertStringContainsString('>500</span>', $html);
@@ -48,9 +50,27 @@ final class SystemMonitorsOpsUxFeatureTest extends SystemMonitorsTestCase
         $this->assertStringContainsString('Воркер очереди', $html);
         $this->assertStringContainsString('Планировщик cron', $html);
         $this->assertStringContainsString('все школы', $html);
+        $this->assertStringContainsString('Оборотка T‑Bank за текущий календарный день', $html);
+        $this->assertStringContainsString('Комиссия платформы T‑Bank за текущий календарный день', $html);
+        $this->assertStringContainsString('Число успешных платежей T‑Bank за текущий календарный день', $html);
+        $this->assertStringContainsString('Оборотка T‑Bank за вчерашний календарный день', $html);
+        $this->assertStringContainsString('Комиссия платформы T‑Bank за вчерашний календарный день', $html);
+        $this->assertStringContainsString('Число успешных платежей T‑Bank за вчерашний календарный день', $html);
         $this->assertStringContainsString('После опроса здесь будет текст ошибки', $html);
         $this->assertStringNotContainsString('href="/admin/settings/queues"', $html);
         $this->assertStringNotContainsString('data-role="errors-recent"', $html);
+
+        $titleStart = strpos($html, '>Пульт</div>');
+        $todayStart = strpos($html, '>Сегодня</span>');
+        $yesterdayStart = strpos($html, '>Вчера</span>');
+        $queueStart = strpos($html, '>Очередь</span>');
+        $this->assertNotFalse($titleStart);
+        $this->assertNotFalse($todayStart);
+        $this->assertNotFalse($yesterdayStart);
+        $this->assertNotFalse($queueStart);
+        $this->assertLessThan($todayStart, $titleStart, '«Сегодня» сразу под заголовком Пульт');
+        $this->assertLessThan($yesterdayStart, $todayStart, '«Вчера» сразу под «Сегодня»');
+        $this->assertLessThan($queueStart, $yesterdayStart, '«Вчера» выше «Очередь»');
 
         $fiveHundredStart = strpos($html, '>500</span>');
         $gatewaysStart = strpos($html, '>Шлюзы</span>');
@@ -244,6 +264,8 @@ final class SystemMonitorsOpsUxFeatureTest extends SystemMonitorsTestCase
             ],
             'auth' => ['failed_logins' => 0, 'failed_2fa' => 1],
             'welcome' => ['missing_count' => 1, 'last_user_id' => 42],
+            'day' => ['turnover' => 150000, 'commission' => 600, 'payments_count' => 30],
+            'yesterday' => ['turnover' => 80000, 'commission' => 320, 'payments_count' => 12],
         ]);
 
         $this->assertSame('жив', $ok['queue-worker']);
@@ -260,6 +282,12 @@ final class SystemMonitorsOpsUxFeatureTest extends SystemMonitorsTestCase
         $this->assertSame('1', $ok['welcome-count']);
         $this->assertSame('1', $ok['auth-2fa']);
         $this->assertSame('0', $ok['auth-logins']);
+        $this->assertSame('150000', $ok['day-turnover']);
+        $this->assertSame('600', $ok['day-commission']);
+        $this->assertSame('30', $ok['day-count']);
+        $this->assertSame('80000', $ok['yesterday-turnover']);
+        $this->assertSame('320', $ok['yesterday-commission']);
+        $this->assertSame('12', $ok['yesterday-count']);
 
         $empty = $this->simulateOpsRenderSnapshot([
             'ok' => true,
@@ -1286,6 +1314,12 @@ JS;
     private function opsDataRoles(): array
     {
         return [
+            'day-turnover',
+            'day-commission',
+            'day-count',
+            'yesterday-turnover',
+            'yesterday-commission',
+            'yesterday-count',
             'queue-worker',
             'queue-scheduler',
             'queue-jobs',

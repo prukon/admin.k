@@ -292,12 +292,19 @@
                 url: `/admin/team/${teamId}`,
                 type: 'PATCH',
                 data: formData,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
                 success: function(response) {
-                    showSuccessModal("Редактирование группы", "Группа успешно отредактирована.", 1);
+                    $('#editTeamModal').modal('hide');
 
-                    // Обновляем таблицу DataTables, если она инициализирована
                     if ($.fn.DataTable.isDataTable('#teams-table')) {
                         $('#teams-table').DataTable().ajax.reload(null, false);
+                    }
+
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(response.message || 'Группа успешно обновлена', 'success');
                     }
                 },
                 error: function(xhr) {
@@ -362,21 +369,42 @@
                 function() {
                     const teamId = $('#edit-team-id').val();
 
+                    const confirmEl = document.getElementById('confirmDeleteModal');
+                    const editEl = document.getElementById('editTeamModal');
+
+                    // Не возвращать модалку редактирования после закрытия подтверждения
+                    $(confirmEl).off('hidden.bs.modal.return');
+                    $(editEl).off('hidden.bs.modal.openNext');
+
                     $.ajax({
                         url: `/admin/team/${teamId}`,
                         type: 'DELETE',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
                         data: {
                             _token: csrfToken
                         },
-                        success: function(response) {
-                            showSuccessModal("Удаление группы", "Группа успешно удалена.", 1);
+                        success: function() {
+                            $('#editTeamModal').modal('hide');
 
-                            // Обновляем таблицу после удаления
                             if ($.fn.DataTable.isDataTable('#teams-table')) {
                                 $('#teams-table').DataTable().ajax.reload(null, false);
                             }
 
-                            $('#editTeamModal').modal('hide');
+                            function showDeletedToast() {
+                                if (typeof window.showToast === 'function') {
+                                    window.showToast('Группа успешно удалена.', 'success');
+                                }
+                            }
+
+                            // #confirmDeleteModal z-index 1900 перекрывает toast, пока ещё .show
+                            if (confirmEl && confirmEl.classList.contains('show')) {
+                                confirmEl.addEventListener('hidden.bs.modal', showDeletedToast, { once: true });
+                            } else {
+                                showDeletedToast();
+                            }
                         },
                         error: function(xhr) {
                             console.error('Ошибка удаления группы', xhr);

@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\SettingPrices;
 
+use App\Models\Setting;
 use App\Models\Team;
+use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Event;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
@@ -114,6 +117,50 @@ final class SettingPricesMonthlySelectWindowFeatureTest extends CrmTestCase
 
         $this->assertSame('Сентябрь 2025', $response->viewData('monthString'));
         $this->assertSame('Сентябрь 2025', session('prices_month'));
+    }
+
+    public function test_update_date_stores_month_in_settings_name_and_text(): void
+    {
+        $warnings = [];
+        Event::listen(MessageLogged::class, function (MessageLogged $event) use (&$warnings): void {
+            if ($event->level === 'warning') {
+                $warnings[] = $event->message;
+            }
+        });
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->post(route('updateDate'), ['month' => 'Октябрь 2026'])
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'month' => 'Октябрь 2026',
+            ]);
+
+        $this->assertDatabaseHas('settings', [
+            'partner_id' => $this->partner->id,
+            'name' => 'prices_last_month',
+            'text' => 'Октябрь 2026',
+        ]);
+
+        $monthWarnings = array_values(array_filter(
+            $warnings,
+            static fn (string $message): bool => str_contains($message, 'месяц цен')
+        ));
+        $this->assertSame([], $monthWarnings);
+
+        session()->forget('prices_month');
+
+        $response = $this->get(route('admin.settingPrices.indexMenu'))
+            ->assertOk();
+
+        $this->assertSame('Октябрь 2026', $response->viewData('monthString'));
+        $this->assertSame(
+            'Октябрь 2026',
+            Setting::query()
+                ->where('partner_id', $this->partner->id)
+                ->where('name', 'prices_last_month')
+                ->value('text')
+        );
     }
 
     public function test_users_tab_does_not_clamp_saved_month_before_select_window(): void

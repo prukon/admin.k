@@ -169,6 +169,9 @@ class LtvReportController extends AdminBaseController
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $query->orderBy('payment_count', $dir);
             })
+            ->filter(function ($query) use ($request, $partnerId): void {
+                $this->applyLtvDataTableSearch($query, $request, $partnerId);
+            }, true)
             ->make(true);
     }
 
@@ -333,6 +336,40 @@ class LtvReportController extends AdminBaseController
             Log::error('Ошибка преобразования даты: ' . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Глобальный поиск DataTables: ФИО и название группы.
+     * Агрегаты (payment_count, даты, is_enabled) в WHERE не ищем — это не колонки payments.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function applyLtvDataTableSearch($query, Request $request, int $partnerId): void
+    {
+        $keyword = trim((string) $request->input('search.value', ''));
+        if ($keyword === '') {
+            return;
+        }
+
+        $like = '%'.addcslashes($keyword, '%_\\').'%';
+        $query->where(function ($q) use ($like, $partnerId): void {
+            $q->where('users.lastname', 'like', $like)
+                ->orWhere('users.name', 'like', $like)
+                ->orWhereRaw(
+                    "TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) LIKE ?",
+                    [$like]
+                )
+                ->orWhereExists(function ($sub) use ($like, $partnerId): void {
+                    $sub->selectRaw('1')
+                        ->from('team_user')
+                        ->join('teams', 'teams.id', '=', 'team_user.team_id')
+                        ->whereColumn('team_user.user_id', 'users.id')
+                        ->where('team_user.partner_id', $partnerId)
+                        ->where('teams.partner_id', $partnerId)
+                        ->whereNull('teams.deleted_at')
+                        ->where('teams.title', 'like', $like);
+                });
+        });
     }
 
     /**

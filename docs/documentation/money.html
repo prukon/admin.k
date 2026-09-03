@@ -128,6 +128,13 @@
   <ul>
     <li>Источник суммы месяца: <code>users_prices.price_cents</code>.</li>
     <li>Источник суммы абонемента: <code>user_lesson_packages.fee_amount_cents</code>.</li>
+    <li>Тариф создания договора: <code>config/billing.php</code> <code>contract_create_fee</code> (рубли, по умолчанию 70) →
+      списание <code>partners.wallet_balance_cents</code> и debit
+      <code>partner_wallet_transactions</code> («Создание договора»); отзыв
+      <code>awaiting_client_fill</code> — credit «Возврат: отзыв договора»
+      (<a href="/docs/documentation/contracts">contracts</a>,
+      <a href="/docs/documentation/partner-wallet">partner-wallet</a>,
+      <a href="/doc#partner-wallet-ledger-index">анонс</a>).</li>
     <li>Тариф SMS со ссылкой на оплату: <code>config/billing.php</code> <code>sms_send_fee</code> (рубли, по умолчанию 70) →
       списание <code>partners.wallet_balance_cents</code> копейками через <code>Money::toCentsOrFail</code>
       (<a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>).</li>

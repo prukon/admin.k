@@ -1124,6 +1124,8 @@
 
   <h2 id="ops-monitors-overlay">5.3) Оверлей «Пульт» (системные мониторы)</h2>
   <p>Анонс на главной: <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a>,
+    строки «Сегодня» / «Вчера» —
+    <a href="/doc#ops-day-kpi-index">/doc#ops-day-kpi-index</a>,
     ховер 500 / ViewException / ring —
     <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a>,
     Welcome / тип письма —
@@ -1133,13 +1135,15 @@
     <li>Стек <code>#system-monitors-stack</code>:
       <code>#js-ops-monitors</code> над <code>#js-online-users</code> над
       <code>#js-reverb-status</code>. Право и флаг как у Reverb.
-      Шесть строк цифр, <code>KidsCrmTooltip</code> (непрозрачный пузырёк), без ссылок.
+      Восемь строк цифр, первые — «Сегодня» и «Вчера» (T‑Bank за календарный день),
+      <code>KidsCrmTooltip</code> (непрозрачный пузырёк), без ссылок.
       Ховер последней 500 — <code>last_message</code> (не innerHTML).
       <code>ViewException</code> разворачивается до причины; JSON <code>errors.recent</code>
       до 20 (path без query), на экране списка нет.
       Контраст — <a href="/doc#kids-tooltip-contrast-index">/doc#kids-tooltip-contrast-index</a>.</li>
     <li><code>GET /cabinet/system-monitors/ops</code>: JSON <code>ok</code> /
-      <code>window_hours</code> / <code>queue</code> / <code>till</code> /
+      <code>window_hours</code> / <code>day</code> / <code>yesterday</code> /
+      <code>queue</code> / <code>till</code> /
       <code>errors</code> / <code>gateways</code> / <code>auth</code> /
       <code>welcome</code> (<code>missing_count</code>, <code>last_user_id</code>, без email).
       Гость 302/401, без права 403, мутации 405.
@@ -1149,7 +1153,8 @@
       Welcome: успех — <code>STATUS_SENT</code> и класс
       <code>ClientWelcomeCredentialsMail</code> или пустой класс + тема
       «Доступ в личный кабинет»; <code>sending</code> / <code>STATUS_FAILED</code>
-      и sibling-письмо — missing. Первый кадр «…»; сбой refresh — «—», не leftover цифры.</li>
+      и sibling-письмо — missing. Первый кадр «…» (в том числе при платежах в БД);
+      <code>0</code> не «—»; сбой refresh — «—», не leftover цифры «Сегодня» / «Вчера».</li>
     <li>Клиент опрашивает раз в 5 с только при включённом переключателе.
       Первый кадр «…» во всех <code>data-role</code>. Сбой <code>refresh()</code>
       (сеть / 403) ставит «—» и откатывает ховер <code>last_message</code>
@@ -1332,7 +1337,11 @@
       <code>SystemMonitorsOpsAjaxContractFeatureTest</code> /
       <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code> /
       <code>SystemMonitorsOpsUxFeatureTest</code> —
-      гость/403/200, JSON <code>errors.system_monitors</code>, native 302, персональный экран, откат 422, опрос Reverb/онлайн/пульт только при включённом флаге, список онлайн по партнёрам, пульт шесть строк, refresh 403/сеть → «—», compact vs full overdue, неизвестный email / истёкший 2FA.</li>
+      гость/403/200, JSON <code>errors.system_monitors</code>, native 302, персональный экран, откат 422, опрос Reverb/онлайн/пульт только при включённом флаге, список онлайн по партнёрам, пульт восемь строк (Сегодня / Вчера: T‑Bank за календарный день), refresh 403/сеть → «—», compact vs full overdue, неизвестный email / истёкший 2FA.</li>
+    <li><code>SystemMonitorsOpsDayFeatureTest</code> — строки «Сегодня» / «Вчера»: оборотка / комиссия из правил / счётчик T‑Bank за календарный день, без офлайна, дни не смешиваются, все партнёры.</li>
+    <li><code>OpsDayKpiDocumentationContractTest</code> — анонс <code>/doc#ops-day-kpi-index</code> совпадает с живыми строками «Сегодня» / «Вчера».</li>
+    <li><code>SystemMonitorsOpsDayUxFeatureTest</code> — первый кадр «…» не цифры из БД; 0 не «—»; leftover после 403/сети; login и без права строк нет.</li>
+    <li><code>SystemMonitorsOpsDayAccessFeatureTest</code> — гость/403 без <code>day</code>, оператор JSON и native GET целые, мутации не пустой 200.</li>
     <li><code>ChatUnreadSidebarFlashUxFeatureTest</code> — вспышка бейджа в открытом диалоге: серверный <code>inbox.bump</code> несёт новый unread, клиент на странице чата не красит этот total (прогон реального JS), вне чата и в другом диалоге каунтер показывается.</li>
     <li><code>ChatPartnerScopeFullAccessFeatureTest</code> — partner-scope, дедуп 1-на-1
       (в т.ч. 0/1 живой участник, UNIQUE пары в треде), чужой тред 403 (включая PATCH read и PATCH draft), 422 под полями.</li>

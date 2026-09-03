@@ -46,8 +46,8 @@
     <tbody>
       <tr><td>GET</td><td><code>/admin/teams</code></td><td><code>admin.team.index</code> — HTML страница, DataTables</td></tr>
       <tr><td>GET</td><td><code>/admin/teams/data</code></td><td><code>admin.team.data</code> — JSON для таблицы (serverSide)</td></tr>
-      <tr><td>GET</td><td><code>/admin/teams/columns-settings</code></td><td>Настройки видимости колонок (<code>user_table_settings</code>, ключ <code>teams_index</code>)</td></tr>
-      <tr><td>POST</td><td><code>/admin/teams/columns-settings</code></td><td>Сохранение настроек колонок</td></tr>
+      <tr><td>GET</td><td><code>/admin/teams/columns-settings</code></td><td>Настройки видимости колонок (<code>user_table_settings</code>, ключ <code>teams_index</code>). JSON <code>{ключ: bool}</code> / <code>[]</code>, без <code>page_length</code> (§<a href="#teams-page-length">2.0</a>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/teams/columns-settings</code></td><td>Сохранение колонок и/или «Показать N» (<code>page_length</code> ∈ {10,20,50,100}). Request: <code>ColumnsSettingsWithPageLengthSaveRequest</code></td></tr>
       <tr><td>GET</td><td><code>/admin/teams/logs-data</code></td><td><code>logs.data.team</code> — логи изменений групп</td></tr>
       <tr><td>POST</td><td><code>/admin/teams</code></td><td><code>admin.team.store</code> — создание группы</td></tr>
       <tr><td>GET</td><td><code>/admin/team/{id}/edit</code></td><td><code>admin.team.edit</code> — JSON для модалки редактирования</td></tr>
@@ -76,10 +76,52 @@
     Название чата = <code>teams.title</code> только при создании; <code>PATCH</code>
     группы чат не переименовывает (успешный update — JSON 200, не 302).
     Soft-delete группы чат не удаляет и никого не кикает.
+    UI после AJAX-успеха — toast «Группа успешно удалена.» (не JSON
+    <code>message</code>), не <code>showSuccessModal</code>; таблица
+    <code>#teams-table</code> — <code>ajax.reload(null, false)</code>, без F5.
+    Toast после закрытия confirm (<code>hidden.bs.modal</code> у
+    <code>#confirmDeleteModal</code>), иначе оверлей confirm его перекрывает.
+  </div>
+
+  <h2 id="team-ajax-submit">1.2) Create / edit / delete без success-модалки</h2>
+  <div class="note">
+    Сабмит уже был AJAX; мешали success-модалка и <code>location.reload()</code>
+    по «OK». Сейчас как у объектов и клиентов:
+    <ul>
+      <li>Create (<code>POST /admin/teams</code>): закрывается <code>#createTeamModal</code>,
+        форма сбрасывается (включая мультиселект тренеров),
+        <code>$('#teams-table').DataTable().ajax.reload(null, false)</code>,
+        toast <code>window.showToast</code> с JSON <code>message</code>
+        (обычно «Группа создана успешно»; fallback тот же).</li>
+      <li>Edit (<code>PATCH /admin/team/{id}</code>): закрывается <code>#editTeamModal</code>,
+        тот же <code>ajax.reload</code>, toast «Группа успешно обновлена»
+        (<code>response.message</code> или fallback).</li>
+      <li>Delete — §<a href="#team-delete">1.1</a>: UI «Группа успешно удалена.»,
+        JSON длиннее («…помечены как удалённые»).</li>
+    </ul>
+    422 — ошибки под полями, toast успеха нет.
+    Non-AJAX <code>POST /admin/teams</code> без <code>X-Requested-With</code> → 302 на
+    <code>/admin/teams</code>, запись в БД есть.
+    Non-AJAX <code>PATCH</code> / <code>DELETE</code> исторически отдают JSON 200 с
+    <code>message</code> (не пустой 200 и не F5) — так же, как
+    <code>ChatTeamGroupThreadNonAjaxSafetyNetFeatureTest</code> и
+    «успешный update — JSON 200, не 302» в §1.1.
+    Не <code>showSuccessModal</code> и не F5.
+    Анонс — <a href="/doc#teams-create-edit-toast-index">/doc#teams-create-edit-toast-index</a>,
+    общий список — <a href="/doc#success-toast-instead-of-modal-index">успех без лишнего «OK»</a>.
+    Тесты: <code>TeamsCreateEditToastAccessFeatureTest</code>,
+    <code>TeamsCreateEditToastAjaxContractFeatureTest</code>,
+    <code>TeamsCreateEditToastNonAjaxSafetyNetFeatureTest</code>,
+    <code>TeamsCreateEditToastUiContractsFeatureTest</code>,
+    <code>TeamsCreateEditToastFullAccessFeatureTest</code>,
+    <code>TeamsToastDocumentationContractTest</code>,
+    <code>SuccessToastInsteadOfModalUiContractsFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_create_and_edit_team_success_without_reload_js_is_valid_and_uses_toast</code>,
+    <code>TeamsPageToolbarFeatureTest::test_create_edit_delete_success_use_toast_instead_of_success_modal</code>.
   </div>
 
   <h2>2) Таблица групп и «Поля списка»</h2>
-  <p>Таблица — DataTables (serverSide), фильтры: название группы, статус (активные/неактивные); при <code>locations.view</code> — также объект, район объекта и администратор объекта; при <code>trainers.view</code> — тренер; при <code>sport_types.view</code> — вид спорта; при ≥2 активных юр. лиц и <code>legal_entities.view</code> — колонка «Юр. лицо». Колонка «#» (нумерация) не настраивается.</p>
+  <p>Таблица — DataTables (serverSide), фильтры: название группы, статус (активные/неактивные); при <code>locations.view</code> — также объект, район объекта и администратор объекта; при <code>trainers.view</code> — тренер; при <code>sport_types.view</code> — вид спорта; при ≥2 активных юр. лиц и <code>legal_entities.view</code> — колонка «Юр. лицо». Колонка «#» (нумерация) не настраивается. Селект «Показать N» запоминается на пользователя (§<a href="#teams-page-length">2.0</a>).</p>
 
   <h3>Порядок колонок (при всех правах)</h3>
   <ol>
@@ -97,6 +139,33 @@
   </ol>
 
   <p>Выпадающий список <strong>«Поля списка»</strong> (иконка колонок) сохраняет видимость в <code>user_table_settings.columns</code> для <code>table_key = teams_index</code>. Ключи: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code>, <code>sport_type_label</code>, <code>weekdays_label</code>, <code>month_price</code>, <code>status_label</code>, <code>actions</code> (опциональные ключи появляются в UI только при соответствующем праве или наличии справочника).</p>
+
+  <h3 id="teams-page-length">2.0) «Показать N» — персонально на пользователя</h3>
+  <p>Селект DataTables «Показать 10 / 20 / 50 / 100» на <code>/admin/teams</code> сохраняется
+    на текущего пользователя с правом <code>groups.view</code> в
+    <code>user_table_settings.page_length</code> для <code>table_key = teams_index</code>
+    (та же строка, что видимость колонок). Номер страницы (<code>start</code>) не хранится.</p>
+  <ul>
+    <li><b>Старт.</b> <code>TeamController::index</code> читает <code>page_length</code> текущего пользователя
+      и передаёт <code>$teamsPageLength</code> в Blade. <code>KidsCrmDataTable.create('#teams-table')</code>
+      получает <code>dataTable.pageLength</code> и <code>columnsSettings.persistPageLength: true</code>.
+      Нет записи / значение не из <code>10, 20, 50, 100</code> → <b>10</b>.</li>
+    <li><b>Смена селекта.</b> Пресет шлёт <code>POST /admin/teams/columns-settings</code> только с
+      <code>page_length</code>. Request: <code>ColumnsSettingsWithPageLengthSaveRequest</code>.
+      AJAX и non-AJAX успех → <b>200</b> <code>{success: true}</code> + запись в БД.</li>
+    <li><b>Ошибки.</b> Невалидное значение: AJAX → <b>422</b> <code>errors.page_length</code>
+      («Можно показать 10, 20, 50 или 100 записей.»), текст под <code>.dataTables_length</code>.
+      Non-AJAX → <b>302</b> + session errors. Пустой POST по-прежнему 422/302 по <code>columns</code>.</li>
+    <li><b>GET columns-settings</b> не отдаёт <code>page_length</code> — контракт видимости колонок не менялся.
+      Сохранение колонок не сбрасывает <code>page_length</code>.</li>
+  </ul>
+  <p class="small">Тесты: <code>TeamsPageLengthFeatureTest</code> (HTTP 200/403/422/302, UX: повторное открытие держит N, скрытие колонок не сбрасывает N, <code>start</code> не пишется),
+    <code>TeamsPageLengthFullAccessFeatureTest</code> (гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405),
+    <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>,
+    <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>.
+    Анонс — <a href="/doc#datatable-page-length-index">/doc</a>
+    (канонический список всех 9 страниц — <a href="/doc#datatable-page-length-catalog">таблица</a>).
+    Тот же механизм на учениках — <a href="/docs/documentation/admin-users#users-page-length">admin-users §2.0</a>.</p>
 
   <h3 id="month-price">2.1) Поле «Стоимость» (<code>teams.month_price_cents</code>)</h3>
   <p>Необязательная месячная стоимость группы в рублях на границе UI (копейки разрешены, <code>step=0.01</code>); в БД — копейки. Доступна всем пользователям с правом <code>groups.view</code>; отдельного permission не требуется. Канон денег — <a href="/docs/documentation/money">money</a>.</p>
@@ -381,7 +450,7 @@
     <li><code>resources/views/includes/sidebar.blade.php</code> — пункт справочников через <code>DirectoriesMenu::forUser()</code> (приоритет URL: группы → объекты → районы → виды спорта).</li>
     <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки (в т.ч. <code>month_price</code>, <code>location_id</code>).</li>
     <li><code>app/Http/Controllers/Admin/TeamController.php</code> — <code>index</code>, <code>data</code>, CRUD, отсечение полей по правам.</li>
-    <li><code>app/Http/Controllers/Admin/TeamColumnsSettingsController.php</code> — <code>teams_index</code>.</li>
+    <li><code>app/Http/Controllers/Admin/TeamColumnsSettingsController.php</code> — <code>teams_index</code> (колонки и <code>page_length</code>, Request: <code>ColumnsSettingsWithPageLengthSaveRequest</code>).</li>
     <li><code>app/Http/Requests/Team/StoreRequest.php</code>, <code>UpdateRequest.php</code> — валидация всех полей группы по правам.</li>
     <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>groups.view</code>.</li>
     <li><code>app/Models/Team.php</code> — cast <code>month_price_cents</code> → int; связь <code>location()</code> (BelongsTo).</li>
@@ -413,13 +482,26 @@
       <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — тренер при «Посетил» в ячейке журнала.</li>
       <li><code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code> — <code>trainer_profile_ids[]</code>, sync <code>team_trainer</code> (несколько тренеров на группу).</li>
       <li><code>tests/Feature/Crm/Teams/TeamControllerTest.php</code> — CRUD, фильтры, изоляция партнёра.</li>
+      <li><code>tests/Unit/Documentation/TeamsToastDocumentationContractTest.php</code> — анонс /doc и §1.2: toast create/edit/delete, не <code>showSuccessModal</code></li>
+      <li><code>tests/Feature/Crm/Teams/TeamsCreateEditToastAccessFeatureTest.php</code> — гость / без <code>groups.view</code> / со правом: страница, POST/PATCH/DELETE, скрытый пустой toast</li>
+      <li><code>tests/Feature/Crm/Teams/TeamsCreateEditToastAjaxContractFeatureTest.php</code> — JSON 200 <code>message</code> для toast, 422 <code>errors.title</code> / duration, чужой партнёр 404/403</li>
+      <li><code>tests/Feature/Crm/Teams/TeamsCreateEditToastNonAjaxSafetyNetFeatureTest.php</code> — POST без AJAX → 302 + запись; PATCH/DELETE без AJAX → JSON 200 с <code>message</code>, не пустой 200; валидация 302 + session errors</li>
+      <li><code>tests/Feature/Crm/Teams/TeamsCreateEditToastUiContractsFeatureTest.php</code> — UX-баг success-модалки + F5: toast, закрытие модалки, <code>ajax.reload(null, false)</code>, оба HTML-триггера <code>.edit-team-link</code>, дефолт «Активен», 422 без toast</li>
+      <li><code>tests/Feature/Crm/Teams/TeamsCreateEditToastFullAccessFeatureTest.php</code> — гость / 403 / 200, чужие глаголы не 500, изоляция партнёра</li>
+      <li><code>tests/Feature/Crm/Teams/TeamsPageToolbarFeatureTest.php</code> — тулбар + toast create/edit/delete в HTML страницы</li>
+      <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — JS create/edit/delete: <code>window.showToast</code>, delete после <code>hidden.bs.modal</code></li>
       <li><code>tests/Feature/Crm/Teams/TeamColumnsSettingsTest.php</code> — API настроек колонок.</li>
+      <li><code>tests/Feature/Crm/Teams/TeamsPageLengthFeatureTest.php</code> — §2.0 персональный page_length, UX повторного открытия, 422 по полям, гость/403</li>
+      <li><code>tests/Feature/Crm/Teams/TeamsPageLengthFullAccessFeatureTest.php</code> — гость / без <code>groups.view</code> / viewer / admin; PUT/PATCH/DELETE → 404/405</li>
+      <li><code>tests/Feature/Crm/Ui/DatatablePageLengthCatalogFeatureTest.php</code> — канонический список 9 страниц с persist «Показать N» (в т.ч. <code>/admin/teams</code>)</li>
     </ul>
   </div>
   <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/Teams/TeamLocationBindingFeatureTest.php \
   tests/Feature/Crm/Teams/TeamLocationFullAccessFeatureTest.php \
-  tests/Feature/Crm/Teams/TeamsPageCompleteAccessFeatureTest.php</code></pre>
+  tests/Feature/Crm/Teams/TeamsPageCompleteAccessFeatureTest.php \
+  tests/Feature/Crm/Teams/TeamsPageLengthFeatureTest.php \
+  tests/Feature/Crm/Teams/TeamsPageLengthFullAccessFeatureTest.php</code></pre>
 
   <p class="small">
     <a href="/doc">← К оглавлению</a> ·

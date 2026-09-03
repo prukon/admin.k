@@ -295,7 +295,7 @@ final class SchoolLeadsActionsColumnFullAccessFeatureTest extends CrmTestCase
                     'comment'               => 'actions access smoke',
                 ],
             ],
-        ], $this->schoolLeadStatusManagementRoutesPayload());
+        ], $this->schoolLeadStatusManagementRoutesPayload(), $this->schoolLeadNotificationSettingsRoutesPayload());
     }
 
     /**

@@ -35,7 +35,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * P1: JSON-контракт GET /cabinet/system-monitors/ops —
- * шесть блоков, окно 24 ч (вход — 72 ч), все партнёры.
+ * восемь блоков, окно 24 ч (вход — 72 ч), строки «Сегодня» / «Вчера» — календарный день, все партнёры.
  * 500/шлюзы без PII; auth.recent_* содержит введённые email/пароль/код и IP.
  *
  * @see \Tests\Feature\Crm\Teams\TeamControllerTest::test_store_non_ajax_redirects_and_creates_team
@@ -47,11 +47,15 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
         $this->asSuperadmin();
         $this->user->forceFill(['system_monitors' => false])->save();
 
-        $this->actingAs($this->user)
+        $response = $this->actingAs($this->user)
             ->getJson($this->opsUrl(), $this->ajaxHeaders())
             ->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('window_hours', 24);
+            ->assertJsonPath('window_hours', 24)
+            ->assertJsonPath('day.turnover', 0)
+            ->assertJsonPath('yesterday.payments_count', 0);
+        $this->assertIsInt($response->json('day.turnover'));
+        $this->assertIsInt($response->json('yesterday.commission'));
     }
 
     public function test_empty_snapshot_has_ok_and_zero_counters(): void
@@ -74,9 +78,21 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->assertJsonPath('auth.recent_2fa', [])
             ->assertJsonPath('welcome.missing_count', 0)
             ->assertJsonPath('welcome.last_user_id', null)
+            ->assertJsonPath('day.turnover', 0)
+            ->assertJsonPath('day.commission', 0)
+            ->assertJsonPath('day.payments_count', 0)
+            ->assertJsonPath('yesterday.turnover', 0)
+            ->assertJsonPath('yesterday.commission', 0)
+            ->assertJsonPath('yesterday.payments_count', 0);
+
+        $empty = $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
             ->assertJsonStructure([
                 'ok',
                 'window_hours',
+                'day' => ['turnover', 'commission', 'payments_count'],
+                'yesterday' => ['turnover', 'commission', 'payments_count'],
                 'queue' => ['worker', 'scheduler', 'jobs', 'failed_jobs', 'overdue_payouts'],
                 'till' => ['overdue_payouts', 'failed_intents', 'fiscal_errors'],
                 'errors' => ['count', 'last_class', 'last_message', 'top_class', 'recent'],
@@ -88,6 +104,12 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
                 'auth' => ['window_hours', 'failed_logins', 'failed_2fa', 'recent_logins', 'recent_2fa'],
                 'welcome' => ['missing_count', 'last_user_id'],
             ]);
+        $this->assertIsInt($empty->json('day.turnover'));
+        $this->assertIsInt($empty->json('day.commission'));
+        $this->assertIsInt($empty->json('day.payments_count'));
+        $this->assertIsInt($empty->json('yesterday.turnover'));
+        $this->assertIsInt($empty->json('yesterday.commission'));
+        $this->assertIsInt($empty->json('yesterday.payments_count'));
     }
 
     public function test_json_does_not_leak_email_phone_password_or_pan(): void

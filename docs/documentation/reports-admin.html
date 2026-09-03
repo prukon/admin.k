@@ -68,9 +68,11 @@
     </ul>
     Тесты: <code>ReportsAndPayoutsPageLengthFeatureTest</code>,
     <code>ReportsAndPayoutsPageLengthFullAccessFeatureTest</code>,
+    <code>DatatablePageLengthCatalogFeatureTest</code> (полный список 9 страниц, включая payments / monthly / LTV / intents / fiscal / payouts),
     <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>,
     <code>BladeInlineJsSyntaxTest::test_monthly_and_ltv_detail_tables_hardcode_ten_and_do_not_persist</code>,
     <code>BladeInlineJsSyntaxTest::test_report_and_payout_filter_submit_reloads_without_recreating_datatable</code>.
+    Канонический список URL — <a href="/doc#datatable-page-length-catalog">/doc</a>.
   </div>
 
   <h2>2) Права доступа (middleware can:…)</h2>
@@ -426,6 +428,7 @@
         <li>Хранение: <code>user_table_settings.table_key = reports_ltv</code></li>
         <li>«Показать N»: <code>page_length</code> в той же строке; вложенная таблица платежей ученика не сохраняет N (§1.1)</li>
         <li>Ключи: <code>user_name</code>, <code>team_title</code>, <code>total_price</code>, <code>payment_count</code>, <code>first_payment_date</code>, <code>last_payment_date</code>, <code>is_enabled</code></li>
+        <li><b>Поиск DataTables</b> (<code>search.value</code>): только ФИО ученика и название группы. Агрегаты <code>payment_count</code> / даты / <code>is_enabled</code> в SQL <code>WHERE</code> не попадают (это не колонки <code>payments</code>; иначе <code>QueryException</code> 42S22). Реализация: <code>LtvReportController::applyLtvDataTableSearch</code>, <code>filter(..., true)</code>.</li>
       </ul>
     </li>
   </ul>
@@ -721,6 +724,7 @@
     <li><code>tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b> во всех четырёх отчётах (Платежи, monthly, LTV, debts): логика active/inactive/all, UI, детализация; контроль доступа (guest / без <code>reports.view</code> / admin / superadmin); smoke 200 для всех вариантов <code>status</code>. Назначение абонементов — отдельный файл <code>LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> (см. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages</a>).</li>
     <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php</code> — §1.1 персональный page_length на payments / monthly / LTV / intents / fiscal / payouts; UX повторного открытия и открытия с фильтрами; вложенные LTV/monthly остаются на 10 после сохранения N; N одной таблицы не течёт в другую; 422/302 по полям; гость/403; debts/emails без opt-in</li>
     <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFullAccessFeatureTest.php</code> — гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405</li>
+    <li><code>tests/Feature/Crm/Ui/DatatablePageLengthCatalogFeatureTest.php</code> — канонический список всех страниц с persist «Показать N» (9 URL / <code>table_key</code>)</li>
     <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code> — фильтр <code>filter_location_id</code> и доступ (monthly, LTV, debts)</li>
     <li><code>tests/Feature/Crm/Reports/OutgoingEmailReportTest.php</code> — permission, totals/data с partner_id, columns-settings, show (modal partial, HTML iframe), listener (raw без класса; Mailable пишет <code>mailable_class</code>)</li>
     <li><code>tests/Feature/Crm/Reports/LogOutgoingEmailMailableClassFeatureTest.php</code> — тип письма в журнале: welcome / sibling / payment, <code>Mail::raw</code>, заголовок <code>X-Mailable-Class</code></li>
@@ -733,7 +737,7 @@
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS: <code>outgoing_emails</code>, <code>fiscal_receipts</code>, <code>payment_intents</code>, <code>debt</code> (+ контракт refreshDebtReportTotal / default status=active; settings-prices.js + manual-paid)</li>
     <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code>, фильтр локации, unit-кейсы <code>is_manual_paid</code>)</li>
     <li><code>tests/Feature/Crm/Reports/DebtsReportManualPaidFeatureTest.php</code> — UX: ручная оплата из установки цен / доп. платежей ↔ отчёт задолженностей (effective_is_paid), guest/403, Blade/JS-контракт</li>
-    <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code> и фильтр локации)</li>
+    <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code>, фильтр локации, поиск DataTables по ФИО и группе без <code>payments.payment_count</code>)</li>
     <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code> (включая фильтр локации)</li>
     <li><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> — отчёт «Платежи»: колонка и фильтр</li>
     <li><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> — запись <code>payments.location_id</code> при оплате</li>

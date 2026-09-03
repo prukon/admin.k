@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Partner\CreatePartnerServicePaymentRequest;
 use App\Http\Requests\Partner\CreatePartnerWalletTopupRequest;
 use App\Models\Partner;
 use App\Models\PartnerAccess;
@@ -27,19 +28,28 @@ class PartnerPaymentController extends AdminBaseController
 //    Страница Пополнить счет
     public function showRecharge()
     {
-        return view('payment.paymentPartner', ['activeTab' => 'recharge']);
+        return view('payment.paymentPartner', [
+            'activeTab' => 'recharge',
+            'partner' => $this->currentUserPartnerOrFail(),
+        ]);
     }
 
     //    Страница История платежей
     public function showHistory()
     {
-        return view('payment.paymentPartner', ['activeTab' => 'history']);
+        return view('payment.paymentPartner', [
+            'activeTab' => 'history',
+            'partner' => $this->currentUserPartnerOrFail(),
+        ]);
     }
 
 //    Формирование таблицы для Истории платежей
     public function getPaymentsData(Request $request)
     {
+        $partner = $this->currentUserPartnerOrFail();
+
         $query = PartnerPayment::with(['partner', 'user'])
+            ->where('partner_payments.partner_id', $partner->id)
             ->leftJoin('partner_accesses', 'partner_payments.id', '=', 'partner_accesses.partner_payment_id')
             ->select(
                 'partner_payments.*',
@@ -97,23 +107,20 @@ class PartnerPaymentController extends AdminBaseController
     }
 
     //    Формирование платежа Yookassa
-    public function createPaymentYookassa(Request $request)
+    public function createPaymentYookassa(CreatePartnerServicePaymentRequest $request)
     {
-        // Валидация входных данных
-        $request->validate([
-            'amount' => 'required|numeric|min:1',
-            'days' => 'required|numeric|min:1',
-            'partner_id' => 'required|exists:partners,id',
-            'description' => 'required',
-        ]);
+        $data = $request->validated();
+
+        $partner = $this->currentUserPartnerOrFail();
+        $this->guardPartnerAccess((int) $data['partner_id']);
 
         $client = new Client();
         $client->setAuth(config('yookassa.shop_id'), config('yookassa.secret_key'));
 
-        $amount = $request->input('amount');
-        $days = $request->input('days');
-        $partnerId = $request->input('partner_id');
-        $description = $request->input('description');
+        $amount = (float) $data['amount'];
+        $days = (int) $data['days'];
+        $partnerId = (int) $partner->id;
+        $description = $data['description'];
         $curUser = auth()->user();
 
         if (!$curUser) {
@@ -168,9 +175,8 @@ class PartnerPaymentController extends AdminBaseController
             }
 
             // Используем транзакцию
-            \DB::transaction(function () use ($payment, $partnerId, $curUserId, $amount) {
-                // Получаем дату начала активности
-                $latestEndDate = PartnerAccess::where('is_active', 1)->max('end_date');
+            \DB::transaction(function () use ($payment, $partnerId, $curUserId, $amount, $days) {
+                $latestEndDate = $this->latestActiveAccessEndDateForPartner($partnerId);
 
                 if ($latestEndDate) {
                     $activityStartDate = Carbon::parse($latestEndDate)->addDays(1);
@@ -181,7 +187,7 @@ class PartnerPaymentController extends AdminBaseController
                 // Формируем конечную дату
                 if ($activityStartDate) {
                     $activityStartDateParse = Carbon::parse($activityStartDate);
-                    $endDate = $activityStartDateParse->addDays(29); // Добавить 30 дней
+                    $endDate = $activityStartDateParse->addDays($days);
                 } else {
                     throw new \Exception('Не удалось получить дату начала активности партнера.');
                 }
@@ -542,6 +548,19 @@ class PartnerPaymentController extends AdminBaseController
         abort_if($partner === null, 404, 'Партнёр не найден');
 
         return $partner;
+    }
+
+    private function latestActiveAccessEndDateForPartner(int $partnerId): ?string
+    {
+        $value = PartnerAccess::query()
+            ->join('partner_payments', 'partner_accesses.partner_payment_id', '=', 'partner_payments.id')
+            ->where('partner_payments.partner_id', $partnerId)
+            ->where('partner_accesses.is_active', 1)
+            ->whereNull('partner_accesses.deleted_at')
+            ->whereNull('partner_payments.deleted_at')
+            ->max('partner_accesses.end_date');
+
+        return $value !== null ? (string) $value : null;
     }
 
     // --- Разрешённые IP YooKassa (как в твоём рабочем примере) ---

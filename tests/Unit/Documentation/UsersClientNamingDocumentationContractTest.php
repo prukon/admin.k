@@ -35,6 +35,8 @@ final class UsersClientNamingDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Клиент успешно обновлён', $chunk);
         $this->assertStringContainsString('Клиент успешно удалён', $chunk);
         $this->assertStringContainsString('Клиент успешно удален.', $chunk);
+        $this->assertStringContainsString('window.showToast', $chunk);
+        $this->assertStringContainsString('Клиент успешно создан.', $chunk);
         $this->assertStringContainsString('Удален клиент:', $chunk);
         $this->assertStringContainsString('Управление клиентами', $chunk);
         $this->assertStringContainsString('Страница "Пользователи"', $chunk);
@@ -84,8 +86,12 @@ final class UsersClientNamingDocumentationContractTest extends TestCase
         $this->assertStringContainsString('id="editUserModalLabel">Редактирование клиента</h5>', $edit);
         $this->assertStringContainsString('function editUserLink2()', $edit);
         $this->assertStringContainsString('function editUserLink()', $edit);
+        $this->assertStringContainsString("window.showToast((response && response.message) ? response.message : 'Клиент успешно создан.', 'success')", $create);
+        $this->assertStringContainsString("window.showToast(response.message || 'Клиент успешно обновлён.', 'success')", $edit);
         $this->assertStringContainsString('window.showToast(\'Клиент успешно удален.\', \'success\');', $edit);
         $this->assertStringContainsString('"Удаление клиента"', $edit);
+        $this->assertStringNotContainsString('showSuccessModal', $create);
+        $this->assertStringNotContainsString('showSuccessModal("Редактирование клиента"', $edit);
         $this->assertStringContainsString('id="trainerCreateModalLabel">Создание тренера</h5>', $trainers);
         $this->assertStringContainsString("'Клиент'", $account);
         $this->assertStringContainsString('data-placeholder="Все пользователи"', $intents);
@@ -113,7 +119,9 @@ final class UsersClientNamingDocumentationContractTest extends TestCase
 
         $this->assertStringContainsString('id="user-client-naming"', $users);
         $this->assertStringContainsString('/doc#users-client-naming-index', $users);
+        $this->assertStringContainsString('/doc#users-create-edit-toast-index', $users);
         $this->assertStringContainsString('/doc#users-client-naming-index', $section);
+        $this->assertStringContainsString('/doc#users-create-edit-toast-index', $section);
         $this->assertStringContainsString('пункт сайдбара остаются «Пользователи»', $section);
         $this->assertStringContainsString('Управление клиентами', $groups);
         $this->assertStringContainsString('Страница "Пользователи"', $groups);
