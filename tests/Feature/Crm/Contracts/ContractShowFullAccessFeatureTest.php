@@ -217,6 +217,10 @@ class ContractShowFullAccessFeatureTest extends ContractsFeatureTestCase
             ->assertOk()
             ->assertJsonStructure(['status']);
 
+        $this->postJson(route('contracts.revoke', $sent), [])
+            ->assertOk()
+            ->assertJsonPath('status', 'revoked');
+
         $this->postJson(route('contracts.revoke', $awaitingRevoke), [])
             ->assertOk()
             ->assertJsonPath('status', 'revoked');

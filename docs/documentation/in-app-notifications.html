@@ -34,6 +34,7 @@
     <a href="/doc#cabinet-attach-team-in-app-index">автособытие attach</a>,
     <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>,
     <a href="/doc#contract-signed-in-app-index">договор подписан</a>,
+    <a href="/doc#contract-annul-after-send-index">подпись после revoked без колокольчика</a>,
     <a href="/doc#in-app-notifications-index">колокольчик</a></div>
 
   <div class="ok">
@@ -209,7 +210,9 @@
       Пока job не выполнен, статус <code>pending</code> — в ленте и колокольчике пусто.</li>
     <li>Школа — <code>contracts.school_id</code>. Админы другой школы не получают.
       Без <code>school_id</code> notifier выходит без записи.
-      Вебхук <code>opened</code>, повторный signed, докачка PDF уже подписанного договора —
+      Вебхук <code>opened</code>, повторный signed, докачка PDF уже подписанного договора,
+      подпись по старому SMS у уже <code>revoked</code> договора (PDF сохраняется, статус не signed,
+      <a href="/doc#contract-annul-after-send-index">анонс аннулирования</a>) —
       событие не создают. Гость / 403 / 422 sync (нет <code>provider_doc_id</code>) —
       тоже без уведомления.</li>
     <li>Роли: только системная <code>admin</code> этой школы (<code>is_enabled=1</code>).

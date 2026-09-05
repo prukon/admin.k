@@ -156,6 +156,43 @@ final class AdminUsersContractCreateUxFeatureTest extends AdminUsersContractCrea
         }
     }
 
+    public function test_opened_contract_blocks_create_on_users_list_until_school_annuls(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: true);
+
+        $student = $this->createStudent(['lastname' => 'ОткрытоБлокСоздания']);
+        $contract = $this->createContractForUser($student, Contract::STATUS_OPENED);
+
+        $before = $this->fetchUsersDataRow('ОткрытоБлокСоздания');
+        $this->assertNotNull($before);
+        $this->assertSame(Contract::STATUS_OPENED, $before['latest_contract']['status']);
+
+        $beforeHtml = $this->renderContractCellHtml([
+            'id' => $student->id,
+            'latest_contract' => $before['latest_contract'],
+        ]);
+        $this->assertStringContainsString('Посмотреть черновик', $beforeHtml);
+        $this->assertStringNotContainsString('Создать договор', $beforeHtml);
+        $this->assertStringNotContainsString('fa-plus', $beforeHtml);
+
+        $this->postJson(route('contracts.revoke', $contract), [])
+            ->assertOk()
+            ->assertJsonPath('status', 'revoked');
+
+        $after = $this->fetchUsersDataRow('ОткрытоБлокСоздания');
+        $this->assertNotNull($after);
+        $this->assertArrayNotHasKey('latest_contract', $after);
+
+        $afterHtml = $this->renderContractCellHtml([
+            'id' => $student->id,
+            'name' => $student->full_name,
+        ]);
+        $this->assertStringContainsString('Создать договор', $afterHtml);
+        $this->assertStringContainsString('js-open-create-contract-from-user', $afterHtml);
+        $this->assertStringNotContainsString('Посмотреть черновик', $afterHtml);
+        $this->assertStringNotContainsString('fa-plus', $afterHtml);
+    }
+
     public function test_latest_contract_without_url_falls_back_to_create_button(): void
     {
         $html = $this->renderContractCellHtml([

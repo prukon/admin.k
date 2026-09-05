@@ -82,7 +82,7 @@
       <tr><td>PUT</td><td><code>…/{template}/email</code></td><td>Обновление email <b>только</b> текущей версии (отдельно от PUT шаблона)</td></tr>
       <tr><td>GET</td><td><code>/client-contract-templates/logs-data</code> (<code>logs.data.contract-template</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract_template</code>)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts</code> + <code>creation_mode=template</code></td><td>Создание договора «форма клиенту»</td></tr>
-      <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code></td><td>В <code>awaiting_client_fill</code> — отзыв + возврат 70&nbsp;₽</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code></td><td>В <code>awaiting_client_fill</code> — отзыв + возврат 70&nbsp;₽; в <code>sent</code>/<code>opened</code> — аннулирование без возврата</td></tr>
     </tbody>
   </table>
   <div class="warn">
@@ -306,7 +306,9 @@
     <li><code>ContractInvitationEmailRenderer</code> — рендер письма-приглашения</li>
     <li><code>ContractCreationService</code> — создание договора template mode, billing, notify</li>
     <li><code>ContractBillingService</code> — списание 70&nbsp;₽ в <code>wallet_balance_cents</code>
-      и debit/credit в <code>partner_wallet_transactions</code>; возврат при revoke</li>
+      и debit/credit в <code>partner_wallet_transactions</code>; возврат только при отзыве
+      <code>awaiting_client_fill</code>; аннулирование sent/opened без возврата
+      (<a href="/doc#contract-annul-after-send-index">анонс</a>)</li>
   </ul>
 
   <h2>10) Feature-тесты</h2>

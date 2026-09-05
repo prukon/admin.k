@@ -6859,6 +6859,33 @@ JS;
         );
     }
 
+    public function test_contract_show_annul_after_send_js_posts_revoke_and_is_valid_javascript(): void
+    {
+        $path = resource_path('views/contracts/show.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="annulAfterSendBtn"', $content);
+        $this->assertStringContainsString("\$('#annulAfterSendBtn').on('click'", $content);
+        $this->assertStringContainsString('70 ₽ не возвращаются', $content);
+
+        $annulStart = strpos($content, "$('#annulAfterSendBtn').on('click'");
+        $this->assertNotFalse($annulStart);
+        $annulChunk = substr($content, $annulStart, 1600);
+        $this->assertStringContainsString("method: 'POST'", $annulChunk);
+        $this->assertStringContainsString("/client-contracts/' + contractId + '/revoke'", $annulChunk);
+        $this->assertStringContainsString("headers: {'Accept': 'application/json'}", $annulChunk);
+        $this->assertStringContainsString('_token: csrf', $annulChunk);
+        $this->assertStringContainsString('location.reload()', $annulChunk);
+        $this->assertStringNotContainsString('podpislon', strtolower($annulChunk));
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'annulAfterSendBtn',
+            'blade-js-contract-show-annul'
+        );
+    }
+
     /**
      * UX-баг: кнопка «Редактировать» доп. платежа пряталась по setPrices.manualPaid.manage.
      * Право должно скрывать только селект статуса. Оба JS-пути + node --check.

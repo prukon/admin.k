@@ -33,6 +33,9 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Создать ещё один договор', $chunk);
         $this->assertStringContainsString('fa-plus', $chunk);
         $this->assertStringContainsString('У черновика плюса нет', $chunk);
+        $this->assertStringContainsString('не-отозванному', $chunk);
+        $this->assertStringContainsString('/doc#contract-annul-after-send-index', $chunk);
+        $this->assertStringNotContainsString('отозван и т.д.', $chunk);
         $this->assertStringContainsString('не внутри PDF-ссылки', $chunk);
         $this->assertStringContainsString('lockUser: true', $chunk);
         $this->assertStringContainsString('user_id_locked', $chunk);
@@ -57,6 +60,7 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $partials = $this->docFile('reusable-ui-partials.html');
 
         $this->assertStringContainsString('/doc#users-contract-create-index', $users);
+        $this->assertStringContainsString('/doc#contract-annul-after-send-index', $users);
         $this->assertStringContainsString('id="user-contract-create"', $users);
         $this->assertStringContainsString('create_contract_url</code> в JSON списка пользователей <b>нет</b>', $users);
         $this->assertStringContainsString("тип <code>actions</code>", $users);

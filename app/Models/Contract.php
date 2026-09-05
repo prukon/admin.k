@@ -119,6 +119,19 @@ class Contract extends Model
             && $this->status === self::STATUS_AWAITING_CLIENT_FILL;
     }
 
+    /**
+     * Аннулирование после отправки в Подпислон: без возврата 70 ₽ и без API-отзыва.
+     */
+    public function canAnnulAfterSend(): bool
+    {
+        return in_array($this->status, [self::STATUS_SENT, self::STATUS_OPENED], true);
+    }
+
+    public function isRevoked(): bool
+    {
+        return $this->status === self::STATUS_REVOKED;
+    }
+
     public function isFillExpired(): bool
     {
         return $this->fill_expires_at !== null && $this->fill_expires_at->isPast();

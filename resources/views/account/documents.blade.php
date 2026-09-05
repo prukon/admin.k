@@ -107,12 +107,13 @@
                                             </button>
                                         @endif
 
-                                        @if($c->status === \App\Models\Contract::STATUS_SIGNED)
+                                        @if($c->signed_pdf_path)
                                             <a class="btn btn-sm btn-primary"
                                                href="{{ route('account.documents.downloadSigned', $c) }}">
                                                 Скачать подписанный
                                             </a>
-                                        @elseif($c->source_pdf_path)
+                                        @endif
+                                        @if($c->status !== \App\Models\Contract::STATUS_SIGNED && $c->source_pdf_path)
                                             <a class="btn btn-sm btn-outline-primary"
                                                href="{{ route('account.documents.downloadOriginal', $c) }}">
                                                 Скачать PDF

@@ -35,6 +35,7 @@
     · <a href="#account-documents-action-counter">§1.0 каунтер активных договоров</a>
     · <a href="#fill-modal-passport-email-errors">§2.6 паспорт / email / ошибки</a>
     · анонс <a href="/doc#account-contract-fill-modal-ux-index">/doc</a>
+    · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">/doc</a>
     · ключ Подпислона: <a href="/doc#legal-entities-podpislon-key-index">/doc</a>
   </div>
 
@@ -47,7 +48,10 @@
     Когда Подпислон подтверждает подпись (вебхук или ручная синхронизация статуса), договор становится <code>signed</code>
     и админы школы получают уведомление в колокольчик на 7 суток
     (<a href="/doc#contract-signed-in-app-index">анонс</a>,
-    <a href="/docs/documentation/in-app-notifications#events-contract-signed">in-app-notifications §5.2</a>).<br><br>
+    <a href="/docs/documentation/in-app-notifications#events-contract-signed">in-app-notifications §5.2</a>).
+    Исключение: если школа уже <b>аннулировала</b> договор (<code>revoked</code>), поздняя подпись старого SMS
+    статус в <code>signed</code> не поднимает и колокольчик не шлёт
+    (<a href="/doc#contract-annul-after-send-index">анонс аннулирования</a>).<br><br>
     Право на раздел: <code>account.documents.view</code> (<code>Gate::define('account.documents.view')</code>).<br>
     Маршруты fill / generate / sign дополнительно защищены middleware <code>contract.owner</code> — только владелец договора (<code>contracts.user_id === Auth::id()</code>); чужой пользователь получает <b>404</b> (anti-enumeration).<br>
     Гость → <b>302</b> на login; без права → <b>403</b>.
@@ -222,7 +226,8 @@
       <tr><td><code>awaiting_client_fill</code></td><td>Форма «Сформировать договор»; доступен fill JSON</td></tr>
       <tr><td><code>generating_pdf</code></td><td>Спиннер, <code>poll: true</code> в JSON — автообновление модалки</td></tr>
       <tr><td><code>draft</code> + PDF</td><td>Блок подписания SMS + «Скачать PDF»</td></tr>
-      <tr><td><code>sent</code> / <code>opened</code></td><td>Fill JSON → 422 «Договор недоступен для заполнения»; подсказка про SMS на странице при других сценариях</td></tr>
+      <tr><td><code>sent</code> / <code>opened</code></td><td>Fill JSON → 422 «Договор недоступен для заполнения»; подсказка про SMS на странице при других сценариях. Школа может <b>аннулировать</b> договор на карточке CRM («Аннулировать», <a href="/doc#contract-annul-after-send-index">анонс</a>): статус <code>revoked</code>, 70&nbsp;₽ не возвращаются. Кнопка «Изменить» в кабинете не появляется. В каунтере сайдбара sent/opened ещё считаются, revoked — нет</td></tr>
+      <tr><td><code>revoked</code></td><td>Нет «Заполнить» / «Подписать» / «Изменить». Если позже пришёл signed PDF (старое SMS) — «Скачать подписанный» (и «Скачать PDF» оригинала, пока статус не <code>signed</code>). Бейдж статуса — «Отозвано», не «Подписано»</td></tr>
     </tbody>
   </table>
   <div class="warn">
@@ -297,6 +302,10 @@
       <li><code>AccountContractParentFillEndpointsAccessFeatureTest.php</code> — матрица 401/403/200 по всем URL</li>
       <li><code>AccountContractFillFlowUiFeatureTest.php</code> — панели, sign-block, poll, ошибка генерации</li>
       <li><code>AccountDocumentsFullAccessFeatureTest.php</code> — index, fill JSON, download</li>
+      <li><code>AccountDocumentsTest.php</code> — download signed при статусе <code>revoked</code>, если файл уже есть</li>
+      <li><code>AccountContractEditFilledDataFeatureTest.php</code> — «Изменить» у draft; нет кнопки и fill JSON 422 при opened/revoked</li>
+      <li><code>ContractAnnulAfterSend*FeatureTest.php</code> / <code>ContractAnnulRevokedSignedWebhookFeatureTest.php</code> — аннулирование sent/opened; signed-вебхук не поднимает revoked в signed</li>
+      <li><code>ContractAnnulAfterSendDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>AccountDocumentsActionCounterFeatureTest.php</code> — каунтер активных договоров (§1.0): сайдбар + вкладка,
         только actionable-статусы, изоляция по <code>user_id</code>, скрытие при 0 / без права, guest/403</li>
       <li><code>ContractTemplateToParentWorkflowFeatureTest.php</code> — admin → email → fill → PDF (CRM + кабинет)</li>

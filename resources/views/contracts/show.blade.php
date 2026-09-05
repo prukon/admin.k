@@ -108,6 +108,12 @@
                             </button>
                         @endif
 
+                        @if($contract->canAnnulAfterSend())
+                            <button type="button" class="btn btn-outline-danger" id="annulAfterSendBtn" data-id="{{ $contract->id }}">
+                                Аннулировать
+                            </button>
+                        @endif
+
                         @if($contract->isTemplateMode() && $contract->status === \App\Models\Contract::STATUS_AWAITING_CLIENT_FILL)
                             <span class="text-muted small align-self-center">
                                 Клиент заполняет договор в личном кабинете и сам отправляет SMS на подпись.
@@ -121,7 +127,7 @@
                         @endif
 
                         @can('contracts.sync')
-                            @if($contract->provider_doc_id && (in_array($contract->status, ['sent','opened','failed','expired'], true) || ($contract->status === 'signed' && !$contract->signed_pdf_path)))
+                            @if($contract->provider_doc_id && (in_array($contract->status, ['sent','opened','failed','expired'], true) || ($contract->status === 'signed' && !$contract->signed_pdf_path) || ($contract->status === 'revoked' && !$contract->signed_pdf_path)))
                                 <button type="button" class="btn btn-outline-secondary" id="syncStatusBtn" data-id="{{ $contract->id }}">
                                     Синхронизировать с Подпислон
                                 </button>
@@ -284,13 +290,21 @@
                                     <span>Скачать подписанный</span>
                                 </a>
                             @else
-                                {{-- Не подписан: только оригинал --}}
+                                {{-- Не подписан: оригинал; если после аннулирования пришёл signed PDF — оба файла --}}
                                 <a href="{{ route('contracts.downloadOriginal', $contract) }}"
                                    class="d-inline-flex flex-column align-items-center text-decoration-none"
                                    title="Скачать оригинал договора">
                                     <i class="fa-solid {{ contractShowFileIconClass($contract->source_pdf_path) }} fa-3x mb-2"></i>
                                     <span>Скачать оригинал</span>
                                 </a>
+                                @if($contract->signed_pdf_path)
+                                    <a href="{{ route('contracts.downloadSigned', $contract) }}"
+                                       class="d-inline-flex flex-column align-items-center text-decoration-none"
+                                       title="Скачать подписанный договор">
+                                        <i class="fa-solid {{ contractShowFileIconClass($contract->signed_pdf_path) }} fa-3x mb-2"></i>
+                                        <span>Скачать подписанный</span>
+                                    </a>
+                                @endif
                             @endif
                         </div>
 
@@ -640,6 +654,25 @@
                     location.reload();
                 }).fail(function (xhr) {
                     alert((xhr.responseJSON && xhr.responseJSON.message) || 'Ошибка отзыва.');
+                });
+            });
+
+            $('#annulAfterSendBtn').on('click', function () {
+                if (!confirm('Аннулировать договор? Клиент не сможет подписать его в личном кабинете. 70 ₽ не возвращаются. Ссылка в старом SMS у Подпислона может остаться рабочей: если клиент всё же подпишет, файл сохранится, статус останется «Отозвано».')) {
+                    return;
+                }
+                var contractId = $(this).data('id');
+                $.ajax({
+                    method: 'POST',
+                    url: '/client-contracts/' + contractId + '/revoke',
+                    dataType: 'json',
+                    headers: {'Accept': 'application/json'},
+                    data: {_token: csrf}
+                }).done(function (resp) {
+                    alert((resp && resp.message) ? resp.message : 'Договор аннулирован.');
+                    location.reload();
+                }).fail(function (xhr) {
+                    alert((xhr.responseJSON && xhr.responseJSON.message) || 'Ошибка аннулирования.');
                 });
             });
 

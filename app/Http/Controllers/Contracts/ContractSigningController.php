@@ -226,6 +226,10 @@ class ContractSigningController extends Controller
             return $this->revokeAwaitingClientFillWithRefund($contract, $billing);
         }
 
+        if ($contract->canAnnulAfterSend()) {
+            return $this->annulAfterSend($contract);
+        }
+
         try {
             $provider->revoke($contract);
 
@@ -248,6 +252,59 @@ class ContractSigningController extends Controller
             );
 
             return response()->json(['message' => 'Подписание отозвано', 'status' => 'revoked']);
+        } catch (\Throwable $e) {
+            ContractEvent::create([
+                'contract_id'  => $contract->id,
+                'author_id'    => Auth::id(),
+                'type'         => 'failed',
+                'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
+            ]);
+
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Аннулирование sent/opened: локальный статус revoked, без возврата 70 ₽ и без вызова Подпислона.
+     */
+    private function annulAfterSend(Contract $contract)
+    {
+        try {
+            DB::transaction(function () use ($contract) {
+                $fresh = Contract::query()->whereKey($contract->id)->lockForUpdate()->firstOrFail();
+
+                if (! $fresh->canAnnulAfterSend()) {
+                    abort(422, 'Договор нельзя аннулировать в текущем статусе.');
+                }
+
+                $fresh->status = Contract::STATUS_REVOKED;
+                $fresh->save();
+
+                ContractEvent::create([
+                    'contract_id'  => $fresh->id,
+                    'author_id'    => Auth::id(),
+                    'type'         => 'revoked',
+                    'payload_json' => json_encode([
+                        'refunded' => false,
+                        'reason'   => 'annul_after_send',
+                    ], JSON_UNESCAPED_UNICODE),
+                ]);
+            });
+
+            $contract->refresh();
+
+            $this->contractAudit->record(
+                AuditEvent::ContractRevoked,
+                "Договор аннулирован.\nВозврат 70 ₽: Нет",
+                userId: (int) $contract->user_id,
+                authorId: Auth::id(),
+                contract: $contract,
+            );
+
+            return response()->json([
+                'message' => 'Договор аннулирован. 70 ₽ не возвращаются.',
+                'status'  => 'revoked',
+            ]);
         } catch (\Throwable $e) {
             ContractEvent::create([
                 'contract_id'  => $contract->id,
@@ -363,6 +420,32 @@ class ContractSigningController extends Controller
                     'status' => $contract->status,
                     'raw'    => $data,
                     'synced' => true,
+                ]);
+            }
+
+            // Аннулированный договор: статус не поднимаем, подписанный PDF сохраняем
+            if ($oldStatus === Contract::STATUS_REVOKED) {
+                if ($mapped === Contract::STATUS_SIGNED && $needsSignedPdf) {
+                    ContractEvent::create([
+                        'contract_id'  => $contract->id,
+                        'author_id'    => $authorId,
+                        'type'         => 'signed_after_revoke',
+                        'payload_json' => json_encode($payloadBase, JSON_UNESCAPED_UNICODE),
+                    ]);
+                    $this->downloadAndAttachSigned($contract, $provider);
+                    $contract->refresh();
+
+                    return response()->json([
+                        'status' => Contract::STATUS_REVOKED,
+                        'raw'    => $data,
+                        'synced' => true,
+                    ]);
+                }
+
+                return response()->json([
+                    'status' => Contract::STATUS_REVOKED,
+                    'raw'    => $data,
+                    'synced' => false,
                 ]);
             }
 

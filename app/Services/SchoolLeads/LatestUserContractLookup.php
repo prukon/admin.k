@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Последний договор (по created_at, затем id) для каждого user_id в рамках партнёра.
+ * Отозванные (revoked) не считаются последними — после аннулирования снова можно создать договор.
  */
 final class LatestUserContractLookup
 {
@@ -33,6 +34,7 @@ final class LatestUserContractLookup
         $contracts = Contract::query()
             ->where('school_id', $partnerId)
             ->whereIn('user_id', $userIds)
+            ->where('status', '!=', Contract::STATUS_REVOKED)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get();
@@ -59,10 +61,11 @@ final class LatestUserContractLookup
                     FROM contracts c2
                     WHERE c2.user_id = uc.user_id
                       AND c2.school_id = ?
+                      AND c2.status != ?
                     ORDER BY c2.created_at DESC, c2.id DESC
                     LIMIT 1
                 )',
-                [$partnerId]
+                [$partnerId, Contract::STATUS_REVOKED]
             );
     }
 

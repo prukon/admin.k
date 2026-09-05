@@ -171,6 +171,28 @@ final class SchoolLeadContractActionFeatureTest extends CrmTestCase
         $this->assertSame($latest->id, $map->get($user->id)?->id);
     }
 
+    public function test_latest_contract_lookup_skips_revoked_so_lead_can_create_again(): void
+    {
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->defaultRoleId(),
+        ]);
+
+        Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $user->id,
+            'group_id'        => null,
+            'source_pdf_path' => 'documents/test/revoked.pdf',
+            'source_sha256'   => str_repeat('c', 64),
+            'status'          => Contract::STATUS_REVOKED,
+            'created_at'      => now(),
+        ]);
+
+        $map = app(LatestUserContractLookup::class)->forUserIds((int) $this->partner->id, [$user->id]);
+
+        $this->assertFalse($map->has($user->id));
+    }
+
     public function test_datatable_omits_contract_fields_without_contracts_view_permission(): void
     {
         $denied = $this->createUserWithoutPermission('contracts.view', $this->partner);

@@ -107,6 +107,53 @@ class AccountContractEditFilledDataFeatureTest extends CrmTestCase
             ->assertJsonPath('message', 'Срок изменения данных договора истёк. Обратитесь в организацию.');
     }
 
+    public function test_documents_page_hides_edit_when_contract_is_opened(): void
+    {
+        $contract = $this->makeDraftContractWithPdf();
+        $contract->update([
+            'status' => Contract::STATUS_OPENED,
+            'provider_doc_id' => 'pkg-opened-edit',
+        ]);
+
+        $html = $this->get(route('account.documents.index'))->assertOk()->getContent();
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/js-open-contract-fill-edit[^>]*data-contract-id="'.$contract->id.'"|data-contract-id="'.$contract->id.'"[^>]*js-open-contract-fill-edit/',
+            $html
+        );
+    }
+
+    public function test_fill_json_is_unavailable_when_opened_or_revoked(): void
+    {
+        $opened = $this->makeDraftContractWithPdf();
+        $opened->update([
+            'status' => Contract::STATUS_OPENED,
+            'provider_doc_id' => 'pkg-opened-fill',
+        ]);
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->getJson(route('account.documents.fill', $opened))
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Договор недоступен для заполнения.');
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->getJson(route('account.documents.fill', ['contract' => $opened, 'mode' => 'edit']))
+            ->assertStatus(422);
+
+        $revoked = $this->makeDraftContractWithPdf();
+        $revoked->update(['status' => Contract::STATUS_REVOKED]);
+
+        $html = $this->get(route('account.documents.index'))->assertOk()->getContent();
+        $this->assertDoesNotMatchRegularExpression(
+            '/js-open-contract-fill-edit[^>]*data-contract-id="'.$revoked->id.'"|data-contract-id="'.$revoked->id.'"[^>]*js-open-contract-fill-edit/',
+            $html
+        );
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->getJson(route('account.documents.fill', $revoked))
+            ->assertStatus(422);
+    }
+
     /**
      * @param array<string, string> $filledData
      */

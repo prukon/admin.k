@@ -286,6 +286,68 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         $this->assertSame('Отправлено', $row['latest_contract']['status_label']);
     }
 
+    public function test_users_data_skips_revoked_latest_contract_so_create_is_available(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: true);
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'ТолькоОтозванный',
+            'name'       => 'Ученик',
+        ]);
+
+        $this->createContractForUser($user, Contract::STATUS_REVOKED);
+
+        $row = $this->fetchUsersDataRow('ТолькоОтозванный');
+
+        $this->assertNotNull($row);
+        $this->assertArrayNotHasKey('latest_contract', $row);
+    }
+
+    public function test_users_data_latest_ignores_newer_revoked_and_keeps_previous_signed(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: true);
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'ПодписанПотомОтозван',
+            'name'       => 'Ученик',
+        ]);
+
+        $signed = $this->createContractForUser($user, Contract::STATUS_SIGNED, now()->subDay());
+        $this->createContractForUser($user, Contract::STATUS_REVOKED, now());
+
+        $row = $this->fetchUsersDataRow('ПодписанПотомОтозван');
+
+        $this->assertNotNull($row);
+        $this->assertSame(route('contracts.show', $signed->id), $row['latest_contract']['url']);
+        $this->assertSame(Contract::STATUS_SIGNED, $row['latest_contract']['status']);
+    }
+
+    public function test_users_data_unsigned_filter_skips_user_with_only_revoked_contract(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: true);
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'FilterOnlyRevoked',
+            'name'       => 'Ученик',
+        ]);
+
+        $this->createContractForUser($user, Contract::STATUS_REVOKED);
+
+        $unsignedIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=FilterOnlyRevoked&contract=unsigned')
+            ->assertOk()
+            ->json('data'))->pluck('id')->all();
+
+        $withIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=FilterOnlyRevoked&contract=with')
+            ->assertOk()
+            ->json('data'))->pluck('id')->all();
+
+        $this->assertNotContains($user->id, $unsignedIds);
+        $this->assertContains($user->id, $withIds);
+    }
+
     public function test_users_data_ignores_contract_from_foreign_partner(): void
     {
         $this->actingAsUsersViewer(withContractsView: true);

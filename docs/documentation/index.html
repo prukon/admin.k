@@ -28,6 +28,80 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="contract-annul-after-send-index">Договоры: аннулировать sent/opened без возврата 70&nbsp;₽ (2026‑09)</h2>
+  <div class="note">
+    Если клиент уже нажал «Подписать» (статус <code>sent</code> или <code>opened</code>),
+    школьная карточка больше не предлагает «Изменить» в кабинете, а на
+    <code>/admin/users</code> вместо плюса — «Посмотреть черновик».
+    Школа может <b>аннулировать</b> такой договор: в CRM он становится
+    <code>revoked</code> («Отозвано»), 70&nbsp;₽ <b>не</b> возвращаются,
+    API Подпислона не вызывается (отзыв там не поддерживается).
+    Это не «Отозвать» до заполнения (<code>awaiting_client_fill</code> — возврат 70&nbsp;₽).
+    <br><br>
+    1) <b>Кнопка и endpoint.</b>
+    Карточка <code>GET /client-contracts/{id}</code>:
+    <code>#annulAfterSendBtn</code> «Аннулировать» только при
+    <code>Contract::canAnnulAfterSend()</code> (<code>sent</code> / <code>opened</code>,
+    PDF и шаблон одинаково). «Отозвать» (<code>#revokeAwaitingBtn</code>) —
+    только <code>awaiting_client_fill</code> + template.
+    Confirm: клиент не подпишет в кабинете, 70&nbsp;₽ не возвращаются,
+    старое SMS у Подпислона может остаться живым; если подпишет — файл сохранится,
+    статус останется «Отозвано».
+    JS: один путь, <code>POST /client-contracts/{id}/revoke</code>,
+    <code>Accept: application/json</code>, <code>_token</code>, затем
+    <code>location.reload()</code>. Не два opener’а модалки.
+    Право — то же <code>contracts.view</code> + <code>contract.partner</code>.
+    Гость JSON → 401, native → 302 login; без права / чужая школа → 403;
+    GET/PUT/PATCH/DELETE revoke → 404/405, статус не меняется.
+    AJAX 200: <code>message</code> «Договор аннулирован. 70 ₽ не возвращаются.»,
+    <code>status: revoked</code>. Native POST без <code>X-Requested-With</code>
+    тоже аннулирует (не пустой 200, не 500).
+    draft / signed / failed / expired / generating_pdf / уже revoked → 422 +
+    <code>message</code>, строка не revoked. awaiting по-прежнему refund,
+    текст «Договор отозван. Средства возвращены…», не текст аннулирования.
+    <br>
+    2) <b>Деньги и аудит.</b>
+    <code>annulAfterSend</code>: credit в кошельке <b>нет</b>.
+    Событие <code>contract.revoked</code>, payload
+    <code>refunded: false</code>, <code>reason: annul_after_send</code>.
+    My log: «Договор аннулирован. Возврат 70 ₽: Нет».
+    Отзыв awaiting: credit «Возврат: отзыв договора»,
+    <code>refunded: true</code>, «Возврат 70 ₽: Да».
+    <br>
+    3) <b>Старое SMS.</b>
+    Подпислон не отзывается. Если клиент всё же подпишет:
+    вебхук <code>DOCUMENT_SIGNED</code> / ручной
+    <code>GET …/status</code> пишет <code>signed_at</code> (если пусто),
+    качает signed PDF, событие <code>signed_after_revoke</code>,
+    статус остаётся <code>revoked</code>, <code>$becameSigned</code> не ставится —
+    колокольчик «Договор подписан» <b>не</b> шлётся
+    (<a href="/doc#contract-signed-in-app-index">анонс колокольчика</a>).
+    Вебхук OPENED revoked не трогает. В кабинете нет «Заполнить» / «Подписать» /
+    «Изменить»; если файл уже есть — «Скачать подписанный» (и оригинал, пока статус не
+    <code>signed</code>). На карточке CRM — оба файла. Sync при revoked без PDF
+    (право <code>contracts.sync</code>); если PDF уже есть — кнопки sync нет.
+    После аннулирования нет «Повторно отправить».
+    <br>
+    4) <b>/admin/users и заявки.</b>
+    <code>LatestUserContractLookup</code> не считает <code>revoked</code> последним.
+    После аннулирования, если других не-отозванных нет, ячейка снова
+    «Создать договор» (это и был UX-баг: opened блокировал создание).
+    Фильтр <code>with</code> по-прежнему «есть любой договор, в т.ч. только revoked»;
+    <code>unsigned</code> / колонка смотрят на последний <b>не</b>-revoked.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/contracts#contract-annul-after-send">contracts §7.2</a>,
+    кабинет —
+    <a href="/docs/documentation/account-contract-fill">account-contract-fill</a>,
+    клиенты —
+    <a href="/docs/documentation/admin-users#user-contract-column">admin-users §2.3</a>.
+    Тесты: <code>ContractAnnulAfterSend*FeatureTest</code>,
+    <code>ContractAnnulRevokedSignedWebhookFeatureTest</code>,
+    <code>AdminUsersContractCreateUxFeatureTest</code>
+    (<code>opened_contract_blocks_create_on_users_list_until_school_annuls</code>),
+    <code>ContractAnnulAfterSendDocumentationContractTest</code>.
+  </div>
+
   <h2 id="lesson-package-duration-permission-index">Абонементы: поле «Срок действия (дни)» и право <code>scheduleSlots.view</code> (2026‑09)</h2>
   <div class="note">
     Поле шаблона <code>lesson_packages.duration_days</code> задаёт срок
@@ -753,7 +827,10 @@
     <code>lockForUpdate</code>. Отзыв <code>awaiting_client_fill</code>: credit
     «Возврат: отзыв договора», <code>provider=refund</code>; исходный debit остаётся
     <code>succeeded</code> (у SMS при ошибке отправки исходный debit помечается
-    <code>failed</code>). Баланс как раньше, дважды не списывается.
+    <code>failed</code>). Аннулирование <code>sent</code>/<code>opened</code>
+    70&nbsp;₽ не возвращает и credit не пишет
+    (<a href="/doc#contract-annul-after-send-index">анонс</a>).
+    Баланс как раньше, дважды не списывается.
     Старые договорные списания без строки не бэкфиллят.
     <br>
     2) <b>Пополнение.</b> Форма ≥ 1 ₽, <code>partner_id</code> = current.
@@ -1382,6 +1459,9 @@
     уведомление <b>не</b> создают.
     Повторный вебхук / докачка PDF уже подписанного договора событие <b>не</b> дублирует.
     Открытие SMS (<code>opened</code>) — без уведомления.
+    Подпись по старому SMS у уже <code>revoked</code> договора статус в
+    <code>signed</code> не поднимает и колокольчик не шлёт
+    (<a href="/doc#contract-annul-after-send-index">анонс аннулирования</a>).
     Без <code>contracts.school_id</code> запись не создаётся.
     <br>
     2) <b>Кому.</b> Включённые (<code>is_enabled=1</code>) сотрудники школы договора
@@ -1661,11 +1741,12 @@
     Модалка та же, что на <code>/client-contracts</code> и заявках
     (<code>contracts/partials/create-modal.blade.php</code>).
     <br><br>
-    1) <b>Три состояния ячейки</b> по <b>последнему</b> договору партнёра
-    (<code>LatestUserContractLookup</code>): нет договора — кнопка
+    1) <b>Три состояния ячейки</b> по <b>последнему не-отозванному</b> договору партнёра
+    (<code>LatestUserContractLookup</code>, статус <b>не</b> <code>revoked</code>):
+    нет такого договора — кнопка
     <b>«Создать договор»</b> (<code>js-open-create-contract-from-user</code>, встроенная модалка,
     страница не меняется); последний статус не <code>signed</code> (черновик, отправлено,
-    ожидает заполнения, отозван и т.д.) — <b>«Посмотреть черновик»</b> →
+    opened, ожидает заполнения — <b>не</b> отозванный) — <b>«Посмотреть черновик»</b> →
     <code>GET /client-contracts/{id}</code>; <code>signed</code> — иконка PDF
     <code>#0d6efd</code> и ховер <code>@include('partials.ui.tooltip-hint')</code>
     («Статус: …», scope <code>hint</code>), рядом плюс <code>fa-plus</code>
@@ -1691,6 +1772,9 @@
     <code>contracts.view</code>; ключа <code>create_contract_url</code> в JSON списка
     учеников нет. Тип колонки DataTables — <code>actions</code>, не <code>icon</code>.
     Плюс «ещё один договор» у signed — <b>только</b> на клиентах, на заявках его нет.
+    Opened/sent в ячейке — черновик, пока школа не аннулирует
+    (<a href="/doc#contract-annul-after-send-index">анонс аннулирования</a>):
+    после <code>revoked</code> lookup снова даёт «Создать договор», если других не-отозванных нет.
     <br><br>
     Подробно —
     <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>,
@@ -6253,9 +6337,9 @@
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата)</a></li>
-    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
-    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
     <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>create/edit без «OK» и без F5</b> (<a href="/doc#users-create-edit-toast-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>

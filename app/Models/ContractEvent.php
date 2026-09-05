@@ -23,6 +23,7 @@ public static array $TYPE_RU = [
 'status_sync'         => 'Синхронизация статуса',
 'email_sent'          => 'Отправлено на email',
 'signed_pdf_saved'    => 'Подписанный файл сохранён',
+'signed_after_revoke' => 'Подписанный файл получен после аннулирования',
 'revoke_not_supported'=> 'Отзыв не поддерживается',
 'resend'              => 'Повторная отправка СМС',
 'resend_failed'       => 'Повторная отправка СМС — ошибка',

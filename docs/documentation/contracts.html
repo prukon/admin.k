@@ -30,6 +30,7 @@
     · создание со списка клиентов: <a href="/doc#users-contract-create-index">анонс</a>
     · ключ Подпислона на юрлице: <a href="/doc#legal-entities-podpislon-key-index">анонс</a>
     · колокольчик при signed: <a href="/doc#contract-signed-in-app-index">анонс</a>
+    · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">анонс</a>
     · списание 70 ₽ в историю кошелька: <a href="/doc#partner-wallet-ledger-index">анонс</a></div>
 
   <h2>1) Назначение и доступ</h2>
@@ -63,7 +64,8 @@
       <tr><td>POST</td><td><code>/client-contracts/{contract}/send-email</code></td><td>Отправка PDF на email</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/download-original</code></td><td>Скачивание неподписанного PDF</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/download-signed</code></td><td>Скачивание подписанного PDF</td></tr>
-      <tr><td>GET</td><td><code>/client-contracts/{contract}/status</code></td><td>Ручная синхронизация с Подпислоном (<code>contracts.sync</code>). Первый переход в <code>signed</code> создаёт колокольчик админам школы</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code></td><td>Отзыв до заполнения (<code>awaiting_client_fill</code>, возврат 70&nbsp;₽) или аннулирование после отправки в Подпислон (<code>sent</code> / <code>opened</code>, без возврата)</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/{contract}/status</code></td><td>Ручная синхронизация с Подпислоном (<code>contracts.sync</code>). Первый переход в <code>signed</code> создаёт колокольчик админам школы. Для <code>revoked</code> статус не поднимается; если Подпислон уже подписал — докачивается PDF</td></tr>
     </tbody>
   </table>
   <p class="small">Контроллеры: <code>App\Http\Controllers\Contracts\ContractsController</code>, <code>ContractSigningController</code>, <code>ContractTableController</code>, <code>ContractLookupsController</code>. View карточки: <code>resources/views/contracts/show.blade.php</code>.</p>
@@ -90,7 +92,7 @@
       <tr><td><code>contract.sign_request_created</code></td><td>Создан запрос на подпись (первая отправка)</td></tr>
       <tr><td><code>contract.sign_sent_success</code> / <code>…_failed</code></td><td>Результат первичной SMS-отправки</td></tr>
       <tr><td><code>contract.sign_resent_success</code> / <code>…_failed</code></td><td>Повторная отправка SMS</td></tr>
-      <tr><td><code>contract.revoked</code></td><td>Отзыв (<code>POST …/revoke</code>), с указанием возврата 70&nbsp;₽</td></tr>
+      <tr><td><code>contract.revoked</code></td><td>Отзыв до заполнения (<code>POST …/revoke</code>, возврат 70&nbsp;₽) или аннулирование <code>sent</code>/<code>opened</code> (без возврата)</td></tr>
       <tr><td><code>contract.email_sent</code></td><td>Отправка PDF на email (<code>POST …/send-email</code>)</td></tr>
       <tr><td><code>contract.signed</code>, <code>contract.sms_opened</code>, …</td><td>Webhook / синхронизация / кабинет родителя. При первом переходе в <code>signed</code> — in-app уведомление админам школы (<a href="/doc#contract-signed-in-app-index">анонс</a>)</td></tr>
     </tbody>
@@ -161,7 +163,7 @@
   </div>
   <ul>
     <li>Статус <code>signed</code> (<code>Contract::STATUS_SIGNED</code>) — кнопка «Скачать подписанный» (<code>signed_pdf_path</code>).</li>
-    <li>Любой другой статус — «Скачать оригинал» (<code>source_pdf_path</code>).</li>
+    <li>Любой другой статус — «Скачать оригинал» (<code>source_pdf_path</code>). Если при статусе <code>revoked</code> уже есть <code>signed_pdf_path</code> (клиент подписал старое SMS после аннулирования) — показываются оба файла.</li>
     <li>Критерий кнопки — поле <code>contracts.status</code>, а не только наличие пути к файлу.</li>
     <li>Файлы: диск <code>local</code>, <code>storage/app/</code> + относительный путь из БД.</li>
   </ul>
@@ -241,7 +243,10 @@
   <ul>
     <li>После привязки ученика к заявке — кнопка «Создать договор» в колонке «Договор» (после «Телефон родителя» на <code>/admin/school-leads</code>, §5.5.3 / §5.6) и в read-only модалке лида открывает ту же модалку создания <b>на странице заявок</b> (<code>KidsCrmContractCreate.openModal(..., { lockUser: true })</code>). Альтернатива — прямой переход <code>GET /client-contracts?user_id={id}</code>.</li>
     <li>Ученик и ФИО родителя предзаполняются в модалке, если у ученика есть запись в <code>parents</code>. При открытии из строки лида/клиента поле «Ученик» задисейблено (§5.3, <code>lockUser</code>).</li>
-    <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — колонка и фильтр «Договор» (только при <code>contracts.view</code>): нет договора — «Создать договор» (встроенная модалка, <code>lockUser</code>); неподписанный последний — «Посмотреть черновик»; подписанный — иконка PDF и плюс «Создать ещё один договор». См. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>.</li>
+    <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — колонка и фильтр «Договор» (только при <code>contracts.view</code>): нет не-отозванного договора — «Создать договор» (встроенная модалка, <code>lockUser</code>); неподписанный последний — «Посмотреть черновик»; подписанный — иконка PDF и плюс «Создать ещё один договор».
+      <code>revoked</code> не считается последним — <a href="#contract-annul-after-send">§7.2</a>,
+      <a href="/doc#contract-annul-after-send-index">анонс</a>.
+      См. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>.</li>
     <li>Полный сценарий лид → клиент → договор: <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5.2–5.8).</li>
   </ul>
 
@@ -277,6 +282,7 @@
     <thead><tr><th>Действие CRM</th><th>URL / поведение</th></tr></thead>
     <tbody>
       <tr><td>Отзыв до заполнения</td><td><code>POST …/revoke</code> в статусе <code>awaiting_client_fill</code> — возврат 70&nbsp;₽ на баланс и credit в кошельке, статус <code>revoked</code></td></tr>
+      <tr><td>Аннулирование после SMS</td><td>См. <a href="#contract-annul-after-send">§7.2</a> (PDF и шаблон; кнопка «Аннулировать»; без возврата 70&nbsp;₽)</td></tr>
       <tr><td>Email-приглашение</td><td><code>ContractClientFillInvitationMail</code>; текст из версии шаблона — см. <a href="/docs/documentation/contract-templates#53-email-edittemplateemailmodal">contract-templates §5.3</a></td></tr>
       <tr><td>Заполнение родителем</td><td><code>/account-settings/documents</code> — см. <a href="/docs/documentation/account-contract-fill">account-contract-fill</a>;
         <b>каунтер активных договоров</b> в сайдбаре и на вкладке —
@@ -289,6 +295,69 @@
     </tbody>
   </table>
   <p class="small">На карточке договора template mode отображаются шаблон, срок заполнения, статус; отправка SMS из CRM для этого сценария не используется — подпись только из кабинета после generate PDF.</p>
+
+  <h2 id="contract-annul-after-send">7.2) Аннулирование sent/opened (без возврата 70&nbsp;₽)</h2>
+  <div class="note">
+    Анонс: <a href="/doc#contract-annul-after-send-index">/doc</a>.
+    Один endpoint <code>POST /client-contracts/{contract}/revoke</code>
+    (<code>ContractSigningController::revoke</code>, право <code>contracts.view</code>):
+    awaiting_client_fill → отзыв с возвратом; sent/opened →
+    <code>annulAfterSend</code>; иначе вызов <code>provider->revoke()</code>
+    (Подпислон бросает → JSON 422, статус не меняется).
+  </div>
+  <table>
+    <thead><tr><th>Что</th><th>Факт в коде</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Когда можно</td>
+        <td><code>Contract::canAnnulAfterSend()</code> — статус <code>sent</code> или <code>opened</code>
+          (режим PDF и template одинаково). Кнопка <code>#annulAfterSendBtn</code> «Аннулировать».
+          draft / generating_pdf / signed / failed / expired / revoked — кнопки нет;
+          POST → 422 + <code>message</code>.</td>
+      </tr>
+      <tr>
+        <td>Чего нет</td>
+        <td>Возврата 70&nbsp;₽ и credit в <code>partner_wallet_transactions</code>.
+          Вызова API Подпислона. Колокольчика при поздней подписи старого SMS.</td>
+      </tr>
+      <tr>
+        <td>JSON 200</td>
+        <td><code>message</code>: «Договор аннулирован. 70 ₽ не возвращаются.»;
+          <code>status</code>: <code>revoked</code>. Native POST без
+          <code>X-Requested-With</code> тоже меняет строку (не пустой 200).</td>
+      </tr>
+      <tr>
+        <td>Аудит / событие</td>
+        <td><code>contract.revoked</code>; payload <code>refunded: false</code>,
+          <code>reason: annul_after_send</code>; my_logs:
+          «Договор аннулирован. Возврат 70 ₽: Нет».
+          Бейдж статуса — «Отозвано» (<code>Contract::$STATUS_RU</code>).</td>
+      </tr>
+      <tr>
+        <td>JS на карточке</td>
+        <td>Один обработчик <code>#annulAfterSendBtn</code> → confirm (текст про кабинет,
+          70&nbsp;₽, живое SMS, статус «Отозвано») → POST revoke → alert <code>message</code>
+          → <code>location.reload()</code>. После аннулирования нет resend;
+          sync только если <code>revoked</code> и нет <code>signed_pdf_path</code>
+          (нужно <code>contracts.sync</code>).</td>
+      </tr>
+      <tr>
+        <td>Поздняя подпись</td>
+        <td>Вебхук SIGNED / <code>GET …/status</code>: <code>signed_at</code> при пустом,
+          докачка PDF, событие <code>signed_after_revoke</code>, статус остаётся
+          <code>revoked</code>, <code>$becameSigned</code> нет.
+          OPENED revoked не меняет. Файлы: оригинал + подписанный, если путь есть.
+          Кабинет: нет fill/sign/edit; «Скачать подписанный» по <code>signed_pdf_path</code>.</td>
+      </tr>
+      <tr>
+        <td>/admin/users, заявки</td>
+        <td><code>LatestUserContractLookup</code> пропускает <code>revoked</code>.
+          После аннулирования opened снова «Создать договор», если нет другого
+          не-отозванного. Фильтр <code>with</code> считает любой договор, в том числе
+          только revoked; <code>unsigned</code> — по последнему не-отозванному.</td>
+      </tr>
+    </tbody>
+  </table>
 
   <h2>8) Вкладки «Договоры» и «Шаблоны»</h2>
   <p>Раздел <code>/client-contracts</code> объединяет список договоров и шаблонов DOCX (вкладки в UI).
@@ -308,6 +377,9 @@
     <code>X-Requested-With</code> тоже создаёт событие). Повторный signed, докачка PDF, вебхук
     <code>opened</code>, 403/422 sync — без уведомления. Сбой колокольчика подписание не откатывает.
     Анонс: <a href="/doc#contract-signed-in-app-index">/doc</a>.
+    Подпись после <code>revoked</code> колокольчик не создаёт —
+    <a href="/doc#contract-annul-after-send-index">анонс аннулирования</a>,
+    <a href="#contract-annul-after-send">§7.2</a>.
     Подробно: <a href="/docs/documentation/in-app-notifications#events-contract-signed">in-app-notifications §5.2</a>.
   </div>
 
@@ -327,11 +399,26 @@
       <li><code>ContractsParentAndAccessTest.php</code> — родитель на show, подписант</li>
       <li><code>ContractsSigningTest.php</code>, <code>PodpislonCredentialsHttpFeatureTest.php</code>, <code>PodpislonCredentialsResolverTest.php</code> — ключ юрлица, 422 без ключа / без юрлица, <code>X-Api-Key</code> не из <code>.env</code></li>
       <li><code>ContractsSyncFeatureTest.php</code></li>
+      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code></li>
+      <li><code>ContractBillingWalletLedgerFeatureTest.php</code> — PDF/template: debit в кошельке текущей школы; отзыв awaiting_client_fill — credit, исходный debit succeeded; недостаток средств без строки; аннулирование sent/opened credit не пишет</li>
+      <li><code>ContractRevokeRefundTest.php</code> — revoke awaiting_client_fill + refund</li>
+    </ul>
+    <p><b>Колокольчик при signed:</b></p>
+    <ul>
       <li><code>ContractSignedInAppNotification*FeatureTest.php</code> — колокольчик админам при первом <code>signed</code>
         (вебхук form/JSON, native GET и AJAX sync, @can кнопки, guest/403, UX ленты)</li>
-      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code></li>
-      <li><code>ContractBillingWalletLedgerFeatureTest.php</code> — PDF/template: debit в кошельке текущей школы; отзыв awaiting_client_fill — credit, исходный debit succeeded; недостаток средств без строки</li>
-      <li><code>ContractRevokeRefundTest.php</code> — revoke awaiting_client_fill + refund</li>
+    </ul>
+    <p><b>Аннулирование sent/opened:</b></p>
+    <ul>
+      <li><code>ContractAnnulAfterSendAccessFeatureTest.php</code> — гость / без <code>contracts.view</code> / тренер / чужая школа → отказ; viewer → 200</li>
+      <li><code>ContractAnnulAfterSendFullAccessFeatureTest.php</code> — admin/superadmin 200; GET/PUT/PATCH/DELETE revoke → 404/405</li>
+      <li><code>ContractAnnulAfterSendAjaxContractFeatureTest.php</code> — JSON 200 <code>message</code>+<code>status</code>; 422 на draft/signed/failed/expired; awaiting по-прежнему refund</li>
+      <li><code>ContractAnnulAfterSendNonAjaxSafetyNetFeatureTest.php</code> — native POST без X-Requested-With всё равно аннулирует, не 500 и не пустой ответ</li>
+      <li><code>ContractAnnulAfterSendUxFeatureTest.php</code> — кнопка только sent/opened; после аннулирования нет resend; sync у revoked без PDF</li>
+      <li><code>ContractAnnulAfterSendFeatureTest.php</code> — sent/opened без возврата 70&nbsp;₽ и без вызова провайдера</li>
+      <li><code>ContractAnnulRevokedSignedWebhookFeatureTest.php</code> — вебхук/sync signed при revoked (PDF есть, статус revoked, без колокольчика)</li>
+      <li><code>AdminUsersContractCreateUxFeatureTest</code> — opened блокирует «Создать договор» на /admin/users, после annul ячейка снова «Создать договор»</li>
+      <li><code>ContractAnnulAfterSendDocumentationContractTest</code> — анонс /doc совпадает с кодом</li>
     </ul>
     <p><b>Раздел «Документы» (вкладки + шаблоны):</b></p>
     <ul>

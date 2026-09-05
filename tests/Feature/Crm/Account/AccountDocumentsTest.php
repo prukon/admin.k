@@ -234,6 +234,38 @@ class AccountDocumentsTest extends CrmTestCase
         $resp->assertDownload('contract-' . $contract->id . '-signed.pdf');
     }
 
+    public function test_download_signed_ok_when_revoked_but_signed_file_exists(): void
+    {
+        $this->useTempLocalDiskRoot();
+
+        $contract = $this->makeContract([
+            'signed_pdf_path' => 'documents/2026/02/revoked-signed.pdf',
+            'status' => Contract::STATUS_REVOKED,
+        ]);
+        Storage::put('documents/2026/02/revoked-signed.pdf', 'revoked-signed-bytes');
+
+        $resp = $this->get(route('account.documents.downloadSigned', $contract));
+
+        $resp->assertStatus(200);
+        $resp->assertDownload('contract-' . $contract->id . '-signed.pdf');
+    }
+
+    public function test_index_shows_signed_download_for_revoked_contract_with_file(): void
+    {
+        $contract = $this->makeContract([
+            'signed_pdf_path' => 'documents/2026/02/revoked-ui-signed.pdf',
+            'status' => Contract::STATUS_REVOKED,
+        ]);
+
+        $html = $this->get(route('account.documents.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Скачать подписанный', $html);
+        $this->assertStringContainsString(route('account.documents.downloadSigned', $contract), $html);
+        $this->assertStringContainsString('Скачать PDF', $html);
+    }
+
     public function test_download_original_redirects_with_error_when_file_missing_in_storage(): void
     {
         $this->useTempLocalDiskRoot();

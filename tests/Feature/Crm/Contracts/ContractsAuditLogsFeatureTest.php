@@ -155,10 +155,6 @@ final class ContractsAuditLogsFeatureTest extends ContractsFeatureTestCase
             'status'          => Contract::STATUS_SENT,
         ]);
 
-        $provider = Mockery::mock(SignatureProvider::class);
-        $provider->shouldReceive('revoke')->once()->andReturn(['ok' => true]);
-        $this->app->instance(SignatureProvider::class, $provider);
-
         $this->postJson(route('contracts.revoke', $contract))
             ->assertOk()
             ->assertJsonPath('status', 'revoked');
@@ -166,6 +162,7 @@ final class ContractsAuditLogsFeatureTest extends ContractsFeatureTestCase
         $log = $this->latestLog(AuditEvent::ContractRevoked);
 
         $this->assertNotNull($log);
+        $this->assertStringContainsString('Договор аннулирован.', (string) $log->description);
         $this->assertStringContainsString('Возврат 70 ₽: Нет', (string) $log->description);
     }
 

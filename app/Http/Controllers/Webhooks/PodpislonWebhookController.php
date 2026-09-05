@@ -280,11 +280,12 @@ class PodpislonWebhookController extends Controller
                     $authorId      = $contractForUpdate->user_id;
                     $currentStatus = $contractForUpdate->status;
 
-                    // Уже подписан — статус менять не нужно
-                    if ($currentStatus === Contract::STATUS_SIGNED) {
-                        $log->info('Webhook OPENED: already SIGNED, skip update', [
+                    // Уже подписан или аннулирован — статус менять не нужно
+                    if ($currentStatus === Contract::STATUS_SIGNED || $currentStatus === Contract::STATUS_REVOKED) {
+                        $log->info('Webhook OPENED: already SIGNED or REVOKED, skip update', [
                             'rid'         => $rid,
                             'contract_id' => $contractForUpdate->id,
+                            'status'      => $currentStatus,
                         ]);
                         $contract = $contractForUpdate;
                         return;
@@ -387,8 +388,35 @@ class PodpislonWebhookController extends Controller
                     $authorId  = $contractForUpdate->user_id;
                     $oldStatus = $contractForUpdate->status;
 
-                    // Обновляем статус, только если ещё не signed
-                    if ($contractForUpdate->status !== Contract::STATUS_SIGNED) {
+                    if ($contractForUpdate->status === Contract::STATUS_REVOKED) {
+                        if ($contractForUpdate->signed_at === null) {
+                            $contractForUpdate->signed_at = now();
+                            $contractForUpdate->save();
+                        }
+
+                        $log->info('Webhook SIGNED: contract revoked, keep status and save PDF', [
+                            'rid'         => $rid,
+                            'contract_id' => $contractForUpdate->id,
+                        ]);
+
+                        try {
+                            ContractEvent::create([
+                                'contract_id'  => $contractForUpdate->id,
+                                'author_id'    => $authorId,
+                                'type'         => 'signed_after_revoke',
+                                'payload_json' => json_encode(
+                                    ['rid' => $rid, 'raw' => $parsed],
+                                    JSON_UNESCAPED_UNICODE
+                                ),
+                            ]);
+                        } catch (\Throwable $eventEx) {
+                            $log->error('Webhook SIGNED: signed_after_revoke event FAILED', [
+                                'rid'         => $rid,
+                                'contract_id' => $contractForUpdate->id,
+                                'error'       => $eventEx->getMessage(),
+                            ]);
+                        }
+                    } elseif ($contractForUpdate->status !== Contract::STATUS_SIGNED) {
                         $contractForUpdate->status    = Contract::STATUS_SIGNED;
                         $contractForUpdate->signed_at = now();
                         $contractForUpdate->save();
