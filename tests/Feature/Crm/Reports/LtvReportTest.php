@@ -235,6 +235,41 @@ class LtvReportTest extends CrmTestCase
     }
 
     /**
+     * Колонки как в UI ltv-table: агрегаты searchable=true, чтобы поймать регресс
+     * Yajra autoFilter (filter(..., true) → 42S22 по payments.payment_count).
+     *
+     * @return array<string, mixed>
+     */
+    private function ltvDataTablesBrowserParams(array $extra = []): array
+    {
+        $col = static function (string $data, string $name, bool $searchable = true, bool $orderable = true): array {
+            return [
+                'data' => $data,
+                'name' => $name,
+                'searchable' => $searchable ? 'true' : 'false',
+                'orderable' => $orderable ? 'true' : 'false',
+            ];
+        };
+
+        return array_merge([
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'columns' => [
+                $col('', '', false, false),
+                $col('user_name', 'user_name'),
+                $col('team_title', 'team_title'),
+                $col('total_price', 'total_price'),
+                $col('payment_count', 'payment_count'),
+                $col('first_payment_date', 'first_payment_date'),
+                $col('last_payment_date', 'last_payment_date'),
+                $col('is_enabled', 'is_enabled'),
+                $col('user_id', 'user_id', false),
+            ],
+        ], $extra);
+    }
+
+    /**
      * [P1] Поиск DataTables по ФИО не ищет агрегаты payments.payment_count (иначе SQLSTATE 42S22).
      */
     public function test_ltv_datatables_search_by_name_does_not_query_aggregate_columns(): void
@@ -265,10 +300,51 @@ class LtvReportTest extends CrmTestCase
 
         $response = $this->withSession(['current_partner' => $partner->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('reports.ltv.data', [
-                'draw' => 1,
+            ->get(route('reports.ltv.data', $this->ltvDataTablesBrowserParams([
                 'search' => ['value' => 'ХармУникLtv'],
-            ]))
+            ])))
+            ->assertOk()
+            ->json();
+
+        $ids = collect($response['data'])->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+        $this->assertContains($hit->id, $ids);
+        $this->assertNotContains($miss->id, $ids);
+    }
+
+    /**
+     * [P1] Поиск DataTables по имени ученика.
+     */
+    public function test_ltv_datatables_search_by_firstname(): void
+    {
+        $partner = Partner::factory()->create();
+        $actor = $this->createUserWithRole('superadmin', $partner);
+        $this->actingAs($actor);
+
+        $hit = User::factory()->create([
+            'partner_id' => $partner->id,
+            'lastname' => 'Сидоров',
+            'name' => 'УникИмяLtv',
+        ]);
+        $miss = User::factory()->create([
+            'partner_id' => $partner->id,
+            'lastname' => 'Сидоров',
+            'name' => 'Пётр',
+        ]);
+
+        Payment::factory()->create([
+            'user_id' => $hit->id,
+            'summ_cents' => 10000,
+        ]);
+        Payment::factory()->create([
+            'user_id' => $miss->id,
+            'summ_cents' => 20000,
+        ]);
+
+        $response = $this->withSession(['current_partner' => $partner->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.ltv.data', $this->ltvDataTablesBrowserParams([
+                'search' => ['value' => 'УникИмяLtv'],
+            ])))
             ->assertOk()
             ->json();
 
@@ -303,10 +379,9 @@ class LtvReportTest extends CrmTestCase
 
         $response = $this->withSession(['current_partner' => $partner->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('reports.ltv.data', [
-                'draw' => 1,
+            ->get(route('reports.ltv.data', $this->ltvDataTablesBrowserParams([
                 'search' => ['value' => 'ГруппаХармLtv'],
-            ]))
+            ])))
             ->assertOk()
             ->json();
 

@@ -44,6 +44,14 @@ class PaymentSystem extends Model
             ->first();
     }
 
+    public static function globalTbankAcquiring(): ?self
+    {
+        return static::query()
+            ->whereNull('partner_id')
+            ->where('name', 'tbank_acquiring')
+            ->first();
+    }
+
     /**
      * Мутатор: шифруем массив настроек
      */
@@ -123,6 +131,10 @@ class PaymentSystem extends Model
                     && !empty($s['token_password'])
                     && !empty($s['e2c_terminal_key'])
                     && !empty($s['e2c_token_password']);
+
+            case 'tbank_acquiring':
+                return !empty($s['terminal_key'])
+                    && !empty($s['token_password']);
 
             default:
                 return false;

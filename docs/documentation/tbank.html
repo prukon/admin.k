@@ -22,7 +22,8 @@
 <body>
 <div class="wrap">
   <h1>T‑Bank (мультирасчёты): настройки, комиссии, workflow</h1>
-  <div class="small">Файл: <code>/docs/documentation/tbank.html</code> · ключи терминала: <a href="/docs/documentation/settings-payment-systems">settings-payment-systems</a></div>
+  <div class="small">Файл: <code>/docs/documentation/tbank.html</code> · ключи терминала: <a href="/docs/documentation/settings-payment-systems">settings-payment-systems</a>
+    · кошелёк / абонплата CRM: <a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a> (не этот терминал)</div>
 
   <h2>1) Предпосылки</h2>
   <ul>
@@ -277,7 +278,12 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>7.3 Доступы и изоляция по партнёру</h3>
   <ul>
-    <li>Оплата картой: <code>POST /payments/tinkoff/create</code> — <code>can:payment.method.tbankCard</code>. СБП и QR: <code>POST /payments/tinkoff/sbp</code>, <code>/tinkoff/qr/…</code> — <code>can:payment.method.tbankSBP</code> (плюс общие <code>auth</code> и <code>2fa</code> для кабинета).</li>
+    <li>Оплата картой: <code>POST /payments/tinkoff/create</code> — <code>can:payment.method.tbankCard</code>.
+      СБП и QR мультирасчётов: <code>POST /payments/tinkoff/sbp</code>, <code>/tinkoff/qr/…</code> —
+      <code>can:payment.method.tbankSBP</code> (плюс общие <code>auth</code> и <code>2fa</code> для кабинета).
+      QR обычного эквайринга (кошелёк / абонплата, <code>channel=acquiring</code>):
+      <code>partnerWallet.view</code> или <code>servicePayments.view</code>, без <code>tbankSBP</code>.
+      GetQr для acquiring подписывается ключами <code>tbank_acquiring</code>.</li>
     <li>Без авторизации — редирект на страницу входа. Без соответствующего права — ответ <b>403</b>.
       Это про кабинетные <code>/tinkoff/qr/{PaymentId}</code> и Init с витрины.
       Публичные ссылки из писем/SMS <b>другие</b>: месяц <code>/pm/{code}</code>
@@ -451,6 +457,25 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Feature/Crm/Payments/TBank/TbankTerminalConfigFeatureTest.php</code> — <code>TbankTerminalConfig</code> (без fallback на .env).</li>
     <li><code>tests/Feature/Crm/Payments/PaymentServiceTbankAvailabilityFeatureTest.php</code> — <code>PaymentService::isTbankAvailable</code> / СБП.</li>
     <li>Документация раздела: <a href="/docs/documentation/settings-payment-systems">settings-payment-systems</a>.</li>
+  </ul>
+
+  <h3>8.11 Обычный эквайринг платформы (кошелёк и абонплата CRM)</h3>
+  <ul>
+    <li><code>TbankAcquiringPlatformPaymentsFeatureTest</code> — Init без ShopCode, webhook acquiring, чек CloudKassir, неверная подпись / CANCELED / сумма, мультисплит-webhook не подтверждает acquiring.</li>
+    <li><code>TbankAcquiringAccessFeatureTest</code> — гость / 403 / терминал выключен.</li>
+    <li><code>TbankAcquiringAjaxContractFeatureTest</code> — JSON 200/422, дефолт T‑Bank если <code>payment_method</code> не прислали и есть право.</li>
+    <li><code>TbankAcquiringNonAjaxSafetyNetFeatureTest</code> — native POST → запись и redirect/JSON, не пустой 200.</li>
+    <li><code>TbankAcquiringUxFeatureTest</code> — радио T‑Bank по умолчанию, ЮKassa по праву, success CRM → история, модалка без e2c.</li>
+    <li><code>PlatformPaymentsMethodAccessFeatureTest</code> — витринные <code>payment.method.*</code> не открывают способы платформы; право способа без права страницы → 403.</li>
+    <li><code>PlatformPaymentsMethodUxFeatureTest</code> — только ЮKassa не навязывает T‑Bank; superadmin оба радио; история без прав способа.</li>
+    <li><code>PlatformPaymentsMethodAjaxContractFeatureTest</code> / <code>NonAjaxSafetyNet</code> — 422 <code>errors[field]</code>, native POST 302, <code>old()</code> сохраняет выбранный radio.</li>
+    <li><code>PlatformPaymentsMethodFullAccessFeatureTest</code> — GET/POST поверхностей не 500 / не пустой 200.</li>
+    <li><code>TbankAcquiringQrAccessFeatureTest</code> — acquiring QR без <code>tbankSBP</code>; мультисплит без СБП по-прежнему 403.</li>
+    <li><code>TbankAcquiringDocumentationContractTest</code> — анонс <a href="/doc#tbank-acquiring-platform-index">/doc#tbank-acquiring-platform-index</a> совпадает с кодом.</li>
+    <li>Документация: <a href="/docs/documentation/partner-wallet#tbank-sbp">partner-wallet §8</a>,
+      <a href="/docs/documentation/settings-payment-systems#tbank-acquiring">settings-payment-systems §4.6</a>,
+      <a href="/doc#tbank-acquiring-platform-index">анонс эквайринга /doc</a>,
+      <a href="/doc#platform-payments-methods-index">анонс прав способов /doc</a>.</li>
   </ul>
 </div>
 </body>

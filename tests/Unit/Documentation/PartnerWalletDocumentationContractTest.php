@@ -145,6 +145,27 @@ final class PartnerWalletDocumentationContractTest extends TestCase
         $this->assertStringContainsString('PartnerWalletWebhookFeatureTest', $html);
         $this->assertStringContainsString('400 vs 422', $html);
         $this->assertStringContainsString('metadata.partner_id', $html);
+        $this->assertStringContainsString('tinkoff_sbp', $html);
+        $this->assertStringContainsString('platformPayments.method.tbankSbp', $html);
+        $this->assertStringContainsString('platformPayments.method.yookassa', $html);
+        $this->assertStringContainsString('tbank_acquiring', $html);
+        $this->assertStringContainsString('Пополнение баланса KidsCRM', $html);
+        $this->assertStringContainsString('TbankAcquiringPlatformPaymentsFeatureTest', $html);
+        $this->assertStringContainsString('TbankAcquiringAccessFeatureTest', $html);
+        $this->assertStringContainsString('TbankAcquiringAjaxContractFeatureTest', $html);
+        $this->assertStringContainsString('TbankAcquiringNonAjaxSafetyNetFeatureTest', $html);
+        $this->assertStringContainsString('TbankAcquiringUxFeatureTest', $html);
+        $this->assertStringContainsString('TbankAcquiringQrAccessFeatureTest', $html);
+        $this->assertStringContainsString('TbankAcquiringDocumentationContractTest', $html);
+        $this->assertStringContainsString('PlatformPaymentsMethodAccessFeatureTest', $html);
+        $this->assertStringContainsString('PlatformPaymentsMethodUxFeatureTest', $html);
+        $this->assertStringContainsString('PlatformPaymentsMethodAjaxContractFeatureTest', $html);
+        $this->assertStringContainsString('PlatformPaymentsMethodNonAjaxSafetyNetFeatureTest', $html);
+        $this->assertStringContainsString('PlatformPaymentsMethodFullAccessFeatureTest', $html);
+        $this->assertStringContainsString('/doc#tbank-acquiring-platform-index', $html);
+        $this->assertStringContainsString('/doc#platform-payments-methods-index', $html);
+        $this->assertStringContainsString('POST /webhooks/tinkoff/acquiring', $html);
+        $this->assertStringContainsString('channel=acquiring', $html);
     }
 
     public function test_page_titles_include_partner_wallet(): void

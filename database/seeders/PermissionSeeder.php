@@ -153,6 +153,10 @@ class PermissionSeeder extends Seeder
             ['name' => 'tbank.payouts.manage',           'description' => 'Управление выплатами T‑Bank (бухгалтер)',        'group_slug' => 'paymentMethods', 'is_visible' => 0, 'sort_order' => 50],
             ['name' => 'settings.commission',            'description' => 'Настройка комиссий ТБанк',                       'group_slug' => 'paymentMethods', 'is_visible' => 0, 'sort_order' => 60],
 
+            // group_slug platformPayments
+            ['name' => 'platformPayments.method.tbankSbp', 'description' => 'T‑Bank СБП (кошелёк и абонплата)',             'group_slug' => 'platformPayments', 'is_visible' => 0, 'sort_order' => 10],
+            ['name' => 'platformPayments.method.yookassa', 'description' => 'ЮKassa (кошелёк и абонплата)',                 'group_slug' => 'platformPayments', 'is_visible' => 0, 'sort_order' => 20],
+
             // group_slug misc
             ['name' => 'paying.classes',                 'description' => 'Оплата учебных занятий',                         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 100],
 

@@ -222,6 +222,13 @@
                                     <span>{{ $permission->description ?? $permission->name }}</span>
                                     <small class="text-muted">
                                         <code>{{ $permission->name }}</code>
+                                        @include('partials.ui.tooltip-hint', [
+                                            'title' => \App\Support\PermissionCapabilityHint::title((string) $permission->name),
+                                            'placement' => 'right',
+                                            'container' => 'body',
+                                            'iconClass' => 'fa fa-info-circle',
+                                            'wrapperClass' => 'ms-1',
+                                        ])
                                         @if(auth()->user()?->role?->name === 'superadmin' && !$permission->is_visible)
                                             <span class="badge bg-warning text-dark ms-2">Невидимое</span>
                                         @endif

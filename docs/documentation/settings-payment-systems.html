@@ -31,7 +31,8 @@
     Файл: <code>/docs/documentation/settings-payment-systems.html</code> ·
     оплаты: <a href="/docs/documentation/payments">payments</a> ·
     T‑Bank flow: <a href="/docs/documentation/tbank">tbank</a> ·
-    комиссии и автовыплата: <a href="/docs/documentation/tbank#auto-payout">tbank §5</a>
+    комиссии и автовыплата: <a href="/docs/documentation/tbank#auto-payout">tbank §5</a> ·
+    обычный эквайринг: <a href="/doc#tbank-acquiring-platform-index">анонс /doc</a>
   </div>
 
   <div class="note">
@@ -46,7 +47,8 @@
     <tbody>
       <tr><td>Открыть страницу</td><td><code>settings.paymentSystems.view</code></td><td><b>403</b></td></tr>
       <tr><td>Сохранить Robokassa</td><td><code>settings.paymentSystems.view</code> + <code>payment.method.robokassa</code></td><td><b>403</b></td></tr>
-      <tr><td>Сохранить / показать / удалить T‑Bank</td><td><code>settings.paymentSystems.view</code> + (<code>payment.method.tbankCard</code> или <code>payment.method.tbankSBP</code>)</td><td><b>403</b></td></tr>
+      <tr><td>Сохранить / показать / удалить T‑Bank (мультирасчёты и эквайринг)</td><td><code>settings.paymentSystems.view</code> + (<code>payment.method.tbankCard</code> или <code>payment.method.tbankSBP</code>)</td><td><b>403</b></td></tr>
+      <tr><td>Удалить глобальный терминал <code>tbank</code> / <code>tbank_acquiring</code></td><td>ещё и роль <code>superadmin</code></td><td><b>403</b> JSON</td></tr>
       <tr><td>Гость</td><td>—</td><td><b>302</b> на вход / <b>401</b></td></tr>
     </tbody>
   </table>
@@ -58,7 +60,7 @@
     <tbody>
       <tr><td>GET</td><td><code>/admin/settings/paymentSystem</code></td><td>HTML вкладки «Платёжные системы»</td><td>200 / 403</td></tr>
       <tr><td>POST</td><td><code>/payment-systems/store</code></td><td>Сохранение Robokassa или глобального T‑Bank</td><td>AJAX/JSON 200 или redirect 302</td></tr>
-      <tr><td>GET</td><td><code>/payment-systems/{name}</code></td><td>JSON настроек (<code>name=robokassa|tbank</code>)</td><td>200 / 404 / 403</td></tr>
+      <tr><td>GET</td><td><code>/payment-systems/{name}</code></td><td>JSON настроек (<code>name=robokassa|tbank|tbank_acquiring</code>)</td><td>200 / 404 / 403</td></tr>
       <tr><td>DELETE</td><td><code>/payment-systems/{id}</code></td><td>«Отключить» платёжную систему</td><td>JSON 200 / 403</td></tr>
     </tbody>
   </table>
@@ -125,6 +127,36 @@
     <li>Ошибки валидации: redirect back с ошибками в сессии (302).</li>
   </ul>
 
+  <h2 id="tbank-acquiring">4.6 T‑Bank — обычный эквайринг платформы</h2>
+  <div class="warn">
+    Отдельная глобальная запись <code>payment_systems(partner_id = NULL, name = 'tbank_acquiring')</code>.
+    Это <b>не</b> мультирасчёты: Init <b>без</b> <code>CreateDealWithType</code>, без ShopCode школы и без автовыплаты.
+    Ключи: только <code>terminal_key</code> и <code>token_password</code>. Вебхук —
+    <code>POST /webhooks/tinkoff/acquiring</code> (подпись паролем этого терминала).
+    Анонс на <a href="/doc#tbank-acquiring-platform-index">/doc</a>.
+    Права радио на кошельке/абонплате —
+    <a href="/doc#platform-payments-methods-index">анонс «Оплата платформы»</a>.
+  </div>
+  <ul>
+    <li><b>UI</b>: карточка «T‑Банк (эквайринг)» на <code>/admin/settings/paymentSystem</code>
+      (видна при <code>payment.method.tbankCard</code> или <code>payment.method.tbankSBP</code>).
+      Модалка стандартной ширины Bootstrap (<code>modal-dialog</code>, без <code>modal-fullscreen</code>).
+      Поля только eacq: <code>terminal_key</code>, <code>token_password</code>, <code>is_enabled</code>.
+      Поля e2c в модалке нет; при store лишние <code>e2c_*</code> игнорируются и не пишутся в settings.</li>
+    <li><b>Чтение</b>: <code>App\Services\Tinkoff\TbankAcquiringTerminalConfig</code>.</li>
+    <li><b>Кошелёк</b>: на <code>/partner-wallet</code> радио по <code>platformPayments.method.*</code>
+      (дефолт T‑Bank СБП, если право есть). СБП от 10 ₽, QR, чек CloudKassir «Пополнение баланса KidsCRM», НДС не облагается, email школы, без агента.</li>
+    <li><b>Абонплата CRM</b>: <code>POST payment/service/tinkoff-sbp</code> — диспетчер
+      T‑Bank СБП / ЮKassa по тем же правам, чек СБП «Оплата доступа KidsCRM».</li>
+    <li><b>Вебхуки</b>: продажи платформы — только <code>POST /webhooks/tinkoff/acquiring</code>.
+      Мультирасчётный <code>/webhooks/tinkoff</code> не подтверждает <code>channel=acquiring</code>.</li>
+    <li><b>Тесты</b>: <code>TbankAcquiringPlatformPaymentsFeatureTest</code>,
+      <code>TbankAcquiringAccessFeatureTest</code>,
+      <code>TbankAcquiringAjaxContractFeatureTest</code>,
+      <code>TbankAcquiringNonAjaxSafetyNetFeatureTest</code>,
+      <code>TbankAcquiringUxFeatureTest</code>.</li>
+  </ul>
+
   <h2>5) Связь с комиссиями и автовыплатой</h2>
   <div class="note">
     Ключи терминала — <b>здесь</b> (глобально). Комиссии, автовыплата и задержка после оплаты — в
@@ -149,6 +181,7 @@
   <ul>
     <li><code>2026_06_25_100000_make_payment_systems_partner_id_nullable.php</code> — <code>payment_systems.partner_id</code> nullable для глобальной строки.</li>
     <li><code>2026_06_25_100001_add_auto_payout_fields_to_tinkoff_commission_rules_table.php</code> — <code>auto_payout_enabled</code>, <code>auto_payout_delay_hours</code> в правилах комиссий.</li>
+    <li><code>2026_09_04_040000_add_tbank_acquiring_platform_sales.php</code> — <code>tinkoff_payments.channel</code>, <code>partner_wallet_transactions.provider</code> VARCHAR, <code>fiscal_receipts.source</code> / <code>wallet_transaction_id</code> / <code>partner_payment_id</code>.</li>
   </ul>
 
   <h2>8) Тесты</h2>
@@ -156,6 +189,13 @@
     <li><code>tests/Feature/Crm/Payments/PaymentSystemControllerTest.php</code> — права, Robokassa, глобальный T‑Bank store, non-AJAX redirect.</li>
     <li><code>tests/Feature/Crm/Payments/PaymentSystemPartnerScopeFullAccessFeatureTest.php</code> — guest / 403 / 200 по всем endpoint'ам раздела.</li>
     <li><code>tests/Feature/Crm/Payments/PaymentSystemGlobalTbankFeatureTest.php</code> — глобальный терминал: UI, AJAX-контракт, non-AJAX safety-net, матрица доступа T‑Bank.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankAcquiringPlatformPaymentsFeatureTest.php</code> — обычный эквайринг: кошелёк СБП, абонплата, webhook, чек CloudKassir, карточка ключей, изоляция мультисплит-webhook.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankAcquiringAccessFeatureTest.php</code> — гость / 403 / терминал выключен / destroy только superadmin.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankAcquiringAjaxContractFeatureTest.php</code> — JSON 200/422, e2c игнорируется при store.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankAcquiringNonAjaxSafetyNetFeatureTest.php</code> — native POST кошелёк / абонплата / settings.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankAcquiringUxFeatureTest.php</code> — радио T‑Bank по умолчанию, ЮKassa по праву, success, модалка стандартной ширины без e2c.</li>
+    <li><code>tests/Feature/Crm/Payments/Platform/PlatformPaymentsMethodAccessFeatureTest.php</code> — витринные <code>payment.method.*</code> не открывают оплату платформы.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankAcquiringQrAccessFeatureTest.php</code> — QR acquiring без <code>tbankSBP</code>, GetQr ключами эквайринга.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankTerminalConfigFeatureTest.php</code> — сервис <code>TbankTerminalConfig</code>.</li>
     <li><code>tests/Feature/Crm/Payments/PaymentServiceTbankAvailabilityFeatureTest.php</code> — <code>isTbankAvailable</code> / СБП.</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS в <code>paymentSystem.blade.php</code>.</li>

@@ -63,7 +63,18 @@
     <li><b>Не</b> входит в <code>ASSIGNMENT_SCHEDULE_TYPES</code> — для postpay не создают ULP.</li>
     <li><code>price_cents</code> — стоимость <b>одного</b> занятия (в UI: «Стоимость за одно занятие»).</li>
     <li>При store/update: <code>duration_days = 31</code>, <code>lessons_count = 1</code> (служебные);
-      заморозка и автосписание недоступны (<code>freeze_enabled=false</code>, <code>auto_attendance_enabled=false</code>).</li>
+      независимо от <code>scheduleSlots.view</code> (поле в модалке скрыто JS и отдельно
+      <code>@can</code> — <a href="/docs/documentation/lesson-packages#duration-permission">§Срок действия</a>,
+      <a href="/doc#lesson-package-duration-permission-index">анонс</a>).
+      Заморозка и автосписание недоступны (<code>freeze_enabled=false</code>, <code>auto_attendance_enabled=false</code>).
+      Store/update с <code>auto_attendance_enabled=1</code> → <b>422</b> на поле
+      (не тихое обнуление до валидации; см.
+      <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>,
+      <a href="/doc#lesson-package-auto-attendance-index">анонс</a>).
+      <code>freeze_enabled</code> при postpay обнуляется <b>тихо</b> в
+      <code>prepareForValidation</code> (не 422 на заморозку —
+      <a href="/docs/documentation/lesson-packages#freeze-permission">§Заморозка</a>,
+      <a href="/doc#lesson-package-freeze-permission-index">анонс</a>).</li>
     <li>UI: вкладка «Абонементы» / дубль в «Справочниках» — option «Постоплата» в create/edit и в фильтре типа
       только при <code>lessonPackages.type.postpay</code>.</li>
     <li>Права: <code>lessonPackages.view</code> (раздел) + скрытое <code>lessonPackages.type.postpay</code>

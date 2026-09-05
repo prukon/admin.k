@@ -28,6 +28,594 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="lesson-package-duration-permission-index">Абонементы: поле «Срок действия (дни)» и право <code>scheduleSlots.view</code> (2026‑09)</h2>
+  <div class="note">
+    Поле шаблона <code>lesson_packages.duration_days</code> задаёт срок
+    <b>классического</b> назначения (без <code>billing_month</code>):
+    при первой привязке к календарю
+    <code>ends_at = starts_at + duration_days</code>
+    (<a href="/docs/documentation/lesson-packages#period-rule">lesson-packages §period-rule</a>).
+    Для месячных абонементов из установки цен период — календарный месяц,
+    <code>duration_days</code> <b>не</b> используется
+    (<a href="/docs/documentation/setting-prices-monthly-users#ulp-sync">setting-prices-monthly-users</a>).
+    Отдельное право не заводили — то же
+    <code>scheduleSlots.view</code> («Страница "Расписание школы"»), что у
+    чекбоксов «Автосписание» и «Разрешена заморозка», но <b>свой</b>
+    <code>@can</code> (не общий блок с ними).
+    <br><br>
+    1) <b>Поле в модалке.</b>
+    В «Добавить абонемент» / «Редактировать абонемент»
+    (<code>/admin/lesson-packages</code> и дубль
+    <code>/admin/directories/lesson-packages</code>) —
+    «Срок действия (дни) *»,
+    <code>#create_duration_wrap</code> / <code>#edit_duration_wrap</code>,
+    отдельный <code>@can('scheduleSlots.view')</code>.
+    Поле «Занятий» и колонка таблицы «Срок действия (дни)» этим правом
+    <b>не</b> прячутся. Для <code>no_schedule</code> при праве поле видно,
+    но readonly <code>1</code>; для <code>postpay</code> JS скрывает wrap
+    (служебные <code>31</code> / <code>1</code>).
+    Страница шаблонов без права остаётся <code>200</code>;
+    <code>403</code> — только без <code>lessonPackages.view</code>.
+    В базовой роли <code>admin</code> право уже есть
+    (<code>config/role_base_permissions.php</code>). Superadmin видит поле
+    через <code>Gate::before</code>.
+    <br>
+    2) <b>Сохранение без права.</b>
+    Хелпер <code>App\Support\LessonPackageDurationPermission</code>
+    (<code>DEFAULT_CREATE_DAYS = 30</code>).
+    Create <code>fixed</code>/<code>flexible</code> → фоново <code>30</code>
+    (клиентский <code>90</code> игнорируется, не 422).
+    Update без права сохраняет уже записанный срок
+    (пустая строка из JS <code>normalizePayload</code> не подменяет 45 на 30).
+    Разовое (<code>no_schedule</code>) → <code>1</code>, постоплата (<code>postpay</code>) → <code>31</code>
+    независимо от права.
+    С правом поле обязательно, кроме postpay; ошибка
+    «Укажите длительность в днях.» под полем (<code>errors.duration_days</code>).
+    Fill edit — <code>if (editDuration)</code>, иначе TypeError обрывает модалку.
+    <br>
+    3) <b>Ховер и тесты.</b>
+    В <code>permission_capability_hints.php</code> у
+    <code>scheduleSlots.view</code> — строка
+    «Поле «Срок действия (дни)» в модалках шаблона абонемента».
+    Тесты: <code>LessonPackageDurationPermissionFeatureTest</code>,
+    <code>LessonPackageDurationAccessFeatureTest</code>,
+    <code>LessonPackageDurationAjaxContractFeatureTest</code>,
+    <code>LessonPackageDurationNonAjaxSafetyNetFeatureTest</code>,
+    <code>LessonPackageDurationMarkupFeatureTest</code>,
+    <code>LessonPackageDurationWorkflowFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>
+    (<code>test_lesson_packages_duration_permission_inline_script_is_valid_javascript</code>),
+    <code>LessonPackageDurationDocumentationContractTest</code>.
+    Подробно —
+    <a href="/docs/documentation/lesson-packages#duration-permission">lesson-packages §Срок действия</a>,
+    <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
+  </div>
+
+  <h2 id="lesson-package-freeze-permission-index">Абонементы: чекбокс «Разрешена заморозка» и право <code>scheduleSlots.view</code> (2026‑09)</h2>
+  <div class="note">
+    Поля шаблона <code>lesson_packages.freeze_enabled</code> / <code>freeze_days</code>
+    живут <b>только в карточке абонемента</b> (не в назначении
+    <code>user_lesson_packages</code>). Это <b>не</b> заморозка дня тренера
+    в кабинете (статус <code>Z</code>) и <b>не</b> автосписание «Посетил».
+    Календарь школы, журнал <code>/schedule</code>, оплаты и остаток занятий
+    флаг <b>не читают</b>: рабочего сценария «поставить заморозку ученику»
+    нет. Отдельное право не заводили — тот же
+    <code>scheduleSlots.view</code> («Страница "Расписание школы"»), что у
+    чекбокса «Автосписание»
+    (<a href="/doc#lesson-package-auto-attendance-index">анонс автосписания</a>).
+    Поле «Срок действия (дни)» закрыто тем же правом, но своим
+    <code>@can</code> (не этот блок) —
+    <a href="/doc#lesson-package-duration-permission-index">анонс срока</a>.
+    <br><br>
+    1) <b>Чекбокс.</b>
+    В модалках «Добавить абонемент» / «Редактировать абонемент»
+    (<code>/admin/lesson-packages</code> и дубль
+    <code>/admin/directories/lesson-packages</code>) блок
+    «Разрешена заморозка» + «Дней заморозки» в одном
+    <code>@can('scheduleSlots.view')</code> с автосписанием
+    (<code>#create_freeze_enabled</code>, <code>#edit_freeze_enabled</code>).
+    Для <code>no_schedule</code> и <code>postpay</code> секция скрыта JS.
+    Колонка таблицы «Заморозка» (<code>freeze_label</code>: число дней или «нет»)
+    <b>не</b> прячется этим правом. Страница шаблонов без
+    <code>scheduleSlots.view</code> остаётся <code>200</code>;
+    <code>403</code> — только без <code>lessonPackages.view</code>.
+    В базовой роли <code>admin</code> право уже есть
+    (<code>config/role_base_permissions.php</code>). Superadmin видит чекбокс
+    через <code>Gate::before</code>.
+    <br>
+    2) <b>Сохранение.</b>
+    Хелпер <code>App\Support\LessonPackageFreezePermission</code>.
+    Включить флаг без права → <code>422</code> на
+    <code>freeze_enabled</code>
+    («Недостаточно прав для включения заморозки.»); ошибка под полем.
+    Create без права — <code>false</code> / <code>0</code> дней.
+    Update без права — уже сохранённые флаг и дни <b>сохраняются</b>:
+    JS <code>normalizePayload</code> шлёт <code>freeze_enabled: 0</code> и
+    пустые дни, если input нет в форме; пустая строка дней нормализуется
+    в <code>null</code> до <code>min:1</code>.
+    Разовое (<code>no_schedule</code>) с <code>freeze_enabled=1</code> →
+    <code>422</code> «Для разового занятия заморозка недоступна.»
+    Постоплата: в <code>prepareForValidation</code> флаг <b>тихо</b>
+    ставится в <code>false</code> (не 422 на заморозку; у автосписания —
+    наоборот, 422 без тихого обнуления). Контроллер для
+    <code>no_schedule</code>/<code>postpay</code> всё равно пишет
+    <code>false</code> / <code>0</code>.
+    <br>
+    3) <b>Ховер и тесты.</b>
+    В <code>permission_capability_hints.php</code> у
+    <code>scheduleSlots.view</code> — строка «Чекбокс «Разрешена заморозка»
+    в модалках шаблона абонемента»
+    (рядом — строка про «Срок действия (дни)»,
+    <a href="/doc#lesson-package-duration-permission-index">анонс срока</a>).
+    Тесты: <code>LessonPackageFreezePermissionFeatureTest</code>,
+    <code>LessonPackageFreezeAccessFeatureTest</code>,
+    <code>LessonPackageFreezeAjaxContractFeatureTest</code>,
+    <code>LessonPackageFreezeNonAjaxSafetyNetFeatureTest</code>,
+    <code>LessonPackageFreezeMarkupFeatureTest</code>,
+    <code>LessonPackageFreezeWorkflowFeatureTest</code>,
+    <code>LessonPackageAutoAttendanceMarkupFeatureTest</code> (оба чекбокса
+    в одном <code>@can</code>),
+    <code>LessonPackageAutoAttendanceAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>
+    (<code>test_lesson_packages_freeze_permission_inline_script_is_valid_javascript</code>:
+    <code>normalizePayload</code> без input → 0 / '', null-guard fill edit),
+    <code>LessonPackageFreezeDocumentationContractTest</code>.
+    Подробно —
+    <a href="/docs/documentation/lesson-packages#freeze-permission">lesson-packages §Заморозка</a>,
+    <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
+  </div>
+
+  <h2 id="setting-prices-month-prolong-index">Установка цен: пролонгация месяца на следующий (2026‑09)</h2>
+  <div class="note">
+    На вкладке <b>«По месяцам»</b> (<code>/admin/setting-prices/monthly</code>) кнопка
+    <b>«Пролонгировать на следующий месяц»</b>: превью без записи, затем подтверждение.
+    Копирует абонементы выбранного месяца M на M+1 по <b>всем группам партнёра</b>.
+    Это <b>не</b> classic-автопролонг фикса из «Назначений»
+    (<a href="/docs/documentation/lesson-packages#auto-prolong">lesson-packages §auto-prolong</a>,
+    <a href="/doc#fixed-lesson-package-auto-prolong-index">анонс 2026‑08</a>), <b>не</b> cron,
+    <b>не</b> доп. платежи и <b>не</b> вкладка «По ученикам» (кнопки там нет).
+    Право — то же <code>setPrices.view</code>, отдельного permission нет.
+    <br><br>
+    1) <b>Кого копируем.</b>
+    Ученик в работе, только если сейчас в группе (<code>team_user</code>,
+    <code>is_enabled=1</code>) и в M у пары ученик+группа уже выбран абонемент.
+    Пустой M, новичок без абона, бывшие, выключенные — M+1 не трогаем.
+    Сумма = <b>текущая</b> цена шаблона × <b>текущий</b> % карточки
+    (не копия суммы/снимка из M). Постоплата — только с
+    <code>lessonPackages.type.postpay</code>.
+    <br>
+    2) <b>Пропуск с отчётом (не ошибка, без перезаписи):</b>
+    в M+1 уже другой пакет/сумма; M+1 оплачен; ULP разложен;
+    classic-автопролонг (<code>UserLessonPackageAutoProlongGuard</code>);
+    шаблон недоступен; постоплата без права.
+    Совпадающие пакет и пересчитанная сумма — идемпотентный no-op.
+    В JSON <code>skip_reasons</code> ученики и группы считаются раздельно
+    (<code>students</code> / <code>teams</code>), без общего <code>count</code>
+    (иначе 883+7 выглядело бы как 890).
+    В модалке строка «Пропущено» — только ученики, иконка <code>i</code>
+    <b>после</b> слова «учеников» (клон
+    <code>#setting-prices-prolong-skip-hint-tpl</code> /
+    <code>partials.ui.tooltip-hint</code>). Пустой источник —
+    «В сентябре не установлены абонементы» (месяц M в предложном падеже),
+    не «в исходном месяце». Плашку <code>summaryMessage</code>
+    («Будет пролонгировано…») модалка не показывает — текст в JSON и toast.
+    Строка «Уже совпадает» — только если unchanged &gt; 0.
+    <br>
+    3) <b>Что пишем.</b>
+    Начисление + неразложенный месячный ULP (<code>billing_month = M+1</code>),
+    без раскладки журнала и без флага автопролонга.
+    Тариф группы — только если в M был шаблон, а в M+1 пакета ещё нет
+    (текущая каталожная цена). Оплата, ручная отметка, ссылки СБП с M
+    не копируются; новый месяц неоплаченный.
+    После успеха страница остаётся на M: модалка закрывается
+    (<code>Modal.hide</code>), toast, без <code>location.reload</code> на M+1.
+    <br>
+    4) <b>UI и HTTP.</b>
+    Модалка стандартной ширины Bootstrap, стилистика журнала
+    (<code>cell-edit-modal</code>, <code>resources/css/schedule.css</code>).
+    Confirm <code>disabled</code>, пока нет <code>can_apply</code>.
+    Превью всегда JSON (в т.ч. без AJAX); невалидный месяц → <b>422</b>
+    <code>errors.selectedDate</code> («Укажите месяц.» /
+    «Укажите корректный месяц.»), не 302.
+    Apply: AJAX JSON / non-AJAX <b>302</b> на monthly.
+    GET/PATCH/DELETE на POST-рутах → 404/405, не 500.
+    JS — Vite-модуль <code>initMonthProlong</code> в
+    <code>resources/js/settings-prices.js</code> (нужен <code>npm run build</code>),
+    не inline в blade. Аудит <code>pricing.month_prolonged</code>.
+    <br>
+    5) <b>Тесты.</b>
+    <code>SettingPricesMonthlyProlongFeatureTest</code>,
+    <code>SettingPricesMonthlyProlongAccessFeatureTest</code>,
+    <code>SettingPricesMonthlyProlongAjaxContractFeatureTest</code>,
+    <code>SettingPricesMonthlyProlongNonAjaxSafetyNetFeatureTest</code>,
+    <code>SettingPricesMonthlyProlongMarkupFeatureTest</code>,
+    <code>MonthlyPricesProlongReportTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_prolong_vite_module_ux_contract</code>,
+    <code>SettingPricesMonthlyProlongDocumentationContractTest</code>.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/setting-prices-monthly-users#month-prolong">setting-prices-monthly-users §4.2</a>.
+  </div>
+
+  <h2 id="platform-payments-methods-index">Оплата платформы: права T‑Bank СБП и ЮKassa (2026‑09)</h2>
+  <div class="note">
+    На кошельке школы и абонплате KidsCRM радио способа оплаты завязано на скрытые права
+    группы <b>«Оплата платформы»</b> (<code>permission_groups.slug=platformPayments</code>,
+    <code>sort_order=34</code>, группа <code>is_visible=1</code>).
+    Это <b>не</b> витрина родителей и <b>не</b> <code>payment.method.tbankSBP</code> /
+    <code>tbankCard</code> / <code>robokassa</code>.
+    Рельсы T‑Bank (терминал <code>tbank_acquiring</code>, Init, вебхук, чек) —
+    <a href="/doc#tbank-acquiring-platform-index">анонс обычного эквайринга</a>.
+    <br><br>
+    1) <b>Каталог.</b>
+    Скрытые права (<code>is_visible=0</code>):
+    <code>platformPayments.method.tbankSbp</code> — «T‑Bank СБП (кошелёк и абонплата)»,
+    <code>sort_order=10</code>;
+    <code>platformPayments.method.yookassa</code> — «ЮKassa (кошелёк и абонплата)»,
+    <code>sort_order=20</code>.
+    Хелпер <code>App\Support\PlatformPaymentMethods</code>:
+    <code>allowedMethods()</code>, <code>defaultMethod()</code> (если есть T‑Bank — он,
+    иначе первый доступный), <code>viewState()</code>
+    (<code>canPayTbankSbp</code> / <code>canPayYookassa</code> /
+    <code>platformPaymentDefaultMethod</code>).
+    Gate в <code>AuthServiceProvider</code> по <code>hasPermission()</code>;
+    без Gate <code>$user->can(...)</code> всегда false.
+    Superadmin проходит <code>Gate::before</code> и видит оба радио (дефолт T‑Bank).
+    В матрице «Права и роли» группу видит superadmin; админ школы — нет
+    (оба права скрытые). Ховер —
+    <code>config/permission_capability_hints.php</code>.
+    <br>
+    2) <b>Страницы.</b>
+    Доступ к экранам по-прежнему <code>partnerWallet.view</code>
+    (<code>/partner-wallet</code>) и <code>servicePayments.view</code>
+    (<code>/partner-payment/recharge</code>, история, success).
+    Право способа без права страницы → <code>403</code>.
+    Гость → redirect / 401, не 500.
+    История <code>/partner-payment/history</code> открывается без радио
+    (viewState всё равно передаётся, 500 из‑за неопределённых переменных нет).
+    Создать платёж: страница + право способа.
+    Открыть уже созданный QR ordinary acquiring
+    (<code>/tinkoff/qr/{PaymentId}</code>, <code>channel=acquiring</code>) —
+    достаточно <code>partnerWallet.view</code> или <code>servicePayments.view</code>;
+    ни витринный <code>payment.method.tbankSBP</code>, ни
+    <code>platformPayments.method.*</code> для просмотра QR не требуются.
+    POST кошелька: AJAX <code>serialize()</code> выбранного radio
+    (не хардкод <code>yookassa</code>), native POST без
+    <code>X-Requested-With</code> — safety-net (запись + не пустой 200).
+    Абонплата: native POST на тот же
+    <code>POST payment/service/tinkoff-sbp</code>
+    (<code>partner.payment.tinkoff.sbp</code>); маршрут
+    <code>createPaymentYookassa</code> не возвращали.
+    Request: <code>CreatePartnerWalletTopupRequest</code> /
+    <code>CreatePartnerServicePaymentRequest</code> —
+    <code>Rule::in(allowed)</code>, ошибки в <code>errors.payment_method</code> /
+    <code>errors.amount</code> (на форме <code>data-error-for</code>).
+    Пустой набор способов → «Нет доступного способа оплаты.»
+    Чужой код при непустом наборе → «Некорректный способ оплаты.»
+    Если поле не прислали — подставляется <code>defaultMethod()</code>
+    (у admin со СБП сумма 5 ₽ падает на минимум СБП 10 ₽, не на 1 ₽ ЮKassa).
+    <br>
+    3) <b>Дефолты и UX.</b>
+    Оба права — radio T‑Bank выше ЮKassa, по умолчанию
+    <code>tinkoff_sbp</code> <code>checked</code> (первое открытие и повторный GET
+    без <code>old()</code>). Только ЮKassa — дефолт <code>yookassa</code>,
+    T‑Bank не рендерится и не навязывается. Без прав способа: радио скрыто,
+    alert «Нет доступного способа оплаты.», кнопка «Оплатить» <code>disabled</code>,
+    POST 422/302, записи нет. Витринные <code>payment.method.*</code>
+    (в т.ч. роль <code>user</code> с выданным <code>partnerWallet.view</code>)
+    способы платформы <b>не</b> открывают.
+    После 422 выбранный radio сохраняется через
+    <code>old('payment_method', $platformPaymentDefaultMethod)</code> —
+    ЮKassa не сбрасывается на T‑Bank.
+    Суммы: СБП 10…1 000 000 ₽; ЮKassa от 1 ₽ — как в
+    <a href="/doc#tbank-acquiring-platform-index">анонсе эквайринга</a>.
+    <br>
+    4) <b>Выдача.</b>
+    Миграция
+    <code>2026_09_05_021700_add_platform_payments_method_permissions</code>
+    upsert группы и прав, <b>без</b> <code>permission_role</code>
+    (существующим школам ничего не выдаёт).
+    Новым партнёрам T‑Bank СБП — только роль <code>admin</code> из
+    <code>config/role_base_permissions.php</code> (хук <code>Partner::created</code>).
+    ЮKassa никому в базовых ролях <code>user</code> / <code>admin</code> / <code>trainer</code>.
+    <code>SEED_DEV_DATA</code> / <code>DevAdminRoleBasePermissionsSeeder</code>
+    проставит T‑Bank всем партнёрам этой dev-БД — на прод не запускать.
+    <br>
+    5) <b>Тесты.</b>
+    <code>PlatformPaymentsMethodPermissionCatalogFeatureTest</code>,
+    <code>PlatformPaymentsMethodAccessFeatureTest</code>,
+    <code>PlatformPaymentsMethodUxFeatureTest</code>,
+    <code>PlatformPaymentsMethodAjaxContractFeatureTest</code>,
+    <code>PlatformPaymentsMethodNonAjaxSafetyNetFeatureTest</code>,
+    <code>PlatformPaymentsMethodFullAccessFeatureTest</code>,
+    <code>PartnerBasePermissionsTest</code>,
+    <code>PermissionGroupsReorganizationFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>PlatformPaymentsMethodsDocumentationContractTest</code>.
+    Подробно —
+    <a href="/docs/documentation/partner-wallet#tbank-sbp">partner-wallet §8</a>,
+    <a href="/docs/documentation/partner-service-payments">partner-service-payments</a>,
+    <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>,
+    <a href="/docs/documentation/partners-permissions">partners-permissions §7</a>,
+    <a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>.
+  </div>
+
+  <h2 id="lesson-package-auto-attendance-index">Абонементы: автосписание «Посетил» и право <code>scheduleSlots.view</code> (2026‑09)</h2>
+  <div class="note">
+    Флаг <code>lesson_packages.auto_attendance_enabled</code> живёт <b>только в шаблоне</b>
+    (не в назначении). Для <code>fixed</code> и <code>flexible</code> ночной job
+    в <code>00:05</code> <code>Europe/Moscow</code>
+    (<code>AutoMarkYesterdayLessonOccurrencesJob</code> →
+    <code>AutoMarkYesterdayLessonOccurrencesService</code>) ставит статус «Посетил»
+    за вчерашние <code>user_team_schedule_slots</code>, если статуса ещё нет.
+    Те же слоты и тот же сервис статусов, что у календаря школы и журнала
+    <code>/schedule</code>. Пробные, разовые, исключённые/неактивные слоты,
+    нулевой остаток — пропуск. Оплата назначения <b>не</b> проверяется.
+    Отдельное право не заводили: чекбокс и включение флага — существующее
+    <code>scheduleSlots.view</code> («Страница "Расписание школы"»).
+    Чекбокс «Разрешена заморозка» в тех же модалках закрыт тем же правом —
+    <a href="/doc#lesson-package-freeze-permission-index">анонс заморозки</a>.
+    Поле «Срок действия (дни)» — отдельный <code>@can</code> (не общий блок с чекбоксами) —
+    <a href="/doc#lesson-package-duration-permission-index">анонс срока</a>.
+    <br><br>
+    1) <b>Чекбокс.</b>
+    В модалках create/edit вкладки «Абонементы»
+    (<code>/admin/lesson-packages</code> и дубль
+    <code>/admin/directories/lesson-packages</code>) —
+    «Автосписание», обёртка <code>@can('scheduleSlots.view')</code>
+    (в том же блоке — «Разрешена заморозка», см.
+    <a href="/doc#lesson-package-freeze-permission-index">анонс заморозки</a>).
+    Для <code>no_schedule</code> и <code>postpay</code> секция скрыта JS;
+    store/update с <code>auto_attendance_enabled=1</code> → <code>422</code>
+    на поле (не тихое обнуление до валидации).
+    Страница шаблонов без <code>scheduleSlots.view</code> остаётся <code>200</code>;
+    <code>403</code> — только без <code>lessonPackages.view</code>.
+    В базовой роли <code>admin</code> право уже есть
+    (<code>config/role_base_permissions.php</code>). Superadmin видит чекбокс
+    через <code>Gate::before</code>.
+    <br>
+    2) <b>Сохранение без права.</b>
+    Хелпер <code>App\Support\LessonPackageAutoAttendancePermission</code>.
+    Включить флаг без права → <code>422</code> на
+    <code>auto_attendance_enabled</code>
+    («Недостаточно прав для включения автосписания.»).
+    Create без права — флаг остаётся <code>false</code>.
+    Update без права — уже включённый флаг <b>сохраняется</b>:
+    JS <code>normalizePayload</code> шлёт <code>0</code>, если input нет в форме,
+    и этот <code>0</code> не должен выключить автосписание.
+    Job право пользователя не проверяет.
+    <br>
+    3) <b>Ховер права и тесты.</b>
+    В каталоге <code>permission_capability_hints.php</code> у
+    <code>scheduleSlots.view</code> — строка про чекбокс «Автосписание»
+    (рядом — строка про «Разрешена заморозка»,
+    <a href="/doc#lesson-package-freeze-permission-index">анонс заморозки</a>,
+    и строка про «Срок действия (дни)»,
+    <a href="/doc#lesson-package-duration-permission-index">анонс срока</a>).
+    Тесты: <code>LessonPackageAutoAttendanceAccessFeatureTest</code>,
+    <code>LessonPackageAutoAttendanceCrudFeatureTest</code>,
+    <code>LessonPackageAutoAttendanceAjaxContractFeatureTest</code>,
+    <code>LessonPackageAutoAttendanceNonAjaxSafetyNetFeatureTest</code>,
+    <code>LessonPackageAutoAttendanceMarkupFeatureTest</code>,
+    <code>LessonPackageAutoAttendanceWorkflowFeatureTest</code>,
+    <code>AutoMarkYesterdayLessonOccurrencesFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (inline JS шаблонов),
+    <code>LessonPackageAutoAttendanceDocumentationContractTest</code>.
+    Подробно —
+    <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>,
+    <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>,
+    <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
+  </div>
+
+  <h2 id="reports-datatable-search-index">Отчёты: поиск DataTables над таблицей (2026‑09)</h2>
+  <div class="note">
+    На четырёх отчётах админки поле поиска DataTables (над таблицей) ищет по
+    <b>явным</b> полям через Yajra <code>filter($callback)</code> <b>без</b> второго аргумента
+    <code>true</code>. Второй аргумент включает <code>autoFilter</code>: тогда SQL идёт
+    по колонкам таблицы (сумма, агрегаты, даты) → пустая выдача или
+    <code>42S22</code> / Ajax error tn/7. Это <b>не</b> фильтры формы (Select2 ученик/группа/локация)
+    и <b>не</b> шапка «Общая сумма».
+    <br><br>
+    1) <b>Платежи</b> <code>/admin/reports/payments</code> и <b>LTV</b> <code>/admin/reports/ltv</code>
+    (<code>reports.view</code>).
+    Только ФИО ученика (<code>users.lastname</code> / <code>users.name</code> /
+    <code>TRIM(CONCAT(...))</code>; в платежах ещё снимок <code>payments.user_name</code>)
+    и название группы (снимок <code>payments.team_title</code>, <code>teams.title</code> по
+    <code>payments.team_id</code>, pivot <code>team_user</code>; в LTV — только pivot).
+    Сумма, месяц, дата операции, локация, агрегаты LTV (<code>total_price</code> /
+    <code>payment_count</code> / даты / <code>is_enabled</code>) в <code>search.value</code> не входят.
+    Data: <code>GET …/getPayments</code> и <code>GET …/ltv/data</code> только AJAX
+    (<code>X-Requested-With</code>); без AJAX → <b>404</b>.
+    <br>
+    2) <b>Платежи по месяцам</b> <code>/admin/reports/payments/monthly</code>
+    (<code>reports.view</code>).
+    То же ФИО и группа плюс заголовок месяца: ключ <code>YYYY-MM</code> и русское имя
+    (в т.ч. «Январь 2026»; «Февраль 2026» январь не цепляет). Счётчик и сумма — нет.
+    Data только AJAX → иначе 404.
+    Вложенная таблица месяца: <code>dom: 'rtip'</code> (поля поиска нет), при
+    <code>draw</code> ищет только ФИО и группу.
+    Вложенная LTV — тоже <code>dom: 'rtip'</code>, без своего <code>filter()</code>:
+    непустой <code>search.value</code> с колонками вроде <code>summ</code> может дать 42S22;
+    живой UI пустой поиск не шлёт.
+    <br>
+    3) <b>Платежные запросы</b> <code>/admin/reports/payment-intents</code>
+    (<code>reports.payment.intents.view</code>).
+    ФИО пользователя, название партнёра, <code>provider_inv_id</code> и числовой
+    <code>id</code> (<code>CAST</code>). Сумма, статус, даты, User-Agent, мета — нет.
+    <code>GET …/getPaymentIntents</code> AJAX-заголовок <b>не</b> требует (в отличие от трёх других).
+    <br>
+    4) <b>Общее.</b>
+    Пустая строка и пробелы (<code>trim</code>) — без доп. WHERE. Символы <code>%</code> и
+    <code>_</code> экранируются (<code>addcslashes</code>), не LIKE-wildcard.
+    Шапка <code>…/total</code> <code>search.value</code> не учитывает — только фильтры формы.
+    «Применить» / «Сброс» делают <code>dtApi.reload()</code>, таблицу не пересоздают —
+    набранный поиск не сбрасывается. В UI у служебных колонок
+    <code>searchable: false</code>; у основных таблиц нет <code>searching: false</code>
+    (пресет <code>KidsCrmDataTable</code> поиск не выключает).
+    Задолженности, чеки и исходящие письма в этот инкремент <b>не</b> входят.
+    <br>
+    5) <b>Тесты.</b>
+    <code>ReportsDatatableSearchFeatureTest</code>,
+    <code>ReportsMonthlyIntentsDatatableSearchFeatureTest</code>,
+    <code>ReportsDatatableSearchFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>
+    (<code>test_payments_and_ltv_datatable_search_js_contract</code>,
+    <code>test_monthly_and_intents_datatable_search_js_contract</code>,
+    <code>test_four_report_pages_keep_search_box_on_filter_reload</code>),
+    <code>ReportsDatatableSearchDocumentationContractTest</code>.
+    Подробно —
+    <a href="/docs/documentation/reports-payments#datatable-search">reports-payments §1.2</a>,
+    <a href="/docs/documentation/reports-admin#reports-datatable-search">reports-admin §1.2</a>
+    (LTV §4, monthly §5, intents §6).
+  </div>
+
+  <h2 id="permission-capability-hints-index">Права и роли: ховер «что даёт право» (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/settings/rules</code> после <code>&lt;code&gt;permissions.name&lt;/code&gt;</code>
+    (не после описания) иконка <code>fa fa-info-circle</code> через
+    <code>@include('partials.ui.tooltip-hint')</code>.
+    В ховере — только возможности <b>этого</b> права, без вложенных прав той же страницы.
+    Gate, <code>permission_role</code> и <code>is_visible</code> не меняются:
+    иконку видит тот, кто уже видит строку матрицы
+    (нужно <code>settings.roles.view</code>; скрытые права — только superadmin).
+    <br><br>
+    1) <b>Текст.</b>
+    Каталог <code>/config/permission_capability_hints.php</code>: ключ — литеральное
+    <code>permissions.name</code> с точками (<code>'dashboard.view' =&gt; […]</code>),
+    не вложенный <code>config('permission_capability_hints.dashboard.view')</code>.
+    Сборка — <code>App\Support\PermissionCapabilityHint</code>:
+    0 строк — пустой <code>title</code>, partial не рисует иконку;
+    1 место — одна строка без номера;
+    2+ — нумерованный список <code>1. …\n2. …</code> (не HTML <code>&lt;ol&gt;</code>,
+    hint без <code>html: true</code>, переносы за счёт
+    <code>white-space: pre-wrap</code> у KidsCrmTooltip).
+    <br>
+    2) <b>Пример <code>dashboard.view</code>.</b>
+    1. Пункт бокового меню «Консоль».
+    2. Страница <code>/cabinet</code>.
+    3. Запросы <code>/get-user-details</code> и <code>/get-team-details</code>.
+    Кнопки сезонов, абонементов и карандаша группы в этот ховер не входят —
+    у них свои права.
+    <br>
+    3) <b>Пузырёк.</b>
+    <code>placement=right</code>, <code>data-bs-container="body"</code>
+    (<code>initHintElement</code> в <code>kids-tooltip.js</code> читает атрибут),
+    иначе <code>.table-responsive</code> обрезает ховер.
+    Новое имя в <code>PermissionSeeder</code> без строк в каталоге — иконки нет
+    (тест полноты каталога падает, пока ключ не добавят).
+    <br>
+    4) <b>Тесты.</b>
+    <code>PermissionCapabilityHintTest</code>,
+    <code>RulesPermissionCapabilityHintsFeatureTest</code>,
+    <code>PermissionCapabilityHintsDocumentationContractTest</code>.
+    Подробно —
+    <a href="/docs/documentation/settings-permission-groups#capability-hints">settings-permission-groups §8</a>,
+    <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials</a> (параметр
+    <code>container</code> у <code>tooltip-hint</code>).
+  </div>
+
+  <h2 id="tbank-acquiring-platform-index">T‑Bank обычный эквайринг: кошелёк и абонплата CRM (2026‑09)</h2>
+  <div class="note">
+    Пополнение кошелька школы и абонплата KidsCRM идут через <b>обычный эквайринг</b> T‑Bank
+    (<code>payment_systems.partner_id IS NULL</code>, <code>name=tbank_acquiring</code>),
+    не через мультирасчёты (<code>name=tbank</code>).
+    Это <b>не</b> оплата родителей на витрине и <b>не</b> публичные ссылки
+    <code>/pm/{code}</code> / <code>/p/{code}</code>.
+    Init <b>без</b> <code>CreateDealWithType</code> и без ShopCode юрлица школы,
+    автовыплаты нет. Чеки — касса платформы CloudKassir, без агента, НДС не облагается
+    (<code>Vat: null</code>), email школы (<code>partners.email</code>).
+    <br><br>
+    1) <b>Ключи.</b>
+    Карточка «T‑Банк (эквайринг)» на <code>/admin/settings/paymentSystem</code>
+    (права <code>settings.paymentSystems.view</code> +
+    <code>payment.method.tbankCard</code> или <code>payment.method.tbankSBP</code>).
+    Модалка стандартной ширины Bootstrap, без <code>modal-fullscreen</code>.
+    Поля только eacq: <code>terminal_key</code>, <code>token_password</code>,
+    <code>is_enabled</code>, <code>test_mode</code>.
+    «Подключено», если заполнены эти два ключа (e2c не нужен).
+    Лишние <code>e2c_*</code> при store игнорируются.
+    Удаление глобальной строки — только <code>superadmin</code>.
+    Чтение: <code>TbankAcquiringTerminalConfig</code>.
+    <br>
+    2) <b>Кошелёк</b> <code>/partner-wallet</code> (<code>partnerWallet.view</code>).
+    Радио <code>payment_method</code> по скрытым правам группы «Оплата платформы»
+    (<code>platformPayments.method.tbankSbp</code> / <code>platformPayments.method.yookassa</code>),
+    не <code>payment.method.tbankSBP</code> витрины.
+    Права способов подробно —
+    <a href="/doc#platform-payments-methods-index">анонс «Оплата платформы»</a>.
+    Если оба права есть — по умолчанию T‑Bank СБП (в т.ч. если поле не прислали).
+    При первом открытии и повторном GET без <code>old()</code>
+    СБП <code>checked</code>, ЮKassa нет (пока нет права — радио скрыто).
+    AJAX сериализует выбранный radio, не хардкодит <code>yookassa</code>.
+    ЮKassa от 1 ₽ — как раньше, вебхук ЮKassa.
+    СБП от 10 ₽ до 1 000 000 ₽ → Init → QR <code>/tinkoff/qr/{PaymentId}</code>.
+    После <code>CONFIRMED</code> зачисление на <code>tx.partner_id</code>,
+    чек «Пополнение баланса KidsCRM», <code>fiscal_receipts.source=platform</code>.
+    Success: «Вернуться в кошелёк» → <code>/partner-wallet</code>.
+    Ошибки СБП под <code>data-error-for="payment_method"</code> / <code>amount</code>.
+    Без email школы СБП — 422 на <code>payment_method</code>.
+    Без права на способ — радио скрыто, кнопка disabled, POST → 422
+    <code>errors.payment_method</code> «Нет доступного способа оплаты.»
+    Витринные <code>payment.method.*</code> способы платформы не открывают.
+    После 422 выбранный radio не сбрасывается на дефолт.
+    Только ЮKassa — дефолт ЮKassa (T‑Bank не навязывается).
+    Новым школам T‑Bank СБП выдаётся только роли <code>admin</code>
+    (<code>role_base_permissions</code>). Существующим школам миграция права
+    <b>не</b> проставляет. ЮKassa никому в базовых ролях.
+    <br>
+    3) <b>Абонплата CRM</b> <code>/partner-payment/recharge</code>
+    (<code>servicePayments.view</code> + то же право способа).
+    Форма по-прежнему <code>POST payment/service/tinkoff-sbp</code>
+    (маршрут <code>createPaymentYookassa</code> не возвращали): контроллер
+    смотрит <code>payment_method</code>. T‑Bank СБП — QR; ЮKassa — redirect
+    на confirmation URL, <code>partner_payments.payment_id</code> = id ЮKassa,
+    вебхук <code>/webhook/yookassa</code> (scope по умолчанию — абонплата).
+    После оплаты QR/редиректа <code>GET /partner-payment/success</code> —
+    кнопка «К истории оплаты сервиса» → <code>/partner-payment/history</code>
+    (не «Вернуться в кошелёк»).
+    Чек T‑Bank «Оплата доступа KidsCRM».
+    Если оба способа — дефолт T‑Bank.
+    <br>
+    4) <b>Вебхуки.</b>
+    Продажи платформы принимает только <code>POST /webhooks/tinkoff/acquiring</code>
+    (подпись паролем <code>tbank_acquiring</code>, без логина, ответ OK 200).
+    Мультирасчётный <code>/webhooks/tinkoff</code> <b>не</b> подтверждает
+    <code>tinkoff_payments.channel=acquiring</code> (статус не CONFIRMED, баланс не двигается).
+    <br>
+    5) <b>QR кабинета</b> <code>/tinkoff/qr/{PaymentId}</code>.
+    Для <code>channel=acquiring</code> достаточно <code>partnerWallet.view</code>
+    или <code>servicePayments.view</code>; право <code>payment.method.tbankSBP</code>
+    <b>не</b> нужно. Мультирасчёты по-прежнему требуют СБП.
+    GetQr подписывается ключами эквайринга. Чужой <code>partner_id</code> → 404.
+    <br>
+    6) <b>Отчёт «Чеки»</b> показывает только <code>source=marketplace</code>
+    (витрина школы). Чеки платформы в таблицу и сумму не попадают.
+    <br>
+    7) <b>Тесты.</b>
+    <code>TbankAcquiringPlatformPaymentsFeatureTest</code>,
+    <code>TbankAcquiringAccessFeatureTest</code>,
+    <code>TbankAcquiringAjaxContractFeatureTest</code>,
+    <code>TbankAcquiringNonAjaxSafetyNetFeatureTest</code>,
+    <code>TbankAcquiringUxFeatureTest</code>,
+    <code>TbankAcquiringQrAccessFeatureTest</code>,
+    <code>PlatformPaymentsMethodAccessFeatureTest</code>,
+    <code>PlatformPaymentsMethodUxFeatureTest</code>,
+    <code>PlatformPaymentsMethodAjaxContractFeatureTest</code>,
+    <code>PlatformPaymentsMethodNonAjaxSafetyNetFeatureTest</code>,
+    <code>PlatformPaymentsMethodFullAccessFeatureTest</code>,
+    <code>FiscalReceiptsReportTest</code> (исключение <code>source=platform</code>),
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>TbankAcquiringDocumentationContractTest</code>.
+    Подробно —
+    <a href="/docs/documentation/partner-wallet#tbank-sbp">partner-wallet §8</a>,
+    <a href="/docs/documentation/partner-service-payments">partner-service-payments</a>,
+    <a href="/docs/documentation/settings-payment-systems#tbank-acquiring">settings-payment-systems §4.6</a>,
+    <a href="/docs/documentation/reports-admin">reports-admin §7</a>,
+    <a href="/docs/documentation/tbank#tests">tbank §8.11</a>,
+    права способов —
+    <a href="/doc#platform-payments-methods-index">анонс «Оплата платформы»</a>.
+  </div>
+
   <h2 id="legal-entities-podpislon-key-index">Юр. лица: API-ключ Подпислона на каждом юрлице (2026‑09)</h2>
   <div class="note">
     Раньше ЭП организации в Подпислоне шла с одного ключа <code>PODPISLON_API_KEY</code> из <code>.env</code>
@@ -459,11 +1047,11 @@
     Право <code>servicePayments.view</code> (не в базовой роли admin — выдаётся явно).
     Hidden <code>partner_id</code> = current, не <code>1</code>.
     <br>
-    2) <b>Оплата.</b> <code>POST payment/service/yookassa</code>,
+    2) <b>Оплата.</b> <code>POST payment/service/tinkoff-sbp</code>,
     <code>CreatePartnerServicePaymentRequest</code>: чужой
     <code>partner_id</code> → <b>422</b> / 302
     <code>errors.partner_id</code> «Нельзя оплатить сервис за другую школу.»
-    (до ЮKassa запись не создаётся). Запись <code>partner_payments.partner_id</code>
+    (до T‑Bank запись не создаётся). Запись <code>partner_payments.partner_id</code>
     из контекста. Период <code>partner_accesses</code> — последний активный доступ
     <b>этой</b> школы, не <code>max(end_date)</code> по всей таблице.
     Ошибки под полями (<code>data-error-for="partner_id"</code> /
@@ -529,7 +1117,10 @@
     6) <b>Открытие родителем.</b> <code>GET /pm/{code}</code> (throttle
     <code>up-public-pay</code>, 40/мин с IP, без auth и без
     <code>payment.method.tbankSBP</code>) → Init СБП + QR.
-    Это не кабинетный <code>/tinkoff/qr/{PaymentId}</code> (там нужен логин и право СБП).
+    Это не кабинетный <code>/tinkoff/qr/{PaymentId}</code>.
+    Для <b>мультирасчётов</b> там нужны логин и <code>payment.method.tbankSBP</code>.
+    Для <b>обычного эквайринга</b> (<code>tinkoff_payments.channel=acquiring</code>: кошелёк / абонплата)
+    достаточно <code>partnerWallet.view</code> или <code>servicePayments.view</code>.
     Уже оплачено / ссылка истекла / T‑Bank выключили после выдачи / сумма вне диапазона —
     статусная страница 200, не 500 и не пустой QR.
     Повторное напоминание <b>продлевает</b> те же 30 дней и тот же
@@ -4696,11 +5287,14 @@
     Тесты: <code>LessonPackageAssignmentsDeletedUsersFilterFeatureTest</code>.
   </div>
 
-  <h2>Автопролонгация фиксированного абонемента (2026‑08)</h2>
+  <h2 id="fixed-lesson-package-auto-prolong-index">Автопролонгация фиксированного абонемента (2026‑08)</h2>
   <div class="note">
     На вкладке <b>«Назначение абонементов»</b> для классического <code>fixed</code>
     (не из «Установки цен» / без <code>billing_month</code>) — флаг <b>«Автопролонгация»</b>
     (создание и редактирование). На ученике одновременно не более одного ULP с включённым флагом.
+    Это <b>не</b> кнопка «Пролонгировать на следующий месяц» в установке цен
+    (M → M+1, без cron) —
+    <a href="/doc#setting-prices-month-prolong-index">анонс ручной пролонгации месяца</a>.
     <br><br>
     1) <b>Триггер:</b> первое достижение <code>lessons_remaining = 0</code> при списании статуса
     (календарь / журнал / автосписание) → <code>FixedLessonPackageAutoProlongService</code>
@@ -5387,6 +5981,9 @@
     (<code>GET …/data</code>), columns-settings (<code>table_key = lesson_packages_index</code>),
     история <code>GET …/logs-data</code> (категория <code>lesson_package</code>: created/updated/deleted).
     Фильтры: поиск по названию + тип. Подпись поля срока — «Срок действия (дни)».
+    В модалке поле только при <code>scheduleSlots.view</code>
+    (<a href="/doc#lesson-package-duration-permission-index">анонс 2026‑09</a>);
+    колонка таблицы видна всем с <code>lessonPackages.view</code>.
     AJAX CRUD перезагружает таблицу без F5. Право — <code>lessonPackages.view</code>.
     Подробно — <a href="/docs/documentation/lesson-packages#packages-tab">lesson-packages §packages-tab</a>,
     аудит — <a href="/docs/documentation/audit-my-logs">audit-my-logs</a>.
@@ -5610,7 +6207,7 @@
     <li><a href="/docs/documentation/dev-seed-data"><strong>Dev-фикстуры (SEED_DEV_DATA)</strong>: цепочка Dev*-сидеров, юр. лица/справочники/T‑Bank/history, GuardsDevSeedData, ограничения prod</a></li>
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), публичная СБП месяца из писем уведомлений (<code>/pm/{code}</code>, <a href="/doc#payment-notifications-sbp-link-index">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
-    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
+    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, автособытия «ученик добавил группу» (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer) и <b>«договор подписан»</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>, только admin школы, 7 суток), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
     <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>название партнёра в модалках</b> (<a href="/doc#chat-partner-name-index">анонс</a>: под ФИО в «Контакт» и под именем в «Группа», не вкладка «Аккаунт», не шапка), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
@@ -5618,28 +6215,28 @@
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
     <li><a href="/docs/documentation/set-prices-cabinet-packages"><strong>Права setPrices.cabinetPackages.*</strong>: отображение типов абонементов на консоли (фиксированный / гибкий / разовое / постоплата); скрытые; не в базовых ролях</a></li>
-    <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
+    <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b> (мультирасчёты + обычный эквайринг <code>tbank_acquiring</code>, <a href="/doc#tbank-acquiring-platform-index">анонс</a>), <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (логи <code>SUPERADMIN_ALL_OR_FILTER</code> + soft-scope отчётов §5 / reports-admin §2.4)</a></li>
-    <li><a href="/docs/documentation/partner-wallet">Кошелёк партнёра: <code>/partner-wallet</code>, изоляция <code>STRICT_CURRENT</code>, история договоров/SMS, <code>wallet_balance_cents</code>, право <code>partnerWallet.view</code> (<a href="/doc#partner-wallet-ledger-index">леджер</a>, <a href="/doc#partner-wallet-isolation-index">изоляция</a>)</a></li>
-    <li><a href="/docs/documentation/partner-service-payments">Оплата сервиса: <code>/partner-payment</code>, изоляция <code>STRICT_CURRENT</code>, <code>CreatePartnerServicePaymentRequest</code>, право <code>servicePayments.view</code> (<a href="/doc#partner-service-payment-isolation-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/partner-wallet">Кошелёк партнёра: <code>/partner-wallet</code>, изоляция <code>STRICT_CURRENT</code>, история договоров/SMS, <code>wallet_balance_cents</code>, ЮKassa и T‑Bank СБП (<a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a>, права <a href="/doc#platform-payments-methods-index">«Оплата платформы»</a>), право <code>partnerWallet.view</code> (<a href="/doc#partner-wallet-ledger-index">леджер</a>, <a href="/doc#partner-wallet-isolation-index">изоляция</a>)</a></li>
+    <li><a href="/docs/documentation/partner-service-payments">Оплата сервиса: <code>/partner-payment</code>, T‑Bank СБП / ЮKassa по <code>platformPayments.method.*</code> (<a href="/doc#platform-payments-methods-index">анонс прав</a>, <a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>), изоляция <code>STRICT_CURRENT</code>, <code>CreatePartnerServicePaymentRequest</code>, право <code>servicePayments.view</code> (<a href="/doc#partner-service-payment-isolation-index">анонс изоляции</a>)</a></li>
     <li><a href="/docs/documentation/partner-context">Партнёр‑контекст и SetPartner: current_partner, anti‑leak, блокировки</a></li>
     <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра); опциональные права в т.ч. <code>users.discount.manage</code>, <code>account.user.team.update</code></a></li>
     <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo; <b>метрики списка</b> — активные ученики, договоры, оборот и комиссия платформы по <code>operation_date</code> / снимку <code>tinkoff_payouts.platform_fee</code>, <a href="/doc#admin-partners-list-metrics">анонс</a> / <a href="/docs/documentation/account-partner-organization#partners-index-metrics">§3.1.1</a>), <code>PartnerLegacyLegalFields</code>, доступ guest 302/401 / 403, AJAX/non-AJAX, оплаты без fallback</a></li>
     <li><a href="/docs/documentation/settings-roles-custom">Настройки: кастомные роли и стартовый набор прав (admin из конфига, UI без перезагрузки)</a></li>
-    <li><a href="/docs/documentation/settings-permission-groups">Матрица прав: группы permissions (permission_groups), аккордеон на «Права и роли»</a></li>
+    <li><a href="/docs/documentation/settings-permission-groups">Матрица прав: группы permissions (permission_groups), аккордеон на «Права и роли», группа «Оплата платформы» (<a href="/doc#platform-payments-methods-index">анонс</a>), ховер возможностей (<a href="/doc#permission-capability-hints-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/audit-my-logs">Аудит CRM (my_logs): AuditEvent, AuditLogger, колонки event/level</a></li>
     <li><a href="/docs/documentation/settings-logs">Настройки → Логи: вкладка журнала, фильтры, доступ, SUPERADMIN_ALL_OR_FILTER</a></li>
-    <li><a href="/docs/documentation/tbank">T‑Bank (мультирасчёты): глобальный терминал, комиссии, автовыплата per метод, карточка платежа (организация, timeline), workflow</a></li>
+    <li><a href="/docs/documentation/tbank">T‑Bank (мультирасчёты): глобальный терминал, комиссии, автовыплата per метод, карточка платежа (организация, timeline), workflow. Кошелёк и абонплата CRM — <a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a>, не этот терминал</a></li>
     <li><a href="/docs/documentation/tbank-admin-payouts">T‑Bank: админка выплат (список, DataTables, колонка «Организация», <b>«Показать N»</b> / <code>page_length</code>, карточка, изоляция по партнёру)</a></li>
     <li><a href="/docs/documentation/tbank-refunds-payout-cancel">T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты</a></li>
     <li><a href="/docs/documentation/tbank#sbp-qr-ui">T‑Bank: СБП (QR) в интерфейсе — GetQr/Data, страница <code>/tinkoff/qr/…</code>, доступы</a></li>
     <li><a href="/docs/documentation/queues-monitoring">Очереди в админке: мониторинг, доступы, queue.log, restart worker</a></li>
     <li><a href="/docs/documentation/tbank#payout-settings">T‑Bank: интервал джобы отложенных выплат, автовыплаты в правилах комиссий, защита от дублей</a></li>
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
-    <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, <b>«Показать N»</b> (<code>page_length</code>), права, история T‑Bank; ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
-    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / intents / fiscal; задолженности и письма — без opt-in), payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
+    <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, <b>«Показать N»</b> (<code>page_length</code>), <b>поиск DataTables</b> только ФИО и группа (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>), права, история T‑Bank; ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
+    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / intents / fiscal; задолженности и письма — без opt-in), payment-intents / payments / fiscal / emails; <b>поиск DataTables</b> (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>: Платежи/LTV — ФИО+группа; monthly — ещё месяц; intents — ФИО/партнёр/ID); фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Чеки»</b> — только <code>source=marketplace</code>, продажи платформы не входят (<a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), <b>сумма неоплаченного месяца в колонке рубля</b> (<a href="/doc#journal-postpay-payment-due-index">анонс</a>), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = визиты с <code>consumes_lesson</code> × ставка, затем <b>скидка по снимку строки</b></a></li>
-    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, причина ошибки sms.ru в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <b>автосписание</b> <code>auto_attendance_enabled</code> — чекбокс при <code>scheduleSlots.view</code>, <a href="/doc#lesson-package-auto-attendance-index">анонс</a>; <b>заморозка</b> шаблона — тот же <code>@can</code>, <a href="/doc#lesson-package-freeze-permission-index">анонс</a>; <b>срок действия</b> в модалке — <a href="/doc#lesson-package-duration-permission-index">анонс</a>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, причина ошибки sms.ru в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; <b>локальный прелоадер таблицы</b> (§2.3, <a href="/doc#journal-table-preloader-index">анонс</a>); <b>таблица по содержимому</b> (§2.4, <a href="/doc#journal-table-content-width-index">анонс</a>); <b>пагинация 100</b> и серверный поиск <code>q</code> (§2.2, <a href="/doc#journal-pagination-index">анонс</a>); раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка / <b>сумма неоплаченной постоплаты</b> <code>{N}₽</code> — §5.2, <a href="/doc#journal-postpay-payment-due-index">анонс суммы</a>, <a href="/doc#journal-monthly-payment-check">анонс галочки</a>); <b>колонка «кол-во тренировок»</b> по <code>consumes_lesson</code> (§5.3, <a href="/doc#journal-consuming-count-column">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>

@@ -633,6 +633,7 @@
                         type: 'badge',
                         data: 'provider',
                         name: 'provider',
+                        searchable: false,
                         render: function (data, type) {
                             if (type !== 'display') {
                                 return data || '';
@@ -659,6 +660,7 @@
                         type: 'badge',
                         data: 'status',
                         name: 'status',
+                        searchable: false,
                         render: function (data, type) {
                             if (type === 'display') {
                                 return renderStatusBadge(data);
@@ -666,27 +668,29 @@
                             return data;
                         },
                     },
-                    { key: 'out_sum', type: 'money', data: 'out_sum', name: 'out_sum' },
-                    { key: 'payment_date', type: 'text', data: 'payment_date', name: 'payment_date' },
-                    { key: 'created_at', type: 'datetime', data: 'created_at', name: 'created_at' },
-                    { key: 'paid_at', type: 'datetime', data: 'paid_at', name: 'paid_at' },
-                    { key: 'client_device_type', type: 'text', data: 'client_device_type', name: 'client_device_type' },
-                    { key: 'client_os', type: 'text', data: 'client_os', name: 'client_os' },
-                    { key: 'client_browser', type: 'text', data: 'client_browser', name: 'client_browser' },
+                    { key: 'out_sum', type: 'money', data: 'out_sum', name: 'out_sum', searchable: false },
+                    { key: 'payment_date', type: 'text', data: 'payment_date', name: 'payment_date', searchable: false },
+                    { key: 'created_at', type: 'datetime', data: 'created_at', name: 'created_at', searchable: false },
+                    { key: 'paid_at', type: 'datetime', data: 'paid_at', name: 'paid_at', searchable: false },
+                    { key: 'client_device_type', type: 'text', data: 'client_device_type', name: 'client_device_type', searchable: false },
+                    { key: 'client_os', type: 'text', data: 'client_os', name: 'client_os', searchable: false },
+                    { key: 'client_browser', type: 'text', data: 'client_browser', name: 'client_browser', searchable: false },
                     {
                         key: 'client_user_agent',
                         type: 'inline-actions',
                         data: 'client_user_agent',
                         name: 'client_user_agent',
+                        searchable: false,
                         inlineActions: { modalTitle: 'User-Agent' },
                     },
-                    { key: 'client_ip', type: 'text', data: 'client_ip', name: 'client_ip' },
-                    { key: 'client_referrer', type: 'text', data: 'client_referrer', name: 'client_referrer' },
+                    { key: 'client_ip', type: 'text', data: 'client_ip', name: 'client_ip', searchable: false },
+                    { key: 'client_referrer', type: 'text', data: 'client_referrer', name: 'client_referrer', searchable: false },
                     {
                         key: 'meta',
                         type: 'inline-actions',
                         data: 'meta',
                         name: 'meta',
+                        searchable: false,
                         inlineActions: { modalTitle: 'Мета', format: 'meta-pretty' },
                     },
                 ]

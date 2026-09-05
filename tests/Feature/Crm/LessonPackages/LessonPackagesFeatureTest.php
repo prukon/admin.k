@@ -204,6 +204,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     {
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('setPrices.packageAssignments.view');
+        $this->grantPermission('scheduleSlots.view');
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Фикс',
             'schedule_type' => 'fixed',
@@ -255,6 +256,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     {
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('setPrices.packageAssignments.view');
+        $this->grantPermission('scheduleSlots.view');
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Заморозка',
             'schedule_type' => 'no_schedule',
@@ -323,6 +325,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     {
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('setPrices.packageAssignments.view');
+        $this->grantPermission('scheduleSlots.view');
         $lp = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
             'name' => 'Пакет',

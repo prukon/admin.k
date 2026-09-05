@@ -172,9 +172,12 @@
         'placement' => 'top',
         'iconClass' => 'fa fa-info-circle',
         'wrapperClass' => 'ms-1',
+        'container' => 'body',
     ])</code></pre>
   <p>Опционально: <code>iconClass</code> (по умолчанию <code>fa fa-info-circle</code>),
     <code>wrapperClass</code> (доп. классы span; по умолчанию <code>ms-1</code>),
+    <code>container</code> (значение <code>data-bs-container</code>, например <code>body</code> внутри
+    <code>.table-responsive</code>; <code>initHintElement</code> в <code>kids-tooltip.js</code> его читает),
     <code>innerHtml</code> (trusted-разметка вместо иконки; пустая строка — пустой span для клонирования в JS,
     обёртка disabled-кнопки: класс <code>kids-tooltip-hint--control</code>).</p>
   <p>Инициализация hint'ов на DOMContentLoaded и при открытии модалок — через <code>KidsCrmTooltip.init(..., { scopes: ['hint'] })</code> (глобально в <code>kids-tooltip.js</code>).</p>
@@ -543,8 +546,9 @@ dataTable: {
   </ul>
 
   <h3>Вложенные (дочерние) таблицы в отчётах</h3>
-  <p>В LTV и «Платежи по месяцам» при раскрытии строки детализация платежей использует обычный <code>$('#…').DataTable({ serverSide: true })</code>, не <code>KidsCrmDataTable.create</code> — у дочерней таблицы нет dropdown «Колонки».
-    Backend поддерживает два формата одного endpoint: legacy JSON без <code>draw</code> и server-side DataTables с <code>draw</code> + <code>meta_payments_count</code> / <code>meta_sum_total</code> (см. <a href="/docs/documentation/reports-admin">reports-admin</a> §4–5).</p>
+  <p>В LTV и «Платежи по месяцам» при раскрытии строки детализация платежей использует обычный <code>$('#…').DataTable({ serverSide: true, dom: 'rtip' })</code>, не <code>KidsCrmDataTable.create</code> — у дочерней таблицы нет dropdown «Колонки» и нет поля поиска.
+    Backend поддерживает два формата одного endpoint: legacy JSON без <code>draw</code> и server-side DataTables с <code>draw</code> + <code>meta_payments_count</code> / <code>meta_sum_total</code> (см. <a href="/docs/documentation/reports-admin">reports-admin</a> §4–5).
+    Глобальный поиск основных таблиц четырёх отчётов — <a href="/doc#reports-datatable-search-index">/doc</a>, <a href="/docs/documentation/reports-admin#reports-datatable-search">reports-admin §1.2</a>.</p>
 
   <h2 id="select2-multiselect">4) Multiselect: модалки (Select2) и фильтры (кастомный UI)</h2>
   <p>Два независимых компонента. Не смешивать: в модалках — chip-теги на Select2; в панелях фильтров — trigger как <code>form-select</code> без Select2.</p>

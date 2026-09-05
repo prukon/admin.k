@@ -38,6 +38,7 @@
     @endcan
 
 @php($canTbankSettings = auth()->user()->can('payment.method.tbankCard') || auth()->user()->can('payment.method.tbankSBP'))
+@php($tbankAcquiring = $tbankAcquiring ?? null)
 @if($canTbankSettings)
 {{-- Карточка: T-Банк --}}
 <div class="col-sm-3 mb-4">
@@ -68,6 +69,40 @@
 
             <div class="mt-3">
                 <a href="#" data-bs-toggle="modal" data-bs-target="#modalTbankInfo">Подробнее</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Карточка: T-Банк обычный эквайринг --}}
+<div class="col-sm-3 mb-4">
+    <div class="card shadow h-100">
+        <div class="card-body text-center d-flex flex-column justify-content-center">
+            <img src="{{ asset('img/partners/tbank.png') }}" alt="T-Банк" class="mb-3">
+            <h5 class="card-title">T‑Банк (эквайринг)</h5>
+            <div class="small text-muted mb-2">Обычный эквайринг платформы (кошелёк и абонплата CRM)</div>
+
+            @if($tbankAcquiring && $tbankAcquiring->is_connected)
+                <button
+                        class="btn btn-success mt-3 toggleable-status-btn"
+                        data-original-text="Подключено"
+                        data-hover-text="Отключить"
+                        data-id="{{ $tbankAcquiring->id }}"
+                        data-url="{{ route('payment-systems.destroy', ['payment_system' => $tbankAcquiring->id]) }}">
+                    Подключено
+                </button>
+
+                @if($tbankAcquiring->test_mode)
+                    <div class="mt-2 text-muted small">Тестовый режим</div>
+                @endif
+            @else
+                <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalTbankAcquiring">
+                    Подключить
+                </button>
+            @endif
+
+            <div class="mt-3">
+                <a href="#" data-bs-toggle="modal" data-bs-target="#modalTbankAcquiringInfo">Подробнее</a>
             </div>
         </div>
     </div>
@@ -245,6 +280,72 @@
         </div>
     </div>
 </div>
+
+{{--Модалка для обычного эквайринга T‑Bank--}}
+<div class="modal fade" id="modalTbankAcquiring" tabindex="-1" aria-labelledby="modalTbankAcquiringLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="tbankAcquiringForm">
+                @csrf
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="modalTbankAcquiringLabel">Подключение T‑Bank (эквайринг)</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="acquiring_terminal_key" class="form-label">TerminalKey</label>
+                        <input type="text" class="form-control" name="terminal_key" id="acquiring_terminal_key"
+                               placeholder="Введите TerminalKey">
+                    </div>
+                    <div class="mb-3">
+                        <label for="acquiring_token_password" class="form-label">Пароль для Token</label>
+                        <input type="text" class="form-control" name="token_password" id="acquiring_token_password"
+                               placeholder="Введите пароль для подписи Token">
+                    </div>
+
+                    <div class="form-check">
+                        <input type="hidden" name="test_mode" value="0">
+                        <input type="checkbox" class="form-check-input" name="test_mode" id="tbank_acquiring_test_mode" value="1">
+                        <label class="form-check-label" for="tbank_acquiring_test_mode">Тестовый режим</label>
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <input type="hidden" name="is_enabled" value="0">
+                        <input type="checkbox" class="form-check-input" name="is_enabled" id="tbank_acquiring_is_enabled" value="1" checked>
+                        <label class="form-check-label" for="tbank_acquiring_is_enabled">Эквайринг включён на платформе</label>
+                    </div>
+
+                    <input type="hidden" name="name" value="tbank_acquiring">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalTbankAcquiringInfo" tabindex="-1" aria-labelledby="modalTbankAcquiringInfoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="modalTbankAcquiringInfoLabel">Подробнее об обычном эквайринге</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p>
+                    Этот терминал — обычный эквайринг KidsCRM, не мультирасчёты. Через него школа оплачивает
+                    пополнение кошелька и абонплату CRM. Сделка NN и выплата школе не создаются. Чеки идут
+                    из кассы CloudKassir платформы.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endif
 
 @section('scripts')
@@ -291,6 +392,29 @@
                 data: formData,
                 success: function (response) {
                     showSuccessModal("Подключение Tbank", "Данные для использования Tbank сохранены.", 1);
+                },
+                error: function (xhr) {
+                    $('#errorModal').modal('show');
+                    $('#error-modal-message').text(xhr.responseJSON?.message || 'Ошибка при создании данных.');
+                }
+            });
+        });
+
+        $('#tbankAcquiringForm').on('submit', function (e) {
+            e.preventDefault();
+            let formArray = $(this).serializeArray();
+            let formData = {};
+            formArray.forEach(function (item) {
+                formData[item.name] = item.value;
+            });
+            formData['test_mode'] = $('#tbank_acquiring_test_mode').is(':checked') ? 1 : 0;
+            formData['is_enabled'] = $('#tbank_acquiring_is_enabled').is(':checked') ? 1 : 0;
+            $.ajax({
+                url: '{{ route('payment-systems.store') }}',
+                method: 'POST',
+                data: formData,
+                success: function (response) {
+                    showSuccessModal("Подключение T‑Bank эквайринг", "Ключи обычного эквайринга сохранены.", 1);
                 },
                 error: function (xhr) {
                     $('#errorModal').modal('show');

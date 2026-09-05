@@ -197,6 +197,10 @@ class PaymentMonthlyReportController extends AdminBaseController
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $query->orderBy('total_sum_cents', $dir);
             })
+            // Без второго аргумента true: иначе Yajra autoFilter ищет payments.payments_count (42S22).
+            ->filter(function ($query) use ($request, $partnerId): void {
+                $this->applyMonthlyDataTableSearch($query, $request, $partnerId, true);
+            })
             ->removeColumn('total_sum_cents')
             ->make(true);
     }
@@ -245,6 +249,9 @@ class PaymentMonthlyReportController extends AdminBaseController
                 ->addColumn('team_title', fn ($row) => $row->team_title ?: 'Без команды')
                 ->addColumn('payment_provider', fn ($row) => $this->resolvePaymentProvider($row))
                 ->editColumn('summ', fn ($row) => round(((int) $row->summ_cents) / 100, 2))
+                ->filter(function ($query) use ($request, $partnerId): void {
+                    $this->applyMonthlyDataTableSearch($query, $request, $partnerId, false);
+                })
                 ->with('meta_payments_count', (int) ($stats->payments_count ?? 0))
                 ->with('meta_sum_total', round(((int) ($stats->sum_total_cents ?? 0)) / 100, 2))
                 ->make(true);
@@ -361,6 +368,101 @@ class PaymentMonthlyReportController extends AdminBaseController
         return (! empty($row->deal_id) || ! empty($row->payment_id) || ! empty($row->payment_status))
             ? 'tbank'
             : 'robokassa';
+    }
+
+    /**
+     * Глобальный поиск DataTables: ФИО ученика и группа; в сводке месяцев — ещё ключ/название месяца.
+     *
+     * @param  \Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
+     */
+    private function applyMonthlyDataTableSearch($query, Request $request, int $partnerId, bool $includeMonthKey): void
+    {
+        $keyword = trim((string) $request->input('search.value', ''));
+        if ($keyword === '') {
+            return;
+        }
+
+        $like = '%'.addcslashes($keyword, '%_\\').'%';
+        $monthNumbers = $includeMonthKey ? $this->monthNumbersFromSearchKeyword($keyword) : [];
+        $year = null;
+        if ($includeMonthKey && preg_match('/(?<!\d)(20\d{2}|19\d{2})(?!\d)/', $keyword, $yearMatch) === 1) {
+            $year = $yearMatch[1];
+        }
+
+        $query->where(function ($q) use ($like, $partnerId, $includeMonthKey, $monthNumbers, $year): void {
+            $q->where('users.lastname', 'like', $like)
+                ->orWhere('users.name', 'like', $like)
+                ->orWhereRaw(
+                    "TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) LIKE ?",
+                    [$like]
+                )
+                ->orWhere('payments.user_name', 'like', $like)
+                ->orWhere('payments.team_title', 'like', $like)
+                ->orWhereExists(function ($sub) use ($like): void {
+                    $sub->selectRaw('1')
+                        ->from('teams')
+                        ->whereColumn('teams.id', 'payments.team_id')
+                        ->where('teams.title', 'like', $like)
+                        ->whereNull('teams.deleted_at');
+                })
+                ->orWhereExists(function ($sub) use ($like, $partnerId): void {
+                    $sub->selectRaw('1')
+                        ->from('team_user')
+                        ->join('teams', 'teams.id', '=', 'team_user.team_id')
+                        ->whereColumn('team_user.user_id', 'users.id')
+                        ->where('team_user.partner_id', $partnerId)
+                        ->where('teams.partner_id', $partnerId)
+                        ->whereNull('teams.deleted_at')
+                        ->where('teams.title', 'like', $like);
+                });
+
+            if ($includeMonthKey) {
+                $q->orWhereRaw('LEFT(payments.payment_month, 7) LIKE ?', [$like])
+                    ->orWhereRaw('DATE_FORMAT(payments.operation_date, "%Y-%m") LIKE ?', [$like]);
+                foreach ($monthNumbers as $mm) {
+                    if ($year !== null) {
+                        $yearMonth = $year.'-'.$mm;
+                        $q->orWhereRaw('LEFT(payments.payment_month, 7) = ?', [$yearMonth])
+                            ->orWhereRaw('DATE_FORMAT(payments.operation_date, "%Y-%m") = ?', [$yearMonth]);
+                    } else {
+                        $q->orWhereRaw('SUBSTRING(LEFT(payments.payment_month, 7), 6, 2) = ?', [$mm])
+                            ->orWhereRaw('DATE_FORMAT(payments.operation_date, "%m") = ?', [$mm]);
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function monthNumbersFromSearchKeyword(string $keyword): array
+    {
+        $k = mb_strtolower($keyword);
+        $map = [
+            'январ' => '01',
+            'феврал' => '02',
+            'март' => '03',
+            'апрел' => '04',
+            'май' => '05',
+            'мая' => '05',
+            'июн' => '06',
+            'июл' => '07',
+            'август' => '08',
+            'сентябр' => '09',
+            'октябр' => '10',
+            'ноябр' => '11',
+            'декабр' => '12',
+        ];
+
+        $found = [];
+        foreach ($map as $needle => $mm) {
+            if (mb_strpos($k, $needle) !== false) {
+                $found[$mm] = $mm;
+            }
+        }
+
+        return array_values($found);
     }
 
     /**

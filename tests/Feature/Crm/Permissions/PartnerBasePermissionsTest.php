@@ -78,6 +78,12 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('messages.threads.delete', $userPerms);
         $this->assertNotContains('messages.threads.delete', $adminPerms);
         $this->assertNotContains('messages.threads.delete', $trainerPerms);
+        $this->assertNotContains('platformPayments.method.yookassa', $userPerms);
+        $this->assertNotContains('platformPayments.method.yookassa', $adminPerms);
+        $this->assertNotContains('platformPayments.method.yookassa', $trainerPerms);
+        $this->assertNotContains('platformPayments.method.tbankSbp', $userPerms);
+        $this->assertNotContains('platformPayments.method.tbankSbp', $trainerPerms);
+        $this->assertContains('platformPayments.method.tbankSbp', $adminPerms);
         $this->assertContains('inAppNotifications.view', $userPerms);
         $this->assertContains('inAppNotifications.view', $adminPerms);
         $this->assertContains('inAppNotifications.view', $trainerPerms);

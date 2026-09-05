@@ -622,13 +622,14 @@
                     },
                     { key: 'user_name', type: 'text', data: 'user_name', name: 'user_name' },
                     { key: 'team_title', type: 'text', data: 'team_title', name: 'team_title' },
-                    { key: 'total_price', type: 'money', data: 'total_price', name: 'total_price' },
-                    { key: 'payment_count', type: 'count', data: 'payment_count', name: 'payment_count' },
+                    { key: 'total_price', type: 'money', data: 'total_price', name: 'total_price', searchable: false },
+                    { key: 'payment_count', type: 'count', data: 'payment_count', name: 'payment_count', searchable: false },
                     {
                         key: 'first_payment_date',
                         type: 'datetime',
                         data: 'first_payment_date',
                         name: 'first_payment_date',
+                        searchable: false,
                         className: 'dt-col-text dt-col-text--wrap',
                         render: function (data, type) {
                             if (type !== 'display') {
@@ -642,6 +643,7 @@
                         type: 'datetime',
                         data: 'last_payment_date',
                         name: 'last_payment_date',
+                        searchable: false,
                         className: 'dt-col-text dt-col-text--wrap',
                         render: function (data, type) {
                             if (type !== 'display') {
@@ -655,6 +657,7 @@
                         type: 'badge',
                         data: 'is_enabled',
                         name: 'is_enabled',
+                        searchable: false,
                         className: 'dt-col-badge text-center',
                         render: function (data, type) {
                             if (type !== 'display') {

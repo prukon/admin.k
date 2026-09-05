@@ -49,7 +49,7 @@
                                             <li>Учет до 200 пользователей</li>
                                             <li>Отчеты</li>
                                         </ul>
-                                        <form action="{{route('createPaymentYookassa')}}" method="post">
+                                        <form action="{{route('partner.payment.tinkoff.sbp')}}" method="post">
                                             <!-- Фиксированная сумма -->
                                             @csrf
                                             {{--                            <input type="hidden" name="client_id" value="{{ $client->id }}"> <!-- client_id передаётся скрыто -->--}}
@@ -58,6 +58,22 @@
                                             <input type="hidden" name="days" value="29">
                                             <input type="hidden" name="description" value="Учет до 200 пользователей">
 
+                                            <div class="mb-3 text-start">
+                                                <div class="form-label">Способ оплаты</div>
+                                                @can('platformPayments.method.tbankSbp')
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="payment_method" id="servicePayTinkoffSbp" value="tinkoff_sbp" {{ old('payment_method', $platformPaymentDefaultMethod) === 'tinkoff_sbp' ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="servicePayTinkoffSbp">T‑Bank СБП</label>
+                                                </div>
+                                                @endcan
+                                                @can('platformPayments.method.yookassa')
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="payment_method" id="servicePayYookassa" value="yookassa" {{ old('payment_method', $platformPaymentDefaultMethod) === 'yookassa' ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="servicePayYookassa">ЮKassa</label>
+                                                </div>
+                                                @endcan
+                                                <div class="invalid-feedback d-block" data-error-for="payment_method">@error('payment_method'){{ $message }}@enderror</div>
+                                            </div>
                                             <div class="invalid-feedback d-block" data-error-for="partner_id">@error('partner_id'){{ $message }}@enderror</div>
                                             <div class="invalid-feedback d-block" data-error-for="amount">@error('amount'){{ $message }}@enderror</div>
                                             <div class="invalid-feedback d-block" data-error-for="days">@error('days'){{ $message }}@enderror</div>
@@ -66,9 +82,14 @@
                                                 <div class="text-danger small mb-2">{{ $message }}</div>
                                             @enderror
 
-                                            <!-- Укажите здесь фиксированную сумму -->
+                                            @if($canPayTbankSbp || $canPayYookassa)
                                             <button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить
                                             </button>
+                                            @else
+                                            <div class="alert alert-warning">Нет доступного способа оплаты.</div>
+                                            <button type="submit" class="btn btn-lg btn-block btn-primary" disabled>Оплатить
+                                            </button>
+                                            @endif
                                         </form>
                                     </div>
                                 </div>

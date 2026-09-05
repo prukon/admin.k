@@ -43,4 +43,24 @@ class TinkoffWebhookController extends Controller
             return response('OK', 200);
         }
     }
+
+    public function acquiring(Request $request, \App\Services\Tinkoff\TinkoffAcquiringPaymentsService $svc)
+    {
+        \Log::channel('tinkoff')->debug('[ACQUIRING WEBHOOK RAW]', [
+            'headers' => $request->headers->all(),
+            'ip'      => $request->ip(),
+            'method'  => $request->getMethod(),
+            'body'    => $request->getContent(),
+            'parsed'  => $request->all(),
+        ]);
+
+        try {
+            $svc->handleWebhook($request->all());
+            \Log::channel('tinkoff')->info('[ACQUIRING WEBHOOK OK]');
+            return response('OK', 200);
+        } catch (\Throwable $e) {
+            \Log::channel('tinkoff')->error('[ACQUIRING WEBHOOK ERR] '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response('OK', 200);
+        }
+    }
 }

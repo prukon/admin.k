@@ -498,6 +498,7 @@
                         {
                             data: 'operation_date',
                             name: 'operation_date',
+                            searchable: false,
                             render: function (data, type) {
                                 if (type !== 'display') {
                                     return data || '';
@@ -510,6 +511,7 @@
                         {
                             data: 'summ',
                             name: 'summ',
+                            searchable: false,
                             className: 'text-end',
                             render: function (data, type) {
                                 if (type !== 'display') {
@@ -521,6 +523,7 @@
                         {
                             data: 'payment_month',
                             name: 'payment_month',
+                            searchable: false,
                             render: function (data, type) {
                                 if (type !== 'display') {
                                     return data || '';
@@ -615,8 +618,8 @@
                         }
                     },
                     { key: 'month_title', type: 'text', data: 'month_title', name: 'month_title' },
-                    { key: 'payments_count', type: 'count', data: 'payments_count', name: 'payments_count' },
-                    { key: 'total_sum', type: 'money', data: 'total_sum', name: 'total_sum' },
+                    { key: 'payments_count', type: 'count', data: 'payments_count', name: 'payments_count', searchable: false },
+                    { key: 'total_sum', type: 'money', data: 'total_sum', name: 'total_sum', searchable: false },
                     {
                         key: 'month_key',
                         type: 'text',

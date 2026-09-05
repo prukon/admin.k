@@ -169,9 +169,11 @@ class LtvReportController extends AdminBaseController
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $query->orderBy('payment_count', $dir);
             })
+            // Второй аргумент filter() в Yajra — autoFilter. true включает дефолтный
+            // SQL-поиск по колонкам DataTables (payment_count / даты → 42S22).
             ->filter(function ($query) use ($request, $partnerId): void {
                 $this->applyLtvDataTableSearch($query, $request, $partnerId);
-            }, true)
+            })
             ->make(true);
     }
 

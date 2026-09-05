@@ -1753,16 +1753,15 @@ final class LessonPackageController extends AdminBaseController
     {
         $data = $request->validated();
         $priceCents = (int) $request->input('price_cents', 0);
-        $freezeDays = (int) $request->input('freeze_days', 0);
 
         $partnerId = $this->requirePartnerId();
 
         try {
             /** @var LessonPackage $package */
-            $package = DB::transaction(function () use ($data, $priceCents, $freezeDays, $partnerId) {
-                $freezeEnabled = (bool) ($data['freeze_enabled'] ?? false);
-                $freezeDaysStored = $freezeDays;
-                $autoAttendanceEnabled = (bool) ($data['auto_attendance_enabled'] ?? false);
+            $package = DB::transaction(function () use ($request, $data, $priceCents, $partnerId) {
+                $freezeEnabled = $request->resolvedFreezeEnabled();
+                $freezeDaysStored = $request->resolvedFreezeDays();
+                $autoAttendanceEnabled = $request->resolvedAutoAttendanceEnabled();
                 if ((string) $data['schedule_type'] === LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE
                     || (string) $data['schedule_type'] === LessonPackage::SCHEDULE_TYPE_POSTPAY) {
                     $freezeEnabled = false;
@@ -1774,7 +1773,7 @@ final class LessonPackageController extends AdminBaseController
                     'partner_id' => $partnerId,
                     'name' => (string) $data['name'],
                     'schedule_type' => (string) $data['schedule_type'],
-                    'duration_days' => (int) $data['duration_days'],
+                    'duration_days' => $request->resolvedDurationDays(),
                     'lessons_count' => (int) $data['lessons_count'],
                     'price_cents' => $priceCents,
                     'freeze_enabled' => $freezeEnabled,
@@ -1855,13 +1854,12 @@ final class LessonPackageController extends AdminBaseController
 
         $data = $request->validated();
         $priceCents = (int) $request->input('price_cents', 0);
-        $freezeDays = (int) $request->input('freeze_days', 0);
 
         try {
-            DB::transaction(function () use ($lessonPackage, $data, $priceCents, $freezeDays) {
-                $freezeEnabled = (bool) ($data['freeze_enabled'] ?? false);
-                $freezeDaysStored = $freezeDays;
-                $autoAttendanceEnabled = (bool) ($data['auto_attendance_enabled'] ?? false);
+            DB::transaction(function () use ($request, $lessonPackage, $data, $priceCents) {
+                $freezeEnabled = $request->resolvedFreezeEnabled($lessonPackage);
+                $freezeDaysStored = $request->resolvedFreezeDays($lessonPackage);
+                $autoAttendanceEnabled = $request->resolvedAutoAttendanceEnabled($lessonPackage);
                 if ((string) $data['schedule_type'] === LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE
                     || (string) $data['schedule_type'] === LessonPackage::SCHEDULE_TYPE_POSTPAY) {
                     $freezeEnabled = false;
@@ -1872,7 +1870,7 @@ final class LessonPackageController extends AdminBaseController
                 $lessonPackage->forceFill([
                     'name' => (string) $data['name'],
                     'schedule_type' => (string) $data['schedule_type'],
-                    'duration_days' => (int) $data['duration_days'],
+                    'duration_days' => $request->resolvedDurationDays($lessonPackage),
                     'lessons_count' => (int) $data['lessons_count'],
                     'price_cents' => $priceCents,
                     'freeze_enabled' => $freezeEnabled,

@@ -170,11 +170,18 @@
     function initHintElement(el) {
         disposeElement(el);
 
-        new bootstrap.Tooltip(el, {
+        const options = {
             placement: el.getAttribute('data-bs-placement') || 'top',
-            customClass: TOOLTIP_CLASS,
+            customClass: el.getAttribute('data-bs-custom-class') || TOOLTIP_CLASS,
             trigger: 'hover focus',
-        });
+        };
+
+        const container = el.getAttribute('data-bs-container');
+        if (container) {
+            options.container = container;
+        }
+
+        new bootstrap.Tooltip(el, options);
     }
 
     function initManualPaidElement(el) {

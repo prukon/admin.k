@@ -75,6 +75,26 @@
     Канонический список URL — <a href="/doc#datatable-page-length-catalog">/doc</a>.
   </div>
 
+  <h2 id="reports-datatable-search">1.2) Поиск DataTables (поле над таблицей)</h2>
+  <div class="note">
+    Четыре отчёта: Платежи, LTV, «Платежи по месяцам», «Платежные запросы».
+    Параметр <code>search.value</code> обрабатывает свой <code>apply*DataTableSearch</code>
+    и Yajra <code>filter($callback)</code> <b>без</b> <code>true</code> (иначе autoFilter по колонкам таблицы).
+    Это не фильтры формы и не <code>…/total</code>. Анонс: <a href="/doc#reports-datatable-search-index">/doc</a>.
+  </div>
+  <ul>
+    <li><b>Платежи</b> — только ФИО и группа. Подробно: <a href="/docs/documentation/reports-payments#datatable-search">reports-payments §1.2</a>.</li>
+    <li><b>LTV</b> — только ФИО и группа (pivot). Агрегаты в SQL не попадают. §4 ниже.</li>
+    <li><b>Платежи по месяцам</b> — ФИО, группа и заголовок месяца (<code>YYYY-MM</code> / «Январь 2026»). §5 ниже.</li>
+    <li><b>Платежные запросы</b> — ФИО, партнёр, <code>provider_inv_id</code>, числовой <code>id</code>. §6 ниже.</li>
+    <li>Пустая строка / пробелы — без доп. фильтра. <code>%</code> и <code>_</code> экранируются.</li>
+    <li>Основные таблицы без <code>searching: false</code>; «Применить» / «Сброс» — <code>dtApi.reload()</code>, не пересоздание.</li>
+    <li>Вложенные LTV и monthly: <code>dom: 'rtip'</code> (поля поиска нет). Monthly при <code>draw</code> ищет ФИО и группу.
+      LTV-детализация своего <code>filter()</code> не ставит: непустой поиск с колонкой <code>summ</code> может дать 42S22; UI пустой <code>search.value</code> не шлёт.</li>
+    <li>Data payments / LTV / monthly без AJAX → <b>404</b>. Intents data AJAX-заголовок не требует.</li>
+    <li>Задолженности, чеки, исходящие письма — вне этого инкремента.</li>
+  </ul>
+
   <h2>2) Права доступа (middleware can:…)</h2>
   <div class="note">
     Важно: разные отчёты находятся в разных группах прав. Без соответствующего permission ответ будет <b>403</b> (страница и все AJAX endpoints).
@@ -428,7 +448,10 @@
         <li>Хранение: <code>user_table_settings.table_key = reports_ltv</code></li>
         <li>«Показать N»: <code>page_length</code> в той же строке; вложенная таблица платежей ученика не сохраняет N (§1.1)</li>
         <li>Ключи: <code>user_name</code>, <code>team_title</code>, <code>total_price</code>, <code>payment_count</code>, <code>first_payment_date</code>, <code>last_payment_date</code>, <code>is_enabled</code></li>
-        <li><b>Поиск DataTables</b> (<code>search.value</code>): только ФИО ученика и название группы. Агрегаты <code>payment_count</code> / даты / <code>is_enabled</code> в SQL <code>WHERE</code> не попадают (это не колонки <code>payments</code>; иначе <code>QueryException</code> 42S22). Реализация: <code>LtvReportController::applyLtvDataTableSearch</code>, <code>filter(..., true)</code>.</li>
+        <li><b>Поиск DataTables</b> (<code>search.value</code>): только ФИО ученика и название группы. Агрегаты <code>payment_count</code> / даты / <code>is_enabled</code> в SQL <code>WHERE</code> не попадают (это не колонки <code>payments</code>; иначе <code>QueryException</code> 42S22, Ajax error tn/7).
+          Реализация: <code>LtvReportController::applyLtvDataTableSearch</code> и <code>filter($callback)</code> <b>без</b> второго аргумента.
+          В Yajra <code>filter($cb, true)</code> включает <code>autoFilter</code> (дефолтный поиск по колонкам таблицы) — так и ломался живой поиск.
+          Сводка по четырём отчётам — §1.2, <a href="/doc#reports-datatable-search-index">анонс</a>.</li>
       </ul>
     </li>
   </ul>
@@ -441,6 +464,7 @@
         <code>meta_payments_count</code> и <code>meta_sum_total</code> (счётчик и сумма по тем же фильтрам, что и детализация).</li>
     </ul>
     Вложенная таблица платежей инициализируется через обычный <code>$('#…').DataTable({ serverSide: true, … })</code>, не через <code>KidsCrmDataTable.create</code> (намеренно: нет dropdown «Колонки» у дочерней таблицы).
+    <code>dom: 'rtip'</code> — поля поиска нет. Свой <code>applyLtvDataTableSearch</code> на детализацию не вешается.
   </div>
   <div class="note">
     “Общая сумма” в LTV — это <code>sum(payments.summ_cents)</code> при <code>summ_cents &gt; 0</code> (копейки; в UI/JSON — рубли) по тем же фильтрам (и по текущему партнёру), что и таблица.
@@ -470,6 +494,14 @@
         <li>Хранение: <code>user_table_settings.table_key = reports_payments_monthly</code></li>
         <li>«Показать N»: <code>page_length</code> основной таблицы; детализация месяца не сохраняет N (§1.1)</li>
         <li>Ключи: <code>month_title</code>, <code>payments_count</code>, <code>total_sum</code></li>
+        <li><b>Поиск DataTables</b> (<code>search.value</code>): ФИО ученика, название группы и заголовок месяца
+          (ключ <code>YYYY-MM</code> и русское имя, в т.ч. «Январь 2026»). Счётчик и сумма в SQL не попадают.
+          Реализация: <code>PaymentMonthlyReportController::applyMonthlyDataTableSearch</code> и <code>filter($callback)</code> <b>без</b> второго аргумента
+          (иначе Yajra autoFilter ищет <code>payments.payments_count</code> → 42S22).
+          В UI у <code>payments_count</code> / <code>total_sum</code> стоит <code>searchable: false</code>; у <code>month_title</code> — нет.
+          Вложенная таблица месяца (<code>dom: 'rtip'</code>, без поля поиска) при <code>draw</code> ищет только ФИО и группу.
+          Пустая строка/пробелы — без доп. фильтра. Шапка total <code>search.value</code> не учитывает.
+          Сводка — §1.2, <a href="/doc#reports-datatable-search-index">анонс</a>.</li>
       </ul>
     </li>
   </ul>
@@ -506,6 +538,13 @@
         <li>Хранение: <code>user_table_settings.table_key = reports_payment_intents</code></li>
         <li>«Показать N»: <code>page_length</code> (§1.1), POST без <code>columns</code> не затирает колонки</li>
         <li>Ключи dropdown «Колонки»: <code>id</code>, <code>provider_inv_id</code>, <code>partner</code>, <code>user</code>, <code>provider</code>, <code>payment_method_webhook_label</code>, <code>status</code>, <code>out_sum</code>, <code>payment_date</code>, <code>created_at</code>, <code>paid_at</code>, <code>client_device_type</code>, <code>client_os</code>, <code>client_browser</code>, <code>client_user_agent</code>, <code>client_ip</code>, <code>client_referrer</code>, <code>meta</code></li>
+        <li><b>Поиск DataTables</b> (<code>search.value</code>): ФИО пользователя, название партнёра, <code>provider_inv_id</code> и числовой <code>id</code>.
+          Сумма, статус, даты, User-Agent и мета в SQL не попадают.
+          Реализация: <code>PaymentIntentReportController::applyPaymentIntentsDataTableSearch</code> и <code>filter($callback)</code> <b>без</b> второго аргумента
+          (join не используется — иначе неоднозначные колонки).
+          В UI searchable остаются <code>user_name</code>, <code>partner_title</code>, <code>provider_inv_id</code> (и <code>id</code>); остальное — <code>searchable: false</code>.
+          Эндпоинт data <b>не</b> требует AJAX-заголовок (в отличие от payments/LTV/monthly). Шапка total <code>search.value</code> не учитывает.
+          Сводка — §1.2, <a href="/doc#reports-datatable-search-index">анонс</a>.</li>
       </ul>
     </li>
     <li><b>Select2</b>:
@@ -573,6 +612,12 @@
         <li>«Показать N»: <code>page_length</code> (§1.1)</li>
       </ul>
     </li>
+    <li><b>Источник</b>: <code>fiscal_receipts.source</code> — <code>marketplace</code> (чеки школы на витрине)
+      и <code>platform</code> (продажи платформы: пополнение кошелька и абонплата CRM через
+      <code>tbank_acquiring</code>). Отчёт «Чеки» и <code>…/total</code> показывают только
+      <code>source=marketplace</code>. Чеки платформы в таблицу и сумму не попадают
+      (<code>FiscalReceiptsReportTest::test_platform_sale_receipts_are_excluded_from_marketplace_report_data_and_total</code>,
+      анонс <a href="/doc#tbank-acquiring-platform-index">/doc#tbank-acquiring-platform-index</a>).</li>
     <li><b>Select2</b>: <code>GET /admin/reports/fiscal-receipts/partners-search</code> → <code>{ results: [{id,text}] }</code></li>
   </ul>
 
@@ -731,13 +776,17 @@
     <li><code>tests/Feature/Crm/Reports/OutgoingEmailsPageFullAccessFeatureTest.php</code> — guest/403/smoke всех endpoint'ов (в т.ч. partners-search), UI фильтра/колонки partner, datetime/link, foreign log 403 для admin, data без AJAX 404</li>
     <li><code>tests/Feature/Crm/Reports/OutgoingEmailsNonAjaxSafetyNetFeatureTest.php</code> — columns-settings non-AJAX/AJAX, partners-search 422/JSON, validation 302/422, modal show contract</li>
     <li><code>tests/Feature/Crm/Reports/FiscalReceiptsPageFullAccessFeatureTest.php</code> — guest/403/smoke чеков, UI фильтра partner, columns-settings AJAX/non-AJAX</li>
-    <li><code>tests/Feature/Crm/Reports/FiscalReceiptsReportTest.php</code> — totals, partners-search, DataTables fields</li>
+    <li><code>tests/Feature/Crm/Reports/FiscalReceiptsReportTest.php</code> — totals, partners-search, DataTables fields; чеки <code>source=platform</code> исключены из data/total</li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsPageFullAccessFeatureTest.php</code> — guest/403/smoke intents, видимость <code>piCanFilterPartner</code></li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsReportTest.php</code> — в т.ч. <code>payment_date</code> в JSON (формат «месяц год»), client context, partner_id filter</li>
-    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS: <code>outgoing_emails</code>, <code>fiscal_receipts</code>, <code>payment_intents</code>, <code>debt</code> (+ контракт refreshDebtReportTotal / default status=active; settings-prices.js + manual-paid)</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS: <code>outgoing_emails</code>, <code>fiscal_receipts</code>, <code>payment_intents</code>, <code>payment_monthly</code>, <code>debt</code> (+ контракт refreshDebtReportTotal / default status=active; settings-prices.js + manual-paid; поиск DataTables payments/LTV/monthly/intents; reload без пересоздания таблицы)</li>
     <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code>, фильтр локации, unit-кейсы <code>is_manual_paid</code>)</li>
     <li><code>tests/Feature/Crm/Reports/DebtsReportManualPaidFeatureTest.php</code> — UX: ручная оплата из установки цен / доп. платежей ↔ отчёт задолженностей (effective_is_paid), guest/403, Blade/JS-контракт</li>
-    <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code>, фильтр локации, поиск DataTables по ФИО и группе без <code>payments.payment_count</code>)</li>
+    <li><code>tests/Feature/Crm/Reports/ReportsDatatableSearchFeatureTest.php</code> — поиск DataTables в «Платежи» и LTV: гость/403, UX-баг пустого ФИО и Ajax error tn/7, границы (сумма/месяц/локация/даты/%/_/пробелы), filter+search, без <code>locations.view</code>, Blade <code>searchable</code></li>
+    <li><code>tests/Feature/Crm/Reports/ReportsMonthlyIntentsDatatableSearchFeatureTest.php</code> — поиск DataTables в monthly и payment-intents: гость/403, ФИО/группа/«Январь 2026»/«Февраль 2026» не цепляет январь/YYYY-MM, ID провайдера и партнёр; сумма/UA/%/_ не цепляются; вложенная monthly по ФИО и группе; filter+search; без <code>locations.view</code>; admin не видит чужого партнёра; Blade <code>searchable</code></li>
+    <li><code>tests/Feature/Crm/Reports/ReportsDatatableSearchFullAccessFeatureTest.php</code> — HTTP-матрица поиска на всех четырёх страницах: guest/403/с правом/SA, non-AJAX, методы, вложенные monthly/LTV, total без учёта <code>search.value</code>, админ без организации</li>
+    <li><code>tests/Unit/Documentation/ReportsDatatableSearchDocumentationContractTest.php</code> — анонс <code>/doc#reports-datatable-search-index</code> совпадает с контроллерами и Blade</li>
+    <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code>, фильтр локации, поиск DataTables по ФИО/имени и группе; запрос с <code>columns[]</code> как в UI, чтобы не пропустить 42S22 по агрегатам)</li>
     <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code> (включая фильтр локации)</li>
     <li><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> — отчёт «Платежи»: колонка и фильтр</li>
     <li><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> — запись <code>payments.location_id</code> при оплате</li>
@@ -748,6 +797,10 @@
 php artisan test --env=testing tests/Feature/Crm/Reports/OutgoingEmailsPageFullAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/FiscalReceiptsPageFullAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsDatatableSearchFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsMonthlyIntentsDatatableSearchFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsDatatableSearchFullAccessFeatureTest.php
+php artisan test --env=testing tests/Unit/Documentation/ReportsDatatableSearchDocumentationContractTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFullAccessFeatureTest.php</code></pre>
   <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/reusable-ui-partials">UI: KidsCrmDataTable</a> · <a href="/docs/documentation/reports-payments">Отчёт «Платежи»</a></p>
 </div>

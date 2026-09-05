@@ -46,10 +46,14 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'fiscal receipts report tab' => ['admin/report/fiscal_receipts.blade.php'];
         yield 'payment intents report tab' => ['admin/report/payment_intents.blade.php'];
         yield 'debts report tab' => ['admin/report/debt.blade.php'];
+        yield 'payments report tab' => ['admin/report/payment.blade.php'];
+        yield 'ltv report tab' => ['admin/report/ltv.blade.php'];
+        yield 'payments monthly report tab' => ['admin/report/payment_monthly.blade.php'];
         yield 'generic multiselect partial' => ['partials/select2/generic-multiselect.blade.php'];
         yield 'schedule journal statuses settings' => ['admin/shared/occurrence_statuses_crud.blade.php'];
         yield 'schedule section index shell' => ['admin/schedule/index.blade.php'];
         yield 'payment systems settings tab' => ['admin/setting/paymentSystem.blade.php'];
+        yield 'tbank qr sbp page' => ['tinkoff/qr.blade.php'];
         yield 'tbank commissions settings tab' => ['admin/setting/tbankCommissions.blade.php'];
         yield 'school schedule calendar tab' => ['admin/lessonPackages/tabs/schoolSchedule.blade.php'];
         yield 'team schedule slot create edit modals' => ['admin/teamScheduleSlots/partials/slotModals.blade.php'];
@@ -1821,6 +1825,31 @@ JS;
         $this->assertStringContainsString('calcPostpayAmount', $content);
         $this->assertStringContainsString('setting-prices-team-postpay-hint', $content);
         $this->assertStringContainsString('Сумма считается по посещениям у каждого ученика', $content);
+        $this->assertStringContainsString('initMonthProlong', $content);
+        $this->assertStringContainsString('setting-prices-prolong-btn', $content);
+        $this->assertStringContainsString('data-preview-url', $content);
+        $this->assertStringContainsString('show.bs.modal', $content);
+        $this->assertStringContainsString("window.showToast(data.message || 'Пролонгация выполнена.', 'success')", $content);
+        $this->assertStringContainsString('errors.selectedDate', $content);
+        $this->assertStringContainsString('row.students', $content);
+        $this->assertStringContainsString('row.teams', $content);
+        $this->assertStringNotContainsString('row.count || 0', $content);
+        $this->assertStringContainsString('getOrCreateInstance(modalEl).hide()', $content);
+        $this->assertStringContainsString('setting-prices-prolong-stat', $content);
+        $this->assertStringContainsString('cell-edit-section', $content);
+        $this->assertStringContainsString("statRow('Будут продлены абонементы учеников'", $content);
+        $this->assertStringNotContainsString("statRow('Обновится абонементов учеников'", $content);
+        $this->assertStringNotContainsString("statRow('Обновится абонементов групп'", $content);
+        $this->assertStringNotContainsString("statRow('Обновление абонементов групп'", $content);
+        $this->assertStringContainsString('unchangedStudents > 0 || unchangedTeams > 0', $content);
+        $this->assertStringContainsString('setting-prices-prolong-skip-hint-tpl', $content);
+        $this->assertStringContainsString('cloneNode(true)', $content);
+        $this->assertStringContainsString("KidsCrmTooltip.init(bodyEl, { scopes: ['hint'] })", $content);
+        $this->assertStringContainsString('cloneSkipHint', $content);
+        $this->assertStringContainsString("' учеников'", $content);
+        $this->assertStringNotContainsString("skipReasonLines(reasons, 'team')", $content);
+        $this->assertStringContainsString('skipReasonLines', $content);
+        $this->assertStringContainsString("messageEl.textContent = ''", $content);
 
         $output = [];
         $exitCode = 0;
@@ -1830,6 +1859,69 @@ JS;
             $exitCode,
             "JS syntax error in resources/js/settings-prices.js:\n".implode("\n", $output)
         );
+    }
+
+    /**
+     * P1: модалка пролонгации месяца — UX-контракт Vite-модуля (не только syntax-check).
+     * Ловит: плашка summary в модалке, reload, смешанный count, иконка после цифры, группы в «Пропущено».
+     */
+    public function test_setting_prices_monthly_prolong_vite_module_ux_contract(): void
+    {
+        $path = resource_path('js/settings-prices.js');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/settings-prices.js:\n".implode("\n", $output)
+        );
+
+        $start = strpos($content, '(function initMonthProlong()');
+        $this->assertNotFalse($start, 'initMonthProlong IIFE missing');
+        $iife = substr($content, $start);
+
+        $this->assertStringContainsString('selectedDate: getSelectedMonthLabel()', $iife);
+        $this->assertStringContainsString("modalEl.addEventListener('show.bs.modal', loadPreview)", $iife);
+        $this->assertStringContainsString('confirmBtn.disabled = true', $iife);
+        $this->assertStringContainsString('confirmBtn.disabled = !data.can_apply || applied', $iife);
+        $this->assertStringContainsString("getOrCreateInstance(modalEl).hide()", $iife);
+        $this->assertStringContainsString(
+            "window.showToast(data.message || 'Пролонгация выполнена.', 'success')",
+            $iife
+        );
+        $this->assertStringContainsString("messageEl.textContent = ''", $iife);
+        $this->assertStringNotContainsString('messageEl.textContent = data.message', $iife);
+        $this->assertStringNotContainsString('location.reload', $iife);
+        $this->assertStringContainsString("statRow('Будут продлены абонементы учеников'", $iife);
+        $this->assertStringNotContainsString("statRow('Обновится абонементов групп'", $iife);
+        $this->assertStringContainsString('unchangedStudents > 0 || unchangedTeams > 0', $iife);
+        $this->assertStringContainsString("' учеников'", $iife);
+        $this->assertStringContainsString("cloneSkipHint(skipReasonLines(reasons, 'student'))", $iife);
+        $this->assertStringNotContainsString("skipReasonLines(reasons, 'team')", $iife);
+        $this->assertStringNotContainsString('row.count', $iife);
+        $this->assertStringContainsString("errors.selectedDate", $iife);
+
+        $skipRowPos = strpos($iife, "statRow(\n                'Пропущено'");
+        if ($skipRowPos === false) {
+            $skipRowPos = strpos($iife, "statRow(\n            'Пропущено'");
+        }
+        $this->assertNotFalse($skipRowPos, 'Пропущено row missing');
+        $skipChunk = substr($iife, $skipRowPos, 450);
+        $studentsPos = strpos($skipChunk, "' учеников'");
+        $hintPos = strpos($skipChunk, 'cloneSkipHint(');
+        $this->assertNotFalse($studentsPos);
+        $this->assertNotFalse($hintPos);
+        $this->assertLessThan($hintPos, $studentsPos, 'иконка должна стоять после «учеников», не после цифры');
+
+        $confirmPos = strpos($iife, "confirmBtn.addEventListener('click'");
+        $this->assertNotFalse($confirmPos);
+        $confirmChunk = substr($iife, $confirmPos);
+        $this->assertStringNotContainsString('renderReport(data)', $confirmChunk);
+        $this->assertStringNotContainsString('location.reload', $confirmChunk);
     }
 
     /**
@@ -2185,6 +2277,7 @@ JS;
         $content = (string) file_get_contents($path);
         $this->assertStringContainsString('value="postpay"', $content);
         $this->assertStringContainsString('@can(\'lessonPackages.type.postpay\')', $content);
+        $this->assertStringContainsString('@can(\'scheduleSlots.view\')', $content);
         $this->assertStringContainsString("t === 'postpay'", $content);
         $this->assertStringContainsString('Стоимость за одно занятие', $content);
         $this->assertStringContainsString('preventDefault', $content);
@@ -2226,6 +2319,406 @@ JS;
         $this->assertTrue(
             $postpayScriptFound,
             'В packages.blade.php не найден script с обработкой schedule_type=postpay'
+        );
+    }
+
+    /**
+     * P1: inline JS шаблонов абонементов — автосписание и право scheduleSlots.view.
+     * Контракт UX: без чекбокса FormData даёт 0; edit не падает, если input отсутствует.
+     */
+    public function test_lesson_packages_auto_attendance_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/packages.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('@can(\'scheduleSlots.view\')', $content);
+        $this->assertStringContainsString('id="create_auto_attendance_enabled"', $content);
+        $this->assertStringContainsString('id="edit_auto_attendance_enabled"', $content);
+        $this->assertStringContainsString('name="create[auto_attendance_enabled]"', $content);
+        $this->assertStringContainsString('name="edit[auto_attendance_enabled]"', $content);
+        $this->assertStringContainsString('data-error-for="create[auto_attendance_enabled]"', $content);
+        $this->assertStringContainsString('data-error-for="edit[auto_attendance_enabled]"', $content);
+
+        $this->assertStringContainsString('id="create_freeze_enabled"', $content);
+        $this->assertStringContainsString('id="edit_freeze_enabled"', $content);
+        $this->assertStringContainsString('name="create[freeze_enabled]"', $content);
+        $this->assertStringContainsString('name="edit[freeze_enabled]"', $content);
+
+        $createDurationPos = strpos($content, 'id="create_duration_days"');
+        $createDurationCanPos = strrpos(substr($content, 0, (int) $createDurationPos), '@can(\'scheduleSlots.view\')');
+        $createDurationEndCanPos = strpos($content, '@endcan', (int) $createDurationCanPos);
+        $this->assertNotFalse($createDurationPos);
+        $this->assertNotFalse($createDurationCanPos);
+        $this->assertNotFalse($createDurationEndCanPos);
+        $this->assertTrue(
+            $createDurationCanPos < $createDurationPos && $createDurationPos < $createDurationEndCanPos,
+            'Create-поле срока действия должно быть внутри @can(\'scheduleSlots.view\').'
+        );
+
+        $editDurationPos = strpos($content, 'id="edit_duration_days"');
+        $editDurationCanPos = strrpos(substr($content, 0, (int) $editDurationPos), '@can(\'scheduleSlots.view\')');
+        $editDurationEndCanPos = strpos($content, '@endcan', (int) $editDurationPos);
+        $this->assertNotFalse($editDurationPos);
+        $this->assertNotFalse($editDurationCanPos);
+        $this->assertNotFalse($editDurationEndCanPos);
+        $this->assertTrue(
+            $editDurationCanPos < $editDurationPos && $editDurationPos < $editDurationEndCanPos,
+            'Edit-поле срока действия должно быть внутри @can(\'scheduleSlots.view\').'
+        );
+
+        $createInputPos = strpos($content, 'id="create_auto_attendance_enabled"');
+        $createFreezePos = strpos($content, 'id="create_freeze_enabled"');
+        $createCanPos = strrpos(substr($content, 0, (int) $createInputPos), '@can(\'scheduleSlots.view\')');
+        $createEndCanPos = strpos($content, '@endcan', (int) $createInputPos);
+        $this->assertNotFalse($createCanPos);
+        $this->assertNotFalse($createInputPos);
+        $this->assertNotFalse($createFreezePos);
+        $this->assertNotFalse($createEndCanPos);
+        $this->assertTrue(
+            $createCanPos < $createInputPos && $createInputPos < $createEndCanPos,
+            'Create-чекбокс автосписания должен быть внутри @can(\'scheduleSlots.view\').'
+        );
+        $this->assertTrue(
+            $createCanPos < $createFreezePos && $createFreezePos < $createEndCanPos,
+            'Create-чекбокс заморозки должен быть внутри @can(\'scheduleSlots.view\').'
+        );
+
+        $editInputPos = strpos($content, 'id="edit_auto_attendance_enabled"');
+        $editFreezePos = strpos($content, 'id="edit_freeze_enabled"');
+        $editCanPos = strrpos(substr($content, 0, (int) $editInputPos), '@can(\'scheduleSlots.view\')');
+        $editEndCanPos = strpos($content, '@endcan', (int) $editInputPos);
+        $this->assertNotFalse($editCanPos);
+        $this->assertNotFalse($editEndCanPos);
+        $this->assertNotFalse($editFreezePos);
+        $this->assertTrue(
+            $editCanPos < $editInputPos && $editInputPos < $editEndCanPos,
+            'Edit-чекбокс автосписания должен быть внутри @can(\'scheduleSlots.view\').'
+        );
+        $this->assertTrue(
+            $editCanPos < $editFreezePos && $editFreezePos < $editEndCanPos,
+            'Edit-чекбокс заморозки должен быть внутри @can(\'scheduleSlots.view\').'
+        );
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В packages.blade.php нет inline <script>');
+
+        $autoScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'auto_attendance_enabled')) {
+                continue;
+            }
+            $autoScriptFound = true;
+
+            $this->assertStringContainsString('preventDefault', $rawScript);
+            $this->assertStringContainsString("Accept': 'application/json'", $rawScript);
+            $this->assertStringContainsString('function normalizePayload(formData, prefix)', $rawScript);
+            $this->assertStringContainsString(
+                "auto_attendance_enabled: formData.get(prefix + '[auto_attendance_enabled]') ? 1 : 0",
+                $rawScript,
+                'Без чекбокса в DOM FormData даёт null → payload 0; сервер должен preserve на update.'
+            );
+            $this->assertStringContainsString('const payload = normalizePayload(fd, \'create\')', $rawScript);
+            $this->assertStringContainsString('const payload = normalizePayload(fd, \'edit\')', $rawScript);
+            $this->assertStringContainsString('if (createAutoAttendanceSection)', $rawScript);
+            $this->assertStringContainsString('if (createAutoAttendanceEnabled)', $rawScript);
+            $this->assertStringContainsString('if (editAutoAttendanceSection)', $rawScript);
+            $this->assertStringContainsString('if (editAutoAttendanceEnabled)', $rawScript);
+            $this->assertStringContainsString('editAutoAttendanceEnabled.checked = !!lp.auto_attendance_enabled', $rawScript);
+            $this->assertStringContainsString('createFormEl.reset()', $rawScript);
+            $this->assertStringContainsString("createScheduleType.value = 'fixed'", $rawScript);
+            $this->assertStringContainsString('applyCreateScheduleTypeUi()', $rawScript);
+            $this->assertStringContainsString('applyEditScheduleTypeUi()', $rawScript);
+            $this->assertStringContainsString("t === 'no_schedule'", $rawScript);
+            $this->assertStringContainsString("t === 'postpay'", $rawScript);
+            $this->assertStringContainsString('createAutoAttendanceSection.style.display = \'none\'', $rawScript);
+            $this->assertStringContainsString('editAutoAttendanceSection.style.display = \'none\'', $rawScript);
+            $this->assertStringContainsString('createAutoAttendanceEnabled.checked = false', $rawScript);
+            $this->assertStringContainsString('editAutoAttendanceEnabled.checked = false', $rawScript);
+            $this->assertStringContainsString('createAutoAttendanceSection.style.display = \'\'', $rawScript);
+            $this->assertStringContainsString('applyValidationErrors', $rawScript);
+            $this->assertStringContainsString('reloadPackagesTable', $rawScript);
+
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-packages-auto-attendance-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in lesson packages auto-attendance script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $autoScriptFound,
+            'В packages.blade.php не найден script с auto_attendance_enabled'
+        );
+    }
+
+    /**
+     * P1: inline JS шаблонов — чекбокс «Разрешена заморозка» и scheduleSlots.view.
+     * UX: без input в DOM FormData даёт 0; fill edit не должен падать на null.checked.
+     */
+    public function test_lesson_packages_freeze_permission_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/packages.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('@can(\'scheduleSlots.view\')', $content);
+        $this->assertStringContainsString('id="create_freeze_enabled"', $content);
+        $this->assertStringContainsString('id="edit_freeze_enabled"', $content);
+        $this->assertStringContainsString('name="create[freeze_enabled]"', $content);
+        $this->assertStringContainsString('name="edit[freeze_enabled]"', $content);
+        $this->assertStringContainsString('name="create[freeze_days]"', $content);
+        $this->assertStringContainsString('name="edit[freeze_days]"', $content);
+        $this->assertStringContainsString('data-error-for="create[freeze_enabled]"', $content);
+        $this->assertStringContainsString('data-error-for="edit[freeze_enabled]"', $content);
+        $this->assertStringContainsString('data-error-for="create[freeze_days]"', $content);
+        $this->assertStringContainsString('data-error-for="edit[freeze_days]"', $content);
+        $this->assertStringContainsString('value="7"', $content);
+
+        $createFreezePos = strpos($content, 'id="create_freeze_enabled"');
+        $createCanPos = strrpos(substr($content, 0, (int) $createFreezePos), '@can(\'scheduleSlots.view\')');
+        $createEndCanPos = strpos($content, '@endcan', (int) $createFreezePos);
+        $this->assertNotFalse($createFreezePos);
+        $this->assertNotFalse($createCanPos);
+        $this->assertNotFalse($createEndCanPos);
+        $this->assertTrue(
+            $createCanPos < $createFreezePos && $createFreezePos < $createEndCanPos,
+            'Create-чекбокс заморозки должен быть внутри @can(\'scheduleSlots.view\').'
+        );
+
+        $editFreezePos = strpos($content, 'id="edit_freeze_enabled"');
+        $editCanPos = strrpos(substr($content, 0, (int) $editFreezePos), '@can(\'scheduleSlots.view\')');
+        $editEndCanPos = strpos($content, '@endcan', (int) $editFreezePos);
+        $this->assertNotFalse($editFreezePos);
+        $this->assertNotFalse($editCanPos);
+        $this->assertNotFalse($editEndCanPos);
+        $this->assertTrue(
+            $editCanPos < $editFreezePos && $editFreezePos < $editEndCanPos,
+            'Edit-чекбокс заморозки должен быть внутри @can(\'scheduleSlots.view\').'
+        );
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В packages.blade.php нет inline <script>');
+
+        $freezeScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'function normalizePayload(formData, prefix)')) {
+                continue;
+            }
+            $freezeScriptFound = true;
+
+            $this->assertStringContainsString('preventDefault', $rawScript);
+            $this->assertStringContainsString("Accept': 'application/json'", $rawScript);
+            $this->assertStringContainsString(
+                "freeze_enabled: formData.get(prefix + '[freeze_enabled]') ? 1 : 0",
+                $rawScript,
+                'Без чекбокса в DOM FormData даёт null → payload 0; сервер должен preserve на update.'
+            );
+            $this->assertStringContainsString(
+                "freeze_days: (formData.get(prefix + '[freeze_days]') || '').toString()",
+                $rawScript,
+                'Без поля дней FormData даёт null → пустая строка; сервер не должен падать на min:1.'
+            );
+            $this->assertStringContainsString('const payload = normalizePayload(fd, \'create\')', $rawScript);
+            $this->assertStringContainsString('const payload = normalizePayload(fd, \'edit\')', $rawScript);
+            $this->assertStringContainsString('if (createFreezeSection)', $rawScript);
+            $this->assertStringContainsString('if (createFreezeEnabled)', $rawScript);
+            $this->assertStringContainsString('if (editFreezeSection)', $rawScript);
+            $this->assertStringContainsString('if (editFreezeEnabled)', $rawScript);
+            $this->assertStringContainsString("createFreezeSection.style.display = 'none'", $rawScript);
+            $this->assertStringContainsString("editFreezeSection.style.display = 'none'", $rawScript);
+            $this->assertStringContainsString('createFreezeEnabled.checked = false', $rawScript);
+            $this->assertStringContainsString('editFreezeEnabled.checked = false', $rawScript);
+            $this->assertStringContainsString('createToggleFreezeDays', $rawScript);
+            $this->assertStringContainsString('editToggleFreezeDays', $rawScript);
+            $this->assertStringContainsString('createFormEl.reset()', $rawScript);
+            $this->assertStringContainsString("createScheduleType.value = 'fixed'", $rawScript);
+            $this->assertStringContainsString('applyCreateScheduleTypeUi()', $rawScript);
+            $this->assertStringContainsString('applyEditScheduleTypeUi()', $rawScript);
+            $this->assertStringContainsString("t === 'no_schedule'", $rawScript);
+            $this->assertStringContainsString("t === 'postpay'", $rawScript);
+            $this->assertStringContainsString('applyValidationErrors', $rawScript);
+            $this->assertStringContainsString('reloadPackagesTable', $rawScript);
+            $this->assertStringContainsString('shown.bs.modal', $rawScript);
+
+            $this->assertStringContainsString(
+                'if (editFreezeEnabled) {',
+                $rawScript,
+                'Fill edit не должен писать editFreezeEnabled.checked без null-guard: без @can элемент null.'
+            );
+            $this->assertStringContainsString(
+                'editFreezeEnabled.checked = !!lp.freeze_enabled',
+                $rawScript
+            );
+            $this->assertStringNotContainsString(
+                "editModalEl.querySelector('[name=\"edit[freeze_days]\"]').value",
+                $rawScript,
+                'Без input в DOM querySelector даёт null → TypeError и обрыв fill (цена уже записана, applyEditScheduleTypeUi не вызовется).'
+            );
+            $this->assertStringContainsString(
+                'editFreezeDaysInput.value = lp.freeze_days || 7',
+                $rawScript,
+                'Дни в edit — через guarded input с fallback 7.'
+            );
+
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-packages-freeze-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in lesson packages freeze script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $freezeScriptFound,
+            'В packages.blade.php не найден script с normalizePayload / freeze_enabled'
+        );
+    }
+
+    /**
+     * P1: inline JS шаблонов — поле «Срок действия (дни)» и scheduleSlots.view.
+     * UX: без input в DOM FormData даёт ''; fill edit не должен падать на null.querySelector.
+     */
+    public function test_lesson_packages_duration_permission_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/packages.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('id="create_duration_days"', $content);
+        $this->assertStringContainsString('id="edit_duration_days"', $content);
+        $this->assertStringContainsString('name="create[duration_days]"', $content);
+        $this->assertStringContainsString('name="edit[duration_days]"', $content);
+        $this->assertStringContainsString('value="30"', $content);
+        $this->assertStringContainsString('data-error-for="create[duration_days]"', $content);
+        $this->assertStringContainsString('data-error-for="edit[duration_days]"', $content);
+
+        $createDurationPos = strpos($content, 'id="create_duration_days"');
+        $createDurationCanPos = strrpos(substr($content, 0, (int) $createDurationPos), '@can(\'scheduleSlots.view\')');
+        $createDurationEndCanPos = strpos($content, '@endcan', (int) $createDurationCanPos);
+        $this->assertTrue(
+            $createDurationCanPos < $createDurationPos && $createDurationPos < $createDurationEndCanPos,
+            'Create-поле срока должно быть внутри @can(\'scheduleSlots.view\').'
+        );
+
+        $editDurationPos = strpos($content, 'id="edit_duration_days"');
+        $editDurationCanPos = strrpos(substr($content, 0, (int) $editDurationPos), '@can(\'scheduleSlots.view\')');
+        $editDurationEndCanPos = strpos($content, '@endcan', (int) $editDurationPos);
+        $this->assertTrue(
+            $editDurationCanPos < $editDurationPos && $editDurationPos < $editDurationEndCanPos,
+            'Edit-поле срока должно быть внутри @can(\'scheduleSlots.view\').'
+        );
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В packages.blade.php нет inline <script>');
+
+        $durationScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'function normalizePayload(formData, prefix)')) {
+                continue;
+            }
+            $durationScriptFound = true;
+
+            $this->assertStringContainsString('preventDefault', $rawScript);
+            $this->assertStringContainsString("Accept': 'application/json'", $rawScript);
+            $this->assertStringContainsString(
+                "duration_days: (formData.get(prefix + '[duration_days]') || '').toString()",
+                $rawScript,
+                'Без поля в DOM FormData даёт null → пустая строка; сервер create=30 / update preserve.'
+            );
+            $this->assertStringContainsString('const payload = normalizePayload(fd, \'create\')', $rawScript);
+            $this->assertStringContainsString('const payload = normalizePayload(fd, \'edit\')', $rawScript);
+            $this->assertStringContainsString('getElementById(\'create_duration_days\')', $rawScript);
+            $this->assertStringContainsString('getElementById(\'edit_duration_days\')', $rawScript);
+            $this->assertStringContainsString('if (createDuration)', $rawScript);
+            $this->assertStringContainsString('if (editDuration)', $rawScript);
+            $this->assertStringContainsString('if (createDurationWrap)', $rawScript);
+            $this->assertStringContainsString('if (editDurationWrap)', $rawScript);
+            $this->assertStringContainsString("createDuration.value = '30'", $rawScript);
+            $this->assertStringContainsString("createDuration.value = '1'", $rawScript);
+            $this->assertStringContainsString("createDuration.value = '31'", $rawScript);
+            $this->assertStringContainsString("createDurationWrap.style.display = 'none'", $rawScript);
+            $this->assertStringContainsString("editDurationWrap.style.display = 'none'", $rawScript);
+            $this->assertStringContainsString('shown.bs.modal', $rawScript);
+            $this->assertStringContainsString('createFormEl.reset()', $rawScript);
+            $this->assertStringContainsString('applyCreateScheduleTypeUi()', $rawScript);
+            $this->assertStringContainsString('applyEditScheduleTypeUi()', $rawScript);
+            $this->assertStringContainsString('applyValidationErrors', $rawScript);
+            $this->assertStringContainsString('reloadPackagesTable', $rawScript);
+            $this->assertStringContainsString("t === 'no_schedule'", $rawScript);
+            $this->assertStringContainsString("t === 'postpay'", $rawScript);
+
+            $this->assertStringNotContainsString(
+                "editModalEl.querySelector('[name=\"edit[duration_days]\"]').value",
+                $rawScript,
+                'Без input в DOM querySelector даёт null → TypeError и обрыв fill (цена/занятия не заполнятся).'
+            );
+            $this->assertStringContainsString(
+                'editDuration.value = lp.duration_days || 30',
+                $rawScript,
+                'Edit fill должен писать срок через editDuration с fallback 30.'
+            );
+
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-packages-duration-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in lesson packages duration script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $durationScriptFound,
+            'В packages.blade.php не найден script с normalizePayload / duration_days'
         );
     }
 
@@ -3642,6 +4135,19 @@ JS;
         $this->assertStringContainsString('id="walletTopupAmount"', $content);
         $this->assertStringContainsString('data-error-for="amount"', $content);
         $this->assertStringContainsString('data-error-for="partner_id"', $content);
+        $this->assertStringContainsString('data-error-for="payment_method"', $content);
+        $this->assertStringContainsString("@can('platformPayments.method.tbankSbp')", $content);
+        $this->assertStringContainsString("@can('platformPayments.method.yookassa')", $content);
+        $this->assertStringContainsString('id="walletPayTinkoffSbp"', $content);
+        $this->assertStringContainsString('id="walletPayYookassa"', $content);
+        $this->assertStringContainsString("old('payment_method', \$platformPaymentDefaultMethod)", $content);
+        $this->assertStringNotContainsString("old('payment_method', 'yookassa')", $content);
+        $this->assertStringContainsString('$canPayTbankSbp || $canPayYookassa', $content);
+        $tbankCan = strpos($content, "@can('platformPayments.method.tbankSbp')");
+        $ykCan = strpos($content, "@can('platformPayments.method.yookassa')");
+        $this->assertNotFalse($tbankCan);
+        $this->assertNotFalse($ykCan);
+        $this->assertTrue($tbankCan < $ykCan, 'Радио T‑Bank СБП должно быть выше ЮKassa');
         $this->assertStringContainsString("@error('amount')", $content);
         $this->assertStringContainsString("@error('partner_id')", $content);
         $this->assertStringContainsString("@error('description')", $content);
@@ -3666,6 +4172,9 @@ JS;
         $this->assertSame(1, substr_count($content, "$('#reloadTable').on('click'"));
         $this->assertStringContainsString('txTable.ajax.reload', $content);
         $this->assertStringContainsString('window.location = res.redirect', $content);
+        $this->assertStringContainsString('$(this).serialize()', $submitChunk);
+        $this->assertStringNotContainsString("payment_method: 'yookassa'", $submitChunk);
+        $this->assertStringNotContainsString('payment_method: "yookassa"', $submitChunk);
         $this->assertStringNotContainsString("$('#walletTopupAmount').val('')", $content);
         $this->assertStringNotContainsString('$("#walletTopupAmount").val("")', $content);
         $this->assertStringContainsString("$('#topupBtn').prop('disabled', false).text('Оплатить')", $content);
@@ -3679,6 +4188,43 @@ JS;
             $path,
             "$('#reloadTable').on('click'",
             'blade-js-partner-wallet-reload-table'
+        );
+    }
+
+    public function test_tbank_acquiring_form_ajax_prevents_native_submit_and_has_no_e2c_fields(): void
+    {
+        $path = resource_path('views/admin/setting/paymentSystem.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="tbankAcquiringForm"', $content);
+        $this->assertStringContainsString('id="modalTbankAcquiring"', $content);
+        $this->assertStringContainsString('value="tbank_acquiring"', $content);
+        $this->assertStringContainsString('id="acquiring_terminal_key"', $content);
+        $this->assertStringContainsString('id="acquiring_token_password"', $content);
+        $this->assertStringContainsString('id="tbank_acquiring_is_enabled"', $content);
+
+        $modalPos = strpos($content, 'id="modalTbankAcquiring"');
+        $this->assertNotFalse($modalPos);
+        $modalChunk = substr($content, $modalPos, 2500);
+        $this->assertStringContainsString('class="modal-dialog"', $modalChunk);
+        $this->assertStringNotContainsString('modal-fullscreen', $modalChunk);
+        $this->assertStringNotContainsString('e2c_terminal_key', $modalChunk);
+        $this->assertStringNotContainsString('e2c_token_password', $modalChunk);
+
+        $this->assertSame(1, substr_count($content, "$('#tbankAcquiringForm').on('submit'"));
+        $submitPos = strpos($content, "$('#tbankAcquiringForm').on('submit'");
+        $this->assertNotFalse($submitPos);
+        $submitChunk = substr($content, (int) $submitPos, 1600);
+        $this->assertStringContainsString('e.preventDefault()', $submitChunk);
+        $this->assertStringContainsString('$.ajax({', $submitChunk);
+        $this->assertStringContainsString("url: '{{ route('payment-systems.store') }}'", $submitChunk);
+        $this->assertStringNotContainsString('e2c_terminal_key', $submitChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "$('#tbankAcquiringForm').on('submit'",
+            'blade-js-tbank-acquiring-store'
         );
     }
 
@@ -3697,8 +4243,33 @@ JS;
         $this->assertStringContainsString('data-error-for="amount"', $content);
         $this->assertStringContainsString('data-error-for="days"', $content);
         $this->assertStringContainsString('data-error-for="description"', $content);
-        $this->assertStringContainsString("route('createPaymentYookassa')", $content);
+        $this->assertStringContainsString('data-error-for="payment_method"', $content);
+        $this->assertStringContainsString("@can('platformPayments.method.tbankSbp')", $content);
+        $this->assertStringContainsString("@can('platformPayments.method.yookassa')", $content);
+        $this->assertStringContainsString("old('payment_method', \$platformPaymentDefaultMethod)", $content);
+        $this->assertStringNotContainsString("old('payment_method', 'yookassa')", $content);
+        $this->assertStringContainsString('$canPayTbankSbp || $canPayYookassa', $content);
+        $this->assertStringContainsString("route('partner.payment.tinkoff.sbp')", $content);
         $this->assertStringContainsString("route('partner.payment.data')", $content);
+
+        $formPos = strpos($content, "route('partner.payment.tinkoff.sbp')");
+        $this->assertNotFalse($formPos);
+        $formEnd = strpos($content, '</form>', $formPos);
+        $this->assertNotFalse($formEnd);
+        $formChunk = substr($content, $formPos, $formEnd - $formPos);
+        $this->assertStringNotContainsString('$.ajax', $formChunk);
+        $this->assertStringNotContainsString('e.preventDefault()', $formChunk);
+        $tbankCan = strpos($formChunk, "@can('platformPayments.method.tbankSbp')");
+        $ykCan = strpos($formChunk, "@can('platformPayments.method.yookassa')");
+        $this->assertNotFalse($tbankCan);
+        $this->assertNotFalse($ykCan);
+        $this->assertTrue($tbankCan < $ykCan, 'Радио T‑Bank СБП должно быть выше ЮKassa');
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "$('#paymentsTable').DataTable",
+            'blade-js-partner-service-payments-table'
+        );
     }
 
     /**
@@ -3737,6 +4308,185 @@ JS;
         $this->assertStringContainsString('value="payment_notification"', $content);
         $this->assertStringContainsString('email_category:', $content);
         $this->assertStringContainsString('[name="email_category"]', $content);
+    }
+
+    /**
+     * P1: поиск DataTables в «Платежи» и LTV — только ФИО и группа (searchable: false у суммы/дат/агрегатов).
+     * Сброс фильтров не пересоздаёт таблицу (иначе поле поиска и pageLength сбросятся).
+     */
+    public function test_payments_and_ltv_datatable_search_js_contract(): void
+    {
+        $paymentsPath = resource_path('views/admin/report/payment.blade.php');
+        $ltvPath = resource_path('views/admin/report/ltv.blade.php');
+        $payments = (string) file_get_contents($paymentsPath);
+        $ltv = (string) file_get_contents($ltvPath);
+
+        $this->assertStringContainsString("KidsCrmDataTable.create('#payments-table'", $payments);
+        $this->assertStringContainsString("name: 'user_name'", $payments);
+        $this->assertStringContainsString("name: 'team_title'", $payments);
+        $this->assertDoesNotMatchRegularExpression(
+            "/name:\\s*'user_name'\\s*,\\s*searchable:\\s*false/",
+            $payments
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            "/name:\\s*'team_title'\\s*,\\s*searchable:\\s*false/",
+            $payments
+        );
+        $this->assertMatchesRegularExpression("/name:\\s*'summ'\\s*,\\s*searchable:\\s*false/", $payments);
+        $this->assertMatchesRegularExpression("/name:\\s*'payment_month'\\s*,\\s*searchable:\\s*false/", $payments);
+        $this->assertMatchesRegularExpression("/name:\\s*'operation_date'\\s*,\\s*searchable:\\s*false/", $payments);
+        $this->assertMatchesRegularExpression("/name:\\s*'location_title'\\s*,\\s*searchable:\\s*false/", $payments);
+        $this->assertStringContainsString('dtApi.reload();', $payments);
+        $this->assertStringContainsString('$payFiltersForm.on(\'submit\'', $payments);
+        $this->assertStringContainsString('$(\'#paymentsReportFiltersResetBtn\').on(\'click\'', $payments);
+
+        $this->assertStringContainsString("KidsCrmDataTable.create('#ltv-table'", $ltv);
+        $this->assertStringContainsString("name: 'user_name'", $ltv);
+        $this->assertStringContainsString("name: 'team_title'", $ltv);
+        $this->assertDoesNotMatchRegularExpression(
+            "/name:\\s*'user_name'\\s*,\\s*searchable:\\s*false/",
+            $ltv
+        );
+        $this->assertStringContainsString("name: 'total_price', searchable: false", $ltv);
+        $this->assertStringContainsString("name: 'payment_count', searchable: false", $ltv);
+        $this->assertMatchesRegularExpression("/name:\\s*'first_payment_date'\\s*,\\s*searchable:\\s*false/", $ltv);
+        $this->assertMatchesRegularExpression("/name:\\s*'last_payment_date'\\s*,\\s*searchable:\\s*false/", $ltv);
+        $this->assertMatchesRegularExpression("/name:\\s*'is_enabled'\\s*,\\s*searchable:\\s*false/", $ltv);
+        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $ltv);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $paymentsPath,
+            "KidsCrmDataTable.create('#payments-table'",
+            'blade-js-payments-datatable-search'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvPath,
+            "KidsCrmDataTable.create('#ltv-table'",
+            'blade-js-ltv-datatable-search'
+        );
+    }
+
+    /**
+     * P1: поиск DataTables в «Платежи по месяцам» и «Платежные запросы».
+     * Monthly: ФИО/группа + заголовок месяца; сумма и счётчик — searchable: false.
+     * Intents: ФИО / партнёр / ID провайдера; сумма, даты, UA — searchable: false.
+     */
+    public function test_monthly_and_intents_datatable_search_js_contract(): void
+    {
+        $monthlyPath = resource_path('views/admin/report/payment_monthly.blade.php');
+        $intentsPath = resource_path('views/admin/report/payment_intents.blade.php');
+        $monthly = (string) file_get_contents($monthlyPath);
+        $intents = (string) file_get_contents($intentsPath);
+
+        $this->assertStringContainsString("KidsCrmDataTable.create('#payments-monthly-table'", $monthly);
+        $this->assertDoesNotMatchRegularExpression(
+            "/name:\\s*'month_title'\\s*,\\s*searchable:\\s*false/",
+            $monthly
+        );
+        $this->assertStringContainsString("name: 'payments_count', searchable: false", $monthly);
+        $this->assertStringContainsString("name: 'total_sum', searchable: false", $monthly);
+        $this->assertMatchesRegularExpression(
+            "/name:\\s*'operation_date'\\s*,\\s*searchable:\\s*false/",
+            $monthly
+        );
+        $this->assertMatchesRegularExpression(
+            "/name:\\s*'payment_month'\\s*,\\s*searchable:\\s*false/",
+            $monthly
+        );
+        $this->assertMatchesRegularExpression(
+            "/name:\\s*'summ'\\s*,\\s*searchable:\\s*false/",
+            $monthly
+        );
+
+        $this->assertStringContainsString("KidsCrmDataTable.create('#payment-intents-table'", $intents);
+        $this->assertDoesNotMatchRegularExpression(
+            "/name:\\s*'user_name'\\s*,\\s*searchable:\\s*false/",
+            $intents
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            "/name:\\s*'partner_title'\\s*,\\s*searchable:\\s*false/",
+            $intents
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            "/name:\\s*'provider_inv_id'\\s*,\\s*searchable:\\s*false/",
+            $intents
+        );
+        $this->assertMatchesRegularExpression("/name:\\s*'provider'\\s*,\\s*searchable:\\s*false/", $intents);
+        $this->assertMatchesRegularExpression("/name:\\s*'status'\\s*,\\s*searchable:\\s*false/", $intents);
+        $this->assertStringContainsString("name: 'out_sum', searchable: false", $intents);
+        $this->assertStringContainsString("name: 'payment_date', searchable: false", $intents);
+        $this->assertStringContainsString("name: 'created_at', searchable: false", $intents);
+        $this->assertStringContainsString("name: 'paid_at', searchable: false", $intents);
+        $this->assertStringContainsString("name: 'client_user_agent',", $intents);
+        $this->assertMatchesRegularExpression(
+            "/name:\\s*'client_user_agent'[\\s\\S]{0,80}searchable:\\s*false/",
+            $intents
+        );
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $monthlyPath,
+            "KidsCrmDataTable.create('#payments-monthly-table'",
+            'blade-js-monthly-datatable-search'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $intentsPath,
+            "KidsCrmDataTable.create('#payment-intents-table'",
+            'blade-js-intents-datatable-search'
+        );
+    }
+
+    /**
+     * P1: поле поиска DataTables на четырёх отчётах не выключается и не сбрасывается
+     * пересозданием таблицы при «Применить» / «Сброс»; вложенные LTV/monthly без search box.
+     */
+    public function test_four_report_pages_keep_search_box_on_filter_reload(): void
+    {
+        $cases = [
+            resource_path('views/admin/report/payment.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#payments-table'",
+                'reset' => '$(\'#paymentsReportFiltersResetBtn\').on(\'click\'',
+                'nested_rtip' => false,
+            ],
+            resource_path('views/admin/report/ltv.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#ltv-table'",
+                'reset' => '$(\'#ltvReportFiltersResetBtn\').on(\'click\'',
+                'nested_rtip' => true,
+            ],
+            resource_path('views/admin/report/payment_monthly.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#payments-monthly-table'",
+                'reset' => '$(\'#paymentsMonthlyFiltersResetBtn\').on(\'click\'',
+                'nested_rtip' => true,
+            ],
+            resource_path('views/admin/report/payment_intents.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#payment-intents-table'",
+                'reset' => '$(\'#paymentIntentsResetBtn\').on(\'click\'',
+                'nested_rtip' => false,
+            ],
+        ];
+
+        foreach ($cases as $path => $meta) {
+            $content = (string) file_get_contents($path);
+            $createPos = strpos($content, $meta['create']);
+            $this->assertNotFalse($createPos, $path);
+            $createChunk = substr($content, $createPos, 3500);
+            $this->assertStringNotContainsString('searching: false', $createChunk, $path);
+
+            $resetPos = strpos($content, $meta['reset']);
+            $this->assertNotFalse($resetPos, $path);
+            $resetChunk = substr($content, $resetPos, 1200);
+            $this->assertStringContainsString('dtApi.reload', $resetChunk, $path);
+            $this->assertStringNotContainsString('KidsCrmDataTable.create', $resetChunk, $path);
+
+            if ($meta['nested_rtip']) {
+                $this->assertStringContainsString("dom: 'rtip'", $content, $path);
+            }
+
+            $this->assertInlineScriptsContainingHaveValidJavascript(
+                $path,
+                $meta['reset'],
+                'blade-js-filter-reset-search-'.basename($path)
+            );
+        }
     }
 
     /**

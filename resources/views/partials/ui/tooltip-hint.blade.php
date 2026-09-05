@@ -8,6 +8,7 @@
         'placement' => 'top',
         'iconClass' => 'fa fa-info-circle',
         'wrapperClass' => 'ms-1',
+        'container' => 'body',
     ])
 
     Обёртка disabled-кнопки (ховер на span: у .btn:disabled pointer-events: none):
@@ -27,6 +28,7 @@
     $hintIconClass = trim((string) ($iconClass ?? 'fa fa-info-circle'));
     $hintExtraClass = trim((string) ($wrapperClass ?? 'ms-1'));
     $hintClass = trim('kids-tooltip-hint d-inline-block '.$hintExtraClass);
+    $hintContainer = trim((string) ($container ?? ''));
     $hintHasInnerHtml = array_key_exists('innerHtml', get_defined_vars());
     $hintInnerHtml = $hintHasInnerHtml ? (string) $innerHtml : null;
 @endphp
@@ -38,6 +40,7 @@
           data-bs-toggle="tooltip"
           data-bs-placement="{{ $hintPlacement }}"
           data-bs-custom-class="ulp-assignment-paid-tooltip"
+          @if($hintContainer !== '') data-bs-container="{{ $hintContainer }}" @endif
           title="{{ $hintTitle }}"
           aria-label="{{ $hintTitle }}">
         @if($hintHasInnerHtml)

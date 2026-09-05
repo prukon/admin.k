@@ -7,6 +7,7 @@ namespace Tests\Feature\Crm\PartnerWallet;
 use App\Models\PartnerWalletTransaction;
 use Tests\Feature\Crm\CrmTestCase;
 use Tests\Feature\Crm\PartnerWallet\Concerns\PartnerWalletTestHelpers;
+use Tests\Feature\Crm\Payments\TBank\Concerns\TbankAcquiringTestHelpers;
 
 /**
  * UX-баг: админ одной школы видел историю/баланс Partner::first(), а не своей.
@@ -18,6 +19,7 @@ use Tests\Feature\Crm\PartnerWallet\Concerns\PartnerWalletTestHelpers;
 final class PartnerWalletPartnerIsolationFeatureTest extends CrmTestCase
 {
     use PartnerWalletTestHelpers;
+    use TbankAcquiringTestHelpers;
 
     protected function setUp(): void
     {
@@ -146,7 +148,7 @@ final class PartnerWalletPartnerIsolationFeatureTest extends CrmTestCase
         ], $this->walletAjaxHeaders())
             ->assertStatus(422)
             ->assertJsonValidationErrors(['amount'])
-            ->assertJsonPath('errors.amount.0', 'Сумма должна быть не меньше 1 ₽.');
+            ->assertJsonPath('errors.amount.0', 'Сумма для СБП должна быть не меньше 10 ₽.');
     }
 
     public function test_foreign_admin_topup_creates_pending_tx_for_own_school_not_first_partner(): void
@@ -158,9 +160,12 @@ final class PartnerWalletPartnerIsolationFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
 
+        $this->grantNamedPermission($foreignAdmin, 'platformPayments.method.yookassa', (int) $this->foreignPartner->id);
+
         $response = $this->postJson(route('partner.wallet.topup'), [
             'amount' => 40,
             'partner_id' => $this->foreignPartner->id,
+            'payment_method' => 'yookassa',
         ], $this->walletAjaxHeaders());
 
         $this->assertNotSame(422, $response->getStatusCode());

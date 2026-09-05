@@ -481,6 +481,27 @@ abstract class CrmTestCase extends TestCase
     }
 
     /**
+     * @param  array<string, mixed>  $settingsOverrides
+     * @param  array<string, mixed>  $attrs
+     */
+    protected function seedGlobalTbankAcquiring(array $settingsOverrides = [], array $attrs = []): \App\Models\PaymentSystem
+    {
+        $defaults = [
+            'terminal_key' => 'TERM_ACQ',
+            'token_password' => 'PWD_ACQ',
+        ];
+
+        return \App\Models\PaymentSystem::query()->updateOrCreate(
+            ['partner_id' => null, 'name' => 'tbank_acquiring'],
+            array_merge([
+                'test_mode' => true,
+                'is_enabled' => true,
+                'settings' => array_merge($defaults, $settingsOverrides),
+            ], $attrs)
+        );
+    }
+
+    /**
      * @param  array<string, mixed>  $overrides
      */
     protected function seedTbankCommissionRule(int $partnerId, array $overrides = []): \App\Models\TinkoffCommissionRule

@@ -438,6 +438,21 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
             ])
             ->assertOk()
             ->assertJsonPath('success', true);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('setting-prices.prolong-month.preview'), [
+                'selectedDate' => 'Сентябрь 2024',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure(['can_apply', 'counts', 'source_month', 'target_month']);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('setting-prices.prolong-month.apply'), [
+                'selectedDate' => 'Сентябрь 2024',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
     }
 
     /**
@@ -544,6 +559,20 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
                     'selectedDate' => 'Сентябрь 2024',
                     'mode'         => 'paid',
                     'comment'      => 'Access matrix',
+                ],
+            ],
+            [
+                'method' => 'POST',
+                'url'    => route('setting-prices.prolong-month.preview'),
+                'data'   => [
+                    'selectedDate' => 'Сентябрь 2024',
+                ],
+            ],
+            [
+                'method' => 'POST',
+                'url'    => route('setting-prices.prolong-month.apply'),
+                'data'   => [
+                    'selectedDate' => 'Сентябрь 2024',
                 ],
             ],
         ];

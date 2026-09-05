@@ -24,6 +24,22 @@
                                 <input type="number" step="0.01" min="1" class="form-control @error('amount') is-invalid @enderror" id="walletTopupAmount" name="amount" required>
                                 <div class="invalid-feedback @error('amount') d-block @enderror" data-error-for="amount">@error('amount'){{ $message }}@enderror</div>
                             </div>
+                            <div class="mb-3">
+                                <div class="form-label">Способ оплаты</div>
+                                @can('platformPayments.method.tbankSbp')
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_method" id="walletPayTinkoffSbp" value="tinkoff_sbp" {{ old('payment_method', $platformPaymentDefaultMethod) === 'tinkoff_sbp' ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="walletPayTinkoffSbp">T‑Bank СБП</label>
+                                </div>
+                                @endcan
+                                @can('platformPayments.method.yookassa')
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_method" id="walletPayYookassa" value="yookassa" {{ old('payment_method', $platformPaymentDefaultMethod) === 'yookassa' ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="walletPayYookassa">ЮKassa</label>
+                                </div>
+                                @endcan
+                                <div class="invalid-feedback d-block" data-error-for="payment_method">@error('payment_method'){{ $message }}@enderror</div>
+                            </div>
                             <div class="invalid-feedback d-block" data-error-for="partner_id">@error('partner_id'){{ $message }}@enderror</div>
                             <div class="invalid-feedback d-block" data-error-for="description">@error('description'){{ $message }}@enderror</div>
                             <div class="text-danger small mb-2 d-none" id="walletTopupFormError"></div>
@@ -31,7 +47,12 @@
                                 {{--<label class="form-label">Описание (необязательно)</label>--}}
                                 {{--<input type="text" class="form-control" name="description" placeholder="Пополнение баланса">--}}
                             {{--</div>--}}
+                            @if($canPayTbankSbp || $canPayYookassa)
                             <button type="submit" class="btn btn-primary w-100" id="topupBtn">Оплатить</button>
+                            @else
+                            <div class="alert alert-warning">Нет доступного способа оплаты.</div>
+                            <button type="submit" class="btn btn-primary w-100" id="topupBtn" disabled>Оплатить</button>
+                            @endif
                             {{--<div class="small text-muted mt-2">Оплата через YooKassa. После оплаты вы вернётесь на сайт.</div>--}}
                         </form>
                     </div>

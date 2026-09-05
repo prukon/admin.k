@@ -80,6 +80,8 @@ class ContractTemplateWorkflowFeatureTest extends ContractsFeatureTestCase
         $this->assertNotNull($contract->source_pdf_path);
         Storage::assertExists($contract->source_pdf_path);
 
+        $this->seedPodpislonLegalEntity();
+
         Http::fake(['*' => Http::response([['status' => 15, 'status_text' => 'sent']], 200)]);
 
         $provider = Mockery::mock(SignatureProvider::class);

@@ -29,6 +29,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
         'account',
         'users',
         'settings',
+        'platformPayments',
         'paymentMethods',
         'inAppNotifications',
         'misc',
@@ -52,6 +53,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             'account'         => 11,
             'users'           => 16,
             'settings'        => 8,
+            'platformPayments' => 2,
             'paymentMethods'  => 6,
             'inAppNotifications' => 2,
             'misc'            => 1,
@@ -204,6 +206,10 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'settings.registration.manage',
                 'settings.systemMonitors.view',
             ],
+            'platformPayments' => [
+                'platformPayments.method.tbankSbp',
+                'platformPayments.method.yookassa',
+            ],
             'paymentMethods' => [
                 'payment.method.robokassa',
                 'payment.method.tbankCard',
@@ -321,6 +327,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             'Учетная запись',
             'Управление клиентами',
             'Настройки',
+            'Оплата платформы',
             'Способы оплаты',
             'Уведомления CRM',
             'Разное',
@@ -351,11 +358,12 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
         $this->assertContains('inAppNotifications', $slugs);
         $this->assertNotContains('leads', $slugs);
         $this->assertNotContains('partner', $slugs);
+        $this->assertNotContains('platformPayments', $slugs);
         $this->assertNotContains('setPrices', $slugs);
         $this->assertNotContains('directories', $slugs);
     }
 
-    public function test_rules_controller_passes_fifteen_groups_to_view_for_superadmin(): void
+    public function test_rules_controller_passes_sixteen_groups_to_view_for_superadmin(): void
     {
         $this->asSuperadmin();
 
@@ -363,7 +371,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             ->assertOk()
             ->viewData('groups');
 
-        $this->assertCount(15, $groups);
+        $this->assertCount(16, $groups);
 
         $slugs = $groups->pluck('slug')->all();
         $this->assertEqualsCanonicalizing(self::EXPECTED_GROUP_SLUGS, $slugs);

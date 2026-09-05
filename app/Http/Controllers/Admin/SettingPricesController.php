@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\SetManualUserPricePaidRequest;
 use App\Http\Requests\Admin\SetPriceAllTeamsRequest;
 use App\Http\Requests\Admin\SetPriceAllUsersRequest;
 use App\Http\Requests\Admin\SetTeamPriceRequest;
+use App\Http\Requests\Admin\ProlongMonthlyPricesRequest;
 use App\Http\Requests\Team\FilterRequest;
 use App\Enums\AuditEvent;
 use App\Models\LessonPackage;
@@ -40,6 +41,7 @@ use App\Services\Postpay\PostpayUsersPriceSync;
 use App\Services\Pricing\UserPercentDiscount;
 use App\Services\SettingPrices\UsersPriceLessonPackageSync;
 use App\Services\SettingPrices\UsersPriceLessonPackageSyncException;
+use App\Services\SettingPrices\MonthlyPricesProlongService;
 use App\Support\Money;
 use Illuminate\Support\Carbon as SupportCarbon;
 use Illuminate\Validation\ValidationException;
@@ -63,6 +65,7 @@ class SettingPricesController extends AdminBaseController
         private readonly AuditLogger $auditLogger,
         private readonly PostpayUsersPriceSync $postpaySync,
         private readonly UsersPriceLessonPackageSync $usersPriceLessonPackageSync,
+        private readonly MonthlyPricesProlongService $monthlyPricesProlongService,
     ) {
         parent::__construct($partnerContext);
     }
@@ -1477,6 +1480,44 @@ class SettingPricesController extends AdminBaseController
         return $this->settingPricesMonthlyJsonOrRedirect($request, [
             'success' => true,
         ]);
+    }
+
+    /**
+     * Превью пролонгации абонементов выбранного месяца на следующий (без записи).
+     */
+    public function previewMonthProlong(ProlongMonthlyPricesRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        $report = $this->monthlyPricesProlongService->preview(
+            $partnerId,
+            $request->sourceMonthDate(),
+            $request->user(),
+        );
+
+        return response()->json($report->toArray(false));
+    }
+
+    /**
+     * Пролонгация абонементов выбранного месяца на следующий по всем группам партнёра.
+     */
+    public function applyMonthProlong(ProlongMonthlyPricesRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        $report = $this->monthlyPricesProlongService->apply(
+            $partnerId,
+            $request->sourceMonthDate(),
+            $request->user(),
+        );
+
+        $this->auditLogger->record(
+            AuditEvent::PricingMonthProlonged,
+            AuditContext::make(
+                $report->sourceLabel.' → '.$report->targetLabel.'. '.$report->summaryMessage(true)
+            )
+                ->withCreatedAt(now())
+        );
+
+        return $this->settingPricesMonthlyJsonOrRedirect($request, $report->toArray(true));
     }
 
     // AJAX ПРИМЕНИТЬ справа. Установка цен всем ученикам (массово по команде, вкладка "по месяцам")

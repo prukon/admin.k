@@ -120,7 +120,7 @@ final class PartnerServicePaymentPartnerIsolationFeatureTest extends CrmTestCase
     public function test_create_rejects_foreign_partner_id(): void
     {
         $this->from(route('partner.payment.recharge'))
-            ->post(route('createPaymentYookassa'), [
+            ->post(route('partner.payment.tinkoff.sbp'), [
                 'amount' => 2500,
                 'days' => 29,
                 'partner_id' => $this->foreignPartner->id,
@@ -138,7 +138,7 @@ final class PartnerServicePaymentPartnerIsolationFeatureTest extends CrmTestCase
 
     public function test_create_json_rejects_foreign_partner_id_with_field_error(): void
     {
-        $this->postJson(route('createPaymentYookassa'), [
+        $this->postJson(route('partner.payment.tinkoff.sbp'), [
             'amount' => 2500,
             'days' => 29,
             'partner_id' => $this->foreignPartner->id,

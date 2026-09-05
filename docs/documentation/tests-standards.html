@@ -172,6 +172,10 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
         <td><code>seedGlobalTbank(…)</code></td>
         <td>Глобальный терминал <code>payment_systems(partner_id=NULL, name=tbank)</code>.</td>
       </tr>
+      <tr>
+        <td><code>seedGlobalTbankAcquiring(…)</code></td>
+        <td>Глобальный терминал обычного эквайринга <code>payment_systems(partner_id=NULL, name=tbank_acquiring)</code>.</td>
+      </tr>
     </tbody>
   </table>
 
@@ -229,6 +233,9 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
       леджер договоров <code>ContractBillingWalletLedgerFeatureTest</code>,
       <a href="/docs/documentation/partner-wallet">partner-wallet</a>,
       <a href="/doc#partner-wallet-ledger-index">анонс</a></li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankAcquiring*FeatureTest.php</code> —
+      обычный эквайринг: кошелёк ЮKassa/СБП, абонплата CRM, webhook isolation, QR без <code>tbankSBP</code>
+      (<a href="/docs/documentation/partner-wallet#tbank-sbp">partner-wallet §8</a>)</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — локальный <code>seedTbankForPartner()</code> (образец до выноса в <code>CrmTestCase</code>); базовый flow public-pay-link</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — UI checkout на <code>/p/{code}</code> и <code>/pay/ulp/{token}</code>, доступы, JSON QR (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>)</li>
   </ul>

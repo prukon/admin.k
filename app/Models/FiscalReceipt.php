@@ -23,6 +23,10 @@ class FiscalReceipt extends Model
 
     public const PROVIDER_CLOUDKASSIR = 'cloudkassir';
 
+    public const SOURCE_MARKETPLACE = 'marketplace';
+
+    public const SOURCE_PLATFORM = 'platform';
+
     public const TYPE_INCOME = 'income';
     public const TYPE_INCOME_RETURN = 'income_return';
 
@@ -54,6 +58,23 @@ class FiscalReceipt extends Model
     public function payable()
     {
         return $this->belongsTo(Payable::class, 'payable_id');
+    }
+
+    public function walletTransaction()
+    {
+        return $this->belongsTo(PartnerWalletTransaction::class, 'wallet_transaction_id');
+    }
+
+    public function partnerPayment()
+    {
+        return $this->belongsTo(PartnerPayment::class, 'partner_payment_id');
+    }
+
+    public function isPlatformSale(): bool
+    {
+        return $this->source === self::SOURCE_PLATFORM
+            || $this->wallet_transaction_id
+            || $this->partner_payment_id;
     }
 
     public function scopeIncome($query)

@@ -87,6 +87,8 @@ return [
             'account.documents.view',
             // 'servicePayments.view',
             'partnerWallet.view',
+            'platformPayments.method.tbankSbp',
+            // 'platformPayments.method.yookassa',
             'schoolLeads.view',
             'schoolLeadLanding.view',
             // 'schoolWidget.view',

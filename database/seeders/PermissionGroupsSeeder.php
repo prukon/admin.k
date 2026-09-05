@@ -122,6 +122,15 @@ class PermissionGroupsSeeder extends Seeder
                 'updated_at'  => $now,
             ],
             [
+                'slug'        => 'platformPayments',
+                'name'        => 'Оплата платформы',
+                'description' => 'Способы оплаты кошелька школы и абонплаты KidsCRM (не витрина родителей)',
+                'is_visible'  => 1,
+                'sort_order'  => 34,
+                'created_at'  => $now,
+                'updated_at'  => $now,
+            ],
+            [
                 'slug'        => 'paymentMethods',
                 'name'        => 'Способы оплаты',
                 'description' => null,

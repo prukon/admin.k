@@ -17,6 +17,7 @@ use App\Models\TinkoffPayout;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use App\Jobs\TinkoffProcessRefundJob;
+use App\Services\TeamUserSyncService;
 use Tests\Feature\Crm\CrmTestCase;
 
 class PaymentReportTest extends CrmTestCase
@@ -854,6 +855,139 @@ class PaymentReportTest extends CrmTestCase
         $ids = $data->pluck('id')->map(fn($v) => (int) $v)->values()->all();
         $this->assertSame($pA->id, $ids[0] ?? null);
         $this->assertSame($pZ->id, $ids[1] ?? null);
+    }
+
+    /**
+     * (P0) Глобальный поиск DataTables находит платёж по фамилии ученика,
+     * даже если payments.user_name пустой/другой (колонка ФИО из users).
+     */
+    public function test_getPayments_datatables_search_by_lastname(): void
+    {
+        $hit = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'ХармУникPay',
+            'name' => 'Иван',
+        ]);
+        $miss = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Другой',
+            'name' => 'Пётр',
+        ]);
+
+        $pHit = Payment::factory()->create([
+            'user_id' => $hit->id,
+            'user_name' => null,
+            'summ_cents' => 10000,
+        ]);
+        $pMiss = Payment::factory()->create([
+            'user_id' => $miss->id,
+            'user_name' => null,
+            'summ_cents' => 20000,
+        ]);
+
+        $params = $this->dataTablesBaseParams();
+        $params['search'] = ['value' => 'ХармУникPay'];
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments', $params))
+            ->assertOk();
+
+        $ids = collect($response->json('data') ?? [])->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $this->assertContains($pHit->id, $ids);
+        $this->assertNotContains($pMiss->id, $ids);
+    }
+
+    /**
+     * (P0) Глобальный поиск DataTables находит платёж по имени ученика.
+     */
+    public function test_getPayments_datatables_search_by_firstname(): void
+    {
+        $hit = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Сидоров',
+            'name' => 'УникИмяPay',
+        ]);
+        $miss = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Сидоров',
+            'name' => 'Пётр',
+        ]);
+
+        $pHit = Payment::factory()->create([
+            'user_id' => $hit->id,
+            'user_name' => null,
+            'summ_cents' => 10000,
+        ]);
+        $pMiss = Payment::factory()->create([
+            'user_id' => $miss->id,
+            'user_name' => null,
+            'summ_cents' => 20000,
+        ]);
+
+        $params = $this->dataTablesBaseParams();
+        $params['search'] = ['value' => 'УникИмяPay'];
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments', $params))
+            ->assertOk();
+
+        $ids = collect($response->json('data') ?? [])->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $this->assertContains($pHit->id, $ids);
+        $this->assertNotContains($pMiss->id, $ids);
+    }
+
+    /**
+     * (P1) Глобальный поиск DataTables по названию группы (снимок / оплаченная группа / pivot).
+     */
+    public function test_getPayments_datatables_search_by_team_title(): void
+    {
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'ГруппаХармPay',
+        ]);
+        $otherTeam = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'ДругаяГруппаPay',
+        ]);
+        $hit = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'БезСовпаденияPay',
+        ]);
+        $miss = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'ТожеБезPay',
+        ]);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($hit, [(int) $team->id]);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($miss, [(int) $otherTeam->id]);
+
+        $pHit = Payment::factory()->create([
+            'user_id' => $hit->id,
+            'team_id' => $team->id,
+            'team_title' => $team->title,
+            'user_name' => null,
+            'summ_cents' => 10000,
+        ]);
+        $pMiss = Payment::factory()->create([
+            'user_id' => $miss->id,
+            'team_id' => $otherTeam->id,
+            'team_title' => $otherTeam->title,
+            'user_name' => null,
+            'summ_cents' => 20000,
+        ]);
+
+        $params = $this->dataTablesBaseParams();
+        $params['search'] = ['value' => 'ГруппаХармPay'];
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments', $params))
+            ->assertOk();
+
+        $ids = collect($response->json('data') ?? [])->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $this->assertContains($pHit->id, $ids);
+        $this->assertNotContains($pMiss->id, $ids);
     }
 
     /**

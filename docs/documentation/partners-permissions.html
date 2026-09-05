@@ -134,6 +134,12 @@
       <li><code>setPrices.packageAssignments.view</code> — назначения абонементов (вкладка админки); нужно вместе с <code>lessonPackages.view</code> — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>;</li>
       <li><code>setPrices.cabinetPackages.fixed.view</code> / <code>.flexible.view</code> / <code>.single.view</code> / <code>.postpay.view</code> — отображение типов абонементов на консоли; скрытые; не в базовых ролях —
         <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>;</li>
+      <li><code>platformPayments.method.yookassa</code> — ЮKassa на кошельке и абонплате CRM; скрытое; не в базовых ролях.
+        T‑Bank СБП платформы (<code>platformPayments.method.tbankSbp</code>) <b>в</b> базовой роли <code>admin</code>
+        только для <b>новых</b> школ; существующим миграция не выдаёт —
+        <a href="/docs/documentation/partner-wallet#tbank-sbp">partner-wallet §8</a>,
+        <a href="/doc#platform-payments-methods-index">анонс прав</a>,
+        <a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>;</li>
       <li><code>lessonPackages.type.postpay</code> — тип абонемента «Постоплата» (<code>schedule_type=postpay</code>); скрытое; UI option + store/update + выбор в «Установка цен» —
         <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>,
         <a href="/docs/documentation/postpay">postpay</a>;</li>

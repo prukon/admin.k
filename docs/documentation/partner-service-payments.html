@@ -24,7 +24,9 @@
 <body>
 <div class="wrap">
   <p class="small"><a href="/docs/documentation/">← К оглавлению</a> · в кабинете также <code>/doc</code>
-    · анонс <a href="/doc#partner-service-payment-isolation-index">/doc#partner-service-payment-isolation-index</a></p>
+    · анонс <a href="/doc#partner-service-payment-isolation-index">/doc#partner-service-payment-isolation-index</a>
+    · обычный эквайринг <a href="/doc#tbank-acquiring-platform-index">/doc#tbank-acquiring-platform-index</a>
+    · права способов <a href="/doc#platform-payments-methods-index">/doc#platform-payments-methods-index</a></p>
   <h1>Оплата сервиса</h1>
   <div class="small">Страницы <code>/partner-payment/recharge</code> и
     <code>/partner-payment/history</code> · право <code>servicePayments.view</code> ·
@@ -62,12 +64,15 @@
           Чужие строки не в <code>data</code> / <code>recordsTotal</code>.</td>
       </tr>
       <tr>
-        <td><code>POST payment/service/yookassa</code></td>
+        <td><code>POST payment/service/tinkoff-sbp</code></td>
         <td><code>CreatePartnerServicePaymentRequest</code>: <code>partner_id</code>
           обязан совпасть с current — иначе <b>422</b> / 302
           <code>errors.partner_id</code> «Нельзя оплатить сервис за другую школу.»
-          (до ЮKassa запись не создаётся). Запись —
-          <code>partner_id</code> из <code>PartnerContext</code>.</td>
+          (до T‑Bank запись не создаётся). Запись —
+          <code>partner_id</code> из <code>PartnerContext</code>. Оплата — T‑Bank СБП
+          обычного эквайринга (<code>tbank_acquiring</code>) или ЮKassa
+          (если есть <code>platformPayments.method.yookassa</code>), чек CloudKassir
+          «Оплата доступа KidsCRM» для СБП.</td>
       </tr>
     </tbody>
   </table>
@@ -85,19 +90,46 @@
     <li>Валидация в <code>CreatePartnerServicePaymentRequest</code> (rules / attributes / messages).</li>
     <li>Native POST: 302 назад + <code>session errors[field]</code> под полями
       (<code>data-error-for="partner_id"</code>, <code>amount</code>, <code>days</code>,
-      <code>description</code>).</li>
+      <code>description</code>, <code>payment_method</code>).</li>
     <li>AJAX / <code>postJson</code>: 422, тексты из <code>errors[field]</code>.</li>
   </ul>
 
   <h2 id="code">4) Код и тесты</h2>
   <ul>
-    <li>Контроллер: <code>App\Http\Controllers\PartnerPaymentController</code>.</li>
+    <li>Контроллер: <code>App\Http\Controllers\PartnerPaymentController::createPaymentTinkoffSbp</code>.</li>
+    <li>Маршрут: <code>POST payment/service/tinkoff-sbp</code> (<code>partner.payment.tinkoff.sbp</code>)
+      — диспетчер по <code>payment_method</code> (T‑Bank СБП или ЮKassa). Маршрут
+      <code>createPaymentYookassa</code> не существует.</li>
+    <li>После оплаты: <code>GET /partner-payment/success</code> — кнопка «К истории оплаты сервиса»
+      ведёт на <code>/partner-payment/history</code> (не «Вернуться в кошелёк»).
+      Зачисление СБП по <code>POST /webhooks/tinkoff/acquiring</code>; ЮKassa —
+      <code>/webhook/yookassa</code> (<code>partner_payments.payment_id</code> = id платежа ЮKassa).</li>
+    <li>Форма recharge: радио способов по <code>@can</code>
+      <code>platformPayments.method.tbankSbp</code> /
+      <code>platformPayments.method.yookassa</code> (группа «Оплата платформы»).
+      Если оба права — дефолт T‑Bank. Без права — кнопка disabled.
+      Витринные <code>payment.method.*</code> абонплату не открывают.
+      После 422 выбранный radio сохраняется через <code>old()</code>.
+      Форма — native POST (не AJAX).
+      <code>action</code> на <code>partner.payment.tinkoff.sbp</code>.</li>
     <li>Request: <code>App\Http\Requests\Partner\CreatePartnerServicePaymentRequest</code>.</li>
     <li>Тесты:
       <code>PartnerServicePaymentPartnerIsolationFeatureTest</code>,
       <code>PartnerServicePaymentAccessFeatureTest</code>,
       <code>PartnerServicePaymentDocumentationContractTest</code>,
-      <code>BladeInlineJsSyntaxTest::test_partner_service_payment_form_uses_current_partner_id</code>.</li>
+      <code>BladeInlineJsSyntaxTest::test_partner_service_payment_form_uses_current_partner_id</code>,
+      <code>TbankAcquiringPlatformPaymentsFeatureTest</code>,
+      <code>TbankAcquiringAccessFeatureTest</code>,
+      <code>TbankAcquiringAjaxContractFeatureTest</code>,
+      <code>TbankAcquiringNonAjaxSafetyNetFeatureTest</code>,
+      <code>TbankAcquiringUxFeatureTest</code>,
+      <code>TbankAcquiringQrAccessFeatureTest</code>,
+      <code>TbankAcquiringDocumentationContractTest</code>,
+      <code>PlatformPaymentsMethodAccessFeatureTest</code>,
+      <code>PlatformPaymentsMethodUxFeatureTest</code>,
+      <code>PlatformPaymentsMethodAjaxContractFeatureTest</code>,
+      <code>PlatformPaymentsMethodNonAjaxSafetyNetFeatureTest</code>,
+      <code>PlatformPaymentsMethodFullAccessFeatureTest</code>.</li>
   </ul>
   <p class="small">Контекст: <a href="/docs/documentation/partner-context">partner-context</a>,
     кошелёк: <a href="/docs/documentation/partner-wallet">partner-wallet</a>,

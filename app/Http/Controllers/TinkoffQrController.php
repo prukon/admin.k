@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\PaymentIntent;
+use App\Services\Tinkoff\TbankAcquiringTerminalConfig;
 use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Services\Tinkoff\TinkoffApiClient;
 use App\Services\Tinkoff\TinkoffSignature;
@@ -35,10 +36,7 @@ class TinkoffQrController extends Controller
     // 2) Страница с QR
     public function show(Request $request, $paymentId)
     {
-        $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
-        if (!$tp || (int) $tp->partner_id !== (int) app('current_partner')->id) {
-            abort(404);
-        }
+        $tp = $this->ownedPaymentOrAbort($paymentId);
         $orderId = $tp->order_id;
 
         $intent = PaymentIntent::query()
@@ -60,11 +58,14 @@ class TinkoffQrController extends Controller
 
         $amountKop = (int) $tp->amount;
         $amountRubFormatted = number_format($amountKop / 100, 2, '.', '');
+        $isAcquiring = $this->isAcquiring($tp);
+        $successUrl = $this->successUrlFor($tp, $orderId);
+        $scope = $this->scopeFor($tp);
 
         return view('tinkoff.qr', [
             'paymentId' => $paymentId,
             'amountRubFormatted' => $amountRubFormatted,
-            'successUrl' => $orderId ? url('/payments/tinkoff/' . $orderId . '/success') : url('/payment/success'),
+            'successUrl' => $successUrl,
             'stateUrl' => url('/tinkoff/qr/' . $paymentId . '/state'),
             'qrUrl' => url('/tinkoff/qr/' . $paymentId . '/json'),
             'nspkPayloadUrl' => url('/tinkoff/qr/' . $paymentId . '/payload'),
@@ -72,7 +73,13 @@ class TinkoffQrController extends Controller
             'backOutSum' => $backOutSum,
             'backPaymentDate' => $backPaymentDate,
             'backFormatedPaymentDate' => $backFormatedPaymentDate,
-            'canReturnToPaymentChoice' => $intent !== null,
+            'canReturnToPaymentChoice' => $intent !== null && ! $isAcquiring,
+            'acquiringBackUrl' => $scope === 'partner_wallet_topup'
+                ? url('/partner-wallet')
+                : ($scope === 'partner_service_payment' ? url('/partner-payment/recharge') : null),
+            'acquiringBackLabel' => $scope === 'partner_wallet_topup'
+                ? 'К кошельку'
+                : ($scope === 'partner_service_payment' ? 'К оплате сервиса' : null),
         ]);
     }
 
@@ -127,12 +134,9 @@ class TinkoffQrController extends Controller
 
     private function getQrByDataType(string $paymentId, string $dataType)
     {
-        $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
-        if (!$tp || (int) $tp->partner_id !== (int) app('current_partner')->id) {
-            return response()->json(['Success' => false, 'Message' => 'Payment not found'], 404);
-        }
+        $tp = $this->ownedPaymentOrAbort($paymentId, json: true);
 
-        $cfg = $this->resolvePaymentConfig((int) $tp->partner_id);
+        $cfg = $this->resolvePaymentConfig($tp);
         $payload = [
             'TerminalKey' => $cfg['terminal_key'],
             'PaymentId'   => $paymentId,
@@ -149,12 +153,9 @@ class TinkoffQrController extends Controller
     // 4) AJAX — получить состояние платежа (GetState) для QR-страницы
     public function state($paymentId)
     {
-        $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
-        if (!$tp || (int) $tp->partner_id !== (int) app('current_partner')->id) {
-            return response()->json(['Success' => false, 'Message' => 'Payment not found'], 404);
-        }
+        $tp = $this->ownedPaymentOrAbort($paymentId, json: true);
 
-        $cfg = $this->resolvePaymentConfig((int) $tp->partner_id);
+        $cfg = $this->resolvePaymentConfig($tp);
         $payload = [
             'TerminalKey' => $cfg['terminal_key'],
             'PaymentId'   => $paymentId,
@@ -165,8 +166,66 @@ class TinkoffQrController extends Controller
         return response()->json($res);
     }
 
-    private function resolvePaymentConfig(int $partnerId): array
+    /**
+     * @return array{terminal_key: string, password: string, base_url: string}
+     */
+    private function resolvePaymentConfig(TinkoffPayment $tp): array
     {
+        if ($this->isAcquiring($tp)) {
+            return TbankAcquiringTerminalConfig::paymentConfig();
+        }
+
         return TbankTerminalConfig::paymentConfig();
+    }
+
+    private function isAcquiring(TinkoffPayment $tp): bool
+    {
+        return (string) ($tp->channel ?? TinkoffPayment::CHANNEL_MULTISPLIT) === TinkoffPayment::CHANNEL_ACQUIRING;
+    }
+
+    private function ownedPaymentOrAbort(string $paymentId, bool $json = false): TinkoffPayment
+    {
+        $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
+        if (! $tp || (int) $tp->partner_id !== (int) app('current_partner')->id) {
+            if ($json) {
+                abort(response()->json(['Success' => false, 'Message' => 'Payment not found'], 404));
+            }
+            abort(404);
+        }
+
+        $user = auth()->user();
+        if ($this->isAcquiring($tp)) {
+            if (! $user || (! $user->can('partnerWallet.view') && ! $user->can('servicePayments.view'))) {
+                abort(403);
+            }
+
+            return $tp;
+        }
+
+        if (! $user || ! $user->can('payment.method.tbankSBP')) {
+            abort(403);
+        }
+
+        return $tp;
+    }
+
+    private function successUrlFor(TinkoffPayment $tp, ?string $orderId): string
+    {
+        $fromPayload = is_array($tp->payload) ? (string) ($tp->payload['success_url'] ?? '') : '';
+        if ($fromPayload !== '') {
+            return $fromPayload;
+        }
+
+        return $orderId ? url('/payments/tinkoff/' . $orderId . '/success') : url('/payment/success');
+    }
+
+    private function scopeFor(TinkoffPayment $tp): string
+    {
+        $init = is_array($tp->payload) ? ($tp->payload['init_data'] ?? []) : [];
+        if (is_array($init) && isset($init['scope'])) {
+            return (string) $init['scope'];
+        }
+
+        return '';
     }
 }

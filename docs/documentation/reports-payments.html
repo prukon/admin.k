@@ -56,6 +56,24 @@
     <li>LTV, «Платежи по месяцам», задолженности — см. <a href="/docs/documentation/student-team-membership">student-team-membership §5</a> и <a href="/docs/documentation/reports-admin">reports-admin</a>.</li>
   </ul>
 
+  <h2 id="datatable-search">1.2) Поиск DataTables (поле над таблицей)</h2>
+  <div class="note">
+    Глобальный поиск (<code>search.value</code>) ищет <b>только ФИО ученика и название группы</b>.
+    Сумма, месяц абонемента, дата операции и локация в это поле не входят — для них есть фильтры формы
+    (Select2 / дата), не это поле.
+    Анонс по четырём отчётам: <a href="/doc#reports-datatable-search-index">/doc</a>.
+  </div>
+  <ul>
+    <li><b>ФИО</b>: <code>users.lastname</code>, <code>users.name</code>, <code>TRIM(CONCAT(lastname, name))</code>, запасной снимок <code>payments.user_name</code> (как в колонке и сортировке).</li>
+    <li><b>Группа</b>: снимок <code>payments.team_title</code>, название <code>teams</code> для <code>payments.team_id</code>, любая группа ученика в pivot (как текстовый <code>team_title</code> в §1.1).</li>
+    <li><b>Реализация</b>: <code>PaymentReportController::applyPaymentsDataTableSearch</code> и Yajra <code>filter($callback)</code> <b>без</b> второго аргумента <code>true</code>.
+      <code>filter($cb, true)</code> включает дефолтный autoFilter: тогда ищется снимок <code>payments.user_name</code> вместо фамилии/имени и SQL может упасть на addColumn-полях.</li>
+    <li>В UI у колонок кроме ФИО и группы стоит <code>searchable: false</code>.</li>
+    <li>Пустая строка и пробелы (<code>trim</code>) — как отсутствие поиска: строки не прячутся. Символы <code>%</code> и <code>_</code> экранируются и не работают как LIKE-wildcard.</li>
+    <li>Поиск действует только на таблицу (<code>recordsFiltered</code>). Шапка «Общая сумма» (<code>/payments/total</code>) его не учитывает — там только фильтры формы.</li>
+    <li>«Применить» / «Сброс» фильтров делают <code>dtApi.reload()</code>, таблицу не пересоздают — поле поиска не сбрасывается.</li>
+  </ul>
+
   <h2>2) Локация (при праве <code>locations.view</code>)</h2>
   <ul>
     <li><b>Колонка</b> «Локация» — после «Группа», ключ в настройках колонок: <code>location</code>.</li>
@@ -274,7 +292,15 @@ net_to_partner   = gross - commission_total</pre>
   <h2>9) Автотесты</h2>
   <div class="note">
     Фичтесты покрывают доступ к странице и эндпоинтам, зависимость кнопки «История» и API от <code>viewing.all.logs</code>, модалку в HTML,
-    чекбоксы колонок от <code>reports.additional.value.view</code>, полный сценарий 200 при выдаче всех нужных прав:
+    чекбоксы колонок от <code>reports.additional.value.view</code>, полный сценарий 200 при выдаче всех нужных прав,
+    глобальный поиск DataTables по фамилии, имени и группе (§1.2):
+    <br><code>tests/Feature/Crm/Reports/ReportsDatatableSearchFeatureTest.php</code>
+    (гость / без <code>reports.view</code> / AJAX JSON, UX: пустой снимок <code>payments.user_name</code>, LTV без 42S22 при <code>columns[]</code> как в UI;
+    поиск не цепляет сумму/месяц/локацию; пробелы/%/_; filter+search; <code>searchable: false</code> в HTML),
+    <br><code>tests/Feature/Crm/Reports/ReportsDatatableSearchFullAccessFeatureTest.php</code>
+    (четыре страницы: guest/403/с правом/SA, non-AJAX 404, методы без 500, вложенные monthly/LTV, total игнорирует <code>search.value</code>, без организации),
+    <br><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (<code>test_payments_and_ltv_datatable_search_js_contract</code>, <code>test_monthly_and_intents_datatable_search_js_contract</code>, <code>test_four_report_pages_keep_search_box_on_filter_reload</code>, <code>node --check</code>),
+    <br><code>tests/Unit/Documentation/ReportsDatatableSearchDocumentationContractTest.php</code> (анонс <code>/doc#reports-datatable-search-index</code>),
     <br><code>tests/Feature/Crm/Reports/PaymentReportTest.php</code>,
     <br><code>tests/Feature/Crm/Reports/PaymentReportTeamPivotFeatureTest.php</code> (колонка/фильтр с <code>payments.team_id</code> и legacy),
     <br><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> (колонка/фильтр локации, <code>locations.view</code>),
@@ -285,7 +311,12 @@ net_to_partner   = gross - commission_total</pre>
     Сценарии возврата T‑Bank и отмены отложенной выплаты (в т.ч. колонка <code>refund_action</code>): см. раздел 5.1 и
     <a href="/docs/documentation/tbank-refunds-payout-cancel">tbank-refunds-payout-cancel.html</a>.
   </div>
-  <pre><code>php artisan test --env=testing --filter PaymentReport</code></pre>
+  <pre><code>php artisan test --env=testing tests/Unit/Documentation/ReportsDatatableSearchDocumentationContractTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsDatatableSearchFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsMonthlyIntentsDatatableSearchFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsDatatableSearchFullAccessFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php --filter 'test_payments_and_ltv_datatable_search_js_contract|test_monthly_and_intents_datatable_search_js_contract|test_four_report_pages_keep_search_box'
+php artisan test --env=testing --filter PaymentReport</code></pre>
 </div>
 </body>
 </html>

@@ -367,6 +367,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/setting-prices/set-team-price', [SettingPricesController::class, 'setTeamPrice'])->name('setTeamPrice');
         Route::post('admin/setting-prices/set-price-all-teams', [SettingPricesController::class, 'setPriceAllTeams'])->name('setPriceAllTeams');
         Route::post('admin/setting-prices/set-price-all-users', [SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers');
+        Route::post('admin/setting-prices/prolong-month/preview', [SettingPricesController::class, 'previewMonthProlong'])->name('setting-prices.prolong-month.preview');
+        Route::post('admin/setting-prices/prolong-month', [SettingPricesController::class, 'applyMonthProlong'])->name('setting-prices.prolong-month.apply');
         Route::get('admin/setting-prices/logs-data', [SettingPricesController::class, 'getLogsData'])->name('logs.data.settingPrice');
         Route::post('admin/setting-prices/update-date', [SettingPricesController::class, 'updateDate'])->name('updateDate');
 
@@ -1052,7 +1054,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('partner-payment/recharge', [PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge');
         Route::get('partner-payment/history', [PartnerPaymentController::class, 'showHistory'])->name('partner.payment.history');
         Route::get('partner-payment/data', [PartnerPaymentController::class, 'getPaymentsData'])->name('partner.payment.data');
-        Route::post('payment/service/yookassa', [PartnerPaymentController::class, 'createPaymentYookassa'])->name('createPaymentYookassa');
+        Route::post('payment/service/tinkoff-sbp', [PartnerPaymentController::class, 'createPaymentTinkoffSbp'])->name('partner.payment.tinkoff.sbp');
+        Route::get('partner-payment/success', [PartnerPaymentController::class, 'partnerPaymentSuccess'])->name('partner.payment.success');
     });
 
     //Страница О сервисе
@@ -1168,7 +1171,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:partnerWallet.view')->group(function () {
         Route::get('/partner-wallet', [PartnerPaymentController::class, 'showWallet'])->name('partner.wallet');
         // Создать платёж на пополнение кошелька
-        Route::post('/partner-wallet/topup', [PartnerPaymentController::class, 'createWalletTopupYookassa'])->name('partner.wallet.topup');
+        Route::post('/partner-wallet/topup', [PartnerPaymentController::class, 'createWalletTopup'])->name('partner.wallet.topup');
         // История транзакций кошелька (DataTables)
         Route::get('/partner-wallet/transactions', [PartnerPaymentController::class, 'getWalletTransactionsData'])->name('partner.wallet.transactions');
         // Возврат после оплаты (YooKassa redirect) — просто страница "обрабатывается"
@@ -1182,13 +1185,13 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     Route::middleware('can:payment.method.tbankSBP')->group(function () {
         Route::post('/payments/tinkoff/sbp', [TinkoffPaymentController::class, 'createSbp'])->name('payment.tinkoff.sbp');
+    });
 
-        // QR СБП (страница плательщика)
+        // QR СБП (страница плательщика): мультисплит — tbankSBP; кошелёк/абонплата — partnerWallet.view / servicePayments.view
         Route::get('/tinkoff/qr/{paymentId}', [TinkoffQrController::class, 'show'])->name('tinkoff.qr');
         Route::get('/tinkoff/qr/{paymentId}/json', [TinkoffQrController::class, 'getQr']);
         Route::get('/tinkoff/qr/{paymentId}/payload', [TinkoffQrController::class, 'getQrPayload'])->name('tinkoff.qr.payload');
         Route::get('/tinkoff/qr/{paymentId}/state', [TinkoffQrController::class, 'state'])->name('tinkoff.qr.state');
-    });
 
     // Выплаты T-Bank (роль "бухгалтер" + суперадмин) (feature test +)
     Route::middleware('can:tbank.payouts.manage')->group(function () {
@@ -1315,6 +1318,7 @@ Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle']
 Route::get('/payments/tinkoff/{order}/success', [TinkoffPaymentController::class, 'success'])->name('payments.tinkoff.success');
 Route::get('/payments/tinkoff/{order}/fail', [TinkoffPaymentController::class, 'fail'])->name('payments.tinkoff.fail');
 Route::post('/webhooks/tinkoff/payments', [TinkoffWebhookController::class, 'payments']);
+Route::post('/webhooks/tinkoff/acquiring', [TinkoffWebhookController::class, 'acquiring']);
 
 // Публичная оплата абонемента по СБП (ссылка без авторизации)
 Route::middleware(['throttle:ulp-public-pay'])->group(function () {

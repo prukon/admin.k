@@ -8,11 +8,15 @@ use App\Models\Partner;
 use App\Models\PartnerAccess;
 use App\Models\PartnerPayment;
 use App\Models\PartnerWalletTransaction;
+use App\Services\Tinkoff\TbankAcquiringTerminalConfig;
+use App\Services\Tinkoff\TinkoffAcquiringPaymentsService;
 use App\Support\Money;
+use App\Support\PlatformPaymentMethods;
 
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 //use Yajra\DataTables\DataTables;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -28,19 +32,19 @@ class PartnerPaymentController extends AdminBaseController
 //    Страница Пополнить счет
     public function showRecharge()
     {
-        return view('payment.paymentPartner', [
+        return view('payment.paymentPartner', array_merge([
             'activeTab' => 'recharge',
             'partner' => $this->currentUserPartnerOrFail(),
-        ]);
+        ], PlatformPaymentMethods::viewState(auth()->user())));
     }
 
     //    Страница История платежей
     public function showHistory()
     {
-        return view('payment.paymentPartner', [
+        return view('payment.paymentPartner', array_merge([
             'activeTab' => 'history',
             'partner' => $this->currentUserPartnerOrFail(),
-        ]);
+        ], PlatformPaymentMethods::viewState(auth()->user())));
     }
 
 //    Формирование таблицы для Истории платежей
@@ -106,21 +110,41 @@ class PartnerPaymentController extends AdminBaseController
             ->make(true);
     }
 
-    //    Формирование платежа Yookassa
-    public function createPaymentYookassa(CreatePartnerServicePaymentRequest $request)
+    //    Формирование платежа абонплаты (T‑Bank СБП или ЮKassa)
+    public function createPaymentTinkoffSbp(CreatePartnerServicePaymentRequest $request, TinkoffAcquiringPaymentsService $acquiring)
     {
         $data = $request->validated();
 
         $partner = $this->currentUserPartnerOrFail();
         $this->guardPartnerAccess((int) $data['partner_id']);
 
-        $client = new Client();
-        $client->setAuth(config('yookassa.shop_id'), config('yookassa.secret_key'));
+        if (($data['payment_method'] ?? PlatformPaymentMethods::METHOD_TBANK_SBP) === PlatformPaymentMethods::METHOD_YOOKASSA) {
+            return $this->createServicePaymentYookassa($data, $partner);
+        }
+
+        return $this->createServicePaymentTinkoffSbpInner($data, $partner, $acquiring);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function createServicePaymentTinkoffSbpInner(array $data, Partner $partner, TinkoffAcquiringPaymentsService $acquiring)
+    {
+        if (! TbankAcquiringTerminalConfig::isActive()) {
+            throw ValidationException::withMessages([
+                'message' => 'Оплата T‑Bank СБП не подключена на платформе.',
+            ]);
+        }
+
+        $partnerEmail = trim((string) ($partner->email ?? ''));
+        if ($partnerEmail === '') {
+            throw ValidationException::withMessages([
+                'message' => 'У школы не указан email. Он нужен для чека.',
+            ]);
+        }
 
         $amount = (float) $data['amount'];
-        $days = (int) $data['days'];
         $partnerId = (int) $partner->id;
-        $description = $data['description'];
         $curUser = auth()->user();
 
         if (!$curUser) {
@@ -128,109 +152,162 @@ class PartnerPaymentController extends AdminBaseController
         }
         $curUserId = $curUser->id;
 
+        try {
+            $partnerPayment = $this->createPendingServicePayment($data, $partner, PlatformPaymentMethods::METHOD_TBANK_SBP);
 
-        if ($curUser->email){
-            $curUserEmail = $curUser->email;
-        } else {
-            $curUserEmail = "test@test.ru";
+            $tinkoffPayment = $acquiring->initSbp(
+                $partnerId,
+                Money::toCentsOrFail($amount),
+                [
+                    'scope' => TinkoffAcquiringPaymentsService::SCOPE_SERVICE_PAYMENT,
+                    'partner_payment_id' => (string) $partnerPayment->id,
+                    'partner_id' => (string) $partnerId,
+                    'user_id' => (string) $curUserId,
+                ],
+                url('/partner-payment/success'),
+            );
+
+            if (empty($tinkoffPayment->tinkoff_payment_id)) {
+                throw new \RuntimeException('Не удалось инициализировать оплату T‑Bank (СБП)');
+            }
+
+            $partnerPayment->payment_id = (string) $tinkoffPayment->tinkoff_payment_id;
+            $partnerPayment->save();
+
+            return redirect()->route('tinkoff.qr', $tinkoffPayment->tinkoff_payment_id);
+
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Ошибка при создании платежа абонплаты T‑Bank: '.$e->getMessage());
+
+            return back()->withErrors(['message' => 'Ошибка: '.$e->getMessage()]);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function createServicePaymentYookassa(array $data, Partner $partner)
+    {
+        $amount = (float) $data['amount'];
+        $partnerId = (int) $partner->id;
+        $description = (string) $data['description'];
+
+        $client = new Client();
+        $client->setAuth(config('yookassa.shop_id'), config('yookassa.secret_key'));
+
+        $user = auth()->user();
+        if (!$user) {
+            return back()->withErrors(['message' => 'Пользователь не аутентифицирован.']);
+        }
+        $email = $user->email ?: 'test@test.ru';
 
         try {
+            $partnerPayment = $this->createPendingServicePayment($data, $partner, PlatformPaymentMethods::METHOD_YOOKASSA);
+
             $payment = $client->createPayment([
                 'amount' => [
-                    'value' => $amount,
+                    'value'    => number_format($amount, 2, '.', ''),
                     'currency' => 'RUB',
                 ],
                 'confirmation' => [
-                    'type' => 'redirect',
-                    'return_url' => config('yookassa.success_url'),
-//                    'return_url' => $returnUrl,
+                    'type'       => 'redirect',
+                    'return_url' => url('/partner-payment/success'),
                 ],
-                'capture' => true,
+                'capture'     => true,
                 'description' => $description,
+                'metadata'    => [
+                    'partner_payment_id' => $partnerPayment->id,
+                    'partner_id'         => $partnerId,
+                    'user_id'            => $user->id,
+                    'scope'              => 'partner_service_payment',
+                ],
                 'receipt' => [
-                    'customer' => [
-                        'email' => $curUserEmail,
-                    ],
-                    'items' => [
-                        [
-                            'description' => $description,
-                            'quantity' => 1,
-                            'amount' => [
-                                'value' => $amount,
-                                'currency' => 'RUB',
-                            ],
-                            'vat_code' => 1,
-                            'payment_mode' => 'full_prepayment',
-                            'payment_subject' => 'commodity',
-                        ],
-                    ],
+                    'customer' => ['email' => $email],
+                    'items' => [[
+                        'description'     => $description,
+                        'quantity'        => 1,
+                        'amount'          => ['value' => number_format($amount, 2, '.', ''), 'currency' => 'RUB'],
+                        'vat_code'        => 1,
+                        'payment_mode'    => 'full_prepayment',
+                        'payment_subject' => 'service',
+                    ]],
                 ],
             ], uniqid('', true));
 
             $confirmationUrl = $payment->getConfirmation()->getConfirmationUrl();
-
             if (!$confirmationUrl) {
-                return back()->withErrors(['message' => 'Не удалось получить URL подтверждения платежа.']);
+                throw new \RuntimeException('Не удалось получить confirmation_url');
             }
 
-            // Используем транзакцию
-            \DB::transaction(function () use ($payment, $partnerId, $curUserId, $amount, $days) {
-                $latestEndDate = $this->latestActiveAccessEndDateForPartner($partnerId);
+            $partnerPayment->payment_id = (string) $payment->id;
+            $partnerPayment->save();
 
-                if ($latestEndDate) {
-                    $activityStartDate = Carbon::parse($latestEndDate)->addDays(1);
-                } else {
-                    $activityStartDate = Partner::where('id', $partnerId)->value('activity_start_date');
-                }
+            return redirect()->away($confirmationUrl);
 
-                // Формируем конечную дату
-                if ($activityStartDate) {
-                    $activityStartDateParse = Carbon::parse($activityStartDate);
-                    $endDate = $activityStartDateParse->addDays($days);
-                } else {
-                    throw new \Exception('Не удалось получить дату начала активности партнера.');
-                }
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Ошибка при создании платежа абонплаты ЮKassa: '.$e->getMessage());
 
-                // Создаем запись платежа
-                $partnerPayment = PartnerPayment::create([
-                    'partner_id' => $partnerId,
-                    'user_id' => $curUserId,
-                    'payment_id' => $payment->id,
-                    'amount_cents' => Money::toCentsOrFail($amount),
-                    'payment_status' => 'pending',
-                    'payment_date' => Carbon::now(),
-                    'payment_method' => 'yookassa',
-                ]);
-
-                // Создаем доступ с привязкой к записи платежа
-                PartnerAccess::create([
-                    'partner_payment_id' => $partnerPayment->id, // Используем ID записи платежа
-                    'start_date' => $activityStartDate,
-                    'end_date' => $endDate,
-                    'is_active' => 0,
-                ]);
-            });
-
-            // Перенаправляем пользователя на страницу подтверждения
-            return redirect($confirmationUrl);
-
-        } catch (\Exception $e) {
-            \Log::error('Ошибка при создании платежа или записи в базу: ' . $e->getMessage());
-
-
-            // Попытка отменить платеж через Yookassa, если это возможно
-            try {
-                if (isset($payment) && $payment->id) {
-                    $client->cancelPayment($payment->id);
-                }
-            } catch (\Exception $cancelException) {
-                \Log::error('Ошибка при отмене платежа: ' . $cancelException->getMessage());
-            }
-
-
-            return back()->withErrors(['message' => 'Ошибка: ' . $e->getMessage()]);
+            return back()->withErrors(['message' => 'Ошибка: '.$e->getMessage()]);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function createPendingServicePayment(array $data, Partner $partner, string $paymentMethod): PartnerPayment
+    {
+        $amount = (float) $data['amount'];
+        $days = (int) $data['days'];
+        $partnerId = (int) $partner->id;
+        $description = $data['description'];
+        $curUser = auth()->user();
+        if (!$curUser) {
+            throw ValidationException::withMessages([
+                'message' => 'Пользователь не аутентифицирован.',
+            ]);
+        }
+        $curUserId = $curUser->id;
+
+        return DB::transaction(function () use ($partnerId, $curUserId, $amount, $days, $description, $paymentMethod) {
+            $latestEndDate = $this->latestActiveAccessEndDateForPartner($partnerId);
+
+            if ($latestEndDate) {
+                $activityStartDate = Carbon::parse($latestEndDate)->addDays(1);
+            } else {
+                $activityStartDate = Partner::where('id', $partnerId)->value('activity_start_date');
+            }
+
+            if ($activityStartDate) {
+                $activityStartDateParse = Carbon::parse($activityStartDate);
+                $endDate = $activityStartDateParse->addDays($days);
+            } else {
+                throw new \Exception('Не удалось получить дату начала активности партнера.');
+            }
+
+            $partnerPayment = PartnerPayment::create([
+                'partner_id' => $partnerId,
+                'user_id' => $curUserId,
+                'payment_id' => 'pending-'.uniqid('', true),
+                'amount_cents' => Money::toCentsOrFail($amount),
+                'payment_status' => 'pending',
+                'payment_date' => Carbon::now(),
+                'payment_method' => $paymentMethod,
+                'description' => $description,
+            ]);
+
+            PartnerAccess::create([
+                'partner_payment_id' => $partnerPayment->id,
+                'start_date' => $activityStartDate,
+                'end_date' => $endDate,
+                'is_active' => 0,
+            ]);
+
+            return $partnerPayment;
+        });
     }
 
 
@@ -239,21 +316,111 @@ class PartnerPaymentController extends AdminBaseController
     // Страница кошелька (пополнение + история)
     public function showWallet()
     {
-        // Вью можно сделать отдельным (пример ниже в конце)
-        return view('payment.partnerWallet', [
+        return view('payment.partnerWallet', array_merge([
             'activeTab' => 'wallet_recharge',
             'partner'   => $this->currentUserPartnerOrFail(),
-        ]);
+        ], PlatformPaymentMethods::viewState(auth()->user())));
     }
 
-    // Создать платёж YooKassa на пополнение кошелька
-    public function createWalletTopupYookassa(CreatePartnerWalletTopupRequest $request)
+    // Создать платёж на пополнение кошелька (ЮKassa или T‑Bank СБП)
+    public function createWalletTopup(CreatePartnerWalletTopupRequest $request, TinkoffAcquiringPaymentsService $acquiring)
     {
         $data = $request->validated();
 
         $partner = $this->currentUserPartnerOrFail();
         $this->guardPartnerAccess((int) $data['partner_id']);
 
+        if (($data['payment_method'] ?? PlatformPaymentMethods::METHOD_TBANK_SBP) === PlatformPaymentMethods::METHOD_TBANK_SBP) {
+            return $this->createWalletTopupTinkoffSbp($data, $partner, $acquiring);
+        }
+
+        return $this->createWalletTopupYookassaInner($data, $partner);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function createWalletTopupTinkoffSbp(array $data, Partner $partner, TinkoffAcquiringPaymentsService $acquiring)
+    {
+        if (! TbankAcquiringTerminalConfig::isActive()) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Оплата T‑Bank СБП не подключена на платформе.',
+            ]);
+        }
+
+        $partnerEmail = trim((string) ($partner->email ?? ''));
+        if ($partnerEmail === '') {
+            throw ValidationException::withMessages([
+                'payment_method' => 'У школы не указан email. Он нужен для чека.',
+            ]);
+        }
+
+        $partnerId = (int) $partner->id;
+        $amount    = (float) $data['amount'];
+        $desc      = (isset($data['description']) && is_string($data['description']) && $data['description'] !== '')
+            ? $data['description']
+            : 'Пополнение баланса KidsCRM';
+
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['ok' => false, 'message' => 'Не авторизован'], 401);
+        }
+
+        $tx = DB::transaction(function () use ($partnerId, $user, $amount, $desc) {
+            return PartnerWalletTransaction::create([
+                'partner_id' => $partnerId,
+                'user_id'    => $user->id,
+                'type'       => 'credit',
+                'amount_cents' => Money::toCentsOrFail($amount),
+                'currency'   => 'RUB',
+                'provider'   => 'tinkoff',
+                'status'     => 'pending',
+                'description'=> $desc,
+                'meta'       => null,
+            ]);
+        });
+
+        try {
+            $tinkoffPayment = $acquiring->initSbp(
+                $partnerId,
+                Money::toCentsOrFail($amount),
+                [
+                    'scope' => TinkoffAcquiringPaymentsService::SCOPE_WALLET_TOPUP,
+                    'wallet_transaction_id' => (string) $tx->id,
+                    'partner_id' => (string) $partnerId,
+                    'user_id' => (string) $user->id,
+                ],
+                url('/partner-wallet/success'),
+            );
+
+            if (empty($tinkoffPayment->tinkoff_payment_id)) {
+                throw new \RuntimeException('Не удалось инициализировать оплату T‑Bank (СБП)');
+            }
+
+            $tx->payment_id = (string) $tinkoffPayment->tinkoff_payment_id;
+            $tx->save();
+
+            return response()->json([
+                'ok' => true,
+                'redirect' => route('tinkoff.qr', $tinkoffPayment->tinkoff_payment_id),
+            ]);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Wallet topup T‑Bank createPayment error: '.$e->getMessage());
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Ошибка создания платежа: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function createWalletTopupYookassaInner(array $data, Partner $partner)
+    {
         $partnerId = (int) $partner->id;
         $amount    = (float) $data['amount'];
         $desc      = (isset($data['description']) && is_string($data['description']) && $data['description'] !== '')
@@ -269,7 +436,6 @@ class PartnerPaymentController extends AdminBaseController
         }
         $email = $user->email ?: 'test@test.ru';
 
-        // 1) Создаём локальную транзакцию в статусе pending
         $tx = DB::transaction(function () use ($partnerId, $user, $amount, $desc) {
             return PartnerWalletTransaction::create([
                 'partner_id' => $partnerId,
@@ -285,7 +451,6 @@ class PartnerPaymentController extends AdminBaseController
         });
 
         try {
-            // 2) Создаём платёж в YooKassa, прокидываем ID транзакции в metadata
             $payment = $client->createPayment([
                 'amount' => [
                     'value'    => number_format($amount, 2, '.', ''),
@@ -321,13 +486,11 @@ class PartnerPaymentController extends AdminBaseController
                 throw new \RuntimeException('Не удалось получить confirmation_url');
             }
 
-            // 3) Сохраняем payment_id в локальную транзакцию
             DB::transaction(function () use ($tx, $payment) {
                 $tx->payment_id = $payment->id;
                 $tx->save();
             });
 
-            // Возвращаем JSON для редиректа (Ajax)
             return response()->json([
                 'ok' => true,
                 'redirect' => $confirmationUrl,
@@ -341,6 +504,15 @@ class PartnerPaymentController extends AdminBaseController
                 'message' => 'Ошибка создания платежа: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    public function partnerPaymentSuccess()
+    {
+        return view('payment.partnerWalletSuccess', [
+            'message' => 'Платёж обрабатывается. Статус обновится в истории в течение минуты.',
+            'backUrl' => url('/partner-payment/history'),
+            'backLabel' => 'К истории оплаты сервиса',
+        ]);
     }
 
     // Вебхук от YooKassa — подтверждаем платеж и зачисляем баланс

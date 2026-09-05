@@ -6,8 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class TinkoffPayment extends Model
 {
+    public const CHANNEL_MULTISPLIT = 'multisplit';
+
+    public const CHANNEL_ACQUIRING = 'acquiring';
+
     protected $fillable = [
-        'order_id','partner_id','legal_entity_id','amount','method','status','tinkoff_payment_id',
+        'order_id','partner_id','legal_entity_id','amount','method','channel','status','tinkoff_payment_id',
         'deal_id','payment_url','payload','confirmed_at','canceled_at',
     ];
 

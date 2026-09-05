@@ -31,6 +31,7 @@ class PaymentSystemController extends AdminBaseController
 
         $robokassa = $paymentSystems->firstWhere('name', 'robokassa');
         $tbank = PaymentSystem::globalTbank();
+        $tbankAcquiring = PaymentSystem::globalTbankAcquiring();
 
         return view('admin.setting.index', [
             'activeTab' => 'paymentSystem',
@@ -38,6 +39,7 @@ class PaymentSystemController extends AdminBaseController
             'curUser' => $curUser,
             'robokassa' => $robokassa,
             'tbank' => $tbank,
+            'tbankAcquiring' => $tbankAcquiring,
         ]);
     }
 
@@ -88,10 +90,10 @@ class PaymentSystemController extends AdminBaseController
             'payload' => $validated,
         ]);
 
-        if ($validated['name'] === 'tbank') {
+        if ($validated['name'] === 'tbank' || $validated['name'] === 'tbank_acquiring') {
             $paymentSystem = PaymentSystem::firstOrNew([
                 'partner_id' => null,
-                'name'       => 'tbank',
+                'name'       => $validated['name'],
             ]);
         } else {
             $partnerId = $this->requirePartnerId();
@@ -118,11 +120,16 @@ class PaymentSystemController extends AdminBaseController
                 $settings['e2c_terminal_key']   = $validated['e2c_terminal_key'] ?? null;
                 $settings['e2c_token_password'] = $validated['e2c_token_password'] ?? null;
                 break;
+
+            case 'tbank_acquiring':
+                $settings['terminal_key']   = $validated['terminal_key'] ?? null;
+                $settings['token_password'] = $validated['token_password'] ?? null;
+                break;
         }
 
         $paymentSystem->settings  = $settings;
         $paymentSystem->test_mode = !empty($validated['test_mode']);
-        if ($validated['name'] === 'tbank') {
+        if ($validated['name'] === 'tbank' || $validated['name'] === 'tbank_acquiring') {
             $paymentSystem->is_enabled = $request->boolean('is_enabled', true);
         }
         $paymentSystem->save();
@@ -133,7 +140,7 @@ class PaymentSystemController extends AdminBaseController
             'row' => $paymentSystem->toArray(),
         ]);
 
-        $message = $validated['name'] === 'tbank'
+        $message = in_array($validated['name'], ['tbank', 'tbank_acquiring'], true)
             ? "Настройки [{$validated['name']}] успешно сохранены (глобальный терминал платформы)"
             : "Настройки [{$validated['name']}] успешно сохранены для партнёра #{$paymentSystem->partner_id}";
 
@@ -155,6 +162,8 @@ class PaymentSystemController extends AdminBaseController
 
         if ($name === 'tbank') {
             $paymentSystem = PaymentSystem::globalTbank();
+        } elseif ($name === 'tbank_acquiring') {
+            $paymentSystem = PaymentSystem::globalTbankAcquiring();
         } else {
             $partnerId = $this->requirePartnerId();
             $paymentSystem = PaymentSystem::where([
@@ -179,7 +188,7 @@ class PaymentSystemController extends AdminBaseController
     {
         $paymentSystem = PaymentSystem::findOrFail($id);
 
-        if ($paymentSystem->name === 'tbank') {
+        if ($paymentSystem->name === 'tbank' || $paymentSystem->name === 'tbank_acquiring') {
             if ($paymentSystem->partner_id !== null) {
                 return response()->json(['message' => 'Доступ запрещён'], 403);
             }
@@ -215,7 +224,7 @@ class PaymentSystemController extends AdminBaseController
             return;
         }
 
-        if ($name === 'tbank') {
+        if ($name === 'tbank' || $name === 'tbank_acquiring') {
             $user = Auth::user();
             if (!$user->can('payment.method.tbankCard') && !$user->can('payment.method.tbankSBP')) {
                 abort(403);

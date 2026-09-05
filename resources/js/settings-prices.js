@@ -1438,4 +1438,240 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         );
     });
+
+    (function initMonthProlong() {
+        const btn = document.getElementById('setting-prices-prolong-btn');
+        const modalEl = document.getElementById('setting-prices-prolong-modal');
+        const confirmBtn = document.getElementById('setting-prices-prolong-confirm');
+        if (!btn || !modalEl || !confirmBtn) {
+            return;
+        }
+
+        const bodyEl = document.getElementById('setting-prices-prolong-body');
+        const periodEl = document.getElementById('setting-prices-prolong-period');
+        const messageEl = document.getElementById('setting-prices-prolong-message');
+        const dateErrEl = document.getElementById('setting-prices-prolong-selected-date-err');
+        const previewUrl = btn.getAttribute('data-preview-url') || '';
+        const applyUrl = btn.getAttribute('data-apply-url') || '';
+        let applied = false;
+
+        function setDateError(text) {
+            if (!dateErrEl) {
+                return;
+            }
+            if (text) {
+                dateErrEl.textContent = text;
+                dateErrEl.classList.remove('d-none');
+                dateErrEl.classList.add('d-block');
+            } else {
+                dateErrEl.textContent = '';
+                dateErrEl.classList.add('d-none');
+                dateErrEl.classList.remove('d-block');
+            }
+        }
+
+        function firstErrorMessage(payload) {
+            if (!payload) {
+                return '';
+            }
+            if (payload.errors && payload.errors.selectedDate && payload.errors.selectedDate[0]) {
+                return payload.errors.selectedDate[0];
+            }
+            const errs = payload.errors;
+            if (errs) {
+                const firstKey = Object.keys(errs)[0];
+                if (firstKey && errs[firstKey] && errs[firstKey][0]) {
+                    return errs[firstKey][0];
+                }
+            }
+            return payload.message || '';
+        }
+
+        function statRow(label, value, valueIsHtml) {
+            const valueHtml = valueIsHtml ? String(value) : escapeHtml(String(value));
+            return '<div class="setting-prices-prolong-stat">'
+                + '<span class="setting-prices-prolong-stat__label">' + escapeHtml(label) + '</span>'
+                + '<span class="setting-prices-prolong-stat__value">' + valueHtml + '</span>'
+                + '</div>';
+        }
+
+        function skipReasonLines(reasons, kind) {
+            const lines = [];
+            reasons.forEach(function (row) {
+                const n = Number(kind === 'team' ? row.teams : row.students) || 0;
+                if (n <= 0) {
+                    return;
+                }
+                const label = row.label || row.reason || '';
+                lines.push(label + ': ' + n);
+            });
+            return lines;
+        }
+
+        function cloneSkipHint(lines) {
+            if (!lines.length) {
+                return '';
+            }
+            const title = lines.join('\n');
+            const tpl = document.getElementById('setting-prices-prolong-skip-hint-tpl');
+            if (tpl && tpl.content && tpl.content.firstElementChild) {
+                const hint = tpl.content.firstElementChild.cloneNode(true);
+                hint.setAttribute('title', title);
+                hint.setAttribute('aria-label', title);
+                return hint.outerHTML;
+            }
+
+            return '<span class="kids-tooltip-hint d-inline-block ms-1" tabindex="0"'
+                + ' data-kids-tooltip-hint data-bs-toggle="tooltip" data-bs-placement="top"'
+                + ' data-bs-custom-class="ulp-assignment-paid-tooltip"'
+                + ' title="' + escapeHtml(title) + '"'
+                + ' aria-label="' + escapeHtml(title) + '">'
+                + '<i class="fa fa-info-circle" aria-hidden="true"></i></span>';
+        }
+
+        function renderReport(data) {
+            if (!bodyEl) {
+                return;
+            }
+            if (window.KidsCrmTooltip) {
+                window.KidsCrmTooltip.dispose(bodyEl, { scopes: ['hint'] });
+            }
+            const counts = data.counts || {};
+            const reasons = Array.isArray(data.skip_reasons) ? data.skip_reasons : [];
+            const items = Array.isArray(data.items) ? data.items : [];
+
+            if (periodEl) {
+                periodEl.textContent = (data.source_month_label || '') + ' → ' + (data.target_month_label || '');
+            }
+            if (messageEl) {
+                messageEl.textContent = '';
+            }
+
+            let html = '<div class="cell-edit-section' + (!items.length ? ' cell-edit-section--last' : '') + '">';
+            html += '<div class="cell-edit-section__label">Сводка</div>';
+            html += statRow('Будут продлены абонементы учеников', Number(counts.students_create || 0));
+            const unchangedStudents = Number(counts.students_unchanged || 0);
+            const unchangedTeams = Number(counts.teams_unchanged || 0);
+            if (unchangedStudents > 0 || unchangedTeams > 0) {
+                html += statRow(
+                    'Уже совпадает',
+                    'учеников ' + unchangedStudents + ', групп ' + unchangedTeams
+                );
+            }
+            const studentsSkip = Number(counts.students_skip || 0);
+            html += statRow(
+                'Пропущено',
+                escapeHtml(String(studentsSkip))
+                    + ' учеников'
+                    + cloneSkipHint(skipReasonLines(reasons, 'student')),
+                true
+            );
+            if (Number(counts.students_error || 0) > 0) {
+                html += statRow('Ошибок', Number(counts.students_error || 0));
+            }
+            html += '</div>';
+
+            if (items.length) {
+                html += '<div class="cell-edit-section cell-edit-section--last">';
+                html += '<div class="cell-edit-section__label">Подробности</div>';
+                html += '<div class="setting-prices-prolong-items table-responsive">';
+                html += '<table class="table table-sm mb-0"><thead><tr>';
+                html += '<th>Кто</th><th>Группа</th><th>Причина</th>';
+                html += '</tr></thead><tbody>';
+                items.forEach(function (item) {
+                    const who = item.kind === 'team'
+                        ? 'Группа'
+                        : escapeHtml(item.user_name || '');
+                    html += '<tr><td>' + who + '</td><td>' + escapeHtml(item.team_title || '')
+                        + '</td><td>' + escapeHtml(item.reason_label || '') + '</td></tr>';
+                });
+                html += '</tbody></table></div></div>';
+            }
+
+            bodyEl.innerHTML = html;
+            if (window.KidsCrmTooltip) {
+                window.KidsCrmTooltip.init(bodyEl, { scopes: ['hint'] });
+            }
+            confirmBtn.disabled = !data.can_apply || applied;
+        }
+
+        function postJson(url, onDone) {
+            const csrf = $('meta[name="csrf-token"]').attr('content');
+            $.ajax({
+                url: url,
+                method: 'POST',
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json',
+                },
+                data: JSON.stringify({
+                    selectedDate: getSelectedMonthLabel(),
+                }),
+                success: function (data) {
+                    onDone(null, data || {});
+                },
+                error: function (xhr) {
+                    onDone(xhr, xhr.responseJSON || {});
+                },
+            });
+        }
+
+        function loadPreview() {
+            applied = false;
+            confirmBtn.disabled = true;
+            setDateError('');
+            if (periodEl) {
+                periodEl.textContent = '';
+            }
+            if (messageEl) {
+                messageEl.textContent = '';
+            }
+            if (bodyEl) {
+                if (window.KidsCrmTooltip) {
+                    window.KidsCrmTooltip.dispose(bodyEl, { scopes: ['hint'] });
+                }
+                bodyEl.innerHTML = '<p class="text-muted mb-0">Загрузка превью…</p>';
+            }
+            postJson(previewUrl, function (xhr, data) {
+                if (xhr) {
+                    const msg = firstErrorMessage(data) || 'Не удалось построить превью.';
+                    setDateError(msg);
+                    if (bodyEl) {
+                        bodyEl.innerHTML = '<p class="text-danger mb-0">' + escapeHtml(msg) + '</p>';
+                    }
+                    return;
+                }
+                renderReport(data);
+            });
+        }
+
+        modalEl.addEventListener('show.bs.modal', loadPreview);
+
+        confirmBtn.addEventListener('click', function () {
+            if (confirmBtn.disabled || applied) {
+                return;
+            }
+            confirmBtn.disabled = true;
+            setDateError('');
+            postJson(applyUrl, function (xhr, data) {
+                if (xhr) {
+                    const msg = firstErrorMessage(data) || 'Не удалось пролонгировать.';
+                    setDateError(msg);
+                    confirmBtn.disabled = false;
+                    if (typeof showErrorModal === 'function') {
+                        showErrorModal('Ошибка', msg);
+                    }
+                    return;
+                }
+                applied = true;
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                }
+                if (typeof window.showToast === 'function') {
+                    window.showToast(data.message || 'Пролонгация выполнена.', 'success');
+                }
+            });
+        });
+    })();
 });

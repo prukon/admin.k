@@ -40,7 +40,8 @@
   <h2>1) Где в интерфейсе</h2>
   <ul>
     <li>Страница: <code>GET /admin/settings/rules</code> (вкладка «Права и роли», право <code>settings.roles.view</code>).</li>
-    <li>Разметка аккордеона: <code>/resources/views/admin/setting/rule.blade.php</code> — блок <code>#permission-accordion</code>.</li>
+    <li>Разметка аккордеона: <code>/resources/views/admin/setting/rule.blade.php</code> — блок <code>#permission-accordion</code>.
+      Рядом с кодом права — ховер возможностей, см. <a href="#capability-hints">§8</a>.</li>
     <li>Контроллер собирает группы: <code>RuleController::showRules</code> — коллекция <code>$groups</code> с вложенными <code>permissions</code>.</li>
   </ul>
 
@@ -58,7 +59,7 @@
       <tr><th><code>slug</code></th><th>Название в UI</th><th>Что внутри (примеры)</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации (порядок как в боковом меню): <code>dashboard.view</code>, <code>reports.view</code>, …, <code>users.view</code> (описание в матрице — «Страница "Пользователи"», пункт сайдбара тот же), <code>scheduleSlots.view</code> («Расписание школы»), <code>schoolLeads.view</code> («Лиды»), <code>directories.view</code> («Справочники»), …; скрытое <code>messages.threads.delete</code> (корзина в шапке чата, не в базовых ролях)</td></tr>
+      <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации (порядок как в боковом меню): <code>dashboard.view</code>, <code>reports.view</code>, …, <code>users.view</code> (описание в матрице — «Страница "Пользователи"», пункт сайдбара тот же), <code>scheduleSlots.view</code> («Расписание школы»; также чекбоксы «Автосписание» и «Разрешена заморозка» и поле «Срок действия (дни)» в шаблоне абонемента — <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>, <a href="/docs/documentation/lesson-packages#freeze-permission">§Заморозка</a>, <a href="/docs/documentation/lesson-packages#duration-permission">§Срок действия</a>, <a href="/doc#lesson-package-auto-attendance-index">анонс автосписания</a>, <a href="/doc#lesson-package-freeze-permission-index">анонс заморозки</a>, <a href="/doc#lesson-package-duration-permission-index">анонс срока</a>), <code>schoolLeads.view</code> («Лиды»), <code>directories.view</code> («Справочники»), …; скрытое <code>messages.threads.delete</code> (корзина в шапке чата, не в базовых ролях)</td></tr>
       <tr><td><code>reports</code></td><td>Отчёты</td><td><code>reports.view</code> (меню), скрытые <code>is_visible=0</code>: <code>reports.emails.view</code>, <code>reports.fiscal.receipts.view</code>, <code>reports.payment.intents.view</code> (Gate в <code>AuthServiceProvider</code>); <code>reports.payments.*</code> и прочие вложенные</td></tr>
       <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.scheme.sales</code>, <code>schedule.trainerSalary.scheme.kansas</code>, <code>schedule.trainerSalary.scheme.classic</code>, <code>schedule.trainerSalary.view</code> / <code>manage</code>, <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code></td></tr>
       <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code>, <code>legal_entities.*</code> (пункт меню — <code>directories.view</code> в <code>mainMenu</code>)</td></tr>
@@ -70,6 +71,7 @@
       <tr><td><code>account</code></td><td>Учетная запись</td><td>Страницы ЛК (<code>account.user.view</code>, …) и поля «свой профиль»: <code>account.user.name.update</code>, <code>account.user.email.update</code>, …; скрытое <code>account.user.team.update</code> — добавление группы в ЛК (сайдбар / карандаш; не в base roles)</td></tr>
       <tr><td><code>users</code></td><td>Управление клиентами</td><td>Поля CRM ученика/сотрудника: <code>users.name.update</code>, <code>users.sex</code>, <code>users.comment</code>, <code>users.discount.manage</code> (персональная скидка, не в базовых ролях), скрытые <code>users.import</code>, <code>users.full_name_genitive</code> (ФИО ученика в родительном; не в базовых ролях), страница тренеров <code>trainers.view</code>. Пункт меню «Пользователи» — это <code>users.view</code> в <code>mainMenu</code>, не эта группа. Колонка роли <code>user</code> в матрице — «Клиент».</td></tr>
       <tr><td><code>settings</code></td><td>Настройки</td><td><code>settings.roles.view</code>, <code>settings.queues.*</code>, <code>viewing.all.logs</code>, <code>settings.force2fa.admins</code>, скрытое <code>settings.systemMonitors.view</code> (системные мониторы / оверлеи, не в базовых ролях)</td></tr>
+      <tr><td><code>platformPayments</code></td><td>Оплата платформы</td><td>Скрытые <code>platformPayments.method.tbankSbp</code> и <code>platformPayments.method.yookassa</code> — радио на кошельке и абонплате CRM. Не путать с <code>payment.method.*</code> витрины. Superadmin видит группу; админ школы — нет (все права <code>is_visible=0</code>)</td></tr>
       <tr><td><code>paymentMethods</code></td><td>Способы оплаты</td><td><code>payment.method.*</code>, <code>tbank.payouts.manage</code>, <code>settings.commission</code></td></tr>
       <tr><td><code>inAppNotifications</code></td><td>Уведомления CRM</td><td><code>inAppNotifications.view</code> (колокольчик/лента, в базовых ролях); скрытое <code>inAppNotifications.manage</code> (форма админа школы зарезервирована, v1 UI нет — создаёт superadmin)</td></tr>
       <tr><td><code>misc</code></td><td>Разное</td><td><code>paying.classes</code></td></tr>
@@ -167,6 +169,17 @@
       Миграция <code>2026_08_20_003000_add_messages_threads_delete_permission.php</code>.
       См. <a href="/docs/documentation/chat">chat</a>,
       анонс <a href="/doc#chat-thread-delete-index">/doc</a>.</li>
+    <li>Миграция группы <code>platformPayments</code> и прав способов оплаты платформы:
+      <code>/database/migrations/2026_09_05_021700_add_platform_payments_method_permissions.php</code>
+      (группа <code>sort_order=34</code>, скрытые <code>platformPayments.method.tbankSbp</code> /
+      <code>platformPayments.method.yookassa</code>, <b>без</b> выдачи ролям существующим школам).
+      Новым партнёрам T‑Bank СБП — только <code>admin</code> из
+      <code>config/role_base_permissions.php</code>. ЮKassa никому в базовых ролях.
+      <code>SEED_DEV_DATA</code> / <code>DevAdminRoleBasePermissionsSeeder</code> выдаст T‑Bank всем партнёрам этой БД.
+      См. <a href="/docs/documentation/partner-wallet#tbank-sbp">partner-wallet §8</a>,
+      <a href="/doc#platform-payments-methods-index">анонс прав способов</a>,
+      <a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>.
+      Gate: <code>AuthServiceProvider</code> → <code>platformPayments.method.*</code>.</li>
     <li>На проде после выката: <code>php artisan migrate</code>. Отдельный запуск <code>PermissionSeeder</code> не обязателен, если миграция применена.</li>
     <li>Порядок в тестах и dev: <code>PermissionGroupsSeeder</code> → <code>PermissionSeeder</code> (см. <code>DatabaseSeeder</code>, <code>CrmTestCase</code>).</li>
   </ul>
@@ -183,15 +196,62 @@
     Фичтесты перегруппировки и доступа к вкладке:
   </div>
   <ul>
-    <li><code>/tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — 14 групп в БД, маппинг прав, UI для superadmin, подмножество групп для admin.</li>
+    <li><code>/tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — 16 групп в БД, маппинг прав, UI для superadmin, подмножество групп для admin.</li>
+    <li><code>/tests/Feature/Crm/Permissions/PlatformPaymentsMethodPermissionCatalogFeatureTest.php</code> — группа «Оплата платформы», скрытые способы, admin нового партнёра получает только T‑Bank СБП.</li>
+    <li><code>PlatformPaymentsMethodAccessFeatureTest</code> / <code>Ux</code> / <code>AjaxContract</code> / <code>NonAjaxSafetyNet</code> / <code>FullAccess</code> —
+      витринные <code>payment.method.*</code> не открывают кошелёк/абонплату; только ЮKassa → дефолт ЮKassa;
+      <code>old()</code> после 422; гость / 403 / 422 <code>errors.payment_method</code>.</li>
     <li><code>/tests/Feature/Crm/Permissions/SystemMonitorsPermissionCatalogFeatureTest.php</code> — <code>settings.systemMonitors.view</code> скрытое, не в базовых ролях; <code>settings.reverbOverlay.manage</code> нет.</li>
     <li><code>/tests/Feature/Crm/Cabinet/SystemMonitorsToggleFeatureTest.php</code> —
       переключатель в шапке, персональный флаг, native POST, первый paint, оверлей Reverb.</li>
     <li><code>/tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php</code> — гость / без <code>settings.roles.view</code> → 403; с правом, admin и superadmin → все endpoint'ы вкладки 200.</li>
     <li><code>/tests/Feature/Crm/Users/AdminUsersClientNamingFeatureTest.php</code> — колонка «Клиент», группа «Управление клиентами», <code>users.view</code> = «Страница "Пользователи"».</li>
     <li>См. также: <code>RulesSettingsAccessControlTest</code>, <code>RulesSettingsPageFullAccessFeatureTest</code>, <code>RuleControllerTest</code>.</li>
+    <li><code>/tests/Feature/Crm/Settings/RulesPermissionCapabilityHintsFeatureTest.php</code> —
+      иконка <code>i</code> и ховер возможностей у <code>dashboard.view</code> / скрытых прав;
+      <code>PermissionCapabilityHintTest</code> — нумерация и полнота каталога.</li>
   </ul>
-  <pre><code>php artisan test --env=testing --filter 'PermissionGroupsReorganizationFeatureTest|RulesSettingsSectionFullAccessFeatureTest'</code></pre>
+  <pre><code>php artisan test --env=testing --filter 'PermissionGroupsReorganizationFeatureTest|RulesSettingsSectionFullAccessFeatureTest|RulesPermissionCapabilityHintsFeatureTest|PermissionCapabilityHintTest'</code></pre>
+
+  <h2 id="capability-hints">8) Ховер возможностей права</h2>
+  <p>В первой колонке матрицы после <code>&lt;code&gt;{permission.name}&lt;/code&gt;</code>
+    (не после человекочитаемого описания) —
+    иконка <code>fa fa-info-circle</code> через
+    <code>@include('partials.ui.tooltip-hint')</code> (<code>placement=right</code>,
+    <code>data-bs-container="body"</code>, чтобы пузырёк не обрезался
+    <code>.table-responsive</code>). Текст собирает
+    <code>App\Support\PermissionCapabilityHint</code> из
+    <code>/config/permission_capability_hints.php</code>.</p>
+  <div class="note">
+    Это подсказка в UI матрицы, не новое право и не смена проверок.
+    Gate в <code>AuthServiceProvider</code>, записи <code>permission_role</code>
+    и фильтр <code>is_visible</code> те же, что в §4.
+  </div>
+  <ul>
+    <li>В ховере только возможности <b>этого</b> права (не вложенные права той же страницы).
+      Пример <code>dashboard.view</code>: меню «Консоль», <code>/cabinet</code>,
+      <code>/get-user-details</code> и <code>/get-team-details</code> — без сезонов,
+      абонементов и карандаша группы.</li>
+    <li>Ключи каталога — литеральные имена с точками
+      (<code>'dashboard.view' =&gt; […]</code>). Читать целиком
+      <code>config('permission_capability_hints')[$name]</code>, не
+      <code>config('permission_capability_hints.dashboard.view')</code>
+      (Laravel разобрал бы путь как вложенный массив).</li>
+    <li>Одно место — одна строка без номера. Несколько — нумерованный список
+      <code>1. …</code> + перевод строки, каждый номер с новой строки
+      (<code>white-space: pre-wrap</code> у KidsCrmTooltip). Не HTML
+      <code>&lt;ol&gt;</code>: scope hint без <code>html: true</code>.</li>
+    <li>Ключа нет или список пустой — иконки нет (если каталога нет — иконки нет).
+      Partial <code>tooltip-hint</code> при пустом <code>title</code> не выводит span.
+      Новое имя в <code>PermissionSeeder</code> без строк в каталоге:
+      runtime без иконки, <code>PermissionCapabilityHintTest</code> полноты — красный.</li>
+    <li><code>initHintElement</code> в <code>kids-tooltip.js</code> читает
+      <code>data-bs-container</code>.</li>
+    <li>Анонс: <a href="/doc#permission-capability-hints-index">/doc#permission-capability-hints-index</a>.
+      Тесты: <code>RulesPermissionCapabilityHintsFeatureTest</code>,
+      <code>PermissionCapabilityHintTest</code>,
+      <code>PermissionCapabilityHintsDocumentationContractTest</code>.</li>
+  </ul>
 
   <p class="small">
     <a href="/docs/documentation">К списку разделов</a> ·

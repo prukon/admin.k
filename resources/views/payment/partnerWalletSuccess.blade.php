@@ -7,6 +7,6 @@
         <div class="alert alert-info">
             {{ $message ?? 'Платёж обрабатывается.' }}
         </div>
-        <a href="/partner-wallet" class="btn btn-primary">Вернуться в кошелёк</a>
+        <a href="{{ $backUrl ?? '/partner-wallet' }}" class="btn btn-primary">{{ $backLabel ?? 'Вернуться в кошелёк' }}</a>
     </div>
 @endsection

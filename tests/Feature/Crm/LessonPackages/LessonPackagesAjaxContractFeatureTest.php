@@ -24,6 +24,7 @@ final class LessonPackagesAjaxContractFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('scheduleSlots.view');
     }
 
     private function grantPermission(string $permissionName): void

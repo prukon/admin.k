@@ -27,7 +27,9 @@
 <div class="wrap">
   <p class="small"><a href="/docs/documentation/">← К оглавлению</a> · в кабинете также <code>/doc</code>
     · анонс леджера <a href="/doc#partner-wallet-ledger-index">/doc#partner-wallet-ledger-index</a>
-    · изоляция <a href="/doc#partner-wallet-isolation-index">/doc#partner-wallet-isolation-index</a></p>
+    · изоляция <a href="/doc#partner-wallet-isolation-index">/doc#partner-wallet-isolation-index</a>
+    · обычный эквайринг <a href="/doc#tbank-acquiring-platform-index">/doc#tbank-acquiring-platform-index</a>
+    · права способов <a href="/doc#platform-payments-methods-index">/doc#platform-payments-methods-index</a></p>
   <h1>Кошелёк партнёра</h1>
   <div class="small">Страница <code>/partner-wallet</code> · право <code>partnerWallet.view</code> · обычная CRM-страница (<code>STRICT_CURRENT</code>).</div>
 
@@ -169,14 +171,66 @@
       <code>PartnerWalletUxFeatureTest</code>,
       <code>PartnerWalletFullAccessFeatureTest</code>,
       <code>PartnerWalletWebhookFeatureTest</code>,
+      <code>TbankAcquiringPlatformPaymentsFeatureTest</code>,
+      <code>TbankAcquiringAccessFeatureTest</code>,
+      <code>TbankAcquiringAjaxContractFeatureTest</code>,
+      <code>TbankAcquiringNonAjaxSafetyNetFeatureTest</code>,
+      <code>TbankAcquiringUxFeatureTest</code>,
+      <code>TbankAcquiringQrAccessFeatureTest</code>,
+      <code>TbankAcquiringDocumentationContractTest</code>,
+      <code>PlatformPaymentsMethodAccessFeatureTest</code>,
+      <code>PlatformPaymentsMethodUxFeatureTest</code>,
+      <code>PlatformPaymentsMethodAjaxContractFeatureTest</code>,
+      <code>PlatformPaymentsMethodNonAjaxSafetyNetFeatureTest</code>,
+      <code>PlatformPaymentsMethodFullAccessFeatureTest</code>,
       <code>BladeInlineJsSyntaxTest::test_partner_wallet_topup_ajax_prevents_native_submit_and_shows_field_errors</code>,
       <code>PartnerWalletDocumentationContractTest</code>,
       <code>ContractBillingWalletLedgerFeatureTest</code>.</li>
   </ul>
+
+  <h2 id="tbank-sbp">8) T‑Bank СБП (обычный эквайринг)</h2>
+  <div class="note">
+    На форме выбор <code>payment_method</code> по скрытым правам
+    <code>platformPayments.method.tbankSbp</code> / <code>platformPayments.method.yookassa</code>
+    (группа «Оплата платформы», не витринные <code>payment.method.*</code>).
+    Если оба права есть — по умолчанию <code>tinkoff_sbp</code> (в т.ч. если поле не прислали);
+    только ЮKassa — дефолт <code>yookassa</code>. При первом открытии и повторном GET без
+    <code>old()</code> радио T‑Bank СБП <code>checked</code>, ЮKassa нет
+    (без права радио не рендерится). AJAX-submit сериализует
+    выбранный radio (<code>serialize()</code>), не хардкодит <code>yookassa</code>.
+    ЮKassa как раньше (минимум 1 ₽). СБП идёт через глобальный терминал
+    <code>tbank_acquiring</code>, Init <b>без</b> <code>CreateDealWithType</code> и без ShopCode,
+    вебхук <b>только</b> <code>POST /webhooks/tinkoff/acquiring</code>
+    (<code>TinkoffPaymentsService::handleWebhook</code> мультирасчётов игнорирует
+    <code>tinkoff_payments.channel=acquiring</code> — статус не становится CONFIRMED
+    с чужого URL). QR <code>/tinkoff/qr/{paymentId}</code>: для acquiring достаточно
+    <code>partnerWallet.view</code> или <code>servicePayments.view</code>, право
+    <code>payment.method.tbankSBP</code> не требуется (мультирасчёты по-прежнему требуют СБП).
+    GetQr подписывается ключами <code>tbank_acquiring</code>, не мультисплита.
+    Минимум СБП 10 ₽, максимум 1 000 000 ₽. После <code>CONFIRMED</code> — зачисление на
+    <code>tx.partner_id</code> и чек CloudKassir «Пополнение баланса KidsCRM», НДС не облагается,
+    email школы (<code>partners.email</code>), без агента, <code>fiscal_receipts.source=platform</code>
+    (в отчёте «Чеки» не показывается). Success кошелька —
+    «Вернуться в кошелёк» → <code>/partner-wallet</code>.
+    Ошибки СБП под <code>data-error-for="payment_method"</code> / <code>amount</code>.
+    Без права на способ: радио скрыто, кнопка disabled, POST 422
+    <code>errors.payment_method</code> «Нет доступного способа оплаты.»
+    Витринные <code>payment.method.tbankSBP</code> / <code>tbankCard</code> /
+    <code>robokassa</code> способы платформы <b>не</b> открывают (даже вместе с
+    <code>partnerWallet.view</code>). После 422 HTML сохраняет выбранный radio через
+    <code>old('payment_method', $platformPaymentDefaultMethod)</code> — выбранная ЮKassa
+    не сбрасывается на T‑Bank. Только ЮKassa — дефолт <code>yookassa</code>, T‑Bank не навязывается.
+    Gate для обоих скрытых прав — <code>AuthServiceProvider</code> (superadmin проходит
+    <code>Gate::before</code> и видит оба радио, дефолт T‑Bank).
+    Новым школам T‑Bank СБП — только <code>admin</code> из
+    <code>role_base_permissions</code>; существующим миграция не выдаёт.
+    ЮKassa в базовых ролях нет.
+  </div>
   <p class="small">Контекст партнёра: <a href="/docs/documentation/partner-context">partner-context</a>,
     руководство: <a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a>,
     канон денег: <a href="/docs/documentation/money">money</a>,
-    анонс леджера: <a href="/doc#partner-wallet-ledger-index">/doc#partner-wallet-ledger-index</a>.</p>
+    анонс леджера: <a href="/doc#partner-wallet-ledger-index">/doc#partner-wallet-ledger-index</a>,
+    права способов: <a href="/doc#platform-payments-methods-index">/doc#platform-payments-methods-index</a>.</p>
 </div>
 </body>
 </html>

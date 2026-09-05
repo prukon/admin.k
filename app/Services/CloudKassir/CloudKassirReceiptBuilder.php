@@ -25,7 +25,13 @@ class CloudKassirReceiptBuilder
             'legalEntity',
             'payable',
             'paymentIntent',
+            'walletTransaction',
+            'partnerPayment',
         ]);
+
+        if ($fiscalReceipt->isPlatformSale()) {
+            return $this->buildPlatformSale($fiscalReceipt);
+        }
 
         /** @var Partner|null $partner */
         $partner = $fiscalReceipt->partner;
@@ -98,6 +104,66 @@ class CloudKassirReceiptBuilder
             'Type' => $this->mapType($fiscalReceipt->type),
             'InvoiceId' => $this->makeInvoiceId($fiscalReceipt, $paymentIntent, $payable),
             'AccountId' => $this->makeAccountId($paymentIntent),
+            'CustomerReceipt' => $customerReceipt,
+        ];
+    }
+
+    /**
+     * Чек продажи платформы (кошелёк / абонплата CRM): без агента, НДС не облагается.
+     *
+     * @return array<string, mixed>
+     */
+    protected function buildPlatformSale(FiscalReceipt $fiscalReceipt): array
+    {
+        /** @var Partner|null $partner */
+        $partner = $fiscalReceipt->partner;
+        if (! $partner) {
+            throw new RuntimeException('FiscalReceipt partner not found.');
+        }
+
+        $platformInn = (string) config('services.cloudkassir.inn', '');
+        if ($platformInn === '') {
+            throw new RuntimeException('CLOUDKASSIR_INN is not set in .env (ИНН платформы, на который зарегистрирована касса).');
+        }
+
+        $partnerEmail = trim((string) ($partner->email ?? ''));
+        if ($partnerEmail === '') {
+            throw new RuntimeException("Partner #{$partner->id} has no email. Required for IsInternetPayment receipt.");
+        }
+
+        $amountCents = (int) $fiscalReceipt->amount_cents;
+        $amount = Money::fromCents($amountCents);
+        $label = $fiscalReceipt->wallet_transaction_id
+            ? 'Пополнение баланса KidsCRM'
+            : 'Оплата доступа KidsCRM';
+
+        $item = [
+            'Label' => $label,
+            'Price' => $amount,
+            'Quantity' => 1,
+            'Amount' => $amount,
+            'Vat' => null,
+            'Method' => $this->resolveMethod(),
+            'Object' => $this->resolveObject(),
+        ];
+
+        $customerReceipt = [
+            'Items' => [$item],
+            'TaxationSystem' => $this->resolvePlatformTaxationSystem(),
+            'Amounts' => [
+                'Electronic' => $amount,
+            ],
+            'CalculationPlace' => (string) config('app.url'),
+            'Email' => $partnerEmail,
+            'IsInternetPayment' => true,
+            'RussiaTimeZone' => (int) config('services.cloudkassir.russia_time_zone', 2),
+        ];
+
+        return [
+            'Inn' => $platformInn,
+            'Type' => $this->mapType($fiscalReceipt->type),
+            'InvoiceId' => (string) ($fiscalReceipt->invoice_id ?: ('platform_'.$fiscalReceipt->id)),
+            'AccountId' => $fiscalReceipt->account_id ? (string) $fiscalReceipt->account_id : (string) $partner->id,
             'CustomerReceipt' => $customerReceipt,
         ];
     }

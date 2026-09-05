@@ -107,6 +107,7 @@
                         'curUser' => $curUser,
                         'robokassa' => $robokassa,
                         'tbank' => $tbank,
+                        'tbankAcquiring' => $tbankAcquiring ?? null,
                         ])
                     @elseif($activeTab === 'tbankCommissions')
                         @include('admin.setting.tbankCommissions', [

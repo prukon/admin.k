@@ -302,7 +302,18 @@
   </ul>
   <p><strong>POST</strong> сохранения: <code>/admin/lesson-packages/school-schedule/occurrence-status</code> (имя маршрута <code>admin.lesson-packages.school-schedule.occurrence-status.store</code>). В ответе при успехе могут быть объекты <code>user_lesson_package</code> { id, lessons_remaining, lessons_total } или <code>trial_registration</code> { user_team_schedule_slot_id, lessons_remaining, lessons_total } — их использует фронт для обновления счётчиков в модалке.</p>
   <p><strong>GET</strong> истории по паре слот + дата + ученик (+ опционально <code>user_lesson_package_id</code> для различения записей): <code>/admin/lesson-packages/school-schedule/occurrence-status/history</code>.</p>
-  <p><strong>Автосписание</strong> (без участия UI календаря): если у шаблона абонемента включён <code>auto_attendance_enabled</code>, после окончания календарного дня занятия job может автоматически создать событие «Посетил» при отсутствии любого статуса по этой записи. Те же правила списания <code>lessons_remaining</code>, тот же сервис <code>UserLessonOccurrenceStatusService</code>. Подробности, исключения (пробные, разовые, исключённая дата слота, нулевой остаток) — <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>.</p>
+  <p><strong>Автосписание</strong> (без участия UI календаря): если у шаблона абонемента включён <code>auto_attendance_enabled</code>, после окончания календарного дня занятия job может автоматически создать событие «Посетил» при отсутствии любого статуса по этой записи. Те же правила списания <code>lessons_remaining</code>, тот же сервис <code>UserLessonOccurrenceStatusService</code>. Чекбокс в модалке шаблона виден только при <code>scheduleSlots.view</code> (анонс — <a href="/doc#lesson-package-auto-attendance-index">/doc</a>). Job право пользователя не проверяет. Подробности, исключения (пробные, разовые, исключённая дата слота, нулевой остаток) — <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>.</p>
+  <p>Чекбокс шаблона «Разрешена заморозка» закрыт тем же <code>scheduleSlots.view</code>, но календарь школы <b>не читает</b>
+    <code>freeze_enabled</code> / <code>freeze_days</code>
+    (<a href="/doc#lesson-package-freeze-permission-index">анонс заморозки</a>,
+    <a href="/docs/documentation/lesson-packages#freeze-permission">lesson-packages §Заморозка</a>).</p>
+  <p>Поле шаблона «Срок действия (дни)» закрыто тем же <code>scheduleSlots.view</code>
+    (отдельный <code>@can</code>). Календарь читает сохранённое
+    <code>duration_days</code> шаблона при первой привязке классики:
+    <code>ends_at = starts_at + duration_days</code>. Скрытие поля в модалке это правило
+    не отключает. Месячные ULP из установки цен период по <code>duration_days</code> не считают.
+    Анонс — <a href="/doc#lesson-package-duration-permission-index">/doc</a>,
+    подробно — <a href="/docs/documentation/lesson-packages#duration-permission">lesson-packages §Срок действия</a>.</p>
 
   <h2>JSON недели: регистрации в ячейке</h2>
   <p>Каждый элемент <code>occurrences[]</code> содержит массив <code>registrations[]</code>. Для строк из БД формируются поля (среди прочего):</p>
@@ -816,7 +827,7 @@
     Доступ к поверхности календаря — <code>SchoolScheduleCalendarAccessFeatureTest.php</code>.
     Интеграция привязок и пробных — <code>LessonPackageSchoolScheduleIntegrationFeatureTest.php</code>;
     статусы и баланс — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>;
-    <strong>автосписание «Посетил»</strong> — <code>AutoMarkYesterdayLessonOccurrencesFeatureTest.php</code>, <code>LessonPackageAutoAttendanceCrudFeatureTest.php</code>, <code>LessonPackageAutoAttendanceAccessFeatureTest.php</code>, <code>LessonPackagesNonAjaxSafetyNetFeatureTest.php</code>, <code>AutoMarkYesterdayLessonOccurrencesJobQueueTest.php</code>, <code>KernelAutoAttendanceScheduleTest.php</code> (см. <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>);
+    <strong>автосписание «Посетил»</strong> — <code>AutoMarkYesterdayLessonOccurrencesFeatureTest.php</code>, <code>LessonPackageAutoAttendanceCrudFeatureTest.php</code>, <code>LessonPackageAutoAttendanceAccessFeatureTest.php</code>, <code>LessonPackageAutoAttendanceAjaxContractFeatureTest.php</code>, <code>LessonPackageAutoAttendanceNonAjaxSafetyNetFeatureTest.php</code>, <code>LessonPackageAutoAttendanceMarkupFeatureTest.php</code>, <code>LessonPackageAutoAttendanceWorkflowFeatureTest.php</code>, <code>LessonPackagesNonAjaxSafetyNetFeatureTest.php</code>, <code>AutoMarkYesterdayLessonOccurrencesJobQueueTest.php</code>, <code>KernelAutoAttendanceScheduleTest.php</code> (см. <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>, <a href="/doc#lesson-package-auto-attendance-index">анонс</a>);
     пробные — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>;
     разовые из модалки слота — <code>LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest.php</code>;
     <strong>персональная скидка ученика</strong> на <code>fee_amount_default</code> / снимок —

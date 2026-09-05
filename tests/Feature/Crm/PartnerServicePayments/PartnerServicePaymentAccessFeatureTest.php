@@ -46,7 +46,7 @@ final class PartnerServicePaymentAccessFeatureTest extends CrmTestCase
         $this->get(route('partner.payment.recharge'))->assertForbidden();
         $this->get(route('partner.payment.history'))->assertForbidden();
         $this->getJson(route('partner.payment.data'))->assertForbidden();
-        $this->postJson(route('createPaymentYookassa'), [
+        $this->postJson(route('partner.payment.tinkoff.sbp'), [
             'amount' => 2500,
             'days' => 29,
             'partner_id' => $this->partner->id,

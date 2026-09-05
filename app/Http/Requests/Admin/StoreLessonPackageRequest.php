@@ -3,6 +3,9 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\LessonPackage;
+use App\Support\LessonPackageAutoAttendancePermission;
+use App\Support\LessonPackageDurationPermission;
+use App\Support\LessonPackageFreezePermission;
 use App\Support\LessonPackagePostpayPermission;
 use App\Support\Money;
 use Illuminate\Foundation\Http\FormRequest;
@@ -26,6 +29,9 @@ final class StoreLessonPackageRequest extends FormRequest
         $freezeEnabled = $this->boolean('freeze_enabled');
         $autoAttendanceEnabled = $this->boolean('auto_attendance_enabled');
         $scheduleType = (string) $this->input('schedule_type', '');
+        $freezeDays = $this->input('freeze_days');
+        $existing = $this->route('lessonPackage');
+        $existingPackage = $existing instanceof LessonPackage ? $existing : null;
 
         $merge = [
             'price' => $price,
@@ -33,12 +39,26 @@ final class StoreLessonPackageRequest extends FormRequest
             'auto_attendance_enabled' => $autoAttendanceEnabled,
         ];
 
+        if ($freezeDays === '' || $freezeDays === null) {
+            $merge['freeze_days'] = null;
+        }
+
         // Постоплата биллится календарным месяцем через users_prices — длительность/кол-во в шаблоне служебные.
+        // auto_attendance_enabled здесь не обнуляем: withValidator вернёт 422 при попытке включить.
         if ($scheduleType === LessonPackage::SCHEDULE_TYPE_POSTPAY) {
-            $merge['duration_days'] = 31;
+            $merge['duration_days'] = LessonPackageDurationPermission::POSTPAY_DAYS;
             $merge['lessons_count'] = 1;
             $merge['freeze_enabled'] = false;
-            $merge['auto_attendance_enabled'] = false;
+        } elseif ($scheduleType === LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE) {
+            $merge['duration_days'] = LessonPackageDurationPermission::NO_SCHEDULE_DAYS;
+        } elseif (! LessonPackageDurationPermission::userCanManage($this->user())) {
+            // Поле скрыто без scheduleSlots.view: create → 30, update → уже сохранённый срок.
+            $merge['duration_days'] = LessonPackageDurationPermission::resolvedDays(
+                $this->user(),
+                $scheduleType,
+                $this->input('duration_days'),
+                $existingPackage,
+            );
         }
 
         $this->merge($merge);
@@ -73,7 +93,8 @@ final class StoreLessonPackageRequest extends FormRequest
                 Rule::in(LessonPackage::SCHEDULE_TYPES),
             ],
             'duration_days' => [
-                Rule::requiredIf(fn () => (string) $this->input('schedule_type') !== LessonPackage::SCHEDULE_TYPE_POSTPAY),
+                Rule::requiredIf(fn () => (string) $this->input('schedule_type') !== LessonPackage::SCHEDULE_TYPE_POSTPAY
+                    && LessonPackageDurationPermission::userCanManage($this->user())),
                 'nullable',
                 'integer',
                 'min:1',
@@ -97,11 +118,15 @@ final class StoreLessonPackageRequest extends FormRequest
                 'boolean',
             ],
             'freeze_days' => [
-                Rule::requiredIf(fn () => (bool) $this->boolean('freeze_enabled')),
+                Rule::requiredIf(fn () => $this->boolean('freeze_enabled')
+                    && LessonPackageFreezePermission::userCanManage($this->user())),
                 'nullable',
                 'integer',
-                'min:1',
                 'max:3650',
+                Rule::when(
+                    fn () => $this->boolean('freeze_enabled'),
+                    ['min:1']
+                ),
             ],
             'auto_attendance_enabled' => [
                 'nullable',
@@ -146,7 +171,57 @@ final class StoreLessonPackageRequest extends FormRequest
                     $v->errors()->add('auto_attendance_enabled', 'Для постоплаты автосписание недоступно.');
                 }
             }
+
+            LessonPackageFreezePermission::rejectUnauthorizedEnable(
+                $v,
+                $this->user(),
+                $this->boolean('freeze_enabled'),
+            );
+
+            LessonPackageAutoAttendancePermission::rejectUnauthorizedEnable(
+                $v,
+                $this->user(),
+                $this->boolean('auto_attendance_enabled'),
+            );
         });
+    }
+
+    public function resolvedFreezeEnabled(?LessonPackage $existing = null): bool
+    {
+        return LessonPackageFreezePermission::resolvedEnabled(
+            $this->user(),
+            $this->boolean('freeze_enabled'),
+            $existing,
+        );
+    }
+
+    public function resolvedFreezeDays(?LessonPackage $existing = null): int
+    {
+        return LessonPackageFreezePermission::resolvedDays(
+            $this->user(),
+            $this->boolean('freeze_enabled'),
+            (int) $this->input('freeze_days', 0),
+            $existing,
+        );
+    }
+
+    public function resolvedAutoAttendanceEnabled(?LessonPackage $existing = null): bool
+    {
+        return LessonPackageAutoAttendancePermission::resolvedValue(
+            $this->user(),
+            $this->boolean('auto_attendance_enabled'),
+            $existing,
+        );
+    }
+
+    public function resolvedDurationDays(?LessonPackage $existing = null): int
+    {
+        return LessonPackageDurationPermission::resolvedDays(
+            $this->user(),
+            (string) $this->input('schedule_type', ''),
+            $this->input('duration_days'),
+            $existing,
+        );
     }
 
     public function attributes(): array
@@ -187,6 +262,7 @@ final class StoreLessonPackageRequest extends FormRequest
             'price.min' => 'Стоимость не может быть отрицательной.',
             'price.max' => 'Стоимость слишком большая.',
 
+            'freeze_enabled.boolean' => 'Некорректное значение заморозки.',
             'freeze_days.required' => 'Укажите количество дней заморозки.',
             'freeze_days.integer' => 'Количество дней заморозки должно быть целым числом.',
             'freeze_days.min' => 'Количество дней заморозки должно быть больше нуля.',

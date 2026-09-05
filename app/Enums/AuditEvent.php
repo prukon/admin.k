@@ -15,6 +15,7 @@ enum AuditEvent: string
     case PricingStudentApply = 'pricing.student_apply';
     case PricingTeamApply = 'pricing.team_apply';
     case PricingManualMonthPaid = 'pricing.manual_month_paid';
+    case PricingMonthProlonged = 'pricing.month_prolonged';
 
     // --- user (legacy type 2) ---
     case UserCreated = 'user.created';
@@ -163,6 +164,7 @@ enum AuditEvent: string
             self::PricingStudentApply => 'Инд. изм. цен (Применить справа)',
             self::PricingTeamApply => 'Изм. цен в одной группе (ок)',
             self::PricingManualMonthPaid => 'Ручная отметка оплаты месяца (users_prices)',
+            self::PricingMonthProlonged => 'Пролонгация абонементов на следующий месяц',
 
             self::UserCreated => 'Создание клиента',
             self::UserUpdated => 'Обновление учетной записи клиента',
@@ -334,7 +336,8 @@ enum AuditEvent: string
             self::PricingBulkApply,
             self::PricingStudentApply,
             self::PricingTeamApply,
-            self::PricingManualMonthPaid => 'pricing',
+            self::PricingManualMonthPaid,
+            self::PricingMonthProlonged => 'pricing',
 
             self::UserCreated,
             self::UserUpdated,
@@ -467,6 +470,7 @@ enum AuditEvent: string
             self::PricingStudentApply,
             self::PricingTeamApply,
             self::PricingManualMonthPaid,
+            self::PricingMonthProlonged,
             self::SettingsUpdated => 1,
 
             self::UserCreated,
@@ -600,6 +604,7 @@ enum AuditEvent: string
             self::PricingStudentApply => 12,
             self::PricingTeamApply => 13,
             self::PricingManualMonthPaid => 14,
+            self::PricingMonthProlonged => 15,
 
             self::UserCreated => 21,
             self::UserUpdated => 22,
@@ -877,6 +882,7 @@ enum AuditEvent: string
             12 => self::PricingStudentApply,
             13 => self::PricingTeamApply,
             14 => self::PricingManualMonthPaid,
+            15 => self::PricingMonthProlonged,
 
             21 => self::UserCreated,
             22 => self::UserUpdated,

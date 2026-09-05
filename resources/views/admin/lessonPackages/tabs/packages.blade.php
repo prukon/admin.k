@@ -194,11 +194,13 @@
                                 <div class="invalid-feedback d-none" data-error-for="create[schedule_type]"></div>
                             </div>
 
+                            @can('scheduleSlots.view')
                             <div class="col-12 col-md-6" id="create_duration_wrap">
                                 <label class="form-label">Срок действия (дни) *</label>
                                 <input type="number" name="create[duration_days]" id="create_duration_days" class="form-control" min="1" max="3650" value="30" required>
                                 <div class="invalid-feedback d-none" data-error-for="create[duration_days]"></div>
                             </div>
+                            @endcan
                             <div class="col-12 col-md-6" id="create_lessons_wrap">
                                 <label class="form-label">Занятий *</label>
                                 <input type="number" name="create[lessons_count]" id="create_lessons_count" class="form-control" min="1" max="1000" value="8" required>
@@ -210,6 +212,7 @@
                                 <div class="invalid-feedback d-none" data-error-for="create[price]"></div>
                             </div>
 
+                            @can('scheduleSlots.view')
                             <div class="col-12" id="create_freeze_section">
                                 <div class="rounded border bg-light p-3">
                                     <div class="form-check mb-0">
@@ -242,6 +245,7 @@
                                     <div class="invalid-feedback d-none" data-error-for="create[auto_attendance_enabled]"></div>
                                 </div>
                             </div>
+                            @endcan
                         </div>
 
                         <div class="mt-3 d-flex gap-2">
@@ -286,11 +290,13 @@
                                 <div class="invalid-feedback d-none" data-error-for="edit[schedule_type]"></div>
                             </div>
 
+                            @can('scheduleSlots.view')
                             <div class="col-12 col-md-6" id="edit_duration_wrap">
                                 <label class="form-label">Срок действия (дни) *</label>
                                 <input type="number" name="edit[duration_days]" id="edit_duration_days" class="form-control" min="1" max="3650" required>
                                 <div class="invalid-feedback d-none" data-error-for="edit[duration_days]"></div>
                             </div>
+                            @endcan
 
                             <div class="col-12 col-md-6" id="edit_lessons_wrap">
                                 <label class="form-label">Занятий *</label>
@@ -304,6 +310,7 @@
                                 <div class="invalid-feedback d-none" data-error-for="edit[price]"></div>
                             </div>
 
+                            @can('scheduleSlots.view')
                             <div class="col-12" id="edit_freeze_section">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="1" id="edit_freeze_enabled" name="edit[freeze_enabled]">
@@ -330,6 +337,7 @@
                                     <div class="invalid-feedback d-none" data-error-for="edit[auto_attendance_enabled]"></div>
                                 </div>
                             </div>
+                            @endcan
                         </div>
 
                         <div class="mt-3 d-flex gap-2">
@@ -935,12 +943,19 @@
 
                         editModalEl.querySelector('[name="edit[name]"]').value = lp.name || '';
                         scheduleSelect.value = scheduleType;
-                        editModalEl.querySelector('[name="edit[duration_days]"]').value = lp.duration_days || 30;
+                        if (editDuration) {
+                            editDuration.value = lp.duration_days || 30;
+                        }
                         editModalEl.querySelector('[name="edit[lessons_count]"]').value = lp.lessons_count || 8;
                         editModalEl.querySelector('[name="edit[price]"]').value = (lp.price !== undefined && lp.price !== null) ? lp.price : 0;
 
-                        editFreezeEnabled.checked = !!lp.freeze_enabled;
-                        editModalEl.querySelector('[name="edit[freeze_days]"]').value = lp.freeze_days || 7;
+                        if (editFreezeEnabled) {
+                            editFreezeEnabled.checked = !!lp.freeze_enabled;
+                        }
+                        const editFreezeDaysInput = editModalEl.querySelector('[name="edit[freeze_days]"]');
+                        if (editFreezeDaysInput) {
+                            editFreezeDaysInput.value = lp.freeze_days || 7;
+                        }
                         if (editAutoAttendanceEnabled) {
                             editAutoAttendanceEnabled.checked = !!lp.auto_attendance_enabled;
                         }

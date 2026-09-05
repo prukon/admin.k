@@ -123,6 +123,9 @@ class PaymentIntentReportController extends AdminBaseController
                 return round(((int) ($intent->out_sum_cents ?? 0)) / 100, 2);
             })
             ->orderColumn('out_sum', 'payment_intents.out_sum_cents $1')
+            ->filter(function ($query) use ($request): void {
+                $this->applyPaymentIntentsDataTableSearch($query, $request);
+            })
             ->rawColumns([
                 'partner_title',
                 'user_name',
@@ -284,6 +287,36 @@ class PaymentIntentReportController extends AdminBaseController
         if ($partnerId) {
             $q->where('partner_id', (int) $partnerId);
         }
+    }
+
+    /**
+     * Глобальный поиск DataTables: ФИО пользователя, название партнёра, ID провайдера.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     */
+    private function applyPaymentIntentsDataTableSearch($query, Request $request): void
+    {
+        $keyword = trim((string) $request->input('search.value', ''));
+        if ($keyword === '') {
+            return;
+        }
+
+        $like = '%'.addcslashes($keyword, '%_\\').'%';
+        $query->where(function ($q) use ($like): void {
+            $q->where('payment_intents.provider_inv_id', 'like', $like)
+                ->orWhereRaw('CAST(payment_intents.id AS CHAR) LIKE ?', [$like])
+                ->orWhereHas('user', function ($u) use ($like): void {
+                    $u->where('users.lastname', 'like', $like)
+                        ->orWhere('users.name', 'like', $like)
+                        ->orWhereRaw(
+                            "TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) LIKE ?",
+                            [$like]
+                        );
+                })
+                ->orWhereHas('partner', function ($p) use ($like): void {
+                    $p->where('partners.title', 'like', $like);
+                });
+        });
     }
 
     private function applyFilters($q, Request $request): void

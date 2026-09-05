@@ -126,6 +126,10 @@ class TinkoffPaymentsService
         $payment = TinkoffPayment::where('order_id', $orderId)->first();
         if (!$payment) return;
 
+        if ((string) ($payment->channel ?? TinkoffPayment::CHANNEL_MULTISPLIT) === TinkoffPayment::CHANNEL_ACQUIRING) {
+            return;
+        }
+
         $cfg = $this->resolvePaymentConfig((int) $payment->partner_id);
         if (!$skipSignature) {
             if (!TinkoffSignature::verify($data, $cfg['password'])) {

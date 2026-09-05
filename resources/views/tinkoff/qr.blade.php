@@ -48,6 +48,8 @@
                     @endif
                     <button type="submit" class="btn btn-outline-secondary">← К выбору способа оплаты</button>
                 </form>
+            @elseif(!empty($acquiringBackUrl))
+                <a href="{{ $acquiringBackUrl }}" class="btn btn-outline-secondary">← {{ $acquiringBackLabel ?? 'Назад' }}</a>
             @else
                 <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">В личный кабинет</a>
             @endif

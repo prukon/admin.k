@@ -656,6 +656,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
     {
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('setPrices.packageAssignments.view');
+        $this->grantPermission('scheduleSlots.view');
 
         $student = $this->studentUser();
 

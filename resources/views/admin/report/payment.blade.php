@@ -809,6 +809,7 @@ if (canViewLocations) {
     columns.push({
         data: 'location_title',
         name: 'location_title',
+        searchable: false,
         render: function (data, type, row) {
             if (type !== 'display') {
                 return data || '';
@@ -822,6 +823,7 @@ columns.push(
     {
         data: 'summ',
         name: 'summ',
+        searchable: false,
         render: function (data, type, row) {
             if (type === 'display') {
                 function formatNumber(number) {
@@ -839,6 +841,7 @@ columns.push(
     {
         data: 'payment_month',
         name: 'payment_month',
+        searchable: false,
         render: function (data, type, row) {
             if (data) {
                 if (/\d{4}-\d{2}-\d{2}/.test(data)) {
@@ -860,6 +863,7 @@ columns.push(
     {
         data: 'operation_date',
         name: 'operation_date',
+        searchable: false,
         render: function (data, type, row) {
             if (!data) {
                 return data;
@@ -956,6 +960,7 @@ if (canAdditional) {
         {
             data: 'platform_commission',
             name: 'platform_commission',
+            searchable: false,
             render: function (data, type, row) {
                 if (data === null || data === undefined || data === '') return '';
                 if (type !== 'display') return parseFloat(data);
@@ -973,6 +978,7 @@ if (!canAdditional && canCommissionTotal) {
         {
             data: 'commission_total',
             name: 'commission_total',
+            searchable: false,
             render: function (data, type, row) {
                 if (data === null || data === undefined || data === '') return '';
                 if (type !== 'display') return parseFloat(data);
@@ -992,6 +998,7 @@ if (canAdditional) {
         {
             data: 'net_to_partner',
             name: 'net_to_partner',
+            searchable: false,
             render: function (data, type, row) {
                 if (data === null || data === undefined || data === '') return '';
                 if (type !== 'display') return parseFloat(data);
@@ -1009,6 +1016,7 @@ if (canPayoutColumn) {
         {
             data: 'payout_amount',
             name: 'payout_amount',
+            searchable: false,
             render: function (data, type, row) {
                 if (data === null || data === undefined || data === '') return '';
                 if (type !== 'display') return parseFloat(data);
@@ -1040,6 +1048,7 @@ columns.push(
     {
         data: 'refund_status',
         name: 'refund_status',
+        searchable: false,
         render: function (data, type, row) {
             if (!data) return '';
             if (data === 'pending') return '<span class="badge bg-warning text-dark">в обработке</span>';

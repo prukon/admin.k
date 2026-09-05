@@ -7,6 +7,7 @@ namespace Tests\Feature\Crm\PartnerWallet;
 use App\Models\PartnerWalletTransaction;
 use Tests\Feature\Crm\CrmTestCase;
 use Tests\Feature\Crm\PartnerWallet\Concerns\PartnerWalletTestHelpers;
+use Tests\Feature\Crm\Payments\TBank\Concerns\TbankAcquiringTestHelpers;
 
 /**
  * AJAX JSON-контракт кошелька: DataTables, 422 errors[field], pending tx текущей школы.
@@ -17,6 +18,7 @@ use Tests\Feature\Crm\PartnerWallet\Concerns\PartnerWalletTestHelpers;
 final class PartnerWalletAjaxContractFeatureTest extends CrmTestCase
 {
     use PartnerWalletTestHelpers;
+    use TbankAcquiringTestHelpers;
 
     protected function setUp(): void
     {
@@ -97,9 +99,12 @@ final class PartnerWalletAjaxContractFeatureTest extends CrmTestCase
 
     public function test_topup_ajax_creates_pending_tx_for_current_partner_even_if_yookassa_fails(): void
     {
+        $this->grantNamedPermission($this->user, 'platformPayments.method.yookassa');
+
         $response = $this->postJson(route('partner.wallet.topup'), [
             'amount' => 150.5,
             'partner_id' => $this->partner->id,
+            'payment_method' => 'yookassa',
         ], $this->walletAjaxHeaders());
 
         $this->assertNotSame(422, $response->getStatusCode());
@@ -158,7 +163,7 @@ final class PartnerWalletAjaxContractFeatureTest extends CrmTestCase
         ], $this->walletAjaxHeaders())
             ->assertStatus(422)
             ->assertJsonValidationErrors(['amount'])
-            ->assertJsonPath('errors.amount.0', 'Сумма слишком большая.');
+            ->assertJsonPath('errors.amount.0', 'Сумма для СБП не должна превышать 1 000 000 ₽.');
 
         $this->assertTopupDidNotCreateTransaction();
     }

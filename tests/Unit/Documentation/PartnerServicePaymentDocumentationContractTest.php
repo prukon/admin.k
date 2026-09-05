@@ -53,6 +53,20 @@ final class PartnerServicePaymentDocumentationContractTest extends TestCase
         $this->assertStringContainsString('PartnerServicePaymentDocumentationContractTest', $html);
         $this->assertStringContainsString('data-error-for="partner_id"', $html);
         $this->assertStringContainsString('session errors[field]', $html);
+        $this->assertStringContainsString('payment/service/tinkoff-sbp', $html);
+        $this->assertStringContainsString('platformPayments.method.tbankSbp', $html);
+        $this->assertStringContainsString('platformPayments.method.yookassa', $html);
+        $this->assertStringContainsString('Оплата доступа KidsCRM', $html);
+        $this->assertStringContainsString('TbankAcquiringPlatformPaymentsFeatureTest', $html);
+        $this->assertStringContainsString('TbankAcquiringAccessFeatureTest', $html);
+        $this->assertStringContainsString('TbankAcquiringUxFeatureTest', $html);
+        $this->assertStringContainsString('TbankAcquiringDocumentationContractTest', $html);
+        $this->assertStringContainsString('PlatformPaymentsMethodAccessFeatureTest', $html);
+        $this->assertStringContainsString('PlatformPaymentsMethodUxFeatureTest', $html);
+        $this->assertStringContainsString('/doc#tbank-acquiring-platform-index', $html);
+        $this->assertStringContainsString('/doc#platform-payments-methods-index', $html);
+        $this->assertStringContainsString('К истории оплаты сервиса', $html);
+        $this->assertStringContainsString('/partner-payment/history', $html);
     }
 
     public function test_page_titles_include_service_payments(): void

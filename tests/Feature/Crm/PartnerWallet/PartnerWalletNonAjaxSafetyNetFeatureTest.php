@@ -7,6 +7,7 @@ namespace Tests\Feature\Crm\PartnerWallet;
 use App\Models\PartnerWalletTransaction;
 use Tests\Feature\Crm\CrmTestCase;
 use Tests\Feature\Crm\PartnerWallet\Concerns\PartnerWalletTestHelpers;
+use Tests\Feature\Crm\Payments\TBank\Concerns\TbankAcquiringTestHelpers;
 
 /**
  * Non-AJAX safety-net: без X-Requested-With валидация → 302 + session errors[field];
@@ -19,6 +20,7 @@ use Tests\Feature\Crm\PartnerWallet\Concerns\PartnerWalletTestHelpers;
 final class PartnerWalletNonAjaxSafetyNetFeatureTest extends CrmTestCase
 {
     use PartnerWalletTestHelpers;
+    use TbankAcquiringTestHelpers;
 
     protected function setUp(): void
     {
@@ -83,11 +85,14 @@ final class PartnerWalletNonAjaxSafetyNetFeatureTest extends CrmTestCase
 
     public function test_non_ajax_topup_creates_pending_tx_for_current_partner_and_is_not_empty_200_without_row(): void
     {
+        $this->grantNamedPermission($this->user, 'platformPayments.method.yookassa');
+
         $response = $this->from(route('partner.wallet'))
             ->post(route('partner.wallet.topup'), [
                 '_token' => csrf_token(),
                 'amount' => 80,
                 'partner_id' => $this->partner->id,
+                'payment_method' => 'yookassa',
             ]);
 
         $this->assertNotSame(422, $response->getStatusCode());

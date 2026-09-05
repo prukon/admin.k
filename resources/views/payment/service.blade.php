@@ -60,7 +60,7 @@
                                             <li>Учет до 200 пользователей</li>
                                             <li>Отчеты</li>
                                         </ul>
-                                        <form action="{{route('createPaymentYookassa')}}" method="post">
+                                        <form action="{{route('partner.payment.tinkoff.sbp')}}" method="post">
                                             <!-- Фиксированная сумма -->
                                             @csrf
                                             {{--                            <input type="hidden" name="client_id" value="{{ $client->id }}"> <!-- client_id передаётся скрыто -->--}}
@@ -86,7 +86,7 @@
                                             <li>Учет до 200 пользователей</li>
                                             <li>Отчеты</li>
                                         </ul>
-                                        <form action="{{route('createPaymentYookassa')}}" method="post">
+                                        <form action="{{route('partner.payment.tinkoff.sbp')}}" method="post">
                                             <!-- Фиксированная сумма -->
                                             @csrf
                                             <input type="hidden" name="client_id" value="1"> <!-- client_id передаётся скрыто -->

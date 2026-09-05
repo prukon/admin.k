@@ -100,6 +100,7 @@ final class LessonPackagesAuditLogsFeatureTest extends CrmTestCase
     public function test_store_writes_lesson_package_created_log(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('scheduleSlots.view');
 
         $this->postJson(route('admin.lesson-packages.store'), $this->validPayload([
             'name' => 'Футбол абонемент',
@@ -119,6 +120,7 @@ final class LessonPackagesAuditLogsFeatureTest extends CrmTestCase
     public function test_update_writes_lesson_package_updated_log_with_field_diffs(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('scheduleSlots.view');
 
         $package = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,

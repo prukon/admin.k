@@ -37,7 +37,10 @@
   <ul>
     <li>Страница: <code>GET /admin/settings/rules</code> (внутри общей страницы настроек, вкладка «Права и роли»).</li>
     <li>Матрица прав сгруппирована по аккордеону <code>#permission-accordion</code> (группы <code>permission_groups</code>) — см.
-      <a href="/docs/documentation/settings-permission-groups">группы permissions в матрице</a>.</li>
+      <a href="/docs/documentation/settings-permission-groups">группы permissions в матрице</a>.
+      Рядом с кодом права — иконка <code>i</code> с ховером возможностей
+      (<a href="/docs/documentation/settings-permission-groups#capability-hints">§8</a>,
+      анонс <a href="/doc#permission-capability-hints-index">/doc</a>).</li>
     <li>Создание роли: <code>POST /admin/setting/role/create</code> (AJAX, имя маршрута <code>admin.setting.role.create</code>).</li>
     <li>Переключение одного права у роли: <code>POST /admin/setting/rule/toggle</code>.</li>
     <li>Удаление кастомной роли: <code>DELETE /admin/setting/role/delete</code>.</li>

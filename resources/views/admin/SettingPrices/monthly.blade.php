@@ -2,6 +2,7 @@
     @include('includes.logModal')
 
     @push('styles')
+        @vite(['resources/css/schedule.css'])
         <style>
             /* Длинные названия абонемента: «...» в закрытом select */
             #left_bar .setting-prices-team-package-select,
@@ -9,6 +10,59 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+            }
+
+            #setting-prices-prolong-modal .setting-prices-prolong-stat {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.75rem;
+                margin: 0 0 0.4rem;
+                padding: 0.55rem 0.85rem;
+                border: 1px solid #e9ecef;
+                border-radius: 0.55rem;
+                background: #fff;
+            }
+
+            #setting-prices-prolong-modal .setting-prices-prolong-stat:last-child {
+                margin-bottom: 0;
+            }
+
+            #setting-prices-prolong-modal .setting-prices-prolong-stat__label {
+                min-width: 0;
+                font-size: 0.9375rem;
+                font-weight: 500;
+                color: #212529;
+                line-height: 1.3;
+            }
+
+            #setting-prices-prolong-modal .setting-prices-prolong-stat__value {
+                display: inline-flex;
+                align-items: center;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+                gap: 0.15rem;
+                flex-shrink: 0;
+                font-size: 0.8125rem;
+                font-weight: 600;
+                color: #495057;
+                line-height: 1.3;
+                text-align: right;
+            }
+
+            #setting-prices-prolong-modal .setting-prices-prolong-items {
+                max-height: 220px;
+                overflow: auto;
+                border: 1px solid #e9ecef;
+                border-radius: 0.55rem;
+            }
+
+            #setting-prices-prolong-modal .btn-primary:disabled,
+            #setting-prices-prolong-modal .btn-primary.disabled {
+                opacity: 1;
+                color: #fff !important;
+                background-color: #b8bec5 !important;
+                border-color: #a8b0b8 !important;
             }
         </style>
         @include('partials.ui.discount-percent-badge-styles')
@@ -22,8 +76,54 @@
             <button type="button" class="btn btn-primary" id="logs" data-bs-toggle="modal"
                     data-bs-target="#historyModal">История изменений
             </button>
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    id="setting-prices-prolong-btn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#setting-prices-prolong-modal"
+                    data-preview-url="{{ route('setting-prices.prolong-month.preview') }}"
+                    data-apply-url="{{ route('setting-prices.prolong-month.apply') }}">
+                Пролонгировать на следующий месяц
+            </button>
             <hr>
         </div>
+
+        <div class="modal fade" id="setting-prices-prolong-modal" tabindex="-1"
+             aria-labelledby="setting-prices-prolong-modal-title" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content schedule-modal-content cell-edit-modal">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="setting-prices-prolong-modal-title">Пролонгация на следующий месяц</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="cell-edit-context">
+                            <div class="cell-edit-context__name">Пролонгация абонементов</div>
+                            <div class="cell-edit-context__date" id="setting-prices-prolong-period"></div>
+                            <div class="cell-edit-context__summary" id="setting-prices-prolong-message"></div>
+                        </div>
+                        <div id="setting-prices-prolong-selected-date-err" class="invalid-feedback d-none" data-error-for="selectedDate"></div>
+                        <div id="setting-prices-prolong-body">
+                            <p class="text-muted mb-0">Загрузка превью…</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer cell-edit-modal__footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary" id="setting-prices-prolong-confirm" disabled>
+                            Пролонгировать
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <template id="setting-prices-prolong-skip-hint-tpl">
+            @include('partials.ui.tooltip-hint', [
+                'title' => 'Причины пропусков',
+                'placement' => 'top',
+                'iconClass' => 'fa fa-info-circle',
+                'wrapperClass' => 'ms-1',
+            ])
+        </template>
         <div class="row justify-content-md-center">
             <div id='selectDate' class="selectDate">
                 <select class="form-select" id="single-select-date" data-placeholder="Дата"

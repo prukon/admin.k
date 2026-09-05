@@ -182,6 +182,41 @@ class FiscalReceiptsReportTest extends CrmTestCase
         $this->assertSame('Test error message', $row['error_message']);
     }
 
+    public function test_platform_sale_receipts_are_excluded_from_marketplace_report_data_and_total(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $market = FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'amount_cents' => 100000,
+            'type' => 'income',
+            'source' => FiscalReceipt::SOURCE_MARKETPLACE,
+        ]);
+        $platform = FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'amount_cents' => 999900,
+            'type' => 'income',
+            'source' => FiscalReceipt::SOURCE_PLATFORM,
+        ]);
+
+        $ids = collect(
+            $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+                ->get(route('reports.fiscal-receipts.data', ['draw' => 1]))
+                ->assertOk()
+                ->json('data')
+        )->pluck('id')->map(static fn ($id) => (int) $id)->all();
+
+        $this->assertContains($market->id, $ids);
+        $this->assertNotContains($platform->id, $ids);
+
+        $this->get(route('reports.fiscal-receipts.total', ['partner_id' => $this->partner->id]))
+            ->assertOk()
+            ->assertJson([
+                'total_raw' => 1000.0,
+            ]);
+    }
+
     /**
      * [P1] Страница: KidsCrmDataTable без type custom, inline-actions и datetime.
      */

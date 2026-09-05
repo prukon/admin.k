@@ -63,6 +63,12 @@
     (право <code>setPrices.paymentNotifications.manage</code>) — конструктор email-правил
     по неоплаченным <code>users_prices</code> —
     <a href="/docs/documentation/setting-prices-payment-notifications">setting-prices-payment-notifications</a>.
+    <br><br>
+    <b>Ручная пролонгация месяца:</b> на «По месяцам» кнопка копирует абонементы M → M+1
+    по всем группам партнёра (превью, затем подтверждение). Это не classic-автопролонг
+    назначений и не вкладка «По ученикам». Анонс —
+    <a href="/doc#setting-prices-month-prolong-index">/doc</a>, подробно —
+    <a href="#month-prolong">§4.2</a>.
   </div>
 
   <h2 id="ulp-sync">0) Sync <code>users_prices</code> ↔ ULP (assignable-пакеты)</h2>
@@ -85,7 +91,10 @@
       для <code>fixed</code> / <code>no_schedule</code> — <code>starts_at = NULL</code> до раскладки,
       <code>fee_amount_cents</code> = цена месяца (копейки; в HTTP/JSON — <code>fee_amount</code> / <code>price</code> в рублях), объём = <code>lessons_count</code> шаблона,
       FK <code>users_prices.user_lesson_package_id</code>.</li>
-    <li><code>duration_days</code> шаблона для месячного ULP <b>не</b> задаёт период.</li>
+    <li><code>duration_days</code> шаблона для месячного ULP <b>не</b> задаёт период
+      (скрыть поле в модалке шаблона без <code>scheduleSlots.view</code> это не меняет —
+      <a href="/docs/documentation/lesson-packages#duration-permission">lesson-packages §Срок действия</a>,
+      <a href="/doc#lesson-package-duration-permission-index">анонс</a>).</li>
   </ul>
   <h3>0.2) Правила изменений</h3>
   <ul>
@@ -253,6 +262,20 @@
       </tr>
       <tr>
         <td>POST</td>
+        <td><code>/admin/setting-prices/prolong-month/preview</code></td>
+        <td><code>setting-prices.prolong-month.preview</code></td>
+        <td>Превью пролонгации без записи. JSON <b>200</b> / <b>422</b> на <code>selectedDate</code>
+          (в т.ч. без AJAX). См. § <a href="#month-prolong">4.2</a></td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/prolong-month</code></td>
+        <td><code>setting-prices.prolong-month.apply</code></td>
+        <td>Запись пролонгации. AJAX JSON / non-AJAX <b>302</b> → monthly. Аудит
+          <code>pricing.month_prolonged</code></td>
+      </tr>
+      <tr>
+        <td>POST</td>
         <td><code>/admin/setting-prices/user-year-prices</code></td>
         <td><code>setting-prices.user-year-prices</code></td>
         <td>JSON год. Бывший: <code>is_former_member=true</code>. Нет членства и нет истории <code>price&gt;0</code> → <b>422</b>. Чужой ученик → <b>404</b></td>
@@ -285,15 +308,68 @@
     поля — <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>.
   </div>
 
+  <h2 id="month-prolong">4.2) Пролонгация на следующий месяц</h2>
+  <div class="ok">
+    <b>Зачем.</b> Админ один раз в месяц выставляет абонементы. Кнопка
+    «Пролонгировать на следующий месяц» на вкладке «По месяцам» копирует шаблоны
+    с выбранного месяца M на M+1 по <b>всем группам партнёра</b>.
+    Вкладка «По ученикам» кнопку <b>не</b> показывает.
+  </div>
+  <ul>
+    <li>Только ручное действие: превью без записи, затем подтверждение.</li>
+    <li>Источник — текущий селект месяца. После успеха страница остаётся на M
+      (toast, без reload на M+1).</li>
+    <li>Ученик копируется, только если он сейчас в группе (<code>team_user</code>,
+      <code>is_enabled=1</code>) и в M у пары ученик+группа уже выбран абонемент.
+      Пустой M, новичок без абона, бывшие участники — цель не трогаем.</li>
+    <li>Сумма в M+1 = <b>текущая</b> цена шаблона × <b>текущий</b> % карточки
+      (снимок скидки с карточки, не копия суммы/снимка из M).</li>
+    <li>Постоплата: копируется шаблон, сумма как при apply (посещения M+1).
+      Без права <code>lessonPackages.type.postpay</code> — пропуск.</li>
+    <li>Assignable → <code>UsersPriceLessonPackageSync</code>: новый неразложенный ULP,
+      <code>billing_month = M+1</code>. Раскладку журнала не копируем.
+      Месячный ULP автопролонг не включает.</li>
+    <li>Тариф группы: если в M у группы есть шаблон, а в M+1 пакета нет —
+      пишем тот же шаблон и текущую каталожную цену. Иначе группу пропускаем,
+      учеников разбираем отдельно.</li>
+    <li><b>Пропуск с отчётом (не ошибка):</b> в M+1 уже другой пакет/сумма;
+      M+1 оплачен; ULP разложен; classic-автопролонг
+      (<code>UserLessonPackageAutoProlongGuard</code>); шаблон недоступен;
+      постоплата без права. Совпадающие пакет и пересчитанная сумма — идемпотентный no-op.
+      В <code>skip_reasons</code> ученики и группы считаются раздельно
+      (<code>students</code> / <code>teams</code>), без суммы в одном числе.
+      У счётчика «Пропущено» иконка <code>i</code> из
+      <code>@include('partials.ui.tooltip-hint')</code> (клон
+      <code>#setting-prices-prolong-skip-hint-tpl</code>): в UI только ученики,
+      ховер с причинами. Пустой источник — «В сентябре не установлены абонементы»
+      (месяц M в предложном падеже). Плашку <code>summaryMessage</code>
+      («Будет пролонгировано…») модалка не показывает (текст остаётся в JSON/toast).</li>
+    <li>Оплата, ручная отметка, ссылки СБП с M не копируются. Новый месяц неоплаченный.</li>
+    <li>Превью всегда JSON. Apply: AJAX JSON / non-AJAX <b>302</b>. Ошибка месяца —
+      <b>422</b> на <code>selectedDate</code>. Строка с ошибкой sync не валит весь прогон.</li>
+    <li>Модалка стандартной ширины Bootstrap, стилистика журнала
+      (<code>cell-edit-modal</code> / <code>cell-edit-context</code>,
+      <code>resources/css/schedule.css</code>). После успеха — <code>Modal.hide</code> и toast,
+      без обновления тела модалки. Аудит <code>pricing.month_prolonged</code>
+      (legacy action 15). Право — <code>setPrices.view</code>.</li>
+    <li>Кабинет ячейку M+1 покажет с 1-го числа M+1; письма уведомлений — по уже
+      настроенным правилам (начисление в середине M может попасть в рассылку раньше).</li>
+  </ul>
+  <p class="small">Сервис: <code>App\Services\SettingPrices\MonthlyPricesProlongService</code>.
+    Request: <code>ProlongMonthlyPricesRequest</code>.
+    JS: Vite-модуль <code>resources/js/settings-prices.js</code> (<code>initMonthProlong</code>, после <code>npm run build</code>).</p>
+
   <h2 id="code">5) Ключевые файлы</h2>
   <ul>
-    <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>getTeamPrice</code>, <code>formerMemberPricesForTeamMonth</code>, <code>usersForPricesUsersTab</code>, <code>userYearPrices</code>, apply/save/manual</li>
+    <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>getTeamPrice</code>, <code>formerMemberPricesForTeamMonth</code>, <code>usersForPricesUsersTab</code>, <code>userYearPrices</code>, apply/save/manual, <code>previewMonthProlong</code> / <code>applyMonthProlong</code></li>
+    <li><code>app/Services/SettingPrices/MonthlyPricesProlongService.php</code> — превью и запись пролонгации месяца</li>
     <li><code>app/Services/SettingPrices/UsersPriceLessonPackageSync.php</code> — create/update/delete ULP из начисления</li>
     <li><code>app/Support/UserPriceTeamMembership.php</code> — <code>studentBelongsToTeam</code>, <code>studentHasPositivePriceHistoryForTeam</code></li>
     <li>При «Применить» слева (абонемент группы) цена каталога копируется в <code>team_prices</code>;
       у учеников справа — персональная сумма (каталог × % карточки) и снимок скидки.
       Иконка <code>%</code> у поля цены ученика: скидка применилась при выставлении; tooltip
       <code>Скидка N%. {основание}</code> — см. <a href="/docs/documentation/admin-users.html#user-percent-discount">admin-users §2.6</a>.</li>
+    <li><code>resources/js/settings-prices.js</code> — Vite-модуль вкладки «По месяцам», в т.ч. <code>initMonthProlong</code></li>
     <li><code>resources/views/admin/SettingPrices/monthly.blade.php</code>, <code>users.blade.php</code></li>
   </ul>
 
@@ -308,6 +384,27 @@
     <li><code>SettingPricesUserPercentDiscountFeatureTest</code> — персональная скидка: apply-all по ученикам, snapshot vs override, JSON года и getTeamPrice, year save AJAX/non-AJAX, страница helpers, постоплата по снимку строки</li>
     <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — карандаш одного ученика и «Применить» справа: <code>window.showToast</code>; «Применить» слева по-прежнему <code>showSuccessModal(..., 1)</code></li>
     <li><code>DebtsReportManualPaidFeatureTest</code> — ручная оплата месяца → исчезновение из отчёта задолженностей</li>
+    <li><code>SettingPricesMonthlyProlongFeatureTest</code> — копирование шаблона, пересчёт каталог×%, skip-причины
+      (<code>students</code> / <code>teams</code> раздельно, без <code>count</code>), идемпотентность, изоляция,
+      disabled-ученик, пустой M не пишет нули в M+1, разложенный ULP, декабрь→январь,
+      оплата/ручная отметка M не копируются</li>
+    <li><code>SettingPricesMonthlyProlongAccessFeatureTest</code> — guest GET/POST / 403 без <code>setPrices.view</code> /
+      200 с правом; GET/PATCH/DELETE на POST-рутах → <b>404/405</b> (не 200/500); guest non-AJAX apply не пишет в БД</li>
+    <li><code>SettingPricesMonthlyProlongAjaxContractFeatureTest</code> — JSON превью/apply с
+      <code>X-Requested-With</code>; <b>422</b> <code>errors.selectedDate</code>
+      («Укажите месяц.» / «Укажите корректный месяц.»); <code>skip_reasons</code> без <code>count</code></li>
+    <li><code>SettingPricesMonthlyProlongNonAjaxSafetyNetFeatureTest</code> — preview всегда JSON
+      (валидный месяц — 200 без записи; невалидный — <b>422</b> JSON, не 302);
+      apply без AJAX — <b>302</b> + БД; невалидный apply — 302 + session errors</li>
+    <li><code>MonthlyPricesProlongReportTest</code> — <code>skip_reasons</code>: ученики и группы раздельно</li>
+    <li><code>SettingPricesMonthlyProlongMarkupFeatureTest</code> — кнопка и стандартная модалка только на «По месяцам»;
+      confirm <code>disabled</code> при первом рендере; нет плашки «Будет пролонгировано»; вкладки
+      «По ученикам» и «Доп. платежи» кнопку не показывают</li>
+    <li><code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_prolong_vite_module_ux_contract</code> —
+      <code>node --check</code> + UX: <code>getSelectedMonthLabel</code> в теле POST, превью на
+      <code>show.bs.modal</code>, confirm disabled пока нет <code>can_apply</code>, после успеха
+      <code>Modal.hide</code> + toast без <code>location.reload</code> и без плашки
+      <code>data.message</code> в модалке; «Пропущено» — «N учеников» + i-иконка после слова, без групп</li>
   </ul>
   <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersPriceUlpSyncFeatureTest.php \
@@ -316,7 +413,16 @@
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersAccessFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersAccessFeatureTest.php \
-  tests/Feature/Crm/SettingPrices/SettingPricesUserPercentDiscountFeatureTest.php</code></pre>
+  tests/Feature/Crm/SettingPrices/SettingPricesUserPercentDiscountFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyProlongFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyProlongAccessFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyProlongAjaxContractFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyProlongNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyProlongMarkupFeatureTest.php \
+  tests/Unit/Services/SettingPrices/MonthlyPricesProlongReportTest.php
+php artisan test --env=testing \
+  tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php \
+  --filter=test_setting_prices_monthly_prolong_vite_module_ux_contract</code></pre>
 
   <h2 id="related">7) Связанные страницы</h2>
   <p class="small">

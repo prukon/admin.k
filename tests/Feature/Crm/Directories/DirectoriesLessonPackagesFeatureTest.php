@@ -167,6 +167,7 @@ final class DirectoriesLessonPackagesFeatureTest extends CrmTestCase
     public function test_ajax_store_returns_json_contract_and_persists(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('scheduleSlots.view');
 
         $this->postJson(route('admin.lesson-packages.store'), $this->validPayload([
             'name' => 'Dirs AJAX create',
@@ -202,6 +203,7 @@ final class DirectoriesLessonPackagesFeatureTest extends CrmTestCase
     public function test_ajax_update_and_show_return_json_contract(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('scheduleSlots.view');
 
         $package = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,

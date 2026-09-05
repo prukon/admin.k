@@ -1257,7 +1257,54 @@ SQL;
 
                 return Carbon::parse($v)->format('d.m.Y H:i');
             })
+            // Без второго аргумента true: иначе Yajra autoFilter ищет addColumn-поля
+            // (payments.user_name вместо ФИО, несуществующие агрегаты).
+            ->filter(function ($query) use ($request, $partnerId): void {
+                $this->applyPaymentsDataTableSearch($query, $request, $partnerId);
+            })
             ->make(true);
+    }
+
+    /**
+     * Глобальный поиск DataTables (search.value): только ФИО ученика и название группы.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $query
+     */
+    private function applyPaymentsDataTableSearch($query, Request $request, int $partnerId): void
+    {
+        $keyword = trim((string) $request->input('search.value', ''));
+        if ($keyword === '') {
+            return;
+        }
+
+        $like = '%'.addcslashes($keyword, '%_\\').'%';
+        $query->where(function ($q) use ($like, $partnerId): void {
+            $q->where('users.lastname', 'like', $like)
+                ->orWhere('users.name', 'like', $like)
+                ->orWhereRaw(
+                    "TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) LIKE ?",
+                    [$like]
+                )
+                ->orWhere('payments.user_name', 'like', $like)
+                ->orWhere('payments.team_title', 'like', $like)
+                ->orWhereExists(function ($sub) use ($like): void {
+                    $sub->selectRaw('1')
+                        ->from('teams')
+                        ->whereColumn('teams.id', 'payments.team_id')
+                        ->where('teams.title', 'like', $like)
+                        ->whereNull('teams.deleted_at');
+                })
+                ->orWhereExists(function ($sub) use ($like, $partnerId): void {
+                    $sub->selectRaw('1')
+                        ->from('team_user')
+                        ->join('teams', 'teams.id', '=', 'team_user.team_id')
+                        ->whereColumn('team_user.user_id', 'users.id')
+                        ->where('team_user.partner_id', $partnerId)
+                        ->where('teams.partner_id', $partnerId)
+                        ->whereNull('teams.deleted_at')
+                        ->where('teams.title', 'like', $like);
+                });
+        });
     }
 
     private function applyPaymentsReportFilters($paymentsQuery, Request $request, int $partnerId): void

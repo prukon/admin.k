@@ -168,6 +168,11 @@ class FiscalReceiptReportController extends AdminBaseController
 
     private function applyFiscalReceiptReportFilters($query, Request $request): void
     {
+        $query->where(function ($q) {
+            $q->where('source', FiscalReceipt::SOURCE_MARKETPLACE)
+                ->orWhereNull('source');
+        });
+
         if ($this->isSuperAdmin()) {
             if ($request->filled('partner_id') && ctype_digit((string) $request->input('partner_id'))) {
                 $pid = (int) $request->input('partner_id');
