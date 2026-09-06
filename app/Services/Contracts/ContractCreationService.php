@@ -167,27 +167,63 @@ class ContractCreationService
     private function notifyClientAboutFill(Contract $contract, User $student): void
     {
         $contract->loadMissing('templateVersion.template');
+        $emails = $this->invitationRecipientEmails($student);
 
         ContractEvent::create([
             'contract_id'  => $contract->id,
             'author_id'    => Auth::id(),
             'type'         => 'client_invited_to_fill',
             'payload_json' => json_encode([
-                'email' => $student->email,
+                'emails' => $emails,
+                'email'  => $emails[0] ?? null,
             ], JSON_UNESCAPED_UNICODE),
         ]);
 
-        $email = trim((string) ($student->email ?? ''));
-        if ($email === '') {
-            return;
+        foreach ($emails as $email) {
+            $this->sendFillInvitationEmail($contract, $student, $email);
+        }
+    }
+
+    /**
+     * Уникальные адреса приглашения: ученик, затем родитель. Совпадение без учёта регистра — один адрес.
+     *
+     * @return list<string>
+     */
+    private function invitationRecipientEmails(User $student): array
+    {
+        $student->loadMissing('parentProfile');
+
+        $candidates = [
+            trim((string) ($student->email ?? '')),
+            trim((string) ($student->parentProfile?->email ?? '')),
+        ];
+
+        $unique = [];
+        foreach ($candidates as $email) {
+            if ($email === '') {
+                continue;
+            }
+
+            $key = mb_strtolower($email, 'UTF-8');
+            if (isset($unique[$key])) {
+                continue;
+            }
+
+            $unique[$key] = $email;
         }
 
+        return array_values($unique);
+    }
+
+    private function sendFillInvitationEmail(Contract $contract, User $student, string $email): void
+    {
         try {
             Mail::to($email)->send(new ContractClientFillInvitationMail($contract, $student));
         } catch (\Throwable $e) {
             Log::warning('[contracts] client fill invitation email failed', [
                 'contract_id' => $contract->id,
                 'user_id'     => $student->id,
+                'email'       => $email,
                 'error'       => $e->getMessage(),
             ]);
 
@@ -195,7 +231,10 @@ class ContractCreationService
                 'contract_id'  => $contract->id,
                 'author_id'    => Auth::id(),
                 'type'         => 'client_invite_email_failed',
-                'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
+                'payload_json' => json_encode([
+                    'email' => $email,
+                    'error' => $e->getMessage(),
+                ], JSON_UNESCAPED_UNICODE),
             ]);
         }
     }

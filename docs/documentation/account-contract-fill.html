@@ -34,7 +34,9 @@
     · <a href="#contract-date-placeholders">§4.1 contract_date / Word</a>
     · <a href="#account-documents-action-counter">§1.0 каунтер активных договоров</a>
     · <a href="#fill-modal-passport-email-errors">§2.6 паспорт / email / ошибки</a>
+    · <a href="#invitation-email-recipients">§6 приглашение на email ученика и родителя</a>
     · анонс <a href="/doc#account-contract-fill-modal-ux-index">/doc</a>
+    · приглашение: <a href="/doc#contract-invitation-parent-email-index">/doc</a>
     · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">/doc</a>
     · ключ Подпислона: <a href="/doc#legal-entities-podpislon-key-index">/doc</a>
   </div>
@@ -273,12 +275,17 @@
   <h2>5) Скрытое право «показывать ключи полей»</h2>
   <p>Право <code>account.contracts.showFieldKeys</code> (скрытое в БД, не в базовых ролях): при наличии под полем показывается технический ключ <code>{{…}}</code> из DOCX.</p>
 
-  <h2>6) Приглашение по email</h2>
-  <p>При создании договора по шаблону (<code>ContractCreationService::notifyClientAboutFill</code>) на email ученика уходит
-  <code>ContractClientFillInvitationMail</code>. Текст берётся из версии шаблона (<code>email_subject</code>, <code>email_body_html</code>)
+  <h2 id="invitation-email-recipients">6) Приглашение по email</h2>
+  <p>При создании договора по шаблону (<code>ContractCreationService::notifyClientAboutFill</code>) уходит
+  <code>ContractClientFillInvitationMail</code> на непустые адреса ученика (<code>users.email</code>) и родителя
+  (<code>parents.email</code>). Если адреса совпадают (после <code>trim</code>, без учёта регистра) — одно письмо.
+  Если разные — <b>два отдельных</b> письма с одним текстом (не одно письмо с двумя <code>To</code>).
+  Есть только один адрес — одно письмо. Оба пустые — договор создаётся, писем нет.
+  Сбой SMTP на одном адресе не отменяет отправку на второй.
+  Текст берётся из версии шаблона (<code>email_subject</code>, <code>email_body_html</code>)
   или системных дефолтов (<code>ContractTemplateEmailDefaults</code>); плейсхолдеры подставляет <code>ContractInvitationEmailRenderer</code>
   (<code>{{child_full_name}}</code>, <code>{{partner_name}}</code>, <code>{{documents_url}}</code>, <code>{{fill_deadline}}</code>, <code>{{contract_id}}</code>).
-  Если у ученика нет email — договор создаётся, письмо не отправляется.</p>
+  Режим PDF приглашение не шлёт. Анонс: <a href="/doc#contract-invitation-parent-email-index">/doc#contract-invitation-parent-email-index</a>.</p>
 
   <h2>7) Feature-тесты</h2>
   <div class="note">
@@ -308,6 +315,8 @@
       <li><code>ContractAnnulAfterSendDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>AccountDocumentsActionCounterFeatureTest.php</code> — каунтер активных договоров (§1.0): сайдбар + вкладка,
         только actionable-статусы, изоляция по <code>user_id</code>, скрытие при 0 / без права, guest/403</li>
+      <li><code>ContractInvitationEmailFeatureTest.php</code> — приглашение: текст по умолчанию; два отдельных письма на <code>users.email</code> и <code>parents.email</code>, одно при совпадении, только родитель, оба пустые</li>
+      <li><code>ContractInvitationParentEmailDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>ContractTemplateToParentWorkflowFeatureTest.php</code> — admin → email → fill → PDF (CRM + кабинет)</li>
       <li><code>ContractTemplateWorkflowFeatureTest.php</code> — сквозной E2E</li>
       <li><code>ContractSignedInAppNotification*FeatureTest.php</code> — колокольчик админам школы при первом <code>signed</code></li>

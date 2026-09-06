@@ -126,7 +126,10 @@
     <li>PUT <code>…/email</code> — <code>ContractTemplateUpdateEmailRequest</code>.</li>
     <li>Дефолты при пустых полях версии: <code>ContractTemplateEmailDefaults</code>.</li>
     <li>Плейсхолдеры письма: <code>{{child_full_name}}</code>, <code>{{partner_name}}</code>, <code>{{documents_url}}</code>, <code>{{fill_deadline}}</code>, <code>{{contract_id}}</code> — подстановка в <code>ContractInvitationEmailRenderer</code>.</li>
-    <li>Отправка при создании договора: <code>ContractClientFillInvitationMail</code> (<code>ContractCreationService::notifyClientAboutFill</code>).</li>
+    <li>Отправка при создании договора: <code>ContractClientFillInvitationMail</code> (<code>ContractCreationService::notifyClientAboutFill</code>)
+      на <code>users.email</code> и <code>parents.email</code>; совпавшие адреса — одно письмо, разные — два отдельных
+      (<a href="/docs/documentation/account-contract-fill#invitation-email-recipients">account-contract-fill §6</a>,
+      <a href="/doc#contract-invitation-parent-email-index">анонс</a>).</li>
   </ul>
 
   <h3>5.4) UI-заметки</h3>
@@ -323,7 +326,8 @@
       <li><code>ContractTemplateEditModalFeatureTest.php</code> — AJAX edit JSON, deep-link <code>?edit=</code>, 403 без <code>contracts.view</code></li>
       <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — <code>js-contract-template-edit-link</code> + edit JSON 200</li>
       <li><code>ContractTemplateEmailModalFeatureTest.php</code> — модалка email, update-email</li>
-      <li><code>ContractTemplateEmailFeatureTest.php</code>, <code>ContractInvitationEmailFeatureTest.php</code> — содержимое письма</li>
+      <li><code>ContractTemplateEmailFeatureTest.php</code>, <code>ContractInvitationEmailFeatureTest.php</code> — содержимое письма; получатели <code>users.email</code> / <code>parents.email</code></li>
+      <li><code>ContractInvitationParentEmailDocumentationContractTest.php</code> — анонс приглашения на оба адреса</li>
       <li><code>ContractTemplateFillSortOrderFeatureTest.php</code> — право fillSortOrder, сохранение порядка</li>
       <li><code>ContractTemplatesDataTableFeatureTest.php</code>, <code>ContractTemplatesIndexFullAccessFeatureTest.php</code></li>
       <li><code>ContractsDocumentsSectionUiFeatureTest.php</code>, <code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — вкладки, email API</li>

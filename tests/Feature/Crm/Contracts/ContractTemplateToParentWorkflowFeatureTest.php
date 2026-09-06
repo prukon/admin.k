@@ -153,6 +153,7 @@ class ContractTemplateToParentWorkflowFeatureTest extends ContractsFeatureTestCa
             ->first();
 
         $payload = json_decode((string) ($event->payload_json ?? ''), true);
+        $this->assertSame(['event@example.com'], $payload['emails'] ?? null);
         $this->assertSame('event@example.com', $payload['email'] ?? null);
     }
 
