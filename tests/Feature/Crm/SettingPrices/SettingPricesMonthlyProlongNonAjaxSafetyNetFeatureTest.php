@@ -32,6 +32,7 @@ final class SettingPricesMonthlyProlongNonAjaxSafetyNetFeatureTest extends CrmTe
             '2fa:passed' => true,
         ]);
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         $this->team = Team::factory()->create([
             'partner_id' => $this->partner->id,

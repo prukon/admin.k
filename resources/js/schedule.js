@@ -923,14 +923,14 @@ document.addEventListener('DOMContentLoaded', function () {
         var teamId = $('#flexible-team-id').val() || (flexibleContextCache && flexibleContextCache.team_id);
         var row = assignmentForFlexibleTeam(teamId) || (flexibleContextCache && flexibleContextCache.assignment);
         if (!row) {
-            $('#flexible-package-summary').text('Нет доступного гибкого абонемента на эту дату.');
+            $('#flexible-package-summary').text('Нет доступного абонемента предоплаты на эту дату.');
             $('#flexible-ulp-id').val('');
             $('#btnFlexiblePlace').prop('disabled', true);
             return;
         }
         $('#flexible-ulp-id').val(row.id);
         $('#flexible-package-summary').text(
-            '"' + (row.name || 'Гибкий абонемент') + '" — осталось занятий к назначению: ' +
+            '"' + (row.name || 'Абонемент предоплаты') + '" — осталось занятий к назначению: ' +
             (row.slots_remaining != null ? row.slots_remaining : '?')
         );
         $('#btnFlexiblePlace').prop('disabled', false);
@@ -998,9 +998,9 @@ document.addEventListener('DOMContentLoaded', function () {
             .replace(/"/g, '&quot;');
     }
 
-    /** Видимая подпись колонки абонементов: «10/12\\nГибкий». */
+    /** Видимая подпись колонки абонементов: «10/12\\nПредоплата». */
     function flexibleAbonementColumnLabel(remaining, total) {
-        return String(remaining) + '/' + String(total) + '\nГибкий';
+        return String(remaining) + '/' + String(total) + '\nПредоплата';
     }
 
     /** Как Money::formatRub($cents, ' руб') — для ховера гибкого без F5. */
@@ -1020,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * withRatio: «10/12 остаток … по абонементу "X" за Y руб»
      */
     function flexibleAbonementColumnHoverLine(name, feeCents, withRatio, remaining, total) {
-        var nm = (name && String(name).trim()) ? String(name).trim() : 'Гибкий абонемент';
+        var nm = (name && String(name).trim()) ? String(name).trim() : 'Абонемент предоплаты';
         var tail = ' по абонементу "' + nm + '" за ' + formatFeeRubFromCents(feeCents);
         if (withRatio) {
             return String(remaining) + '/' + String(total) +
@@ -1097,7 +1097,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     $c.find('.schedule-cell-empty-dot').remove();
                     $c.append(
                         '<i class="fa-regular fa-circle text-primary schedule-cell-empty-dot" style="opacity: 0.4;" ' +
-                        'title="Гибкий абонемент: поставить занятие"></i>'
+                        'title="Абонемент предоплаты: поставить занятие"></i>'
                     );
                 }
                 return;
@@ -1112,7 +1112,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     $c.find('.schedule-cell-empty-dot').remove();
                     $c.append(
                         '<i class="fa-regular fa-circle text-secondary schedule-cell-empty-dot" style="opacity: 0.35;" ' +
-                        'title="Пробное, разовое или занятие из гибкого абонемента"></i>'
+                        'title="Пробное, разовое или занятие из абонемента предоплаты"></i>'
                     );
                 }
                 return;
@@ -1122,7 +1122,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 $c.find('.schedule-cell-empty-dot').remove();
                 $c.append(
                     '<i class="fa-regular fa-circle text-primary schedule-cell-empty-dot" style="opacity: 0.4;" ' +
-                    'title="Гибкий абонемент: поставить занятие"></i>'
+                    'title="Абонемент предоплаты: поставить занятие"></i>'
                 );
             }
         });
@@ -1150,7 +1150,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if ($hint.hasClass('journal-flexible-hint--ratio')) {
             rebuildFlexibleHintTooltip($hint, [{
                 id: ulpId,
-                name: $hint.attr('data-package-name') || 'Гибкий абонемент',
+                name: $hint.attr('data-package-name') || 'Абонемент предоплаты',
                 slots_remaining: remaining,
                 lessons_total: total || Number($hint.attr('data-lessons-total') || 0),
                 fee_amount_cents: result.fee_amount_cents != null
@@ -1354,7 +1354,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 $cell.css('cursor', 'pointer');
                 $cell.append(
                     '<i class="fa-regular fa-circle text-primary schedule-cell-empty-dot" style="opacity: 0.4;" ' +
-                    'title="Гибкий абонемент: поставить занятие"></i>'
+                    'title="Абонемент предоплаты: поставить занятие"></i>'
                 );
             } else if ($cell.attr('data-postpay') === '1' || result.is_postpay) {
                 $cell.attr('data-postpay', '1');
@@ -1480,7 +1480,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         var total = Number(result.lessons_total || 0);
-        var name = result.package_name || 'Гибкий абонемент';
+        var name = result.package_name || 'Абонемент предоплаты';
         var feeCents = result.fee_amount_cents != null ? Number(result.fee_amount_cents) : 0;
         var title = flexibleAbonementColumnHoverLine(name, feeCents, false);
         var $span = $(
@@ -1542,7 +1542,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 resetFlexibleStatusDefault();
                 if (!ctx.can_place || !(ctx.assignments || []).length) {
-                    $('#flexible-package-summary').text('Нет доступного гибкого абонемента на эту дату.');
+                    $('#flexible-package-summary').text('Нет доступного абонемента предоплаты на эту дату.');
                     renderFlexibleTeamUi({teams: []}, '');
                     flexiblePlaceModal.show();
                     return;
@@ -1605,7 +1605,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         if (!ulpId) {
-            $('#flexible-ulp-error').text('Нет доступного гибкого абонемента.').show();
+            $('#flexible-ulp-error').text('Нет доступного абонемента предоплаты.').show();
             return;
         }
         if (!statusId) {
@@ -1874,12 +1874,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 $input.prop('disabled', true);
             }
             $label.append($input);
-            $label.append($('<span class="cell-status-option__title"></span>').text(opt.label || 'Гибкий абонемент'));
+            $label.append($('<span class="cell-status-option__title"></span>').text(opt.label || 'Абонемент предоплаты'));
             var $row = $('<div class="cell-status-option form-check"></div>').append($label);
             if (!allowed) {
                 $row.addClass('cell-status-option--disabled');
                 $row.append($('<div class="form-text text-muted small mt-1 px-3 pb-2"></div>').text(
-                    opt.reason || 'Достигнут лимит занятий по гибкому абонементу.'
+                    opt.reason || 'Достигнут лимит занятий по абонементу предоплаты.'
                 ));
             }
             $wrap.append($row);
@@ -2302,7 +2302,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (currentCell && $(currentCell).attr('data-flexible') === '1') {
             var $addFlex = $('<button type="button" class="btn btn-outline-primary w-100 mt-2">')
-                .html('<i class="fa-solid fa-plus me-1"></i>Добавить занятие из гибкого абонемента')
+                .html('<i class="fa-solid fa-plus me-1"></i>Добавить занятие из абонемента предоплаты')
                 .on('click', function () {
                     dayOccurrencesModal.hide();
                     openFlexiblePlaceModal(userId, date, userName, {

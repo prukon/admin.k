@@ -28,6 +28,7 @@ final class SettingPricesUsersTabWorkflowFeatureTest extends StudentTeamPivotTes
         ]);
 
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         $this->teamA = Team::factory()->create([
             'partner_id' => $this->partner->id,

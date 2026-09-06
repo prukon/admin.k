@@ -248,9 +248,13 @@
                     <label class="form-label" for="ulp-filter-schedule-type">Тип абонемента</label>
                     <select class="form-select" id="ulp-filter-schedule-type" name="filter_schedule_type">
                         <option value="">Все типы</option>
-                        <option value="fixed" @selected(($filters['filter_schedule_type'] ?? '') === 'fixed')>Фиксированный</option>
-                        <option value="flexible" @selected(($filters['filter_schedule_type'] ?? '') === 'flexible')>Гибкий</option>
-                        <option value="no_schedule" @selected(($filters['filter_schedule_type'] ?? '') === 'no_schedule')>Разовое занятие</option>
+                        @foreach (\App\Support\LessonPackageTypePermission::options() as $typeOption)
+                            @if ($typeOption['value'] !== \App\Models\LessonPackage::SCHEDULE_TYPE_POSTPAY)
+                                @can($typeOption['permission'])
+                                    <option value="{{ $typeOption['value'] }}" @selected(($filters['filter_schedule_type'] ?? '') === $typeOption['value'])>{{ $typeOption['label'] }}</option>
+                                @endcan
+                            @endif
+                        @endforeach
                     </select>
                 </div>
                 <div class="col-12 col-md-3">

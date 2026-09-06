@@ -11,6 +11,7 @@ use App\Models\Partner;
 use App\Models\User;
 use Illuminate\Broadcasting\BroadcastManager;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
 use Tests\Feature\Crm\CrmTestCase;
 
 abstract class ChatTestCase extends CrmTestCase
@@ -125,6 +126,16 @@ abstract class ChatTestCase extends CrmTestCase
         }
 
         return $thread;
+    }
+
+    protected function assertChatPeerCardForbidden(TestResponse $response): TestResponse
+    {
+        $response
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Нет доступа к карточке этого пользователя.')
+            ->assertJsonPath('errors.user.0', 'Нет доступа к карточке этого пользователя.');
+
+        return $response;
     }
 
     protected function seedMessage(ChatThread $thread, int $userId, string $body): ChatMessage

@@ -108,6 +108,7 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
     {
         $actor = $this->createUserWithoutPermission('setPrices.view', $this->partner);
         $this->grantPermission($actor, 'setPrices.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor);
 
         $this->assertCoreSectionEndpointsSucceed();

@@ -23,12 +23,19 @@ final class DirectoriesLessonPackagesFeatureTest extends CrmTestCase
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+        $this->grantLessonPackageTypePermissions();
     }
 
     /** @param list<string> $permissionNames */
     private function createUserWithPermissions(array $permissionNames): User
     {
         $permissionNames = $this->withDirectoriesMenuPermission($permissionNames);
+        if (in_array('lessonPackages.view', $permissionNames, true)) {
+            $permissionNames = array_values(array_unique([
+                ...$permissionNames,
+                ...array_values(\App\Support\LessonPackageTypePermission::PERMISSIONS),
+            ]));
+        }
 
         $now = now();
         $roleId = DB::table('roles')->insertGetId([
@@ -87,6 +94,7 @@ final class DirectoriesLessonPackagesFeatureTest extends CrmTestCase
     public function test_page_renders_directories_shell_with_packages_partial_and_active_tab(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantLessonPackageTypePermissions();
         $this->grantPermission('groups.view');
 
         LessonPackage::query()->create([

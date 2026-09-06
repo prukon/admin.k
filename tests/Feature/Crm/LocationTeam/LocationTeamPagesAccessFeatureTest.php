@@ -191,6 +191,7 @@ final class LocationTeamPagesAccessFeatureTest extends CrmTestCase
     {
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('locations.view');
+        $this->grantPermission('scheduleSlots.view');
         $this->grantPermission('scheduleSlots.manage');
 
         $location = Location::factory()->create([

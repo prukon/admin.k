@@ -65,6 +65,7 @@ final class SettingPricesMonthlyProlongAccessFeatureTest extends CrmTestCase
     public function test_guest_non_ajax_apply_does_not_write(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
         $this->seedSeptemberPackage();
         Auth::logout();
 

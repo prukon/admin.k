@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Crm\Chat;
 
 use App\Events\InboxBump;
+use App\Models\ChatParticipant;
 use App\Models\ParentProfile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
@@ -399,5 +400,88 @@ final class ChatPresenceFeatureTest extends ChatTestCase
         $this->getJson(route('chat.api.users.show', $peer))->assertForbidden();
         $this->get(route('chat.api.users.show', $peer))->assertForbidden();
         $this->postJson(route('presence.ping'))->assertOk()->assertJsonPath('ok', true);
+    }
+
+    public function test_foreign_peer_card_is_403_with_russian_field_error(): void
+    {
+        $this->assertChatPeerCardForbidden(
+            $this->getJson(route('chat.api.users.show', $this->foreignUser))
+        );
+        $this->assertChatPeerCardForbidden(
+            $this->get(route('chat.api.users.show', $this->foreignUser))
+        );
+    }
+
+    public function test_regular_user_cannot_open_foreign_peer_card_even_with_shared_thread(): void
+    {
+        $this->createThreadForUsers([$this->user->id, $this->foreignUser->id], 'MixedPrivate');
+
+        $this->assertChatPeerCardForbidden(
+            $this->getJson(route('chat.api.users.show', $this->foreignUser))
+        );
+    }
+
+    public function test_superadmin_can_open_foreign_peer_card_when_they_share_a_live_thread(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession([
+            'current_partner' => (int) $this->partner->id,
+            '2fa:passed' => true,
+        ]);
+        $this->createThreadForUsers([$this->user->id, $this->foreignUser->id], 'SaCrossPrivate');
+
+        $this->getJson(route('chat.api.users.show', $this->foreignUser))
+            ->assertOk()
+            ->assertJsonPath('id', (int) $this->foreignUser->id)
+            ->assertJsonPath('partner_name', $this->partner->title);
+    }
+
+    public function test_superadmin_can_open_foreign_peer_card_from_shared_group_thread(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession([
+            'current_partner' => (int) $this->partner->id,
+            '2fa:passed' => true,
+        ]);
+        $local = $this->makePeer('SaGroupLocal_');
+        $this->createGroupThreadForUsers(
+            [$this->user->id, $local->id, $this->foreignUser->id],
+            'SaCrossGroup'
+        );
+
+        $this->getJson(route('chat.api.users.show', $this->foreignUser))
+            ->assertOk()
+            ->assertJsonPath('id', (int) $this->foreignUser->id);
+    }
+
+    public function test_superadmin_cannot_open_foreign_peer_card_without_shared_thread(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession([
+            'current_partner' => (int) $this->partner->id,
+            '2fa:passed' => true,
+        ]);
+
+        $this->assertChatPeerCardForbidden(
+            $this->getJson(route('chat.api.users.show', $this->foreignUser))
+        );
+    }
+
+    public function test_superadmin_cannot_open_foreign_peer_card_after_leaving_the_thread(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession([
+            'current_partner' => (int) $this->partner->id,
+            '2fa:passed' => true,
+        ]);
+        $thread = $this->createThreadForUsers([$this->user->id, $this->foreignUser->id], 'SaLeftPrivate');
+        ChatParticipant::query()
+            ->where('thread_id', $thread->id)
+            ->where('user_id', $this->user->id)
+            ->delete();
+
+        $this->assertChatPeerCardForbidden(
+            $this->getJson(route('chat.api.users.show', $this->foreignUser))
+        );
     }
 }

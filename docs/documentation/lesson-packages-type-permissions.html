@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Права lessonPackages.type.* — выбор типа абонемента</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: top; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1 id="type-permissions">Права <code>lessonPackages.type.*</code></h1>
+  <div class="small">Файл: <code>/docs/documentation/lesson-packages-type-permissions.html</code>.
+    Анонс — <a href="/doc#lesson-packages-type-permissions-index">/doc#lesson-packages-type-permissions-index</a>;
+    постоплата отдельно — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>;
+    шаблоны — <a href="/docs/documentation/lesson-packages">lesson-packages</a>;
+    матрица — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>;
+    базовые роли — <a href="/docs/documentation/partners-permissions">partners-permissions</a>.</div>
+
+  <div class="ok">
+    <b>С 2026‑09</b> выбор <code>schedule_type</code> шаблона абонемента закрыт скрытыми правами
+    на каждый тип, по тому же принципу, что и <code>lessonPackages.type.postpay</code> (2026‑08).
+    <code>lessonPackages.view</code> открывает раздел; без type-права нельзя создать шаблон этого типа,
+    сменить тип на него и назначить такой пакет в «Установка цен» / правилах уведомлений.
+    Уже созданные шаблоны и уже назначенные месяцы продолжают работать.
+  </div>
+
+  <h2 id="permission">1) Права</h2>
+  <table>
+    <thead><tr><th>Имя</th><th>Тип (<code>schedule_type</code>)</th><th>Подпись UI</th><th>sort_order</th></tr></thead>
+    <tbody>
+      <tr><td><code>lessonPackages.type.fixed</code></td><td><code>fixed</code></td><td>Фиксированный</td><td>36</td></tr>
+      <tr><td><code>lessonPackages.type.flexible</code></td><td><code>flexible</code></td><td>Предоплата</td><td>37</td></tr>
+      <tr><td><code>lessonPackages.type.no_schedule</code></td><td><code>no_schedule</code></td><td>Разовое занятие</td><td>38</td></tr>
+      <tr><td><code>lessonPackages.type.postpay</code></td><td><code>postpay</code></td><td>Постоплата</td><td>39</td></tr>
+    </tbody>
+  </table>
+  <table>
+    <thead><tr><th>Поле</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td>Группа матрицы</td><td><code>lessonPackages</code> («Абонементы»)</td></tr>
+      <tr><td><code>is_visible</code></td><td><b>0</b> (скрытые): у admin партнёра в матрице не отображаются; у superadmin — видно</td></tr>
+      <tr><td>Gate</td><td><code>AuthServiceProvider</code> → одноимённые Gates</td></tr>
+      <tr><td>Хелпер</td><td><code>App\Support\LessonPackageTypePermission</code>
+        (<code>LessonPackagePostpayPermission</code> — тонкая обёртка для postpay)</td></tr>
+      <tr><td>Seeder</td><td><code>PermissionSeeder</code></td></tr>
+      <tr><td>Миграция трёх новых</td><td><code>2026_09_06_040500_add_lesson_packages_type_permissions.php</code>
+        — создаёт fixed / flexible / no_schedule, сдвигает postpay на sort_order 39,
+        <b>никому не выдаёт</b></td></tr>
+      <tr><td>Миграция postpay</td><td><code>2026_08_04_170000_add_lesson_packages_type_postpay_permission.php</code></td></tr>
+      <tr><td>Базовые роли</td><td>В <code>user</code> / <code>admin</code> / <code>trainer</code> <b>не</b> входят.
+        У <code>admin</code> в <code>config/role_base_permissions.php</code> строки закомментированы;
+        у <code>user</code> / <code>trainer</code> ключей нет.
+        Superadmin видит все типы через <code>Gate::before</code></td></tr>
+      <tr><td>Ховер матрицы</td><td><code>config/permission_capability_hints.php</code>
+        (<code>no_schedule</code> — форма шаблона и установка цен, без уведомлений)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    После выката три новых права нужно выдать вручную (superadmin в матрице школы).
+    Пока права нет, option типа скрыт и новый выбор недоступен.
+    Существующие шаблоны и уже назначенные <code>users_prices.lesson_package_id</code> / <code>team_prices</code> не удаляются.
+    Права консоли <code>setPrices.cabinetPackages.*.view</code> — другой контур (карточки на <code>/cabinet</code>),
+    этими type-правами не выдаются и не снимаются.
+  </div>
+
+  <h2 id="what-it-controls">2) Что закрывает</h2>
+  <table>
+    <thead><tr><th>Поверхность</th><th>Без права на тип</th><th>С правом (+ родительские права раздела)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Кнопка «Добавить абонемент»</td>
+        <td>Скрыта, если нет <b>ни одного</b> <code>lessonPackages.type.*</code>
+          (<code>userCanSelectAny</code>)</td>
+        <td>Кнопка видна</td>
+      </tr>
+      <tr>
+        <td>Шаблоны: option типа в create / edit / фильтре
+          (<code>packages.blade.php</code>, дубль в «Справочниках»)</td>
+        <td>Option скрыт (<code>@can</code>). При открытии уже существующего шаблона этого типа
+          в edit option добавляется JS-ом (<code>LABELS</code>), чтобы значение не «терялось»</td>
+        <td>Option виден</td>
+      </tr>
+      <tr>
+        <td><code>POST/PUT …/lesson-packages</code> с этим <code>schedule_type</code></td>
+        <td><b>422</b> на <code>schedule_type</code>
+          («Недостаточно прав для выбора типа «…»»).
+          Исключение: update уже существующего шаблона <b>без смены типа</b> — разрешён</td>
+        <td>AJAX → <b>200</b> JSON; non-AJAX → <b>302</b> на index</td>
+      </tr>
+      <tr>
+        <td>DataTables фильтр по типу (в т.ч. crafted query)</td>
+        <td>Пустой результат</td>
+        <td>Строки этого типа. Список без фильтра по-прежнему показывает все шаблоны партнёра</td>
+      </tr>
+      <tr>
+        <td>Select абонемента на вкладке «Назначение абонементов» (ULP)
+          (<code>LessonPackageController::assignments</code> → <code>packagesList</code>)</td>
+        <td>Пакеты типа не в списке (<code>restrictQueryToAllowedTypes</code>, без keepIds)</td>
+        <td>Пакеты типа в списке. Postpay при праве postpay тоже может попасть в select —
+          store всё равно доменное <b>422</b></td>
+      </tr>
+      <tr>
+        <td>Фильтр типа на вкладке «Назначение абонементов» (ULP)
+          (<code>filter_schedule_type</code>)</td>
+        <td>Option скрыт; crafted query без права — пустой результат.
+          Postpay в этом фильтре нет даже с правом
+          (<code>ASSIGNMENT_SCHEDULE_TYPES</code>: только fixed / flexible / no_schedule)</td>
+        <td>Option виден для fixed / flexible / no_schedule</td>
+      </tr>
+      <tr>
+        <td>Store ULP с пакетом этого типа</td>
+        <td><b>422</b> на <code>lesson_package_id</code>
+          («Недостаточно прав для выбора абонемента типа «…»»).
+          Postpay — отдельное доменное 422 даже <b>с</b> правом postpay</td>
+        <td>AJAX → 200 JSON; non-AJAX create → <b>302</b> на вкладку (кроме postpay)</td>
+      </tr>
+      <tr>
+        <td>«Установка цен»: каталог <code>lessonPackages</code> (monthly / getTeamPrice / year)</td>
+        <td>Шаблоны типа скрыты, <b>кроме</b> уже назначенных в <code>team_prices</code> / <code>users_prices</code></td>
+        <td>Все шаблоны этого типа у партнёра</td>
+      </tr>
+      <tr>
+        <td><code>setTeamPrice</code>, <code>setPriceAllUsers</code>, <code>setPriceAllTeams</code>, <code>saveUserYearPrices</code></td>
+        <td><b>422</b> на поле пакета при <b>новом</b> выборе:
+          <code>lesson_package_id</code>,
+          <code>usersPrice.{i}.lesson_package_id</code>,
+          <code>teamsData.{i}.lesson_package_id</code>,
+          <code>prices.{i}.lesson_package_id</code>
+          («Недостаточно прав для выбора абонемента типа «…»»).
+          Повторная отправка того же уже назначенного id — <b>разрешена</b></td>
+        <td>Ожидаемые <b>200</b> / <b>302</b></td>
+      </tr>
+      <tr>
+        <td>Пролонгация месяца</td>
+        <td>Пропуск с <code>type_denied</code> / для postpay <code>postpay_denied</code>.
+          Текст пропуска — <code>denyPackageMessage</code>
+          («Недостаточно прав для выбора абонемента типа «…»»).
+          Общий ярлык <code>REASON_LABELS[type_denied]</code> —
+          «Недостаточно прав для выбора этого типа абонемента.»</td>
+        <td>Копия шаблона на M+1</td>
+      </tr>
+      <tr>
+        <td>Уведомления об оплате: чекбоксы типов</td>
+        <td>HTML-чекбокс скрыт (<code>@can</code>). <code>no_schedule</code> в конструкторе нет
+          (<code>PaymentNotificationRule::ALLOWED_SCHEDULE_TYPES</code>).
+          Store/update с новым типом без права → <b>422</b> на <code>schedule_types</code>.
+          Типы, уже стоящие на правиле, можно оставить при update.
+          Мутации всегда JSON (201/200/422)</td>
+        <td>Чекбокс в HTML виден.
+          JS как в коде: <code>openCreate()</code> →
+          <code>setScheduleTypes(['fixed', 'flexible'])</code> и
+          <code>ensureScheduleTypeCheckbox</code> может подставить скрытые чекбоксы;
+          backend всё равно 422. Edit подставляет типы, уже стоящие на правиле</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Не закрывает этими правами</b> (нужны другие права + уже назначенный пакет):
+    журнал, календарь школы, оплата с консоли, показ карточек на <code>/cabinet</code>
+    (<code>setPrices.cabinetPackages.*.view</code>).
+    Список шаблонов без фильтра по типу показывает все шаблоны партнёра (в т.ч. типы без права) —
+    закрыт только <b>выбор</b> типа и новое назначение.
+  </div>
+  <div class="warn">
+    Create-модалка шаблона при открытии ставит <code>schedule_type = 'fixed'</code>
+    (<code>shown.bs.modal</code>), даже если option <code>fixed</code> скрыт <code>@can</code>.
+    Это текущий JS, не отдельный backend-дефолт: без права fixed store → 422 на
+    <code>schedule_type</code>.
+  </div>
+
+  <h2 id="related">3) Связанные права</h2>
+  <table>
+    <thead><tr><th>Permission</th><th>Роль</th></tr></thead>
+    <tbody>
+      <tr><td><code>lessonPackages.view</code></td><td>Раздел шаблонов / middleware CRUD (базовый у <code>admin</code>)</td></tr>
+      <tr><td><code>lessonPackages.type.*</code></td><td>Выбор конкретного <code>schedule_type</code></td></tr>
+      <tr><td><code>setPrices.view</code></td><td>Раздел «Установка цен»</td></tr>
+      <tr><td><code>setPrices.packageAssignments.view</code></td><td>Вкладка ULP-назначений</td></tr>
+      <tr><td><code>setPrices.paymentNotifications.manage</code></td><td>Вкладка «Уведомления»</td></tr>
+      <tr><td><code>setPrices.cabinetPackages.*.view</code></td><td>Карточки / месяцы на консоли — <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a></td></tr>
+      <tr><td><code>schedule.view</code></td><td>Журнал по уже назначенному пакету</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="files">4) Ключевые файлы</h2>
+  <ul>
+    <li><code>app/Support/LessonPackageTypePermission.php</code></li>
+    <li><code>app/Http/Requests/Admin/StoreLessonPackageRequest.php</code></li>
+    <li><code>app/Http/Requests/Admin/SetTeamPriceRequest.php</code>, <code>SetPriceAllUsersRequest</code>,
+      <code>SetPriceAllTeamsRequest</code>, <code>SaveUserYearPricesRequest</code></li>
+    <li><code>app/Http/Requests/Admin/StorePaymentNotificationRuleRequest.php</code></li>
+    <li><code>app/Http/Requests/Admin/StoreUserLessonPackageRequest.php</code></li>
+    <li><code>SettingPricesController::lessonPackagesForPartnerSelect</code></li>
+    <li><code>MonthlyPricesProlongService</code> — <code>REASON_TYPE_DENIED</code></li>
+    <li><code>LessonPackageController::packagesData</code>, <code>assignments</code>
+      (<code>packagesList</code>, <code>filter_schedule_type</code>)</li>
+    <li><code>resources/views/admin/lessonPackages/tabs/packages.blade.php</code></li>
+    <li><code>resources/views/admin/lessonPackages/tabs/assignments.blade.php</code></li>
+    <li><code>resources/views/admin/SettingPrices/payment-notifications.blade.php</code>
+      (<code>openCreate</code>, <code>ensureScheduleTypeCheckbox</code>)</li>
+    <li><code>config/permission_capability_hints.php</code>,
+      <code>config/role_base_permissions.php</code></li>
+  </ul>
+
+  <h2 id="tests">5) Feature-тесты</h2>
+  <ul>
+    <li><code>LessonPackageTypePermissionAccessFeatureTest</code> —
+      гость / 403 без view / 200 с правами, кнопка «Добавить», option, AJAX 422 / 200,
+      keep existing, DataTables и ULP-фильтр, каталог цен, year prices, setTeamPrice,
+      пролонгация <code>type_denied</code>, календарь без type-права, wrong HTTP methods</li>
+    <li><code>LessonPackageTypePermissionAjaxContractFeatureTest</code> —
+      JSON 200/422/201, errors по <code>schedule_type</code> / полю пакета, show для edit-inject</li>
+    <li><code>LessonPackageTypePermissionNonAjaxSafetyNetFeatureTest</code> —
+      POST/PUT без <code>X-Requested-With</code> → 302 на раздел, запись создана или session errors по полю</li>
+    <li><code>LessonPackageTypePermissionMarkupFeatureTest</code> —
+      оба URL шаблонов, @can option, JS-inject типа, data-error-for, чекбоксы уведомлений,
+      фильтр назначений без postpay</li>
+    <li><code>LessonPackageTypePermissionWorkflowFeatureTest</code> —
+      [P2] create → строка DataTables без F5; show отдаёт скрытый тип; каталог цен не опустошает assigned</li>
+    <li><code>LessonPackagesTypePermissionsCatalogFeatureTest</code> —
+      каталог трёх новых прав, скрытость, не в базовых ролях</li>
+    <li><code>BladeInlineJsSyntaxTest::test_lesson_packages_type_permissions_inline_script_contracts</code> —
+      node --check + контракт inject / openCreate / openEdit</li>
+    <li><code>LessonPackagesTypePostpayPermissionCatalogFeatureTest</code>,
+      <code>PostpayTypePermissionAccessFeatureTest</code> — postpay</li>
+    <li><code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_lesson_packages_type_permissions_to_base_roles</code></li>
+    <li><code>LessonPackageTypePermissionsDocumentationContractTest</code></li>
+  </ul>
+  <pre><code>php artisan test --env=testing --filter 'LessonPackageTypePermission'</code></pre>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/lesson-packages-type-postpay">postpay-право</a> ·
+    <a href="/docs/documentation/lesson-packages">Абонементы</a> ·
+    <a href="/docs/documentation/setting-prices-monthly-users">Установка цен</a> ·
+    <a href="/docs/documentation/setting-prices-payment-notifications">Уведомления</a>
+  </p>
+</div>
+</body>
+</html>

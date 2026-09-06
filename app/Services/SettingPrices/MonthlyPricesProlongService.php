@@ -12,7 +12,7 @@ use App\Models\UserPrice;
 use App\Services\LessonPackages\UserLessonPackageAutoProlongGuard;
 use App\Services\Postpay\PostpayUsersPriceSync;
 use App\Services\Pricing\UserPercentDiscount;
-use App\Support\LessonPackagePostpayPermission;
+use App\Support\LessonPackageTypePermission;
 use App\Support\SettingPricesMonth;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -123,7 +123,6 @@ final class MonthlyPricesProlongService
                 ->keyBy(static fn (LessonPackage $p) => (int) $p->id);
 
         $blockedUserIds = $this->autoProlongGuard->blockedUserIds($userIds);
-        $canPostpay = LessonPackagePostpayPermission::userCanSelect($actor);
         $actorId = $actor !== null ? (int) $actor->id : null;
 
         foreach ($teams as $team) {
@@ -138,7 +137,7 @@ final class MonthlyPricesProlongService
                 $sourceTeamPrices->get($teamId),
                 $targetTeamPrices->get($teamId),
                 $packages,
-                $canPostpay,
+                $actor,
             );
 
             $students = $studentsByTeam->get($teamId, collect());
@@ -154,7 +153,7 @@ final class MonthlyPricesProlongService
                     $targetUserPrices[$this->userPriceKey((int) $student->id, $teamId)] ?? null,
                     $packages,
                     $blockedUserIds,
-                    $canPostpay,
+                    $actor,
                     $actorId,
                 );
             }
@@ -175,7 +174,7 @@ final class MonthlyPricesProlongService
         ?TeamPrice $source,
         ?TeamPrice $target,
         Collection $packages,
-        bool $canPostpay,
+        ?User $actor,
     ): void {
         $sourcePackageId = $this->packageId($source?->lesson_package_id);
         if ($sourcePackageId === null) {
@@ -195,8 +194,17 @@ final class MonthlyPricesProlongService
         $catalogCents = (int) $package->price_cents;
         $targetPackageId = $this->packageId($target?->lesson_package_id);
 
-        if ($package->isPostpay() && ! $canPostpay && $targetPackageId === null) {
-            $report->addTeamSkip(MonthlyPricesProlongReport::REASON_POSTPAY_DENIED, $teamId, $teamTitle);
+        if (! LessonPackageTypePermission::userCanSelectType($actor, (string) $package->schedule_type)
+            && $targetPackageId === null) {
+            $report->addTeamSkip(
+                $package->isPostpay()
+                    ? MonthlyPricesProlongReport::REASON_POSTPAY_DENIED
+                    : MonthlyPricesProlongReport::REASON_TYPE_DENIED,
+                $teamId,
+                $teamTitle,
+                true,
+                LessonPackageTypePermission::denyPackageMessage((string) $package->schedule_type),
+            );
 
             return;
         }
@@ -246,7 +254,7 @@ final class MonthlyPricesProlongService
         ?UserPrice $target,
         Collection $packages,
         array $blockedUserIds,
-        bool $canPostpay,
+        ?User $actor,
         ?int $actorId,
     ): void {
         $userId = (int) $student->id;
@@ -348,13 +356,17 @@ final class MonthlyPricesProlongService
             return;
         }
 
-        if ($isPostpay && ! $canPostpay) {
+        if (! LessonPackageTypePermission::userCanSelectType($actor, (string) $package->schedule_type)) {
             $report->addStudentSkip(
-                MonthlyPricesProlongReport::REASON_POSTPAY_DENIED,
+                $package->isPostpay()
+                    ? MonthlyPricesProlongReport::REASON_POSTPAY_DENIED
+                    : MonthlyPricesProlongReport::REASON_TYPE_DENIED,
                 $userId,
                 $userName,
                 $teamId,
                 $teamTitle,
+                true,
+                LessonPackageTypePermission::denyPackageMessage((string) $package->schedule_type),
             );
 
             return;

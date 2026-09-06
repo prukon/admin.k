@@ -63,7 +63,12 @@
 
   <h2>3) Как назначаются права при создании роли</h2>
   <ul>
-    <li>Источник имён: <code>config('role_base_permissions.roles.admin')</code> — тот же массив, что используется для базовой роли <code>admin</code> при сидировании (<code>DevAdminRoleBasePermissionsSeeder</code>).</li>
+    <li>Источник имён: <code>config('role_base_permissions.roles.admin')</code> — тот же массив, что используется для базовой роли <code>admin</code> при сидировании (<code>DevAdminRoleBasePermissionsSeeder</code>).
+      Шесть прав группы <code>schoolSchedule</code> в этом массиве закомментированы — кастомная роль их <b>не</b> получает
+      (как и новый <code>admin</code>); выдать может superadmin в матрице.
+      Тесты: <code>SchoolScheduleHiddenDefaultPermissionsAjaxContractFeatureTest</code>,
+      <code>SchoolScheduleHiddenDefaultPermissionsNonAjaxSafetyNetFeatureTest</code> —
+      <a href="/doc#school-schedule-permission-group-index">анонс</a>.</li>
     <li>Записи создаются в <code>permission_role</code> с полями <code>role_id</code> (новая роль), <code>permission_id</code>, <code>partner_id</code> (текущий партнёр из контекста). Так же, как при ручном включении чекбокса на той же странице.</li>
     <li>Вставка идемпотентна: используется <code>insertOrIgnore</code>, уникальность по тройке <code>(partner_id, role_id, permission_id)</code> (см. раздел про UNIQUE в документе по партнёрам).</li>
   </ul>

@@ -44,6 +44,7 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
     public function test_user_year_prices_returns_prices_scoped_to_requested_team(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         UserPrice::query()->create([
             'user_id'   => $this->student->id,

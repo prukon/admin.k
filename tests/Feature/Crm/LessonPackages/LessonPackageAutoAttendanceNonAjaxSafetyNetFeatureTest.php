@@ -43,6 +43,7 @@ final class LessonPackageAutoAttendanceNonAjaxSafetyNetFeatureTest extends CrmTe
     {
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,

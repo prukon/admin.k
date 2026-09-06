@@ -29,7 +29,10 @@
   <p class="small"><a href="/doc">← Документация</a></p>
   <h1 id="type-postpay-permission">Право <code>lessonPackages.type.postpay</code></h1>
   <div class="small">Файл: <code>/docs/documentation/lesson-packages-type-postpay.html</code>.
-    Бизнес-логика постоплаты — <a href="/docs/documentation/postpay">postpay</a>;
+    Общие права на все типы —
+    <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>
+    (<a href="/doc#lesson-packages-type-permissions-index">анонс 2026‑09</a>);
+    бизнес-логика постоплаты — <a href="/docs/documentation/postpay">postpay</a>;
     матрица групп — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>;
     базовые роли — <a href="/docs/documentation/partners-permissions">partners-permissions</a>.</div>
 
@@ -49,10 +52,13 @@
       <tr><td>Группа матрицы</td><td><code>lessonPackages</code> («Абонементы»)</td></tr>
       <tr><td><code>is_visible</code></td><td><b>0</b> (скрытое): у admin партнёра в матрице может не отображаться; у superadmin — видно</td></tr>
       <tr><td>Gate</td><td><code>AuthServiceProvider</code> → <code>lessonPackages.type.postpay</code></td></tr>
-      <tr><td>Хелпер</td><td><code>App\Support\LessonPackagePostpayPermission</code></td></tr>
-      <tr><td>Seeder</td><td><code>PermissionSeeder</code> (<code>sort_order: 38</code>)</td></tr>
+      <tr><td>Seeder</td><td><code>PermissionSeeder</code> (<code>sort_order: 39</code>)</td></tr>
+      <tr><td>Хелпер</td><td><code>App\Support\LessonPackagePostpayPermission</code>
+        (обёртка над <code>LessonPackageTypePermission</code>)</td></tr>
       <tr><td>Миграция</td><td><code>2026_08_04_170000_add_lesson_packages_type_postpay_permission.php</code> — только создаёт право, <b>никому не выдаёт</b></td></tr>
-      <tr><td>Базовые роли</td><td>В <code>config/role_base_permissions.php</code> для <code>user</code> / <code>admin</code> / <code>trainer</code> <b>не</b> входит (строка закомментирована)</td></tr>
+      <tr><td>Базовые роли</td><td>В <code>user</code> / <code>admin</code> / <code>trainer</code> <b>не</b> входит.
+        У <code>admin</code> в <code>config/role_base_permissions.php</code> строка закомментирована;
+        у <code>user</code> / <code>trainer</code> ключа нет</td></tr>
     </tbody>
   </table>
 

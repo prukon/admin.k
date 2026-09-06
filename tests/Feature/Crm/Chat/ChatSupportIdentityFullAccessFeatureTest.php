@@ -150,7 +150,7 @@ final class ChatSupportIdentityFullAccessFeatureTest extends ChatTestCase
         $extraCard = $this->getJson(route('chat.api.users.show', $extra));
         $this->assertNotSame(500, $extraCard->getStatusCode());
         $this->assertNotSame(200, $extraCard->getStatusCode(), 'Лишний superadmin не должен отдавать карточку 200');
-        $extraCard->assertForbidden();
+        $this->assertChatPeerCardForbidden($extraCard);
 
         $created = $this->postJson(route('chat.api.threads.store'), [
             'user_id' => $extra->id,

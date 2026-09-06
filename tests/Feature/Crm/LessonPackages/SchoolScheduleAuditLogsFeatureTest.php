@@ -226,7 +226,7 @@ final class SchoolScheduleAuditLogsFeatureTest extends CrmTestCase
         $log = $this->latestLog(AuditEvent::ScheduleFlexibleLinked);
 
         $this->assertNotNull($log);
-        $this->assertStringContainsString('Гибкий абонемент #'.$ulp->id, (string) $log->description);
+        $this->assertStringContainsString('Абонемент предоплаты #'.$ulp->id, (string) $log->description);
         $this->assertStringContainsString('Аудит', (string) $log->description);
         $this->assertStringContainsString(self::WEEK_MONDAY, (string) $log->description);
     }

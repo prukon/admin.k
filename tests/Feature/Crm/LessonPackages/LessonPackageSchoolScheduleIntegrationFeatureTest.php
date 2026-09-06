@@ -30,6 +30,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+        $this->grantLessonPackageTypePermissions();
 
         $this->assertSame(
             1,

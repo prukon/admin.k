@@ -120,8 +120,8 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         if (! $package || (string) $package->schedule_type !== 'flexible') {
             return $this->schoolScheduleMutationResponse(
                 $request,
-                'Привязка из календаря доступна только для абонементов с гибким расписанием.',
-                ['user_lesson_package_id' => ['Выберите назначение с типом «гибкое расписание».']],
+                'Привязка из календаря доступна только для абонементов с типом «предоплата».',
+                ['user_lesson_package_id' => ['Выберите назначение с типом «предоплата».']],
             );
         }
 
@@ -227,7 +227,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         $userLabel = $this->scheduleUserLabel($ulp->user);
         $this->recordScheduleAudit(
             AuditEvent::ScheduleFlexibleLinked,
-            'Гибкий абонемент #'.$ulp->id.' привязан к календарю; ученик: '.$userLabel
+            'Абонемент предоплаты #'.$ulp->id.' привязан к календарю; ученик: '.$userLabel
                 .$this->scheduleSlotContext($slot, $occurrence->toDateString()),
             (int) $ulp->user_id,
         );

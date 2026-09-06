@@ -211,7 +211,7 @@ final class ScheduleJournalConsumingCountColumnAjaxContractFeatureTest extends S
 
         $response->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('message', 'Занятие из гибкого абонемента поставлено в журнал.')
+            ->assertJsonPath('message', 'Занятие из абонемента предоплаты поставлено в журнал.')
             ->assertJsonPath('result.consuming_count', 1)
             ->assertJsonStructure([
                 'success',

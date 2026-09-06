@@ -439,6 +439,7 @@ final class MoneyCentsAccessContractsFeatureTest extends CrmTestCase
         $this->asAdmin();
         $this->grantPermission($this->user, 'lessonPackages.view');
         $this->grantPermission($this->user, 'setPrices.packageAssignments.view');
+        $this->grantLessonPackageTypePermissions($this->user);
 
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Пакет 12.34',

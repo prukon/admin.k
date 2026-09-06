@@ -101,6 +101,7 @@ final class LessonPackagesAuditLogsFeatureTest extends CrmTestCase
     {
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('scheduleSlots.view');
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed']);
 
         $this->postJson(route('admin.lesson-packages.store'), $this->validPayload([
             'name' => 'Футбол абонемент',
@@ -121,6 +122,7 @@ final class LessonPackagesAuditLogsFeatureTest extends CrmTestCase
     {
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('scheduleSlots.view');
+        $this->grantLessonPackageTypePermissions($this->user, ['flexible']);
 
         $package = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
@@ -152,7 +154,7 @@ final class LessonPackagesAuditLogsFeatureTest extends CrmTestCase
 
         $this->assertNotNull($log);
         $this->assertStringContainsString('Название: Старый абонемент → Новый абонемент', (string) $log->description);
-        $this->assertStringContainsString('Тип: Фиксированный → Гибкий', (string) $log->description);
+        $this->assertStringContainsString('Тип: Фиксированный → Предоплата', (string) $log->description);
         $this->assertStringContainsString('Срок действия (дни): 30 → 14', (string) $log->description);
         $this->assertStringContainsString('Занятий: 8 → 4', (string) $log->description);
         $this->assertStringContainsString('Автосписание: Нет → Да', (string) $log->description);

@@ -59,12 +59,13 @@
       <tr><th><code>slug</code></th><th>Название в UI</th><th>Что внутри (примеры)</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации (порядок как в боковом меню): <code>dashboard.view</code>, <code>reports.view</code>, …, <code>users.view</code> (описание в матрице — «Страница "Пользователи"», пункт сайдбара тот же), <code>scheduleSlots.view</code> («Расписание школы»; также чекбоксы «Автосписание» и «Разрешена заморозка» и поле «Срок действия (дни)» в шаблоне абонемента — <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>, <a href="/docs/documentation/lesson-packages#freeze-permission">§Заморозка</a>, <a href="/docs/documentation/lesson-packages#duration-permission">§Срок действия</a>, <a href="/doc#lesson-package-auto-attendance-index">анонс автосписания</a>, <a href="/doc#lesson-package-freeze-permission-index">анонс заморозки</a>, <a href="/doc#lesson-package-duration-permission-index">анонс срока</a>), <code>schoolLeads.view</code> («Лиды»), <code>directories.view</code> («Справочники»), …; скрытое <code>messages.threads.delete</code> (корзина в шапке чата, не в базовых ролях)</td></tr>
+      <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации (порядок как в боковом меню): <code>dashboard.view</code>, <code>reports.view</code>, …, <code>users.view</code> (описание в матрице — «Страница "Пользователи"», пункт сайдбара тот же), <code>schoolLeads.view</code> («Лиды»), <code>directories.view</code> («Справочники»), …; скрытое <code>messages.threads.delete</code> (корзина в шапке чата, не в базовых ролях). Пункт сайдбара «Расписание школы» — <code>scheduleSlots.view</code> в группе <code>schoolSchedule</code></td></tr>
       <tr><td><code>reports</code></td><td>Отчёты</td><td><code>reports.view</code> (меню), скрытые <code>is_visible=0</code>: <code>reports.emails.view</code>, <code>reports.fiscal.receipts.view</code>, <code>reports.payment.intents.view</code> (Gate в <code>AuthServiceProvider</code>); <code>reports.payments.*</code> и прочие вложенные</td></tr>
-      <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.scheme.sales</code>, <code>schedule.trainerSalary.scheme.kansas</code>, <code>schedule.trainerSalary.scheme.classic</code>, <code>schedule.trainerSalary.view</code> / <code>manage</code>, <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code></td></tr>
+      <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.scheme.sales</code>, <code>schedule.trainerSalary.scheme.kansas</code>, <code>schedule.trainerSalary.scheme.classic</code>, <code>schedule.trainerSalary.view</code> / <code>manage</code> (журнал <code>/schedule</code> и ЗП тренеров)</td></tr>
+      <tr><td><code>schoolSchedule</code></td><td>Расписание школы</td><td>Все шесть прав <code>is_visible=0</code>, не в базовых ролях новых партнёров: <code>scheduleSlots.view</code> (пункт меню; также чекбоксы «Автосписание» / «Разрешена заморозка» и поле «Срок действия (дни)» в шаблоне абонемента — <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>, <a href="/doc#lesson-package-auto-attendance-index">анонс автосписания</a>, <a href="/docs/documentation/lesson-packages#freeze-permission">§Заморозка</a>, <a href="/doc#lesson-package-freeze-permission-index">анонс заморозки</a>, <a href="/docs/documentation/lesson-packages#duration-permission">§Срок действия</a>, <a href="/doc#lesson-package-duration-permission-index">анонс срока</a>), <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code>, <code>lessonPackages.export</code> (Excel с календаря), <code>setPrices.packageAssignments.view</code> (вкладка назначений), <code>lessonPackages.manualPaid.manage</code>. Админ школы группу в матрице не видит; superadmin видит. Анонс группы — <a href="/doc#school-schedule-permission-group-index">/doc</a></td></tr>
       <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code>, <code>legal_entities.*</code> (пункт меню — <code>directories.view</code> в <code>mainMenu</code>)</td></tr>
-      <tr><td><code>lessonPackages</code></td><td>Абонементы</td><td><code>lessonPackages.view</code>, <code>lessonPackages.manualPaid.manage</code>, <code>lessonPackages.export</code> (выгрузка Excel с календаря школы), скрытое <code>lessonPackages.type.postpay</code> (тип «Постоплата»)</td></tr>
-      <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.cabinetSeasons.view</code>, <code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code>, <code>setPrices.packageAssignments.view</code>, <code>payment.clubfee</code>, <code>setPrices.paymentNotifications.manage</code>, <code>setPrices.cabinetPackages.fixed.view</code> / <code>.flexible.view</code> / <code>.single.view</code> / <code>.postpay.view</code> (консоль по типу)</td></tr>
+      <tr><td><code>lessonPackages</code></td><td>Абонементы</td><td><code>lessonPackages.view</code>; скрытые <code>lessonPackages.type.fixed</code> / <code>.flexible</code> / <code>.no_schedule</code> / <code>.postpay</code> (выбор типа шаблона — <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>, <a href="/doc#lesson-packages-type-permissions-index">анонс</a>)</td></tr>
+      <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.cabinetSeasons.view</code>, <code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code>, <code>payment.clubfee</code>, <code>setPrices.paymentNotifications.manage</code>, <code>setPrices.cabinetPackages.fixed.view</code> / <code>.flexible.view</code> / <code>.single.view</code> / <code>.postpay.view</code> (консоль по типу)</td></tr>
       <tr><td><code>contracts</code></td><td>Договоры</td><td><code>contracts.sync</code>, <code>contracts.templates.fillSortOrder.edit</code>, <code>account.contracts.showFieldKeys</code></td></tr>
       <tr><td><code>leads</code></td><td>Заявки и лиды</td><td><code>partnerLeads.view</code>, <code>schoolWidget.view</code>, <code>schoolLeadLanding.view</code> (пункт меню «Лиды» — <code>schoolLeads.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>partner</code></td><td>Партнёры и сервис</td><td><code>partner.switch</code>, <code>servicePayments.view</code>, <code>partnerWallet.view</code></td></tr>
@@ -117,7 +118,8 @@
     <li>Миграция <code>setPrices.packageAssignments.view</code>:
       <code>/database/migrations/2026_08_03_221000_add_set_prices_package_assignments_view_permission.php</code>
       (право в группе <code>setPrices</code>, <code>is_visible = 0</code>, <b>без</b> выдачи ролям).
-      См. <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>.</li>
+      С 2026‑09 право в группе <code>schoolSchedule</code> — <a href="/doc#school-schedule-permission-group-index">анонс</a>,
+      <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>.</li>
     <li>Миграция <code>setPrices.cabinetPackages.*</code>:
       <code>/database/migrations/2026_08_13_003500_add_set_prices_cabinet_packages_type_permissions.php</code>
       (четыре скрытых права консоли по типу абонемента, <b>без</b> выдачи ролям).
@@ -140,6 +142,12 @@
       (право в группе <code>lessonPackages</code>, <code>is_visible = 0</code>, <b>без</b> выдачи ролям).
       См. <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>,
       <a href="/docs/documentation/postpay">postpay</a>.</li>
+    <li>Миграция <code>lessonPackages.type.fixed</code> / <code>.flexible</code> / <code>.no_schedule</code>:
+      <code>/database/migrations/2026_09_06_040500_add_lesson_packages_type_permissions.php</code>
+      (три скрытых права выбора типа шаблона, <code>is_visible = 0</code>, <b>без</b> выдачи ролям;
+      postpay <code>sort_order</code> 38 → 39).
+      Анонс: <a href="/doc#lesson-packages-type-permissions-index">/doc</a>,
+      <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>.</li>
     <li>Миграция <code>users.full_name_genitive</code>:
       <code>/database/migrations/2026_08_11_190000_add_users_full_name_genitive_permission.php</code>
       (право в группе <code>users</code>, <code>is_visible = 0</code>, <b>без</b> выдачи ролям; не в <code>role_base_permissions</code>).
@@ -180,6 +188,22 @@
       <a href="/doc#platform-payments-methods-index">анонс прав способов</a>,
       <a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>.
       Gate: <code>AuthServiceProvider</code> → <code>platformPayments.method.*</code>.</li>
+    <li>Миграция <code>reports.payments.commission_total.view</code> (скрыть в матрице):
+      <code>/database/migrations/2026_09_06_224500_hide_reports_payments_commission_total_permission.php</code>
+      (право уже в каталоге группы <code>reports</code>; <code>is_visible=0</code>; <b>не</b> трогает <code>permission_role</code>;
+      не в <code>role_base_permissions</code> — строка у <code>admin</code> закомментирована).
+      Superadmin видит колонку «Комиссия» через <code>Gate::before</code>.
+      См. <a href="/docs/documentation/reports-payments">reports-payments</a>,
+      анонс <a href="/doc#reports-payments-commission-total-index">/doc</a>.</li>
+    <li>Миграция группы <code>schoolSchedule</code> («Расписание школы»):
+      <code>/database/migrations/2026_09_06_032500_add_school_schedule_permission_group.php</code>
+      (группа <code>sort_order=13</code>; перенос <code>scheduleSlots.view</code> / <code>manage</code> / <code>table</code>,
+      <code>lessonPackages.export</code>, <code>setPrices.packageAssignments.view</code>,
+      <code>lessonPackages.manualPaid.manage</code>; имена прав, Gate и <code>permission_role</code> не меняются).
+      Миграция <code>/database/migrations/2026_09_06_035300_hide_school_schedule_permissions.php</code>
+      ставит всем шести <code>is_visible=0</code> и не трогает <code>permission_role</code>.
+      Новым партнёрам права не выдаются (<code>config/role_base_permissions.php</code>).
+      Анонс <a href="/doc#school-schedule-permission-group-index">/doc</a>.</li>
     <li>На проде после выката: <code>php artisan migrate</code>. Отдельный запуск <code>PermissionSeeder</code> не обязателен, если миграция применена.</li>
     <li>Порядок в тестах и dev: <code>PermissionGroupsSeeder</code> → <code>PermissionSeeder</code> (см. <code>DatabaseSeeder</code>, <code>CrmTestCase</code>).</li>
   </ul>
@@ -187,8 +211,8 @@
   <h2>6) Что не менялось</h2>
   <ul>
     <li>Строки <code>permissions.name</code> и логика Gate в <code>AuthServiceProvider</code>.</li>
-    <li>Базовые наборы в <code>/config/role_base_permissions.php</code> и автопроставление при создании партнёра.</li>
     <li>Проверки в Request / Blade по тем же именам прав.</li>
+    <li>Существующие строки <code>permission_role</code> у работающих школ (миграция hide только <code>is_visible</code>).</li>
   </ul>
 
   <h2>7) Автотесты</h2>
@@ -196,7 +220,22 @@
     Фичтесты перегруппировки и доступа к вкладке:
   </div>
   <ul>
-    <li><code>/tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — 16 групп в БД, маппинг прав, UI для superadmin, подмножество групп для admin.</li>
+    <li><code>/tests/Feature/Crm/Permissions/ReportsPaymentsCommissionTotalPermissionCatalogFeatureTest.php</code>
+      — <code>reports.payments.commission_total.view</code> скрытое, не в базовых ролях, миграция hide без <code>permission_role</code>.</li>
+    <li><code>/tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — 17 групп в БД, маппинг прав, UI для superadmin, подмножество групп для admin.</li>
+    <li><code>/tests/Feature/Crm/Permissions/SchoolSchedulePermissionGroupCatalogFeatureTest.php</code> — группа «Расписание школы», перенос шести прав, все <code>is_visible=0</code>, admin группы не видит, миграции не трогают <code>permission_role</code>.</li>
+    <li><code>SchoolScheduleHiddenDefaultPermissionsAccessFeatureTest</code>,
+      <code>SchoolScheduleHiddenDefaultPermissionsUxFeatureTest</code>,
+      <code>SchoolScheduleHiddenDefaultPermissionsAjaxContractFeatureTest</code>,
+      <code>SchoolScheduleHiddenDefaultPermissionsNonAjaxSafetyNetFeatureTest</code> —
+      новый <code>admin</code> без шести прав: календарь и абонементы 200, Excel/слоты/таблица/назначения/ручная оплата 403,
+      гость не 500; сайдбар и вкладки скрыты, <code>exportXlsx: null</code>, заморозка/срок/автосписание скрыты;
+      выдача права показывает только свой UI; кастомная роль из шаблона <code>admin</code> шесть прав не копирует;
+      AJAX 422 <code>errors.freeze_enabled</code> / <code>errors.auto_attendance_enabled</code> / <code>errors.name</code>;
+      non-AJAX 302 + запись в БД / запрет без пустого 200.
+      JS: <code>BladeInlineJsSyntaxTest::test_school_schedule_hidden_permissions_gate_export_and_both_slot_create_open_paths</code>
+      (<code>@can</code> Excel и слотов, оба пути <code>schoolCalOpenSlotCreateModal</code> / <code>openSlotCreateModalWithDefaults</code>,
+      <code>node --check</code>).</li>
     <li><code>/tests/Feature/Crm/Permissions/PlatformPaymentsMethodPermissionCatalogFeatureTest.php</code> — группа «Оплата платформы», скрытые способы, admin нового партнёра получает только T‑Bank СБП.</li>
     <li><code>PlatformPaymentsMethodAccessFeatureTest</code> / <code>Ux</code> / <code>AjaxContract</code> / <code>NonAjaxSafetyNet</code> / <code>FullAccess</code> —
       витринные <code>payment.method.*</code> не открывают кошелёк/абонплату; только ЮKassa → дефолт ЮKassa;
@@ -211,7 +250,7 @@
       иконка <code>i</code> и ховер возможностей у <code>dashboard.view</code> / скрытых прав;
       <code>PermissionCapabilityHintTest</code> — нумерация и полнота каталога.</li>
   </ul>
-  <pre><code>php artisan test --env=testing --filter 'PermissionGroupsReorganizationFeatureTest|RulesSettingsSectionFullAccessFeatureTest|RulesPermissionCapabilityHintsFeatureTest|PermissionCapabilityHintTest'</code></pre>
+  <pre><code>php artisan test --env=testing --filter 'PermissionGroupsReorganizationFeatureTest|SchoolSchedulePermissionGroupCatalogFeatureTest|SchoolScheduleHiddenDefaultPermissions|RulesSettingsSectionFullAccessFeatureTest|RulesPermissionCapabilityHintsFeatureTest|PermissionCapabilityHintTest'</code></pre>
 
   <h2 id="capability-hints">8) Ховер возможностей права</h2>
   <p>В первой колонке матрицы после <code>&lt;code&gt;{permission.name}&lt;/code&gt;</code>

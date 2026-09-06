@@ -226,6 +226,6 @@ final class ChatSupportIdentityNonAjaxSafetyNetFeatureTest extends ChatTestCase
         $response = $this->get(route('chat.api.users.show', $extra));
         $this->assertNotSame(500, $response->getStatusCode());
         $this->assertNotSame(200, $response->getStatusCode(), 'Карточка лишнего SA не должна быть пустым 200');
-        $response->assertForbidden();
+        $this->assertChatPeerCardForbidden($response);
     }
 }

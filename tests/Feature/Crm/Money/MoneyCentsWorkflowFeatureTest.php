@@ -33,6 +33,7 @@ final class MoneyCentsWorkflowFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
         $this->withoutVite();
     }
 

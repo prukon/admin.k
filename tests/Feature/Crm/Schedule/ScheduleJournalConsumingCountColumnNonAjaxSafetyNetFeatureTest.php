@@ -118,7 +118,7 @@ final class ScheduleJournalConsumingCountColumnNonAjaxSafetyNetFeatureTest exten
 
         $response->assertStatus(302);
         $response->assertRedirect(route('schedule.index'));
-        $response->assertSessionHas('status', 'Занятие из гибкого абонемента поставлено в журнал.');
+        $response->assertSessionHas('status', 'Занятие из абонемента предоплаты поставлено в журнал.');
         $this->assertNotSame(200, $response->getStatusCode());
         $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulp->id)->count());
 

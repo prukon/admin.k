@@ -162,6 +162,8 @@
     Анонс: <a href="/doc#cabinet-packages-type-permissions">/doc</a>.
     См. <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>,
     <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>.
+    Карточки показывают <b>название</b> шаблона; тип в админке для <code>flexible</code> — «Предоплата»
+    (<a href="/doc#flexible-ui-label-index">анонс подписи</a>), ключ права остаётся <code>.flexible.view</code>.
   </div>
   <ul>
     <li>Контроллер: <code>DashboardController::index</code> — выборка <code>UserLessonPackage</code> с <code>fee_amount_cents &gt; 0</code>, eager <code>lessonPackage:id,name,schedule_type</code>; для view выставляется атрибут <code>fee_amount</code> в рублях (<code>Money::fromCents</code>).</li>
@@ -559,7 +561,7 @@
       <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachMarkupFeatureTest.php</code> — разметка модалки, сайдбар, карандаш на <code>/cabinet</code>, фильтр select, UX семейного ФИО</li>
       <li><code>tests/Feature/Crm/Account/AccountUserEditPageFeatureTest.php</code> — «Группы» readonly, lock-текст / карандаш при <code>account.user.team.update</code></li>
       <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис + AJAX-контракт модалки attach; фильтр абонементов селектом группы (<code>filterLessonPackagesByTeam</code>); контракт <code>cabinetPackages.*</code> (<code>dashboardSeasonsEnabled</code> + postpay, без <code>packageAssignments.view</code>)</li>
-      <li><code>tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — группа <code>setPrices</code> (10 прав, включая <code>cabinetPackages.*</code>)</li>
+      <li><code>tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — группа <code>setPrices</code> (9 прав, включая <code>cabinetPackages.*</code>)</li>
       <li><code>tests/Feature/Crm/Permissions/SystemMonitorsPermissionCatalogFeatureTest.php</code> — <code>settings.systemMonitors.view</code> скрытое, не в базовых ролях; <code>settings.reverbOverlay.manage</code> нет</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsToggleFeatureTest.php</code> — переключатель в шапке, персональный флаг, 422 под полем, кнопка на «Общие» снята</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsAccessFeatureTest.php</code> — гость 302/401, admin/trainer/user без права 403, со скрытым правом 200, superadmin через Gate::before</li>

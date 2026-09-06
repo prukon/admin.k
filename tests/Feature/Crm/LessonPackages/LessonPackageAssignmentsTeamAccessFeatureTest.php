@@ -33,6 +33,7 @@ final class LessonPackageAssignmentsTeamAccessFeatureTest extends CrmTestCase
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+        $this->grantLessonPackageTypePermissions();
 
         $this->team = Team::factory()->create([
             'partner_id' => $this->partner->id,

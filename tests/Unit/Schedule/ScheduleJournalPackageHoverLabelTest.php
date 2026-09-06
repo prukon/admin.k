@@ -78,11 +78,11 @@ final class ScheduleJournalPackageHoverLabelTest extends TestCase
     public function test_flexible_abonement_column_label(): void
     {
         $this->assertSame(
-            "10/12\nГибкий",
+            "10/12\nПредоплата",
             ScheduleJournalMonthService::flexibleAbonementColumnLabel(10, 12)
         );
         $this->assertSame(
-            "2/2\nГибкий",
+            "2/2\nПредоплата",
             ScheduleJournalMonthService::flexibleAbonementColumnLabel(2, 2)
         );
     }
@@ -98,7 +98,7 @@ final class ScheduleJournalPackageHoverLabelTest extends TestCase
             ScheduleJournalMonthService::flexibleAbonementColumnHoverLine('Гибкий Б', 0, true, 10, 12)
         );
         $this->assertSame(
-            'Остаток занятий в текущем месяце по абонементу "Гибкий абонемент" за 100 руб',
+            'Остаток занятий в текущем месяце по абонементу "Абонемент предоплаты" за 100 руб',
             ScheduleJournalMonthService::flexibleAbonementColumnHoverLine('  ', 10000)
         );
     }

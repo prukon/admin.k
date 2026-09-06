@@ -30,6 +30,7 @@ final class LessonPackageAssignmentsHistoryWorkflowFeatureTest extends CrmTestCa
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('setPrices.packageAssignments.view');
         $this->grantPermission('lessonPackages.manualPaid.manage');
+        $this->grantLessonPackageTypePermissions();
     }
 
     private function grantPermission(string $permissionName): void

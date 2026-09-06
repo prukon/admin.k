@@ -118,6 +118,7 @@ final class TeamLocationFeatureTest extends CrmTestCase
     public function test_schedule_slot_store_rejects_team_not_allowed_at_location(): void
     {
         $this->grantPermission('locations.view');
+        $this->grantPermission('scheduleSlots.view');
         $this->grantPermission('scheduleSlots.manage');
 
         $locA = Location::factory()->create(['partner_id' => $this->partner->id]);
@@ -144,6 +145,7 @@ final class TeamLocationFeatureTest extends CrmTestCase
     public function test_schedule_slot_store_rejects_team_without_location(): void
     {
         $this->grantPermission('locations.view');
+        $this->grantPermission('scheduleSlots.view');
         $this->grantPermission('scheduleSlots.manage');
 
         $location = Location::factory()->create(['partner_id' => $this->partner->id]);

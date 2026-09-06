@@ -30,7 +30,7 @@ final class SetPricesCabinetPackagesPermissionCatalogFeatureTest extends CrmTest
                 'sort_order' => 25,
             ],
             CabinetLessonPackagePermission::FLEXIBLE => [
-                'description' => 'Консоль: гибкий абонемент',
+                'description' => 'Консоль: абонемент предоплаты',
                 'sort_order' => 26,
             ],
             CabinetLessonPackagePermission::SINGLE => [

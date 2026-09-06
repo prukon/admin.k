@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\TeamPrice;
 use App\Support\LessonPackagePostpayPermission;
+use App\Support\LessonPackageTypePermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -62,7 +63,7 @@ final class SetTeamPriceRequest extends FormRequest
                 ->whereDate('new_month', $monthDate)
                 ->value('lesson_package_id');
 
-            LessonPackagePostpayPermission::rejectUnauthorizedPackageId(
+            LessonPackageTypePermission::rejectUnauthorizedPackageId(
                 $v,
                 $this->user(),
                 $packageId,

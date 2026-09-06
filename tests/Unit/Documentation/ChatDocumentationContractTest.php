@@ -39,6 +39,7 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('reverb-status-overlay-index', $chunk);
         $this->assertStringContainsString('online-users-overlay-index', $chunk);
         $this->assertStringContainsString('chat-presence-index', $chunk);
+        $this->assertStringContainsString('chat-peer-card-cross-partner-index', $chunk);
         $this->assertStringContainsString('ChatPresenceUxFeatureTest', $chunk);
         $this->assertStringContainsString('Черновик', $chunk);
         $this->assertStringContainsString('draft_body', $chunk);
@@ -299,10 +300,20 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('ChatDraftDocumentationContractTest', $html);
         $this->assertStringContainsString('ChatPresenceFeatureTest', $html);
         $this->assertStringContainsString('ChatPresenceUxFeatureTest', $html);
+        $this->assertStringContainsString('ChatPeerCardCrossPartnerFullAccessFeatureTest', $html);
+        $this->assertStringContainsString('ChatPeerCardCrossPartnerAjaxContractFeatureTest', $html);
+        $this->assertStringContainsString('ChatPeerCardCrossPartnerNonAjaxSafetyNetFeatureTest', $html);
+        $this->assertStringContainsString('ChatPeerCardCrossPartnerUxFeatureTest', $html);
+        $this->assertStringContainsString('ChatPeerCardCrossPartnerDocumentationContractTest', $html);
+        $this->assertStringContainsString('/doc#chat-peer-card-cross-partner-index', $html);
+        $this->assertStringContainsString('id="peer-card-cross-partner"', $html);
+        $this->assertStringContainsString('This action is unauthorized.', $html);
         $this->assertStringContainsString('ChatHeaderSubtitleFeatureTest', $html);
         $this->assertStringContainsString('ChatHeaderSubtitleUxFeatureTest', $html);
         $this->assertStringContainsString('peerCardError', $html);
         $this->assertStringContainsString('chat.api.users.show', $html);
+        $this->assertStringContainsString('Нет доступа к карточке этого пользователя.', $html);
+        $this->assertStringContainsString('живым общим тредом', $html);
         $this->assertStringContainsString('last_seen_label', $html);
         $this->assertStringContainsString('partner_name', $html);
         $this->assertStringContainsString('peer-card-partner', $html);
@@ -420,6 +431,8 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('онлайн (ping без messages.view)', $controller);
         $this->assertStringContainsString('подзаголовок шапки (участники / был(а) в сети)', $controller);
         $this->assertStringContainsString('карточка собеседника из шапки', $controller);
+        $this->assertStringContainsString('карточка чужой школы у superadmin только при живом общем треде', $controller);
+        $this->assertStringContainsString('403 errors.user по-русски', $controller);
         $this->assertStringContainsString('название партнёра в модалках Контакт и Группа', $controller);
         $this->assertStringContainsString('не Аккаунт, не шапка', $controller);
         $this->assertStringContainsString('черновик на сервере', $controller);
@@ -447,6 +460,7 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#chat-group-members-index', $index);
         $this->assertStringContainsString('/doc#chat-header-subtitle-index', $index);
         $this->assertStringContainsString('/doc#chat-partner-name-index', $index);
+        $this->assertStringContainsString('/doc#chat-peer-card-cross-partner-index', $index);
         $this->assertStringContainsString('/doc#chat-thread-delete-index', $index);
         $this->assertStringContainsString('/doc#chat-emoji-index', $index);
         $this->assertStringContainsString('<b>удаление диалога</b>', $index);
@@ -659,8 +673,11 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('peer-card-partner', $chunk);
         $this->assertStringContainsString('partners.title', $chunk);
         $this->assertStringContainsString('/docs/documentation/chat#presence', $chunk);
+        $this->assertStringContainsString('/doc#chat-peer-card-cross-partner-index', $chunk);
         $this->assertStringContainsString('ChatPresenceFeatureTest', $chunk);
         $this->assertStringContainsString('ChatPresenceUxFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatPeerCardCrossPartnerFullAccessFeatureTest', $chunk);
+        $this->assertStringContainsString('This action is unauthorized.', $chunk);
         $this->assertStringContainsString('ChatPartnerNameFeatureTest', $chunk);
         $this->assertStringContainsString('ChatPartnerNameUxFeatureTest', $chunk);
         $this->assertStringContainsString('/doc#chat-partner-name-index', $chunk);
@@ -673,6 +690,8 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#chat-contacts-team-filter-index', $chunk);
         $this->assertStringContainsString('/doc#chat-header-subtitle-index', $chunk);
         $this->assertStringContainsString('только ученики', $chunk);
+        $this->assertStringContainsString('живом общем треде', $chunk);
+        $this->assertStringContainsString('Нет доступа к карточке этого пользователя.', $chunk);
 
         $this->assertStringNotContainsString('ping требует', $chunk);
         $this->assertStringNotContainsString('красная точка в списке', $chunk);

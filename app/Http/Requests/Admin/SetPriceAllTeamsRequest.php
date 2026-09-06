@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\TeamPrice;
 use App\Support\LessonPackagePostpayPermission;
+use App\Support\LessonPackageTypePermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -65,10 +66,6 @@ final class SetPriceAllTeamsRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
-            if (LessonPackagePostpayPermission::userCanSelect($this->user())) {
-                return;
-            }
-
             $rows = $this->input('teamsData', []);
             if (! is_array($rows) || $rows === []) {
                 return;
@@ -102,7 +99,7 @@ final class SetPriceAllTeamsRequest extends FormRequest
                     ? ($existingByTeam[$teamId] !== null ? (int) $existingByTeam[$teamId] : null)
                     : null;
 
-                LessonPackagePostpayPermission::rejectUnauthorizedPackageId(
+                LessonPackageTypePermission::rejectUnauthorizedPackageId(
                     $v,
                     $this->user(),
                     $packageId > 0 ? $packageId : null,

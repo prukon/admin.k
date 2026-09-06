@@ -804,6 +804,29 @@ JS;
         $this->assertStringContainsString('parent_full_name', $content);
         $this->assertStringContainsString('function openPeerCard(', $content);
         $this->assertStringContainsString('if (!id)', $content);
+        $openPeerPos = strpos($content, 'function openPeerCard(');
+        $this->assertNotFalse($openPeerPos);
+        $openPeerEnd = strpos($content, 'function showAccountCardError(');
+        $this->assertNotFalse($openPeerEnd);
+        $openPeerChunk = substr($content, $openPeerPos, $openPeerEnd - $openPeerPos);
+        $fieldErrPos = strpos($openPeerChunk, "fieldError(res.data, 'user')");
+        $genericMsgPos = strpos($openPeerChunk, 'res.data.message');
+        $this->assertNotFalse($fieldErrPos);
+        $this->assertNotFalse($genericMsgPos);
+        $this->assertLessThan(
+            $genericMsgPos,
+            $fieldErrPos,
+            'openPeerCard должен брать errors.user раньше generic message, иначе 403 Laravel покажет This action is unauthorized.'
+        );
+        $this->assertStringNotContainsString('This action is unauthorized.', $content);
+        $this->assertStringContainsString("openPeerCard(Number(row.getAttribute('data-id')), true)", $content);
+        $this->assertStringContainsString("openPeerCard(Number(avatarBtn.getAttribute('data-user-id')))", $content);
+        $headerPos = strpos($content, 'function headerPeerActivate(');
+        $this->assertNotFalse($headerPos);
+        $headerChunk = substr($content, $headerPos, 220);
+        $this->assertStringContainsString('if (currentIsGroup)', $headerChunk);
+        $this->assertStringContainsString('openGroupCard()', $headerChunk);
+        $this->assertStringContainsString('openPeerCard()', $headerChunk);
         $this->assertStringContainsString('function openGroupCard(', $content);
         $this->assertStringContainsString('function headerPeerActivate(', $content);
         $this->assertStringContainsString('function dashText(', $content);
@@ -1112,11 +1135,11 @@ JS;
         $this->assertStringContainsString('syncFlexibleEmptyCellAffordance', $content);
         $this->assertStringContainsString("data-mode', 'flexible'", $content);
         $this->assertStringContainsString('cell-status-option--disabled', $content);
-        $this->assertStringContainsString('Достигнут лимит занятий по гибкому абонементу.', $content);
+        $this->assertStringContainsString('Достигнут лимит занятий по абонементу предоплаты.', $content);
         $this->assertStringContainsString('data-flexible-remaining', $content);
         $this->assertStringContainsString('flexibleRemaining', $content);
         $this->assertStringContainsString("attr('data-empty-lesson') === '1'", $content);
-        $this->assertStringContainsString('Пробное, разовое или занятие из гибкого абонемента', $content);
+        $this->assertStringContainsString('Пробное, разовое или занятие из абонемента предоплаты', $content);
         $this->assertStringContainsString('emptyCellPlaceForm', $content);
 
         $cssPath = resource_path('css/schedule.css');
@@ -1282,6 +1305,40 @@ JS;
             $exitCode,
             "JS syntax error in resources/js/schedule.js:\n".implode("\n", $output)
         );
+    }
+
+    /**
+     * P1: журнал — колонка «N/M\\nПредоплата» и fallback «Абонемент предоплаты» в Vite и hotfix public/js.
+     */
+    public function test_schedule_journal_flexible_ui_label_is_prepay_in_source_and_hotfix(): void
+    {
+        foreach ([
+            resource_path('js/schedule.js'),
+            public_path('js/schedule-journal.js'),
+        ] as $path) {
+            $this->assertFileExists($path);
+            $content = (string) file_get_contents($path);
+
+            $this->assertStringContainsString(
+                "return String(remaining) + '/' + String(total) + '\\nПредоплата'",
+                $content,
+                $path
+            );
+            $this->assertStringNotContainsString('\\nГибкий', $content, $path);
+            $this->assertStringContainsString("'Абонемент предоплаты'", $content, $path);
+            $this->assertStringContainsString('title="Абонемент предоплаты: поставить занятие"', $content, $path);
+            $this->assertStringContainsString('Достигнут лимит занятий по абонементу предоплаты.', $content, $path);
+            $this->assertStringNotContainsString('Гибкий абонемент', $content, $path);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+            $this->assertSame(
+                0,
+                $exitCode,
+                "JS syntax error in {$path}:\n".implode("\n", $output)
+            );
+        }
     }
 
     /**
@@ -2275,8 +2332,8 @@ JS;
         $this->assertFileExists($path);
 
         $content = (string) file_get_contents($path);
-        $this->assertStringContainsString('value="postpay"', $content);
-        $this->assertStringContainsString('@can(\'lessonPackages.type.postpay\')', $content);
+        $this->assertStringContainsString('LessonPackageTypePermission::options()', $content);
+        $this->assertStringContainsString('@can($typeOption[\'permission\'])', $content);
         $this->assertStringContainsString('@can(\'scheduleSlots.view\')', $content);
         $this->assertStringContainsString("t === 'postpay'", $content);
         $this->assertStringContainsString('Стоимость за одно занятие', $content);
@@ -2319,6 +2376,105 @@ JS;
         $this->assertTrue(
             $postpayScriptFound,
             'В packages.blade.php не найден script с обработкой schedule_type=postpay'
+        );
+    }
+
+    /**
+     * P1: тип flexible в шаблонах — UI «Предоплата», в submit/фильтре/edit остаётся код flexible.
+     */
+    public function test_lesson_packages_flexible_ui_label_inline_script_contracts(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/packages.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('LessonPackageTypePermission::options()', $content);
+        $this->assertStringContainsString('@can($typeOption[\'permission\'])', $content);
+        $this->assertStringContainsString("{{ \$typeOption['value'] }}", $content);
+        $this->assertStringContainsString("{{ \$typeOption['label'] }}", $content);
+        $this->assertStringNotContainsString('<option value="flexible">Гибкий</option>', $content);
+        $this->assertStringContainsString("createScheduleType.value = 'fixed'", $content);
+        $this->assertStringContainsString("const scheduleType = lp.schedule_type || 'fixed'", $content);
+        $this->assertStringContainsString('scheduleSelect.value = scheduleType', $content);
+        $this->assertStringNotContainsString('scheduleSelect.value = lp.schedule_type_label', $content);
+        $this->assertStringContainsString("data: 'schedule_type_label'", $content);
+        $this->assertStringContainsString('d.schedule_type = params.schedule_type', $content);
+        $this->assertStringContainsString("t === 'postpay'", $content);
+        $this->assertStringContainsString('preventDefault', $content);
+        $this->assertStringContainsString("Accept': 'application/json'", $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "createScheduleType.value = 'fixed'",
+            'blade-js-packages-flexible-label'
+        );
+    }
+
+    /**
+     * P1: type.* — inject текущего типа в edit, дефолт create=fixed, ошибки под schedule_type,
+     * чекбоксы уведомлений: edit подставляет отсутствующий тип, create не сбрасывает форму через другой путь.
+     */
+    public function test_lesson_packages_type_permissions_inline_script_contracts(): void
+    {
+        $packagesPath = resource_path('views/admin/lessonPackages/tabs/packages.blade.php');
+        $this->assertFileExists($packagesPath);
+        $packages = (string) file_get_contents($packagesPath);
+
+        $this->assertStringContainsString('LessonPackageTypePermission::userCanSelectAny', $packages);
+        $this->assertStringContainsString('LessonPackageTypePermission::options()', $packages);
+        $this->assertStringContainsString('@can($typeOption[\'permission\'])', $packages);
+        $this->assertStringContainsString("createScheduleType.value = 'fixed'", $packages);
+        $this->assertStringContainsString("addEventListener('shown.bs.modal'", $packages);
+        $this->assertStringContainsString("const scheduleType = lp.schedule_type || 'fixed'", $packages);
+        $this->assertStringContainsString('LessonPackageTypePermission::LABELS', $packages);
+        $this->assertStringContainsString(
+            '!scheduleSelect.querySelector(\'option[value="\' + scheduleType + \'"]\')',
+            $packages
+        );
+        $this->assertStringContainsString('scheduleSelect.appendChild(opt)', $packages);
+        $this->assertStringContainsString('scheduleSelect.value = scheduleType', $packages);
+        $this->assertStringNotContainsString('scheduleSelect.value = lp.schedule_type_label', $packages);
+        $this->assertStringContainsString("applyValidationErrors(createModalEl, p.errors, 'create')", $packages);
+        $this->assertStringContainsString("const inputName = prefix + '[' + k + ']'", $packages);
+        $this->assertStringContainsString('data-error-for="create[schedule_type]"', $packages);
+        $this->assertStringContainsString('data-error-for="edit[schedule_type]"', $packages);
+        $this->assertStringContainsString('e.preventDefault()', $packages);
+        $this->assertStringContainsString("Accept': 'application/json'", $packages);
+        $this->assertStringContainsString('.lesson-package-edit-btn', $packages);
+        $this->assertSame(1, substr_count($packages, "createScheduleType.value = 'fixed'"));
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $packagesPath,
+            'scheduleSelect.appendChild(opt)',
+            'blade-js-packages-type-permissions-inject'
+        );
+
+        $assignmentsPath = resource_path('views/admin/lessonPackages/tabs/assignments.blade.php');
+        $assignments = (string) file_get_contents($assignmentsPath);
+        $this->assertStringContainsString('LessonPackageTypePermission::options()', $assignments);
+        $this->assertStringContainsString('@can($typeOption[\'permission\'])', $assignments);
+        $this->assertStringContainsString('SCHEDULE_TYPE_POSTPAY', $assignments);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $assignmentsPath,
+            'filter_schedule_type: $ulpFiltersForm.find(\'[name="filter_schedule_type"]\')',
+            'blade-js-assignments-type-filter'
+        );
+
+        $notifyPath = resource_path('views/admin/SettingPrices/payment-notifications.blade.php');
+        $notify = (string) file_get_contents($notifyPath);
+        $this->assertStringContainsString('LessonPackageTypePermission::options()', $notify);
+        $this->assertStringContainsString('function ensureScheduleTypeCheckbox(type)', $notify);
+        $this->assertStringContainsString('function openCreate()', $notify);
+        $this->assertStringContainsString('function openEdit(id)', $notify);
+        $this->assertStringContainsString("setScheduleTypes(['fixed', 'flexible'])", $notify);
+        $this->assertStringContainsString('setScheduleTypes(rule.schedule_types || [])', $notify);
+        $this->assertStringContainsString("document.getElementById('pn-type-' + type)", $notify);
+        $this->assertSame(1, substr_count($notify, 'function openCreate()'));
+        $this->assertSame(1, substr_count($notify, 'function openEdit(id)'));
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $notifyPath,
+            'function ensureScheduleTypeCheckbox(type)',
+            'blade-js-pn-type-permissions-ensure'
         );
     }
 
@@ -3316,6 +3472,109 @@ JS;
     }
 
     /**
+     * P1: скрытые права schoolSchedule — Excel и слоты за @can; оба JS-пути открытия модалки слота;
+     * exportXlsx null-fallback; открытие не делает form.reset().
+     */
+    public function test_school_schedule_hidden_permissions_gate_export_and_both_slot_create_open_paths(): void
+    {
+        $calendarPath = resource_path('views/admin/lessonPackages/tabs/schoolSchedule.blade.php');
+        $tablePath = resource_path('views/admin/lessonPackages/tabs/teamScheduleSlotsTable.blade.php');
+        $slotModalsPath = resource_path('views/admin/teamScheduleSlots/partials/slotModals.blade.php');
+        $this->assertFileExists($calendarPath);
+        $this->assertFileExists($tablePath);
+        $this->assertFileExists($slotModalsPath);
+
+        $calendar = (string) file_get_contents($calendarPath);
+        $table = (string) file_get_contents($tablePath);
+        $slotModals = (string) file_get_contents($slotModalsPath);
+
+        $this->assertBladeCanWraps(
+            $calendar,
+            "@can('lessonPackages.export')",
+            'id="schoolCalExportBtn"',
+            'Кнопка Excel должна быть внутри @can(\'lessonPackages.export\').'
+        );
+        $this->assertBladeCanWraps(
+            $calendar,
+            "@can('lessonPackages.export')",
+            'id="schoolCalExportModal"',
+            'Модалка Excel должна быть внутри @can(\'lessonPackages.export\').'
+        );
+        $this->assertBladeCanWraps(
+            $calendar,
+            "@can('scheduleSlots.manage')",
+            'id="schoolCalSlotChangeLessonBtn"',
+            '«Изменить занятие» должно быть внутри @can(\'scheduleSlots.manage\').'
+        );
+        $this->assertBladeCanWraps(
+            $calendar,
+            "@can('scheduleSlots.manage')",
+            "@include('admin.teamScheduleSlots.partials.slotModals')",
+            'slotModals на календаре должны подключаться внутри @can(\'scheduleSlots.manage\').'
+        );
+        $this->assertBladeCanWraps(
+            $calendar,
+            "@can('scheduleSlots.manage')",
+            'function schoolCalOpenSlotCreateModal',
+            'schoolCalOpenSlotCreateModal должна быть внутри @can(\'scheduleSlots.manage\').'
+        );
+        $this->assertBladeCanWraps(
+            $calendar,
+            "@can('scheduleSlots.manage')",
+            'schoolCalOpenSlotCreateModal({',
+            'Клик по ячейке сетки должен звать schoolCalOpenSlotCreateModal внутри @can(\'scheduleSlots.manage\').'
+        );
+        $this->assertBladeCanWraps(
+            $table,
+            "@can('scheduleSlots.manage')",
+            "@include('admin.teamScheduleSlots.partials.slotModals')",
+            'slotModals на вкладке таблицы должны подключаться внутри @can(\'scheduleSlots.manage\').'
+        );
+
+        $this->assertStringContainsString(
+            "exportXlsx: @json(auth()->user()?->can('lessonPackages.export') ? route('admin.lesson-packages.school-schedule.export') : null)",
+            $calendar
+        );
+        $this->assertStringContainsString('if (!routes.exportXlsx)', $calendar);
+        $this->assertStringContainsString('function initSchoolCalExport', $calendar);
+
+        $openCalPos = strpos($calendar, 'function schoolCalOpenSlotCreateModal');
+        $this->assertNotFalse($openCalPos);
+        $gridClickPos = strpos($calendar, "document.getElementById('schoolCalGrid')", $openCalPos);
+        $this->assertNotFalse($gridClickPos);
+        $openCalBody = substr($calendar, $openCalPos, $gridClickPos - $openCalPos);
+        $this->assertStringNotContainsString('.reset()', $openCalBody, 'schoolCalOpenSlotCreateModal не должна сбрасывать форму');
+        $this->assertStringContainsString('autoSelectSoleTeam: true', $openCalBody);
+        $this->assertStringContainsString('schoolCalLocation', $openCalBody);
+
+        $openDefaultsPos = strpos($slotModals, 'function openSlotCreateModalWithDefaults');
+        $this->assertNotFalse($openDefaultsPos);
+        $openDefaultsAssignPos = strpos($slotModals, 'window.openSlotCreateModalWithDefaults = openSlotCreateModalWithDefaults');
+        $this->assertNotFalse($openDefaultsAssignPos);
+        $openDefaultsBody = substr($slotModals, $openDefaultsPos, $openDefaultsAssignPos - $openDefaultsPos);
+        $this->assertStringNotContainsString('.reset()', $openDefaultsBody, 'openSlotCreateModalWithDefaults не должна сбрасывать форму');
+        $this->assertStringContainsString('if (o.locationId != null && o.locationId !== \'\')', $openDefaultsBody);
+        $this->assertStringContainsString('autoSelectSoleTeam: true', $openDefaultsBody);
+        $this->assertStringContainsString('window.openSlotCreateModalWithDefaults = openSlotCreateModalWithDefaults', $slotModals);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $calendarPath,
+            'function schoolCalOpenSlotCreateModal',
+            'blade-js-school-cal-open-slot-create'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $calendarPath,
+            'initSchoolCalExport',
+            'blade-js-school-cal-export-gated'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $slotModalsPath,
+            'function openSlotCreateModalWithDefaults',
+            'blade-js-open-slot-create-defaults'
+        );
+    }
+
+    /**
      * P1: inline JS привязки фиксированного абонемента в модалке слота (fetch + errors.patterns).
      * Включает автоподстановку group_patterns в шаблон привязки.
      */
@@ -3385,6 +3644,41 @@ JS;
         }
 
         $this->assertTrue($fixedScriptFound, 'В schoolSchedule.blade.php не найден script с submitSchoolCalSlotFixedRegistration');
+    }
+
+    /**
+     * P1: кнопка «Привязать абонемент предоплаты» — дефолт HTML и оба JS-пути (bind-actions + reset picker).
+     */
+    public function test_school_schedule_flexible_bind_button_label_js_contracts(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/schoolSchedule.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('id="schoolCalOpenFlexible"', $content);
+        $this->assertStringContainsString('Привязать абонемент предоплаты', $content);
+        $this->assertStringNotContainsString('Привязать гибкий абонемент', $content);
+        $this->assertStringContainsString(
+            "const schoolCalFlexibleButtonDefaultLabel = 'Привязать абонемент предоплаты'",
+            $content
+        );
+
+        $applyPos = strpos($content, 'function applyFlexibleBindButtonState(flex)');
+        $this->assertNotFalse($applyPos);
+        $applyChunk = substr($content, (int) $applyPos, 900);
+        $this->assertStringContainsString('schoolCalFlexibleButtonDefaultLabel', $applyChunk);
+        $this->assertStringContainsString('schoolCalSlotBindButtonHtml', $applyChunk);
+
+        $resetPos = strpos($content, 'function resetSlotModalUserPicker()');
+        $this->assertNotFalse($resetPos);
+        $resetChunk = substr($content, (int) $resetPos, 900);
+        $this->assertStringContainsString('flexBtn.textContent = schoolCalFlexibleButtonDefaultLabel', $resetChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'schoolCalFlexibleButtonDefaultLabel',
+            'blade-js-school-cal-flexible-label'
+        );
     }
 
     /**
@@ -4042,6 +4336,12 @@ JS;
 
         $this->assertStringContainsString('function openCreate()', $content);
         $this->assertStringContainsString("setScheduleTypes(['fixed', 'flexible'])", $content);
+        $this->assertStringContainsString("flexible: 'Предоплата'", $content);
+        $this->assertStringNotContainsString("flexible: 'Гибкий'", $content);
+        $this->assertStringContainsString("id=\"pn-type-{{ \$typeOption['value'] }}\"", $content);
+        $this->assertStringContainsString("for=\"pn-type-{{ \$typeOption['value'] }}\"", $content);
+        $this->assertStringContainsString("{{ \$typeOption['label'] }}", $content);
+        $this->assertStringContainsString('LessonPackageTypePermission::options()', $content);
         $this->assertStringContainsString("value = 'day_of_month'", $content);
         $this->assertStringContainsString("pn-rule-trigger-value').value = '5'", $content);
         $this->assertStringContainsString("pn-rule-billing-offset').value = '0'", $content);
@@ -5550,6 +5850,39 @@ JS;
         }
 
         $this->assertTrue($found, 'В legal-entities/index.blade.php не найден script с podpislon_api_key');
+    }
+
+    /**
+     * Вебхук Подпислона не в CRM-формах: в blade нет URL с самодельным ?token=
+     * и нет AJAX-submit на /webhooks/podpislon.
+     */
+    public function test_crm_blades_do_not_embed_homemade_podpislon_webhook_token_or_ajax_submit(): void
+    {
+        $root = resource_path('views');
+        $this->assertDirectoryExists($root);
+
+        $hits = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($iterator as $file) {
+            if (! $file->isFile() || $file->getExtension() !== 'php') {
+                continue;
+            }
+            $content = (string) file_get_contents($file->getPathname());
+            if (
+                str_contains($content, 'webhooks/podpislon?token')
+                || str_contains($content, '/webhooks/podpislon')
+            ) {
+                $hits[] = str_replace($root.'/', '', $file->getPathname());
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $hits,
+            'Blade не должен подсказывать URL вебхука с ?token= и не должен сабмитить на /webhooks/podpislon'
+        );
     }
 
     /**
@@ -7076,6 +7409,17 @@ JS;
         }
 
         $this->assertTrue($found, "В {$path} не найден script с «{$needle}»");
+    }
+
+    private function assertBladeCanWraps(string $content, string $canDirective, string $needle, string $message): void
+    {
+        $needlePos = strpos($content, $needle);
+        $this->assertNotFalse($needlePos, 'Не найден маркер: '.$needle);
+        $canPos = strrpos(substr($content, 0, $needlePos), $canDirective);
+        $this->assertNotFalse($canPos, 'Не найден '.$canDirective.' перед '.$needle);
+        $endCanPos = strpos($content, '@endcan', $needlePos);
+        $this->assertNotFalse($endCanPos, 'Не найден @endcan после '.$needle);
+        $this->assertTrue($canPos < $needlePos && $needlePos < $endCanPos, $message);
     }
 
     private function normalizeBladeScriptForSyntaxCheck(string $script): string

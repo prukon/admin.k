@@ -105,6 +105,30 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('setPrices.packageAssignments.view', $trainerPerms);
     }
 
+    public function test_new_partner_does_not_assign_school_schedule_permissions_to_base_roles(): void
+    {
+        $partner = Partner::factory()->create();
+
+        $userPerms = $this->permissionNamesForPartnerRole($partner->id, 'user');
+        $adminPerms = $this->permissionNamesForPartnerRole($partner->id, 'admin');
+        $trainerPerms = $this->permissionNamesForPartnerRole($partner->id, 'trainer');
+
+        foreach ([
+            'scheduleSlots.view',
+            'scheduleSlots.manage',
+            'scheduleSlots.table',
+            'lessonPackages.export',
+            'setPrices.packageAssignments.view',
+            'lessonPackages.manualPaid.manage',
+        ] as $permissionName) {
+            $this->assertNotContains($permissionName, $userPerms);
+            $this->assertNotContains($permissionName, $adminPerms);
+            $this->assertNotContains($permissionName, $trainerPerms);
+        }
+
+        $this->assertContains('lessonPackages.view', $adminPerms);
+    }
+
     public function test_new_partner_does_not_assign_cabinet_packages_type_permissions_to_base_roles(): void
     {
         $partner = Partner::factory()->create();
@@ -125,7 +149,7 @@ class PartnerBasePermissionsTest extends CrmTestCase
         }
     }
 
-    public function test_new_partner_does_not_assign_lesson_packages_type_postpay_to_base_roles(): void
+    public function test_new_partner_does_not_assign_lesson_packages_type_permissions_to_base_roles(): void
     {
         $partner = Partner::factory()->create();
 
@@ -133,9 +157,16 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $adminPerms = $this->permissionNamesForPartnerRole($partner->id, 'admin');
         $trainerPerms = $this->permissionNamesForPartnerRole($partner->id, 'trainer');
 
-        $this->assertNotContains('lessonPackages.type.postpay', $userPerms);
-        $this->assertNotContains('lessonPackages.type.postpay', $adminPerms);
-        $this->assertNotContains('lessonPackages.type.postpay', $trainerPerms);
+        foreach ([
+            'lessonPackages.type.fixed',
+            'lessonPackages.type.flexible',
+            'lessonPackages.type.no_schedule',
+            'lessonPackages.type.postpay',
+        ] as $permissionName) {
+            $this->assertNotContains($permissionName, $userPerms);
+            $this->assertNotContains($permissionName, $adminPerms);
+            $this->assertNotContains($permissionName, $trainerPerms);
+        }
     }
 
     public function test_new_partner_does_not_assign_trainer_salary_scheme_classic_to_base_roles(): void
@@ -201,6 +232,19 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('account.user.team.update', $userPerms);
         $this->assertNotContains('account.user.team.update', $adminPerms);
         $this->assertNotContains('account.user.team.update', $trainerPerms);
+    }
+
+    public function test_new_partner_does_not_assign_reports_payments_commission_total_to_base_roles(): void
+    {
+        $partner = Partner::factory()->create();
+
+        $userPerms = $this->permissionNamesForPartnerRole($partner->id, 'user');
+        $adminPerms = $this->permissionNamesForPartnerRole($partner->id, 'admin');
+        $trainerPerms = $this->permissionNamesForPartnerRole($partner->id, 'trainer');
+
+        $this->assertNotContains('reports.payments.commission_total.view', $userPerms);
+        $this->assertNotContains('reports.payments.commission_total.view', $adminPerms);
+        $this->assertNotContains('reports.payments.commission_total.view', $trainerPerms);
     }
 
     public function test_base_permissions_are_isolated_between_partners(): void

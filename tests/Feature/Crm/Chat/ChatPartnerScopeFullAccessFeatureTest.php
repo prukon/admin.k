@@ -82,8 +82,29 @@ final class ChatPartnerScopeFullAccessFeatureTest extends ChatTestCase
         $this->assertNotContains((int) $this->foreignUser->id, $ids);
 
         $this->getJson(route('chat.api.users.show', $local))->assertOk();
-        $this->getJson(route('chat.api.users.show', $this->foreignUser))->assertForbidden();
+        $this->assertChatPeerCardForbidden(
+            $this->getJson(route('chat.api.users.show', $this->foreignUser))
+        );
         $this->getJson(route('chat.api.users.show', 9_999_999))->assertNotFound();
+    }
+
+    public function test_superadmin_can_read_foreign_peer_card_only_with_shared_live_thread(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession([
+            'current_partner' => (int) $this->partner->id,
+            '2fa:passed' => true,
+        ]);
+
+        $this->assertChatPeerCardForbidden(
+            $this->getJson(route('chat.api.users.show', $this->foreignUser))
+        );
+
+        $this->createThreadForUsers([$this->user->id, $this->foreignUser->id], 'ScopeSaCross');
+
+        $this->getJson(route('chat.api.users.show', $this->foreignUser))
+            ->assertOk()
+            ->assertJsonPath('id', (int) $this->foreignUser->id);
     }
 
     public function test_superadmin_with_null_partner_id_sees_only_current_partner_users(): void

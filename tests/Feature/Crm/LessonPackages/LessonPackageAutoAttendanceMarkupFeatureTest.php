@@ -24,6 +24,7 @@ final class LessonPackageAutoAttendanceMarkupFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->grantPermission('lessonPackages.view');
+        $this->grantLessonPackageTypePermissions();
     }
 
     private function grantPermission(string $permissionName): void

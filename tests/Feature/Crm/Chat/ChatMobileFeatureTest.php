@@ -92,8 +92,12 @@ final class ChatMobileFeatureTest extends ChatTestCase
 
     public function test_foreign_partner_cannot_open_this_schools_user_card(): void
     {
-        $this->getJson(route('chat.api.users.show', $this->foreignUser))->assertForbidden();
-        $this->get(route('chat.api.users.show', $this->foreignUser))->assertForbidden();
+        $this->assertChatPeerCardForbidden(
+            $this->getJson(route('chat.api.users.show', $this->foreignUser))
+        );
+        $this->assertChatPeerCardForbidden(
+            $this->get(route('chat.api.users.show', $this->foreignUser))
+        );
     }
 
     public function test_guest_is_redirected_from_chat_page_and_json_is_unauthorized(): void

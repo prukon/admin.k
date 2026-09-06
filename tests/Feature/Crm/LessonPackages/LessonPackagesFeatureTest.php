@@ -23,6 +23,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+        $this->grantLessonPackageTypePermissions();
     }
 
     private function grantPermission(string $permissionName): void
@@ -51,6 +52,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_index_ok_with_view_permission(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantLessonPackageTypePermissions();
         $this->grantPermission('setPrices.packageAssignments.view');
 
         $this->get(route('admin.lesson-packages.index'))
@@ -364,6 +366,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_admin_role_has_access_to_lesson_packages_endpoints_by_default(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         // index (page) should be accessible
         $this->get(route('admin.lesson-packages.index'))->assertOk();
@@ -722,6 +725,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_admin_role_has_access_to_assignments_tab_and_endpoints_with_200_final_response(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
         $this->grantPermission('setPrices.packageAssignments.view');
 
         // вкладка (page)

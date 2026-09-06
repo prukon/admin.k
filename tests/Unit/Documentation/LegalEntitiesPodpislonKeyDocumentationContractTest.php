@@ -8,7 +8,8 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Анонс /doc#legal-entities-podpislon-key-index совпадает с кодом:
- * ключ на юрлице, только superadmin, без фоллбэка PODPISLON_API_KEY, вебхук — секрет из env.
+ * ключ на юрлице, только superadmin, без фоллбэка PODPISLON_API_KEY,
+ * вебхук — POST /webhooks/podpislon без самодельного ?token=, SIGNATURE Подпислона.
  */
 final class LegalEntitiesPodpislonKeyDocumentationContractTest extends TestCase
 {
@@ -25,7 +26,9 @@ final class LegalEntitiesPodpislonKeyDocumentationContractTest extends TestCase
         $chunk = substr($html, $start, $end - $start);
 
         $this->assertStringContainsString('PODPISLON_API_KEY', $chunk);
-        $this->assertStringContainsString('PODPISLON_WEBHOOK_SECRET', $chunk);
+        $this->assertStringContainsString('/webhooks/podpislon', $chunk);
+        $this->assertStringContainsString('?token=', $chunk);
+        $this->assertStringContainsString('SIGNATURE', $chunk);
         $this->assertStringContainsString('/admin/legal-entities', $chunk);
         $this->assertStringContainsString('superadmin', $chunk);
         $this->assertStringContainsString('type=password', $chunk);
@@ -48,12 +51,16 @@ final class LegalEntitiesPodpislonKeyDocumentationContractTest extends TestCase
         $this->assertStringContainsString('PodpislonCredentialsResolverTest', $chunk);
         $this->assertStringContainsString('PodpislonCredentialsHttpFeatureTest', $chunk);
         $this->assertStringContainsString('AccountContractFillPodpislonKeyFeatureTest', $chunk);
+        $this->assertStringContainsString('PodpislonWebhookTest', $chunk);
+        $this->assertStringContainsString('PodpislonWebhookUrlCheckFeatureTest', $chunk);
+        $this->assertStringContainsString('test_crm_blades_do_not_embed_homemade_podpislon_webhook_token_or_ajax_submit', $chunk);
         $this->assertStringContainsString('LegalEntitiesPodpislonKeyDocumentationContractTest', $chunk);
 
         $this->assertStringNotContainsString('школа правит ключ', $chunk);
         $this->assertStringNotContainsString('ключ автоматически скопирован из .env', $chunk);
         $this->assertStringNotContainsString('PODPISLON_API_KEY больше нет в .env', $chunk);
         $this->assertStringNotContainsString('вебхук берёт ключ юрлица', $chunk);
+        $this->assertStringNotContainsString('проверяет <code>PODPISLON_WEBHOOK_SECRET</code>', $chunk);
     }
 
     public function test_related_doc_pages_link_announcement_and_do_not_claim_env_send_key(): void
@@ -67,11 +74,16 @@ final class LegalEntitiesPodpislonKeyDocumentationContractTest extends TestCase
         $this->assertStringContainsString('id="legal-entities-podpislon-key"', $legal);
         $this->assertStringContainsString('/doc#legal-entities-podpislon-key-index', $legal);
         $this->assertStringContainsString('Глобальный <code>PODPISLON_API_KEY</code> для отправки документов не используется', $legal);
+        $this->assertStringContainsString('POST /webhooks/podpislon', $legal);
         $this->assertStringContainsString('podpislon_api_key</code> (только superadmin', $legal);
 
         $this->assertStringContainsString('id="contracts-podpislon"', $contracts);
         $this->assertStringContainsString('/doc#legal-entities-podpislon-key-index', $contracts);
         $this->assertStringContainsString('не из <code>PODPISLON_API_KEY</code>', $contracts);
+        $this->assertStringContainsString('POST /webhooks/podpislon', $contracts);
+        $this->assertStringContainsString('?token=', $contracts);
+        $this->assertStringContainsString('SIGNATURE', $contracts);
+        $this->assertStringContainsString('PodpislonWebhookUrlCheckFeatureTest', $contracts);
 
         $this->assertStringContainsString('/doc#legal-entities-podpislon-key-index', $fill);
         $this->assertStringContainsString('errors.podpislon_api_key', $fill);
@@ -139,6 +151,16 @@ final class LegalEntitiesPodpislonKeyDocumentationContractTest extends TestCase
         $config = (string) file_get_contents($root.'/config/services.php');
         $this->assertStringContainsString("не из .env", $config);
         $this->assertStringContainsString("'webhook_secret' => env('PODPISLON_WEBHOOK_SECRET')", $config);
+
+        $webhook = (string) file_get_contents($root.'/app/Http/Controllers/Webhooks/PodpislonWebhookController.php');
+        $this->assertStringContainsString('SIGNATURE', $webhook);
+        $this->assertStringContainsString('webhook_probe', $webhook);
+        $this->assertStringNotContainsString('PODPISLON_WEBHOOK_TOKEN', $webhook);
+        $this->assertStringNotContainsString('token mismatch', $webhook);
+
+        $routes = (string) file_get_contents($root.'/routes/web.php');
+        $this->assertStringContainsString("Route::post('/webhooks/podpislon'", $routes);
+        $this->assertStringNotContainsString('/webhooks/podpislon/{', $routes);
 
         $fillSign = (string) file_get_contents($root.'/app/Http/Controllers/AccountContractFillController.php');
         $this->assertStringContainsString("withErrors(\$result['errors']", $fillSign);

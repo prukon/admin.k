@@ -226,7 +226,7 @@ final class LessonPackageSchoolScheduleExportFeatureTest extends CrmTestCase
         $this->assertSame('Иванова Мария Петровна', (string) $lessons->getCell([6, 2])->getValue());
         $this->assertSame('+79001112233', (string) $lessons->getCell([7, 2])->getValue());
         $this->assertSame('Группа Экспорт', (string) $lessons->getCell([8, 2])->getValue());
-        $this->assertSame('Гибкий', (string) $lessons->getCell([9, 2])->getValue());
+        $this->assertSame('Предоплата', (string) $lessons->getCell([9, 2])->getValue());
         $this->assertSame('Гибкий 8', (string) $lessons->getCell([10, 2])->getValue());
         $this->assertSame((string) $ulp->id, (string) $lessons->getCell([11, 2])->getValue());
         $this->assertSame('4500.00', (string) $lessons->getCell([12, 2])->getValue());

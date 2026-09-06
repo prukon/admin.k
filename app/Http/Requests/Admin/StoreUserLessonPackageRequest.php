@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Role;
+use App\Support\LessonPackageTypePermission;
 use App\Support\PartnerLegalEntityMode;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -92,6 +93,13 @@ final class StoreUserLessonPackageRequest extends FormRequest
                     $validator->errors()->add(
                         'lesson_package_id',
                         'Абонемент «Постоплата» назначается только в разделе «Установка цен», без записи в назначениях.'
+                    );
+                } else {
+                    LessonPackageTypePermission::rejectUnauthorizedPackageId(
+                        $validator,
+                        $this->user(),
+                        $packageId,
+                        'lesson_package_id',
                     );
                 }
 

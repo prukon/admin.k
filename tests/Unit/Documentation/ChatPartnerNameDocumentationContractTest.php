@@ -52,7 +52,7 @@ final class ChatPartnerNameDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#chat-partner-name-index', $html);
         $start = strpos($html, 'id="partner-name"');
         $this->assertNotFalse($start);
-        $end = strpos($html, 'id="draft"');
+        $end = strpos($html, 'id="peer-card-cross-partner"');
         $this->assertNotFalse($end);
         $this->assertGreaterThan($start, $end);
         $chunk = substr($html, $start, $end - $start);

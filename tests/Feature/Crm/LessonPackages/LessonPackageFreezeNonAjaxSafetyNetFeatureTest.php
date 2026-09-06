@@ -54,6 +54,7 @@ final class LessonPackageFreezeNonAjaxSafetyNetFeatureTest extends CrmTestCase
     {
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -243,6 +244,7 @@ final class LessonPackageFreezeNonAjaxSafetyNetFeatureTest extends CrmTestCase
     public function test_store_with_schedule_slots_view_creates_freeze_and_redirects(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantLessonPackageTypePermissions();
         $this->grantPermission('scheduleSlots.view');
 
         $this->from(route('admin.lesson-packages.index'))

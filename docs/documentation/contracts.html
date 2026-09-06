@@ -154,7 +154,14 @@
     Резолюция юр. лица — <code>LegalEntityResolver::forTeamId(group_id, school_id)</code>; при 2+ юр. лицах без явной привязки группы отправка блокируется (422).
     Без ключа — 422, статус договора не меняется на <code>failed</code>. После первой отправки пишется <code>contracts.legal_entity_id</code>.<br>
     В <code>PUT /add-document</code> передаются <code>name</code> (имя), <code>last_name</code> (фамилия), <code>second_name</code> (отчество), <code>phone</code> — из данных формы отправки (оператор может изменить перед SMS), не напрямую из БД после отправки.<br>
-    После отправки в <code>contract_sign_requests</code> фиксируется снимок подписанта; сменить подписанта у уже созданного договора нельзя — только новый договор или новая отправка с новыми данными в форме.
+    После отправки в <code>contract_sign_requests</code> фиксируется снимок подписанта; сменить подписанта у уже созданного договора нельзя — только новый договор или новая отправка с новыми данными в форме.<br>
+    Вебхук: <code>POST /webhooks/podpislon</code> (имя <code>webhooks.podpislon</code>), без CSRF,
+    без самодельного <code>?token=</code>. В кабинете Подпислона у каждой компании — этот URL как есть.
+    Пустой POST (проверка URL) — 200 <code>probe</code>. События — поле <code>SIGNATURE</code> Подпислона
+    (<code>md5</code> тела без <code>SIGNATURE</code>). Кастомный query-токен не проверяется
+    и не заменяет <code>SIGNATURE</code>. Гость и сотрудник без <code>contracts.view</code> получают тот же 200 на пробу
+    (не логин и не 403). CSRF не требуется. GET/PUT/PATCH/DELETE — 404/405, не 500.
+    Path <code>/webhooks/podpislon/{token}</code> не существует (404/405, не 200).
   </div>
 
   <h2>4) Скачивание PDF в интерфейсе</h2>
@@ -398,6 +405,8 @@
       <li><code>ContractsIndexAccessFeatureTest.php</code>, <code>ContractsAccessTest.php</code></li>
       <li><code>ContractsParentAndAccessTest.php</code> — родитель на show, подписант</li>
       <li><code>ContractsSigningTest.php</code>, <code>PodpislonCredentialsHttpFeatureTest.php</code>, <code>PodpislonCredentialsResolverTest.php</code> — ключ юрлица, 422 без ключа / без юрлица, <code>X-Api-Key</code> не из <code>.env</code></li>
+      <li><code>PodpislonWebhookTest.php</code> — пустой POST проба 200 без <code>?token=</code> и с ним (токен игнорируется); события требуют <code>SIGNATURE</code> Подпислона</li>
+      <li><code>PodpislonWebhookUrlCheckFeatureTest.php</code> — UX кабинета Подпислона: гость, без CSRF, без права CRM, URL без <code>?token=</code> даёт 200 JSON <code>probe</code> (не логин/419/403); токен в path — 404; query-токен не заменяет <code>SIGNATURE</code>; GET/PUT/PATCH/DELETE не 500</li>
       <li><code>ContractsSyncFeatureTest.php</code></li>
       <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code></li>
       <li><code>ContractBillingWalletLedgerFeatureTest.php</code> — PDF/template: debit в кошельке текущей школы; отзыв awaiting_client_fill — credit, исходный debit succeeded; недостаток средств без строки; аннулирование sent/opened credit не пишет</li>

@@ -186,6 +186,7 @@ final class DirectoriesLessonPackagesAccessFeatureTest extends CrmTestCase
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
         $this->grantPermission($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
 
         $page = $this->get(route('admin.directories.lesson-packages.index'));
         $page->assertOk();
@@ -242,6 +243,7 @@ final class DirectoriesLessonPackagesAccessFeatureTest extends CrmTestCase
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
         $this->grantPermission($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
 
         LessonPackage::query()->create([
             'partner_id' => $this->partner->id,

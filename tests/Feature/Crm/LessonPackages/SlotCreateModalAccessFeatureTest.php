@@ -166,6 +166,7 @@ final class SlotCreateModalAccessFeatureTest extends CrmTestCase
     {
         $actor = $this->createUserWithoutPermission('scheduleSlots.manage', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->grantPermissionToUser($actor, 'scheduleSlots.view');
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);

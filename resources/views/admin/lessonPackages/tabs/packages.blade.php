@@ -11,6 +11,7 @@
                 <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Абонементы</h1>
                 <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
                     @can('lessonPackages.view')
+                        @if (\App\Support\LessonPackageTypePermission::userCanSelectAny(auth()->user()))
                         <button type="button"
                                 class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
                                 data-bs-toggle="modal"
@@ -21,6 +22,7 @@
                             </span>
                             <span class="payments-report-toolbar-label d-none d-sm-inline">Добавить</span>
                         </button>
+                        @endif
                     @endcan
 
                     <button type="button"
@@ -120,12 +122,11 @@
                     <label class="form-label" for="filter-lesson-package-type">Тип</label>
                     <select id="filter-lesson-package-type" class="form-select">
                         <option value="">Все типы</option>
-                        <option value="fixed">Фиксированный</option>
-                        <option value="flexible">Гибкий</option>
-                        <option value="no_schedule">Разовое занятие</option>
-                        @can('lessonPackages.type.postpay')
-                            <option value="postpay">Постоплата</option>
-                        @endcan
+                        @foreach (\App\Support\LessonPackageTypePermission::options() as $typeOption)
+                            @can($typeOption['permission'])
+                                <option value="{{ $typeOption['value'] }}">{{ $typeOption['label'] }}</option>
+                            @endcan
+                        @endforeach
                     </select>
                 </div>
 
@@ -184,12 +185,11 @@
                             <div class="col-12 col-md-6">
                                 <label class="form-label">Тип *</label>
                                 <select name="create[schedule_type]" id="create_schedule_type" class="form-select" required>
-                                    <option value="fixed">Фиксированный</option>
-                                    <option value="flexible">Гибкий</option>
-                                    <option value="no_schedule">Разовое занятие</option>
-                                    @can('lessonPackages.type.postpay')
-                                        <option value="postpay">Постоплата</option>
-                                    @endcan
+                                    @foreach (\App\Support\LessonPackageTypePermission::options() as $typeOption)
+                                        @can($typeOption['permission'])
+                                            <option value="{{ $typeOption['value'] }}">{{ $typeOption['label'] }}</option>
+                                        @endcan
+                                    @endforeach
                                 </select>
                                 <div class="invalid-feedback d-none" data-error-for="create[schedule_type]"></div>
                             </div>
@@ -280,12 +280,11 @@
                             <div class="col-12 col-md-6">
                                 <label class="form-label">Тип *</label>
                                 <select name="edit[schedule_type]" id="edit_schedule_type" class="form-select" required>
-                                    <option value="fixed">Фиксированный</option>
-                                    <option value="flexible">Гибкий</option>
-                                    <option value="no_schedule">Разовое занятие</option>
-                                    @can('lessonPackages.type.postpay')
-                                        <option value="postpay">Постоплата</option>
-                                    @endcan
+                                    @foreach (\App\Support\LessonPackageTypePermission::options() as $typeOption)
+                                        @can($typeOption['permission'])
+                                            <option value="{{ $typeOption['value'] }}">{{ $typeOption['label'] }}</option>
+                                        @endcan
+                                    @endforeach
                                 </select>
                                 <div class="invalid-feedback d-none" data-error-for="edit[schedule_type]"></div>
                             </div>
@@ -934,10 +933,11 @@
                         const lp = json.lesson_package || {};
                         const scheduleType = lp.schedule_type || 'fixed';
                         const scheduleSelect = editModalEl.querySelector('[name="edit[schedule_type]"]');
-                        if (scheduleType === 'postpay' && scheduleSelect && !scheduleSelect.querySelector('option[value="postpay"]')) {
+                        const scheduleTypeLabels = @json(\App\Support\LessonPackageTypePermission::LABELS);
+                        if (scheduleSelect && scheduleType && !scheduleSelect.querySelector('option[value="' + scheduleType + '"]')) {
                             const opt = document.createElement('option');
-                            opt.value = 'postpay';
-                            opt.textContent = 'Постоплата';
+                            opt.value = scheduleType;
+                            opt.textContent = scheduleTypeLabels[scheduleType] || scheduleType;
                             scheduleSelect.appendChild(opt);
                         }
 

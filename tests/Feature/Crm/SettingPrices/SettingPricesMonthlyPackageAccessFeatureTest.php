@@ -194,6 +194,7 @@ final class SettingPricesMonthlyPackageAccessFeatureTest extends CrmTestCase
     public function test_authorized_user_monthly_package_endpoints_return_expected_status_not_empty_200(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         $page = $this->get(route('admin.settingPrices.indexMenu'));
         $page->assertOk();

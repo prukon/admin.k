@@ -272,6 +272,7 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
     public function test_schedule_slot_update_rejects_team_not_at_location(): void
     {
         $this->grantPermission('locations.view');
+        $this->grantPermission('scheduleSlots.view');
         $this->grantPermission('scheduleSlots.manage');
 
         $locA = Location::factory()->create(['partner_id' => $this->partner->id]);

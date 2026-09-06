@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Admin;
 
 use App\Models\PaymentNotificationRule;
+use App\Support\LessonPackageTypePermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -54,6 +55,22 @@ class StorePaymentNotificationRuleRequest extends FormRequest
                 ))));
                 if ($normalized === []) {
                     $validator->errors()->add('schedule_types', 'Выберите хотя бы один тип абонемента.');
+                } else {
+                    $previous = [];
+                    $ruleId = (int) $this->route('id');
+                    if ($ruleId > 0) {
+                        $existing = PaymentNotificationRule::query()->find($ruleId);
+                        if ($existing !== null) {
+                            $previous = $existing->normalizedScheduleTypes();
+                        }
+                    }
+                    LessonPackageTypePermission::rejectUnauthorizedScheduleTypes(
+                        $validator,
+                        $this->user(),
+                        $normalized,
+                        $previous,
+                        'schedule_types',
+                    );
                 }
             }
         });
@@ -109,7 +126,7 @@ class StorePaymentNotificationRuleRequest extends FormRequest
 
             'schedule_types.required' => 'Выберите хотя бы один тип абонемента.',
             'schedule_types.min' => 'Выберите хотя бы один тип абонемента.',
-            'schedule_types.*.in' => 'Некорректный тип абонемента. Доступны: фиксированный, гибкий, постоплата.',
+            'schedule_types.*.in' => 'Некорректный тип абонемента. Доступны: фиксированный, предоплата, постоплата.',
 
             'subject_template.required' => 'Укажите тему письма.',
             'subject_template.max' => 'Тема письма слишком длинная (максимум 255 символов).',

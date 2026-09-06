@@ -39,6 +39,7 @@ final class SettingPricesUserPercentDiscountFeatureTest extends CrmTestCase
         ]);
 
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         $this->team = Team::factory()->create([
             'partner_id' => $this->partner->id,

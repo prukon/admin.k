@@ -72,7 +72,7 @@ final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends Crm
             ->assertSee('schoolCalSlotSingleFormWrap', false)
             ->assertSee('schoolCalSlotSingleSubmit', false)
             ->assertSee('singleLessonRegistrationStore', false)
-            ->assertSee('Привязать гибкий абонемент', false)
+            ->assertSee('Привязать абонемент предоплаты', false)
             ->assertSee('Привязать фиксированный абонемент', false)
             ->assertSee('historyModal', false)
             ->assertSee('fa-clock-rotate-left', false)

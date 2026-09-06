@@ -9,7 +9,7 @@ use Tests\Feature\Crm\CrmTestCase;
 
 /**
  * Перегруппировка permission_groups: каталог в БД и отображение на «Права и роли».
- * Маппинг синхронизирован с PermissionSeeder и миграцией reorganize_permission_groups.
+ * Маппинг синхронизирован с PermissionSeeder и миграциями групп (включая schoolSchedule).
  */
 final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
 {
@@ -20,6 +20,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
         'mainMenu',
         'reports',
         'schedule',
+        'schoolSchedule',
         'directories',
         'lessonPackages',
         'setPrices',
@@ -41,12 +42,13 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
     private function expectedPermissionCountsByGroupSlug(): array
     {
         return [
-            'mainMenu'        => 18,
+            'mainMenu'        => 17,
             'reports'         => 9,
-            'schedule'        => 7,
+            'schedule'        => 5,
+            'schoolSchedule'  => 6,
             'directories'     => 8,
-            'lessonPackages'  => 4,
-            'setPrices'       => 10,
+            'lessonPackages'  => 5,
+            'setPrices'       => 9,
             'contracts'       => 3,
             'leads'           => 3,
             'partner'         => 3,
@@ -89,7 +91,6 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'myGroup.view',
                 'setPrices.view',
                 'schedule.view',
-                'scheduleSlots.view',
                 'schoolLeads.view',
                 'users.view',
                 'directories.view',
@@ -119,8 +120,14 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'schedule.trainerSalary.scheme.classic',
                 'schedule.trainerSalary.view',
                 'schedule.trainerSalary.manage',
+            ],
+            'schoolSchedule' => [
+                'scheduleSlots.view',
                 'scheduleSlots.manage',
                 'scheduleSlots.table',
+                'lessonPackages.export',
+                'setPrices.packageAssignments.view',
+                'lessonPackages.manualPaid.manage',
             ],
             'directories' => [
                 'districts.view',
@@ -134,15 +141,15 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             ],
             'lessonPackages' => [
                 'lessonPackages.view',
-                'lessonPackages.manualPaid.manage',
-                'lessonPackages.export',
+                'lessonPackages.type.fixed',
+                'lessonPackages.type.flexible',
+                'lessonPackages.type.no_schedule',
                 'lessonPackages.type.postpay',
             ],
             'setPrices' => [
                 'setPrices.cabinetSeasons.view',
                 'setPrices.customPayments.view',
                 'setPrices.manualPaid.manage',
-                'setPrices.packageAssignments.view',
                 'payment.clubfee',
                 'setPrices.paymentNotifications.manage',
                 'setPrices.cabinetPackages.fixed.view',
@@ -318,6 +325,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             'Главное меню',
             'Отчёты',
             'Расписание',
+            'Расписание школы',
             'Справочники',
             'Абонементы',
             'Установка цен',
@@ -356,6 +364,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
         $this->assertContains('users', $slugs);
         $this->assertContains('account', $slugs);
         $this->assertContains('inAppNotifications', $slugs);
+        $this->assertNotContains('schoolSchedule', $slugs);
         $this->assertNotContains('leads', $slugs);
         $this->assertNotContains('partner', $slugs);
         $this->assertNotContains('platformPayments', $slugs);
@@ -363,7 +372,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
         $this->assertNotContains('directories', $slugs);
     }
 
-    public function test_rules_controller_passes_sixteen_groups_to_view_for_superadmin(): void
+    public function test_rules_controller_passes_seventeen_groups_to_view_for_superadmin(): void
     {
         $this->asSuperadmin();
 
@@ -371,7 +380,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             ->assertOk()
             ->viewData('groups');
 
-        $this->assertCount(16, $groups);
+        $this->assertCount(17, $groups);
 
         $slugs = $groups->pluck('slug')->all();
         $this->assertEqualsCanonicalizing(self::EXPECTED_GROUP_SLUGS, $slugs);

@@ -34,6 +34,7 @@ final class PackageAssignmentsSectionAccessSmokeFeatureTest extends CrmTestCase
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+        $this->grantLessonPackageTypePermissions();
 
         $this->student = User::factory()->create([
             'partner_id' => $this->partner->id,

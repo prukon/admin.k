@@ -81,7 +81,10 @@
       (описание: Абонементы, тип «Постоплата»; группа <code>lessonPackages</code>; <code>is_visible=0</code>;
       не в базовых ролях). Без права: option скрыт; store/update с <code>schedule_type=postpay</code> →
       <b>422</b> на <code>schedule_type</code> (кроме правки уже существующего postpay-шаблона);
-      фильтр DataTables postpay → пусто; в select назначений ULP postpay не показывается.
+      фильтр DataTables postpay → пусто; в select назначений ULP postpay не показывается без права
+      (с правом пакет может быть в списке, store всё равно 422 — домен).
+      С 2026‑09 тот же Gate у остальных типов —
+      <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>.
       Карточка права — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>.</li>
   </ul>
 
@@ -264,7 +267,9 @@
         <td>POST</td>
         <td><code>getTeamPrice</code></td>
         <td><code>setPrices.view</code></td>
-        <td>Каталог <code>lessonPackages</code> фильтруется по type.postpay (неназначенные postpay скрыты)</td>
+        <td>Каталог <code>lessonPackages</code> режется по <code>lessonPackages.type.*</code>
+          (неназначенные шаблоны без права скрыты; keepIds — уже стоящие в
+          <code>team_prices</code> / <code>users_prices</code>)</td>
       </tr>
       <tr>
         <td>GET / POST / DELETE</td>

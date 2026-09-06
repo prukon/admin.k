@@ -31,6 +31,7 @@ final class PackageAssignmentsNonAjaxSafetyNetFeatureTest extends CrmTestCase
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+        $this->grantLessonPackageTypePermissions();
 
         foreach (['lessonPackages.view', 'setPrices.packageAssignments.view'] as $permission) {
             DB::table('permission_role')->insertOrIgnore([

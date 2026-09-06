@@ -155,6 +155,7 @@ final class LessonPackagesPageFullAccessFeatureTest extends CrmTestCase
     public function test_index_and_directories_pages_render_toolbar_datatable_and_history_with_view(): void
     {
         $this->grantPermission($this->user, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($this->user);
 
         foreach ([
             route('admin.lesson-packages.index'),
@@ -185,6 +186,7 @@ final class LessonPackagesPageFullAccessFeatureTest extends CrmTestCase
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
         $this->grantPermission($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
 
         foreach ($this->sectionEndpoints() as $item) {
             $response = $this->json($item['method'], $item['url'], $item['data'] ?? []);
@@ -203,6 +205,7 @@ final class LessonPackagesPageFullAccessFeatureTest extends CrmTestCase
     public function test_data_endpoint_does_not_leak_foreign_partner_packages(): void
     {
         $this->grantPermission($this->user, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($this->user);
 
         $foreignPartner = Partner::factory()->create();
         LessonPackage::query()->create([

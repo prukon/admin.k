@@ -23,6 +23,8 @@ final class MonthlyPricesProlongReport
 
     public const REASON_POSTPAY_DENIED = 'postpay_denied';
 
+    public const REASON_TYPE_DENIED = 'type_denied';
+
     public const REASON_TEMPLATE_MISSING = 'template_missing';
 
     public const REASON_ERROR = 'error';
@@ -34,6 +36,7 @@ final class MonthlyPricesProlongReport
         self::REASON_LAID_OUT => 'Назначение уже разложено в расписание',
         self::REASON_AUTO_PROLONG => 'У ученика включена автопролонгация абонемента — новые назначения недоступны. Сначала отключите автопролонгацию.',
         self::REASON_POSTPAY_DENIED => 'Недостаточно прав для выбора абонемента типа «Постоплата».',
+        self::REASON_TYPE_DENIED => 'Недостаточно прав для выбора этого типа абонемента.',
         self::REASON_TEMPLATE_MISSING => 'Шаблон абонемента не найден или недоступен',
         self::REASON_ERROR => 'Не удалось сохранить',
     ];
@@ -159,7 +162,7 @@ final class MonthlyPricesProlongReport
         $this->teamsUnchanged++;
     }
 
-    public function addTeamSkip(string $reason, int $teamId, string $teamTitle, bool $listItem = true): void
+    public function addTeamSkip(string $reason, int $teamId, string $teamTitle, bool $listItem = true, ?string $detail = null): void
     {
         $this->teamsSkip++;
         $this->bumpReason($reason, 'team');
@@ -171,7 +174,7 @@ final class MonthlyPricesProlongReport
             'kind' => 'team',
             'action' => 'skip',
             'reason' => $reason,
-            'reason_label' => $this->labelFor($reason),
+            'reason_label' => $this->labelFor($reason, $detail),
             'user_id' => null,
             'user_name' => null,
             'team_id' => $teamId,

@@ -61,6 +61,7 @@
     чекбокс только при <code>scheduleSlots.view</code>; без права store с
     <code>true</code> → <code>422</code>, update не сбрасывает уже включённый флаг.
     Анонс — <a href="/doc#lesson-package-auto-attendance-index">/doc</a>,
+    группа прав — <a href="/doc#school-schedule-permission-group-index">«Расписание школы»</a>,
     подробно — <a href="#auto-attendance">§auto-attendance</a>.
     <br><br>
     <b>Заморозка в модалке шаблона (2026‑09):</b> чекбокс «Разрешена заморозка»
@@ -70,6 +71,7 @@
     уже сохранённые <code>freeze_enabled</code>/<code>freeze_days</code>.
     Флаг <b>не</b> участвует в календаре школы и журнале.
     Анонс — <a href="/doc#lesson-package-freeze-permission-index">/doc</a>,
+    группа прав — <a href="/doc#school-schedule-permission-group-index">«Расписание школы»</a>,
     подробно — <a href="#freeze-permission">§freeze-permission</a>.
     <br><br>
     <b>Срок действия в модалке шаблона (2026‑09):</b> поле «Срок действия (дни)»
@@ -77,7 +79,21 @@
     Без права create <code>fixed</code>/<code>flexible</code> пишет фоном <code>30</code>;
     update сохраняет текущий срок. Разовое → <code>1</code>, постоплата → <code>31</code>.
     Анонс — <a href="/doc#lesson-package-duration-permission-index">/doc</a>,
+    группа прав — <a href="/doc#school-schedule-permission-group-index">«Расписание школы»</a>,
     подробно — <a href="#duration-permission">§duration-permission</a>.
+  </div>
+
+  <h2 id="type-permissions">Права на тип шаблона <code>lessonPackages.type.*</code></h2>
+  <div class="note">
+    С 2026‑09 каждый <code>schedule_type</code> закрыт скрытым правом
+    (<code>fixed</code> / <code>flexible</code> / <code>no_schedule</code> / <code>postpay</code>).
+    Без права option типа скрыт, store/update с этим типом → <b>422</b> на <code>schedule_type</code>,
+    новый выбор пакета в «Установка цен» / ULP → <b>422</b> на поле пакета.
+    Если нет ни одного type-права — скрыта кнопка «Добавить абонемент» (<code>userCanSelectAny</code>).
+    Уже созданные шаблоны и уже назначенные месяцы работают без права.
+    Superadmin видит все типы через <code>Gate::before</code>.
+    Анонс — <a href="/doc#lesson-packages-type-permissions-index">/doc#lesson-packages-type-permissions-index</a>,
+    карточка — <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>.
   </div>
 
   <h2 id="postpay">Тип шаблона <code>postpay</code> (постоплата)</h2>
@@ -87,8 +103,9 @@
     Option/фильтр «Постоплата» в UI шаблонов — только при праве
     <code>lessonPackages.type.postpay</code>
     (<a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>).
-    В select назначений ULP тип <b>не</b> предлагается без этого права; store назначения с postpay-пакетом
-    всегда → <b>422</b> (доменный запрет).
+    В select назначений ULP пакеты без права на тип не попадают
+    (<code>restrictQueryToAllowedTypes</code>); при праве postpay пакет может быть в списке,
+    store назначения с postpay-пакетом всегда → <b>422</b> (доменный запрет).
     Полное описание — <a href="/docs/documentation/postpay">postpay</a>.
   </div>
 
@@ -134,7 +151,7 @@
       <b>из установки цен</b> с <code>billing_month</code> + <code>team_id</code>;
       классика fixed без месяца в журнале не предлагается — календарь школы
       <code>assign-fixed</code>;
-      гибкий — отдельная модалка по клику на ячейку —
+      предоплата — отдельная модалка по клику на ячейку —
       <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>).</li>
   </ul>
 
@@ -216,7 +233,7 @@
   <ul>
     <li>Только <code>schedule_type = fixed</code>; у назначения нет <code>billing_month</code>.</li>
     <li>На ученике не более <b>одного</b> ULP с <code>auto_prolong_enabled = true</code> (глобально у партнёра).</li>
-    <li>Гибкий / разовое / postpay — включить нельзя (<code>422</code> на <code>auto_prolong_enabled</code>).</li>
+    <li>Предоплата / разовое / postpay — включить нельзя (<code>422</code> на <code>auto_prolong_enabled</code>).</li>
   </ul>
 
   <h3>Триггер и сервисы</h3>
@@ -327,9 +344,28 @@
     <code>BladeInlineJsSyntaxTest::test_lesson_package_assignment_ends_at_modal_inline_script_is_valid_javascript</code>
     (также частично в <code>LessonPackageAssignmentsTabFeatureTest</code>).</p>
 
-  <h2>Гибкое расписание</h2>
+  <h2>Предоплата (<code>flexible</code>)</h2>
+  <p id="flexible-ui-label"><strong>Подпись в UI (2026‑09):</strong> тип <code>schedule_type = flexible</code>
+    на экране называется «Предоплата». Длинные фразы: «Абонемент предоплаты»,
+    «Привязать абонемент предоплаты». Идентификатор <code>flexible</code> в БД, JSON
+    (<code>lesson_package.schedule_type</code>, фильтр <code>schedule_type</code>,
+    <code>setScheduleTypes(['fixed', 'flexible'])</code>) и ключах прав <b>не</b> меняли.
+    Колонка DataTables берёт серверный <code>schedule_type_label</code>; GET show для edit
+    отдаёт только код <code>schedule_type</code> (без <code>schedule_type_label</code>) —
+    модалка пишет в select код, не подпись. «Фиксированный» не трогали.
+    Если в шаблоне меняют тип <code>fixed</code> → <code>flexible</code>, аудит пишет
+    diff «Тип: Фиксированный → Предоплата» (было / стало).
+    Название шаблона не переименовывается.
+    Селекты: <code>&lt;option value="flexible"&gt;Предоплата&lt;/option&gt;</code>.
+    Empty-cell журнала: <code>Предоплата: «название» — {остаток}/{всего}</code>.
+    Анонс — <a href="/doc#flexible-ui-label-index">/doc#flexible-ui-label-index</a>.
+    Тесты: <code>LessonPackageFlexibleUiLabelAccessFeatureTest</code>,
+    <code>LessonPackageFlexibleUiLabelMarkupFeatureTest</code>,
+    <code>LessonPackageFlexibleUiLabelAjaxContractFeatureTest</code>,
+    <code>LessonPackageFlexibleUiLabelNonAjaxSafetyNetFeatureTest</code>,
+    <code>LessonPackageFlexibleUiLabelWorkflowFeatureTest</code>.</p>
   <p>Эндпоинт привязки одного занятия (<code>assign-flexible</code>) выставляет период при первом успешном сохранении привязки, если даты ещё были NULL. Одна успешная операция добавляет одну строку в <code>user_team_schedule_slots</code>; при достижении лимита по числу строк (равному <code>lessons_total</code>) следующая привязка возвращает ошибку валидации.</p>
-  <p><strong>UI календаря школы:</strong> привязка выполняется inline в модалке слота (без отдельной модалки «Гибкий абонемент»). Список подходящих назначений на дату — в <code>GET …/slot-user-bind-actions</code> → <code>flexible.existing_assignments</code>; подпись назначения — <code>"название" (остаток N)</code> (см. <a href="/docs/documentation/school-schedule-calendar#school-schedule-assignment-labels">school-schedule-calendar § подписи</a>); одно назначение — две строки на кнопке и один клик, несколько — select в <code>#schoolCalSlotFlexFormWrap</code>. Подробности — в <a href="/docs/documentation/school-schedule-calendar">разделе «Расписание школы»</a> (§ «Гибкие абонементы в модалке слота»).</p>
+  <p><strong>UI календаря школы:</strong> привязка выполняется inline в модалке слота (без отдельной модалки «Абонемент предоплаты»). Список подходящих назначений на дату — в <code>GET …/slot-user-bind-actions</code> → <code>flexible.existing_assignments</code>; подпись назначения — <code>"название" (остаток N)</code> (см. <a href="/docs/documentation/school-schedule-calendar#school-schedule-assignment-labels">school-schedule-calendar § подписи</a>); одно назначение — две строки на кнопке и один клик, несколько — select в <code>#schoolCalSlotFlexFormWrap</code>. Подробности — в <a href="/docs/documentation/school-schedule-calendar">разделе «Расписание школы»</a> (§ «Абонементы предоплаты в модалке слота»).</p>
   <p><strong>UI журнала <code>/schedule</code>:</strong> месячный flexible из установки цен
     (<code>billing_month</code>) ставится по клику на ячейку —
     <a href="/docs/documentation/schedule-journal#place-flexible">schedule-journal §7.3</a>
@@ -355,18 +391,18 @@
     Длинный <code>ends_at</code> у строки <strong>не</strong> означает «ученик занят этим слотом все подходящие дни недели до конца периода».
     В конфликт и отображение календаря входит только дата <code>starts_at</code>. Иначе «хвост» периода после последнего занятия блокировал бы новый фикс на том же weekday/времени.
   </div>
-  <p>Кросс-слотовое сравнение часов есть <strong>только</strong> у <code>assign-fixed</code>. Гибкий, разовое и пробное проверяют дубликат «тот же <code>team_schedule_slot_id</code> + <code>starts_at</code>», без пересечения времени между разными слотами в один день.</p>
+  <p>Кросс-слотовое сравнение часов есть <strong>только</strong> у <code>assign-fixed</code>. Предоплата, разовое и пробное проверяют дубликат «тот же <code>team_schedule_slot_id</code> + <code>starts_at</code>», без пересечения времени между разными слотами в один день.</p>
   <p class="small">Тесты: <code>LessonPackageSchoolScheduleAssignmentsValidationFeatureTest</code>, <code>LessonPackageSchoolScheduleFixedOverlapAjaxContractFeatureTest</code>, <code>LessonPackageSchoolScheduleFixedOverlapNonAjaxSafetyNetFeatureTest</code>, <code>BladeInlineJsSyntaxTest::test_school_schedule_fixed_bind_inline_script_is_valid_javascript</code>. UI/API — <a href="/docs/documentation/school-schedule-calendar#school-schedule-fixed-overlap">school-schedule-calendar § конфликт</a>.</p>
 
   <p><strong>UI календаря школы:</strong> привязка выполняется inline в модалке слота (отдельная модалка <code>#schoolCalFixedModal</code> снята с UI). Список подходящих назначений — в <code>GET …/slot-user-bind-actions</code> → <code>fixed.existing_assignments</code>; там же <code>fixed.group_patterns</code> для автозаполнения строк шаблона слотами той же группы на том же объекте. При одном назначении кнопка в две строки (<code>"название" (остаток N)</code>), но форма «Шаблон привязки» (<code>patterns[]</code>) всё равно обязательна; при нескольких — select в <code>#schoolCalSlotFixedFormWrap</code>. Перед submit показывается превью дат цепочки (<code>POST …/assign-fixed-preview</code>, без записи в БД; label вида <code>8 августа 2026 10:00-11:00 (пятница)</code>). Submit — <code>POST …/assign-fixed</code>. Подробности — в <a href="/docs/documentation/school-schedule-calendar">разделе «Расписание школы»</a> (§ «Фиксированные абонементы в модалке слота», <a href="/docs/documentation/school-schedule-calendar#school-schedule-fixed-group-patterns">автозаполнение</a>, <a href="/docs/documentation/school-schedule-calendar#school-schedule-fixed-chain-preview">превью</a>, <a href="/docs/documentation/school-schedule-calendar#school-schedule-bind-panels-ui">inline-панели</a>).</p>
-  <p><strong>Важно:</strong> при успешной привязке фиксированного (как и гибкого или разового) абонемента поле <code>lessons_remaining</code> в <code>user_lesson_packages</code> <strong>не уменьшается</strong> — см. раздел ниже.</p>
+  <p><strong>Важно:</strong> при успешной привязке фиксированного (как и предоплаты или разового) абонемента поле <code>lessons_remaining</code> в <code>user_lesson_packages</code> <strong>не уменьшается</strong> — см. раздел ниже.</p>
 
   <h2>Остаток занятий (<code>lessons_remaining</code>) и календарь</h2>
   <p>Баланс абонемента хранится в <code>user_lesson_packages.lessons_remaining</code> и <code>lessons_total</code>.</p>
   <ul>
-    <li><strong>Привязка к календарю школы</strong> (POST привязки гибкого, фиксированного или разового занятия) только создаёт записи в <code>user_team_schedule_slots</code> и при необходимости задаёт период назначения; <code>lessons_remaining</code> при этом <strong>не меняется</strong>.</li>
+    <li><strong>Привязка к календарю школы</strong> (POST привязки предоплаты, фиксированного или разового занятия) только создаёт записи в <code>user_team_schedule_slots</code> и при необходимости задаёт период назначения; <code>lessons_remaining</code> при этом <strong>не меняется</strong>.</li>
     <li><strong>Списание и возврат остатка</strong> выполняются при сохранении <strong>статуса занятия</strong> в календаре школы для записи с абонементом (вручную администратором или автоматически — см. <a href="#auto-attendance">§Автосписание</a>): учитывается флаг <code>consumes_lesson</code> у статуса и предыдущий статус по тому же слоту/дате/ученику (дельта −1 / +1 / 0). Подробности и таблицы статусов — в <a href="/docs/documentation/school-schedule-calendar">разделе про календарь школы</a>.</li>
-    <li><strong>Лимит строк календаря</strong> на одно назначение: количество строк <code>user_team_schedule_slots</code> с данным <code>user_lesson_package_id</code> не может превысить <code>lessons_total</code>. Для гибкого и разового это проверяется перед каждой новой привязкой; для фикса длина создаваемой цепочки считается от оставшегося «бюджета» занятий.</li>
+    <li><strong>Лимит строк календаря</strong> на одно назначение: количество строк <code>user_team_schedule_slots</code> с данным <code>user_lesson_package_id</code> не может превысить <code>lessons_total</code>. Для предоплаты и разового это проверяется перед каждой новой привязкой; для фикса длина создаваемой цепочки считается от оставшегося «бюджета» занятий.</li>
   </ul>
 
   <h2 id="duration-permission">Срок действия шаблона (<code>lesson_packages.duration_days</code>)</h2>
@@ -588,7 +624,7 @@
     <li><strong>Модалка слота календаря школы</strong> (<code>POST …/school-schedule/single-lesson-registration</code>): если у ученика уже есть свободное назначение (<code>mode=bind_existing</code>), выполняется только привязка к слоту (при одном назначении — две строки на кнопке «Добавить разовое занятие», см. <a href="/docs/documentation/school-schedule-calendar#school-schedule-assignment-labels">формат подписи</a>); иначе (<code>mode=create_new</code>) в одной транзакции создаётся назначение и строка календаря. Подробности UI и API — в <a href="/docs/documentation/school-schedule-calendar">разделе «Расписание школы»</a>.</li>
     <li><strong>Legacy-модалка</strong> <code>#schoolCalSingleModal</code>: привязка уже существующего назначения через <code>POST …/assign-single-lesson</code> (выбор <code>user_lesson_package_id</code>). Основной сценарий для администратора — модалка слота.</li>
   </ul>
-  <p>Период назначения (<code>starts_at</code>/<code>ends_at</code>) задаётся при первой привязке к календарю через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>, как у гибкого абонемента. Списание <code>lessons_remaining</code> — только через статус занятия с <code>consumes_lesson</code>.</p>
+  <p>Период назначения (<code>starts_at</code>/<code>ends_at</code>) задаётся при первой привязке к календарю через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>, как у абонемента предоплаты. Списание <code>lessons_remaining</code> — только через статус занятия с <code>consumes_lesson</code>.</p>
   <p><strong>Отмена записи в календаре</strong> (<code>DELETE …/single-lesson-registration/{userTeamScheduleSlot}</code>) удаляет строку <code>user_team_schedule_slots</code>, но <strong>не удаляет</strong> назначение <code>user_lesson_packages</code> — его можно снова привязать к другому слоту. Если статус уже списывал занятие, остаток восстанавливается (+1).</p>
 
   <h2 id="packages-tab">Страница «Абонементы» — шаблоны (<code>/admin/lesson-packages</code>)</h2>
@@ -604,7 +640,9 @@
   <h3>Toolbar и таблица</h3>
   <ul>
     <li>Шапка: карточка <code>payments-report-surface</code> + <code>@vite(['resources/css/admin-list-toolbar.css'])</code>.</li>
-    <li>Кнопки: <b>Добавить</b> (модалка create), <b>История</b> (<code>#historyModal</code> / <code>includes.logModal</code>),
+    <li>Кнопки: <b>Добавить</b> (модалка create; скрыта, если нет ни одного
+      <code>lessonPackages.type.*</code> — <a href="#type-permissions">§type-permissions</a>),
+      <b>История</b> (<code>#historyModal</code> / <code>includes.logModal</code>),
       <b>Фильтры</b> (collapse), <b>Колонки</b> (dropdown с <code>.column-toggle</code>).</li>
     <li>Таблица <code>#lesson-packages-table</code> — server-side <code>KidsCrmDataTable.create</code>
       (init в <code>@push('scripts')</code> + <code>$(document).ready</code>, иначе Vite-модуль ещё не готов).</li>
@@ -617,9 +655,15 @@
   <h3>Фильтры</h3>
   <ul>
     <li>Поиск по названию (query <code>name</code>; также совпадение по id, если строка из цифр).</li>
-    <li>Тип: все / <code>fixed</code> / <code>flexible</code> / <code>no_schedule</code> /
-      <code>postpay</code> (query <code>schedule_type</code>; option postpay и фильтр data — только при
-      <code>lessonPackages.type.postpay</code>). Про постоплату —
+    <li>Тип: все / <code>fixed</code> («Фиксированный») / <code>flexible</code> («Предоплата») / <code>no_schedule</code> («Разовое занятие») /
+      <code>postpay</code> (query <code>schedule_type</code>). Option и DataTables-фильтр по типу —
+      только при соответствующем <code>lessonPackages.type.*</code>
+      (без права crafted query даёт пустой список; список без фильтра показывает все шаблоны партнёра).
+      Код в запросе и БД — <code>flexible</code>, не русская подпись
+      (<a href="#flexible-ui-label">§flexible-ui-label</a>). Права типов —
+      <a href="#type-permissions">§type-permissions</a>,
+      <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>;
+      постоплата —
       <a href="/docs/documentation/postpay">postpay</a>,
       <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>.</li>
   </ul>
@@ -767,6 +811,7 @@
     «Списано» по занятию — флаг <code>consumes_lesson</code> текущего статуса (отдельного ledger нет).
     Полный контракт — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export">school-schedule-calendar § выгрузка</a>,
     алгоритм остатка — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export-historical-remaining">§ исторический остаток</a>.
+    Право скрытое (<code>is_visible=0</code>), новым партнёрам не выдаётся.
   </div>
 
   <h2 id="assignments-tab">Страница «Назначение абонементов» (<code>/admin/lesson-packages/assignments</code>)</h2>
@@ -776,8 +821,11 @@
     Без <code>setPrices.packageAssignments.view</code> вкладка скрыта, endpoint'ы (кроме <code>users-search</code>) — <b>403</b>.
     <code>GET …/assignments/users-search</code> — только <code>lessonPackages.view</code> (общий с календарём школы).
     Дополнительно: <code>POST …/assignments/{id}/manual-paid</code> — <code>lessonPackages.manualPaid.manage</code>.
-    Право <code>setPrices.packageAssignments.view</code>: группа <code>setPrices</code>, <code>is_visible = 0</code>, в базовые роли <b>не</b> входит.
+    Право <code>setPrices.packageAssignments.view</code>: группа <code>schoolSchedule</code>, <code>is_visible = 0</code>, в базовые роли <b>не</b> входит.
     Карточка права — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>.
+    Select пакета и фильтр типа дополнительно закрыты <code>lessonPackages.type.*</code>
+    (<a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>,
+    <a href="/doc#lesson-packages-type-permissions-index">анонс</a>).
     Паттерн UI — общий toolbar списков (<a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials §1</a>), как у отчётов и <code>/admin/users</code>.
     Назначения с <code>fee_amount_cents &gt; 0</code> на консоли (<code>/cabinet</code>) закрывают отдельные права
     <code>setPrices.cabinetPackages.fixed/flexible/single.view</code> (не это право вкладки);
@@ -810,7 +858,10 @@
       <tr>
         <td><code>filter_schedule_type</code></td>
         <td><code>ulp-filter-schedule-type</code></td>
-        <td><code>fixed</code> / <code>flexible</code> / <code>no_schedule</code> (фильтр назначений ULP; <code>postpay</code> в назначения не попадает)</td>
+        <td><code>fixed</code> / <code>flexible</code> / <code>no_schedule</code>
+          (option только при <code>lessonPackages.type.*</code>;
+          <code>postpay</code> в фильтре нет даже с правом — ULP не назначает постоплату).
+          Crafted query без права — пустой результат</td>
         <td><code>lesson_packages.schedule_type</code></td>
       </tr>
       <tr>
@@ -997,7 +1048,7 @@
       «Недостаточно средств. Пополните баланс кабинета»).
       Подробно — <a href="#assignments-pay-sms">§assignments-pay-sms</a></li>
     <li>Абонемент (название шаблона)</li>
-    <li>Тип абонемента (фиксированный / гибкий / разовое занятие; при автопролонге — бейдж
+    <li>Тип абонемента (фиксированный / предоплата / разовое занятие; при автопролонге — бейдж
       «Автопролонг» / «Автопролонг · продолжен» / «Автопролонг · из №…», см. <a href="#auto-prolong">§auto-prolong</a>)</li>
     <li>Действия (кнопка «Изменить»)</li>
   </ol>

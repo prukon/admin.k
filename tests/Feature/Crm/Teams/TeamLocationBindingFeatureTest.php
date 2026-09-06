@@ -302,6 +302,7 @@ final class TeamLocationBindingFeatureTest extends CrmTestCase
     public function test_schedule_slot_store_succeeds_when_team_location_matches(): void
     {
         $this->grantPermission('locations.view');
+        $this->grantPermission('scheduleSlots.view');
         $this->grantPermission('scheduleSlots.manage');
 
         $location = Location::factory()->create(['partner_id' => $this->partner->id]);

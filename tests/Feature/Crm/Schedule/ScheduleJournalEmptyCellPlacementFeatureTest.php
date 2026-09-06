@@ -407,8 +407,8 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
             ->assertSee('data-flexible="1"', false)
             ->assertSee('data-flexible-remaining="0"', false)
             ->assertSee('data-empty-lesson="1"', false)
-            ->assertSee('Пробное, разовое или занятие из гибкого абонемента', false)
-            ->assertSee(">0/1\nГибкий<", false);
+            ->assertSee('Пробное, разовое или занятие из абонемента предоплаты', false)
+            ->assertSee(">0/1\nПредоплата<", false);
     }
 
     public function test_journal_index_at_flexible_limit_without_lesson_packages_keeps_direct_flexible(): void
@@ -438,7 +438,7 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
             ->assertSee('data-flexible="1"', false)
             ->assertSee('data-flexible-remaining="0"', false)
             ->assertDontSee('data-empty-lesson="1"', false)
-            ->assertSee('Гибкий абонемент: поставить занятие', false);
+            ->assertSee('Абонемент предоплаты: поставить занятие', false);
     }
 
     public function test_empty_cell_context_includes_flexible_options_when_monthly_flexible_exists(): void
@@ -465,7 +465,7 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
             ->assertJsonPath('flexible_options.0.reason', null);
 
         $label = (string) ($response->json('flexible_options.0.label') ?? '');
-        $this->assertStringContainsString('Гибкий:', $label);
+        $this->assertStringContainsString('Предоплата:', $label);
         $this->assertStringContainsString($packageName, $label);
         $this->assertStringContainsString('2/2', $label);
         $this->assertNotEmpty($response->json('single_options'));
@@ -501,7 +501,7 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
             ->assertJsonPath('flexible_options.0.allowed', false)
             ->assertJsonPath(
                 'flexible_options.0.reason',
-                'Достигнут лимит занятий по гибкому абонементу.'
+                'Достигнут лимит занятий по абонементу предоплаты.'
             );
     }
 }

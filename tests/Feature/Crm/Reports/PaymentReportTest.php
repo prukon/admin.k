@@ -1806,7 +1806,8 @@ class PaymentReportTest extends CrmTestCase
     /**
      * (P1) Без reports.additional.value.view чекбоксы «чувствительных» колонок не выводятся в меню (Blade).
      *
-     * Колонки «Комиссия» (сводно) и «Выплата» остаются в разметке и не помечены disabled на сервере.
+     * Колонка «Комиссия» (сводно) без reports.payments.commission_total.view тоже скрыта.
+     * Колонка «Выплата» остаётся в разметке и не помечена disabled на сервере.
      */
     public function test_payments_page_sensitive_column_toggles_disabled_without_reports_additional_value_permission(): void
     {
@@ -1824,12 +1825,13 @@ class PaymentReportTest extends CrmTestCase
                 'payColPlatformCommission',
                 'payColNetToPartner',
                 'payColRefundStatus',
+                'payColCommissionTotal',
             ] as $inputId
         ) {
             $this->assertStringNotContainsString('id="' . $inputId . '"', $html, 'Не должно быть чекбокса #' . $inputId);
         }
 
-        $this->assertCheckboxInputHasDisabledAttribute($html, 'payColCommissionTotal', false);
+        $this->assertStringNotContainsString('<th>Комиссия</th>', $html);
         $this->assertCheckboxInputHasDisabledAttribute($html, 'payColPayout', false);
     }
 
@@ -1870,6 +1872,19 @@ class PaymentReportTest extends CrmTestCase
         $row = collect($response->json('data') ?? [])->firstWhere('id', $payment->id);
         $this->assertNotNull($row);
         $this->assertNull($row['commission_total']);
+    }
+
+    /**
+     * (P1) С правом reports.payments.commission_total.view (без additional) колонка «Комиссия» и переключатель есть.
+     */
+    public function test_payments_report_commission_total_column_visible_with_permission(): void
+    {
+        $this->grantPermissionToCurrentUserRole('reports.payments.commission_total.view');
+
+        $html = $this->get(route('payments'))->assertOk()->getContent();
+        $this->assertStringContainsString('id="payColCommissionTotal"', $html);
+        $this->assertStringContainsString('<th>Комиссия</th>', $html);
+        $this->assertCheckboxInputHasDisabledAttribute($html, 'payColCommissionTotal', false);
     }
 
     /**

@@ -40,6 +40,7 @@ final class TeamLocationFullAccessFeatureTest extends CrmTestCase
             'locations.view',
             'locations.manage',
             'schedule.view',
+            'scheduleSlots.view',
             'scheduleSlots.manage',
             'trainers.view',
             'sport_types.view',

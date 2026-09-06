@@ -264,7 +264,7 @@ enum AuditEvent: string
             self::ScheduleSingleLessonRegistrationCancelled => 'Отмена записи разового занятия в расписании',
             self::ScheduleTrialRegistered => 'Запись на пробное занятие',
             self::ScheduleSingleLessonRegistered => 'Запись разового занятия',
-            self::ScheduleFlexibleLinked => 'Привязка гибкого абонемента к календарю',
+            self::ScheduleFlexibleLinked => 'Привязка абонемента предоплаты к календарю',
             self::ScheduleFixedLinked => 'Привязка фиксированного абонемента к календарю',
             self::ScheduleOccurrenceStatusSet => 'Статус занятия в календаре школы',
             self::ScheduleOccurrenceStatusAutoSet => 'Автосписание: статус «Посетил» в календаре школы',

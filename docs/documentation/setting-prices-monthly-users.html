@@ -119,7 +119,7 @@
   <p class="small">Сервис: <code>App\Services\SettingPrices\UsersPriceLessonPackageSync</code>.
     Раскладка fixed в журнале (только месячные: группа→абонемент, <code>team_locked</code>) —
     <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>;
-    занятия из гибкого — <a href="/docs/documentation/schedule-journal#place-flexible">§7.3</a>.
+    занятия из абонемента предоплаты — <a href="/docs/documentation/schedule-journal#place-flexible">§7.3</a>.
     Модель периода — <a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a>.</p>
 
   <h2 id="permissions">1) Права</h2>
@@ -127,7 +127,12 @@
     <thead><tr><th>Permission</th><th>Назначение</th></tr></thead>
     <tbody>
       <tr><td><code>setPrices.view</code></td><td>Доступ к разделу «Установка цен» (middleware на все URL вкладок monthly/users)</td></tr>
-      <tr><td><code>lessonPackages.type.postpay</code></td><td>Выбор абонемента типа «Постоплата» в select (скрытое; не в базовых ролях) — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a></td></tr>
+      <tr><td><code>lessonPackages.type.fixed</code> / <code>.flexible</code> / <code>.no_schedule</code> / <code>.postpay</code></td><td>Новый выбор абонемента этого типа в select (скрытые; не в базовых ролях). Уже назначенный id можно сохранить повторно. Каталог скрывает неназначенные шаблоны типа.
+        422 на <code>lesson_package_id</code> / <code>usersPrice.{i}.lesson_package_id</code> /
+        <code>teamsData.{i}.lesson_package_id</code> / <code>prices.{i}.lesson_package_id</code>.
+        <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>,
+        <a href="/doc#lesson-packages-type-permissions-index">анонс</a>,
+        postpay — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a></td></tr>
       <tr><td><code>setPrices.manualPaid.manage</code></td><td>Карандаш ручной оплаты месяца (<code>POST …/manual-paid</code>). У бывших участников UI скрывает карандаш; API всё равно требует текущее членство → <b>422</b>. На вкладке доп. платежей то же право скрывает только селект статуса, не кнопку «Редактировать» — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>, <a href="/doc#custom-payments-edit-permission-index">/doc</a></td></tr>
       <tr><td><code>setPrices.customPayments.view</code></td><td>Не относится к этим вкладкам — см. <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a></td></tr>
     </tbody>
@@ -325,7 +330,9 @@
     <li>Сумма в M+1 = <b>текущая</b> цена шаблона × <b>текущий</b> % карточки
       (снимок скидки с карточки, не копия суммы/снимка из M).</li>
     <li>Постоплата: копируется шаблон, сумма как при apply (посещения M+1).
-      Без права <code>lessonPackages.type.postpay</code> — пропуск.</li>
+      Без права на тип шаблона (<code>lessonPackages.type.*</code>, для postpay —
+      <code>lessonPackages.type.postpay</code>) — пропуск
+      (<code>type_denied</code> / <code>postpay_denied</code>).</li>
     <li>Assignable → <code>UsersPriceLessonPackageSync</code>: новый неразложенный ULP,
       <code>billing_month = M+1</code>. Раскладку журнала не копируем.
       Месячный ULP автопролонг не включает.</li>
@@ -335,7 +342,7 @@
     <li><b>Пропуск с отчётом (не ошибка):</b> в M+1 уже другой пакет/сумма;
       M+1 оплачен; ULP разложен; classic-автопролонг
       (<code>UserLessonPackageAutoProlongGuard</code>); шаблон недоступен;
-      постоплата без права. Совпадающие пакет и пересчитанная сумма — идемпотентный no-op.
+      тип без права (<code>type_denied</code> / <code>postpay_denied</code>). Совпадающие пакет и пересчитанная сумма — идемпотентный no-op.
       В <code>skip_reasons</code> ученики и группы считаются раздельно
       (<code>students</code> / <code>teams</code>), без суммы в одном числе.
       У счётчика «Пропущено» иконка <code>i</code> из

@@ -166,7 +166,7 @@
                         $flexibleHintRatio = '';
                         if ($hasFlexibleAssignable && $flexibleHintCount === 1) {
                             $fa = $userFlexibleAssignments[0];
-                            $flexName = (string) ($fa['name'] ?? 'Гибкий абонемент');
+                            $flexName = (string) ($fa['name'] ?? 'Абонемент предоплаты');
                             $flexRem = (int) ($fa['slots_remaining'] ?? 0);
                             $flexTotal = (int) ($fa['lessons_total'] ?? 0);
                             $flexFee = (int) ($fa['fee_amount_cents'] ?? 0);
@@ -182,7 +182,7 @@
                             $flexLines = [];
                             foreach ($userFlexibleAssignments as $fa) {
                                 $flexLines[] = \App\Services\Schedule\ScheduleJournalMonthService::flexibleAbonementColumnHoverLine(
-                                    (string) ($fa['name'] ?? 'Гибкий абонемент'),
+                                    (string) ($fa['name'] ?? 'Абонемент предоплаты'),
                                     (int) ($fa['fee_amount_cents'] ?? 0),
                                     true,
                                     (int) ($fa['slots_remaining'] ?? 0),
@@ -284,7 +284,7 @@
                                               data-slots-remaining="{{ (int) ($fa['slots_remaining'] ?? 0) }}"
                                               data-lessons-total="{{ (int) ($fa['lessons_total'] ?? 0) }}"
                                               data-fee-amount-cents="{{ (int) ($fa['fee_amount_cents'] ?? 0) }}"
-                                              data-package-name="{{ $fa['name'] ?? 'Гибкий абонемент' }}"
+                                              data-package-name="{{ $fa['name'] ?? 'Абонемент предоплаты' }}"
                                               title="{{ $flexibleHintText }}">{{ $flexibleHintRatio }}</span>
                                     @else
                                         <i class="fa-solid fa-circle-info text-muted journal-flexible-hint journal-flexible-hint--multi"
@@ -297,7 +297,7 @@
                                            data-bs-custom-class="ulp-assignment-paid-tooltip"
                                            data-flexible-items="{{ e(json_encode(array_map(static fn ($fa) => [
                                                'id' => (int) ($fa['id'] ?? 0),
-                                               'name' => (string) ($fa['name'] ?? 'Гибкий абонемент'),
+                                               'name' => (string) ($fa['name'] ?? 'Абонемент предоплаты'),
                                                'slots_remaining' => (int) ($fa['slots_remaining'] ?? 0),
                                                'lessons_total' => (int) ($fa['lessons_total'] ?? 0),
                                                'fee_amount_cents' => (int) ($fa['fee_amount_cents'] ?? 0),
@@ -420,12 +420,12 @@
                                              style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 5px solid red; border-left: 5px solid transparent;"></div>
                                     @endif
                                 @elseif($canOpenEmptyFlexible)
-                                    <i class="fa-regular fa-circle text-primary schedule-cell-empty-dot" style="opacity: 0.4;" title="Гибкий абонемент: поставить занятие"></i>
+                                    <i class="fa-regular fa-circle text-primary schedule-cell-empty-dot" style="opacity: 0.4;" title="Абонемент предоплаты: поставить занятие"></i>
                                 @elseif($canOpenEmptyPostpay)
                                     <i class="fa-regular fa-circle text-muted schedule-cell-empty-dot" style="opacity: 0.45;" title="Постоплата: отметить посещение"></i>
                                 @elseif($canOpenEmptyLesson)
                                     <i class="fa-regular fa-circle text-secondary schedule-cell-empty-dot" style="opacity: 0.35;"
-                                       title="{{ $flexibleAtLimit ? 'Пробное, разовое или занятие из гибкого абонемента' : 'Пробное или разовое занятие' }}"></i>
+                                       title="{{ $flexibleAtLimit ? 'Пробное, разовое или занятие из абонемента предоплаты' : 'Пробное или разовое занятие' }}"></i>
                                 @endif
                             </td>
                         @endforeach
@@ -477,7 +477,7 @@
 
                     <div class="cell-edit-section d-none" id="edit-add-flexible-wrap">
                         <button type="button" class="btn btn-outline-primary btn-sm w-100" id="btn-add-flexible-lesson">
-                            <i class="fa-solid fa-plus me-1"></i>Добавить занятие из гибкого абонемента
+                            <i class="fa-solid fa-plus me-1"></i>Добавить занятие из абонемента предоплаты
                         </button>
                     </div>
 
@@ -680,12 +680,12 @@
         </div>
     </div>
 
-    {{-- Занятие из гибкого абонемента (установка цен) --}}
+    {{-- Занятие из абонемента предоплаты (установка цен) --}}
     <div class="modal fade" id="flexiblePlaceModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content schedule-modal-content cell-edit-modal">
                 <div class="modal-header">
-                    <h5 class="modal-title">Занятие из гибкого абонемента</h5>
+                    <h5 class="modal-title">Занятие из абонемента предоплаты</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <div class="modal-body">

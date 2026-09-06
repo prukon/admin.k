@@ -116,8 +116,9 @@
     <li>Проверяют изоляцию между партнёрами</li>
     <li>Проверяют fail-fast без “полупартнёра”</li>
     <li>Проверяют идемпотентность и наличие UNIQUE по тройке (MySQL/MariaDB)</li>
+    <li>Проверяют, что шесть прав группы <code>schoolSchedule</code> не входят в базовые роли нового партнёра</li>
   </ul>
-  <pre><code>php artisan test --env=testing --filter PartnerBasePermissionsTest</code></pre>
+  <pre><code>php artisan test --env=testing --filter 'PartnerBasePermissionsTest|SchoolScheduleHiddenDefaultPermissions'</code></pre>
 
   <h2 id="optional-admin-permissions">7) Права, которые не входят в базовый набор <code>admin</code></h2>
   <div class="note">
@@ -132,6 +133,15 @@
         Чат — <code>messages.view</code>, тоже <b>в</b> базовых ролях
         (<a href="/docs/documentation/chat">chat</a>);</li>
       <li><code>setPrices.packageAssignments.view</code> — назначения абонементов (вкладка админки); нужно вместе с <code>lessonPackages.view</code> — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>;</li>
+      <li><code>scheduleSlots.view</code> / <code>scheduleSlots.manage</code> / <code>scheduleSlots.table</code> /
+        <code>lessonPackages.export</code> / <code>lessonPackages.manualPaid.manage</code> — группа «Расписание школы»
+        (<code>schoolSchedule</code>): пункт меню, слоты, вкладка «Таблица занятий», Excel, ручная оплата назначения;
+        <code>scheduleSlots.view</code> также закрывает автосписание / заморозку / срок в модалке шаблона.
+        Все шесть прав группы (включая <code>setPrices.packageAssignments.view</code>) скрытые (<code>is_visible=0</code>);
+        новым партнёрам не выдаются; существующим школам миграция выдачу не снимает —
+        <a href="/doc#school-schedule-permission-group-index">анонс</a>,
+        <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>,
+        <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>;</li>
       <li><code>setPrices.cabinetPackages.fixed.view</code> / <code>.flexible.view</code> / <code>.single.view</code> / <code>.postpay.view</code> — отображение типов абонементов на консоли; скрытые; не в базовых ролях —
         <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>;</li>
       <li><code>platformPayments.method.yookassa</code> — ЮKassa на кошельке и абонплате CRM; скрытое; не в базовых ролях.
@@ -140,7 +150,12 @@
         <a href="/docs/documentation/partner-wallet#tbank-sbp">partner-wallet §8</a>,
         <a href="/doc#platform-payments-methods-index">анонс прав</a>,
         <a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>;</li>
-      <li><code>lessonPackages.type.postpay</code> — тип абонемента «Постоплата» (<code>schedule_type=postpay</code>); скрытое; UI option + store/update + выбор в «Установка цен» —
+      <li><code>lessonPackages.type.fixed</code> / <code>.flexible</code> / <code>.no_schedule</code> / <code>.postpay</code> —
+        выбор типа шаблона абонемента; скрытые; UI option + store/update + выбор в «Установка цен», ULP и уведомлениях;
+        миграции никому не выдают (у admin строки в конфиге закомментированы);
+        <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>,
+        <a href="/doc#lesson-packages-type-permissions-index">анонс</a>,
+        postpay —
         <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>,
         <a href="/docs/documentation/postpay">postpay</a>;</li>
       <li><code>users.full_name_genitive</code> — ФИО ученика в родительном падеже (CRM / ЛК / колонка импорта Excel); скрытое (<code>is_visible=0</code>);
@@ -150,6 +165,11 @@
         видно в матрице (<code>is_visible=1</code>); не в базовых ролях —
         <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a>,
         <a href="/doc#user-percent-discount-index">/doc</a>;</li>
+      <li><code>reports.payments.commission_total.view</code> — отчёт «Платежи»: колонка «Комиссия» (сводно);
+        скрытое (<code>is_visible=0</code>); не в базовых ролях; строка в конфиге закомментирована;
+        миграция hide не трогает <code>permission_role</code> —
+        <a href="/docs/documentation/reports-payments">reports-payments</a>,
+        анонс <a href="/doc#reports-payments-commission-total-index">/doc</a>;</li>
       <li><code>account.user.team.update</code> — ЛК: добавление группы (сайдбар «Группа: … изменить»,
         карандаш на <code>/cabinet</code> и <code>/account-settings/user/edit</code>; только attach);
         скрытое (<code>is_visible=0</code>); не в базовых ролях; миграция revoke с ролей;
@@ -177,15 +197,20 @@
       <li><code>schedule.view</code> — журнал <code>/schedule</code> и расписание в модалках групп (в конфиге закомментировано);</li>
       <li>многие отчётные и узкие права (см. <code>reports.payments.*</code>, <code>schedule.trainerSalary.view</code> / <code>manage</code>, <code>settings.commission</code> и т.д.).</li>
     </ul>
-    Тесты: <code>PartnerBasePermissionsTest::test_new_partner_admin_does_not_receive_optional_manage_permissions</code>,
+    Тесты: <code>SchoolScheduleHiddenDefaultPermissionsAccessFeatureTest</code> / <code>Ux</code> / <code>AjaxContract</code> / <code>NonAjaxSafetyNet</code>
+    (новый admin: нет пункта сайдбара, нет Excel/слотов/вкладок, 403 на gated endpoint, кастомная роль без шести прав),
+    <code>PartnerBasePermissionsTest::test_new_partner_admin_does_not_receive_optional_manage_permissions</code>,
     <code>test_new_partner_does_not_assign_custom_payments_view_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_package_assignments_view_to_base_roles</code>,
+    <code>test_new_partner_does_not_assign_school_schedule_permissions_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_cabinet_packages_type_permissions_to_base_roles</code>,
-    <code>test_new_partner_does_not_assign_lesson_packages_type_postpay_to_base_roles</code>,
+    <code>test_new_partner_does_not_assign_lesson_packages_type_permissions_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_trainer_salary_scheme_classic_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_trainer_salary_scheme_kansas_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_trainer_salary_scheme_sales_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_account_user_team_update_to_base_roles</code>,
+    <code>test_new_partner_does_not_assign_reports_payments_commission_total_to_base_roles</code>,
+    <code>ReportsPaymentsCommissionTotalPermissionCatalogFeatureTest</code>,
     <code>UserPercentDiscountFeatureTest::test_permission_is_visible_and_not_in_role_base_permissions</code>.
   </div>
 

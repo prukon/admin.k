@@ -28,6 +28,339 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="reports-payments-commission-total-index">Отчёт «Платежи»: колонка «Комиссия» скрыта у админа школы (2026‑09)</h2>
+  <div class="note">
+    Право <code>reports.payments.commission_total.view</code> даёт сводную колонку «Комиссия»
+    на <code>/admin/reports/payments</code> (когда нет <code>reports.additional.value.view</code>)
+    и значение <code>commission_total</code> в JSON DataTables.
+    Скрытое: <code>is_visible=0</code>, в матрице «Права и роли» его видит только superadmin.
+    По умолчанию <b>выкл.</b>: не в базовых ролях <code>user</code> / <code>admin</code> / <code>trainer</code>
+    (<code>config/role_base_permissions.php</code>, строка у <code>admin</code> закомментирована).
+    Superadmin видит колонку через <code>Gate::before</code> без записи в <code>permission_role</code>.
+    Это не детализация «Комиссия оплаты / выплаты / платформы» (<code>reports.additional.value.view</code>)
+    и не колонка «Выплата» (<code>reports.payments.payout_amount.column.view</code> — у admin по-прежнему в базовом наборе).
+    <br><br>
+    1) <b>Миграция</b> <code>2026_09_06_224500_hide_reports_payments_commission_total_permission.php</code>
+    ставит <code>is_visible=0</code> и <b>не</b> трогает <code>permission_role</code>
+    (выдачу на текущих школах снимали вручную).
+    <br>
+    2) Новым партнёрам и новым кастомным ролям из шаблона admin право не копируется.
+    <br>
+    3) Без права: нет <code>&lt;th&gt;Комиссия&lt;/th&gt;</code>, нет чекбокса <code>#payColCommissionTotal</code>,
+    в JSON <code>commission_total = null</code>.
+    <br><br>
+    Подробно — <a href="/docs/documentation/reports-payments">reports-payments</a>,
+    <a href="/docs/documentation/partners-permissions#optional-admin-permissions">partners-permissions §7</a>,
+    <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
+    Тесты: <code>ReportsPaymentsCommissionTotalPermissionCatalogFeatureTest</code>,
+    <code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_reports_payments_commission_total_to_base_roles</code>,
+    <code>PaymentReportTest::test_payments_report_commission_total_requires_reports_payments_commission_total_permission</code>,
+    <code>PaymentReportTest::test_payments_report_commission_total_column_visible_with_permission</code>,
+    <code>ReportsPaymentsCommissionTotalDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="chat-peer-card-cross-partner-index">Чат: карточка человека другой школы из открытого диалога (2026‑09)</h2>
+  <div class="note">
+    Клик по имени в шапке открытого диалога на <code>/chat</code> открывает модалку
+    <code>#peerCardModal</code> (<code>GET /chat/api/users/{id}</code>).
+    Inbox чата <b>не</b> режется текущей школой: superadmin после смены
+    <code>session current_partner</code> всё ещё видит лички и группы с людьми
+    другой школы. До фикса клик по шапке отдавал 403
+    «This action is unauthorized.» в <code>#peerCardError</code> вместо карточки.
+    Это не колокольчик, не оверлей «Онлайн» и не вкладка «Аккаунт».
+    Карточка своей школы и поля профиля —
+    <a href="/doc#chat-presence-index">онлайн / карточка</a>;
+    строка партнёра под ФИО —
+    <a href="/doc#chat-partner-name-index">название партнёра</a>;
+    шапка группы открывает состав, не карточку человека —
+    <a href="/doc#chat-group-members-index">анонс состава</a>.
+    <br><br>
+    1) <b>Кому можно.</b> Нужно <code>messages.view</code>. Своя школа (в том числе
+    отключённый и сам себе) — 200. Каноническая «Служба поддержки» — 200
+    даже при <code>partner_id = null</code>
+    (<a href="/doc#chat-support-identity-index">анонс поддержки</a>).
+    Superadmin (роль поддержки) открывает карточку человека <b>чужой</b> школы
+    только если есть <b>живой общий тред</b>: оба в <code>participants</code>
+    без soft-delete, тред не удалён (личка или группа). Без общего чата,
+    после выхода из чата или soft-delete треда — снова 403.
+    Ученик / админ / тренер чужую карточку не открывают, даже если они в одном
+    смешанном треде. Подмена <code>current_partner</code> в сессии у не-superadmin
+    карточку чужой школы не открывает. Лишний superadmin чужому зрителю — 403
+    даже при общем треде.
+    <br>
+    2) <b>403.</b> JSON: <code>message</code> и <code>errors.user</code> —
+    «Нет доступа к карточке этого пользователя.», не английское
+    <code>This action is unauthorized.</code>
+    Клиент (<code>openPeerCard</code>) кладёт <code>fieldError(..., 'user')</code>
+    в <code>#peerCardError</code>. Три входа: шапка лички
+    (<code>headerPeerActivate</code> → <code>openPeerCard()</code>),
+    строка участника группы (<code>openPeerCard(id, true)</code>),
+    аватарка в сообщении. Пока диалог не выбран, шапка <code>is-idle</code> —
+    запроса нет. Гость — 302 / 401. Без <code>messages.view</code> — 403.
+    Нет пользователя — 404. Нативный GET — тот же JSON, не пустая HTML-страница.
+    POST/PATCH/PUT/DELETE → 405.
+    <br>
+    3) <b>Название школы на карточке.</b> Успешный 200 несёт
+    <code>partner_name</code> = <code>partners.title</code> <b>текущей</b> школы
+    в сессии, не школы собеседника. Superadmin смотрит школу Б и открывает
+    человека школы А — под ФИО title школы Б.
+    <br><br>
+    Подробно — <a href="/docs/documentation/chat#peer-card-cross-partner">chat §карточка чужой школы</a>,
+    чат — <a href="/doc#chat-index">анонс чата</a>.
+    Тесты: <code>ChatPeerCardCrossPartnerFullAccessFeatureTest</code>,
+    <code>ChatPeerCardCrossPartnerAjaxContractFeatureTest</code>,
+    <code>ChatPeerCardCrossPartnerNonAjaxSafetyNetFeatureTest</code>,
+    <code>ChatPeerCardCrossPartnerUxFeatureTest</code>,
+    <code>ChatPeerCardCrossPartnerDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>.
+  </div>
+
+  <h2 id="lesson-packages-type-permissions-index">Абонементы: права на каждый тип шаблона (2026‑09)</h2>
+  <div class="note">
+    Выбор <code>schedule_type</code> шаблона абонемента закрыт скрытыми правами
+    <code>lessonPackages.type.fixed</code> («Фиксированный»),
+    <code>lessonPackages.type.flexible</code> («Предоплата»),
+    <code>lessonPackages.type.no_schedule</code> («Разовое занятие»)
+    и уже существующим <code>lessonPackages.type.postpay</code> («Постоплата»).
+    Группа <code>lessonPackages</code>, <code>is_visible = 0</code>.
+    В базовые роли <code>user</code> / <code>admin</code> / <code>trainer</code> <b>не</b> входят:
+    у <code>admin</code> в <code>config/role_base_permissions.php</code> строки закомментированы,
+    у <code>user</code> / <code>trainer</code> ключей нет.
+    Миграция <code>2026_09_06_040500_add_lesson_packages_type_permissions.php</code>
+    создаёт три новых права, ставит postpay на <code>sort_order</code> 39 и
+    <b>никому не выдаёт</b> — после выката выдаёт superadmin школе в матрице.
+    Superadmin сам проходит <code>Gate::before</code> и видит все типы без строк
+    <code>permission_role</code>.
+    <code>lessonPackages.view</code> по-прежнему открывает раздел; без type-права нельзя
+    создать / сменить тип / назначить пакет этого типа.
+    <br><br>
+    1) UI шаблонов (create / edit / фильтр, дубль в «Справочниках») — option типа только при праве
+    (<code>LessonPackageTypePermission::options()</code> + <code>@can</code>).
+    Если нет <b>ни одного</b> type-права, кнопка «Добавить абонемент» скрыта
+    (<code>userCanSelectAny</code>).
+    В edit уже сохранённый тип подставляется JS-ом (<code>LABELS</code>), чтобы значение не «терялось».
+    Create-модалка при <code>shown.bs.modal</code> ставит <code>createScheduleType.value = 'fixed'</code>,
+    даже если option <code>fixed</code> скрыт.
+    <br>
+    2) Store/update с чужим <code>schedule_type</code> без права → <b>422</b> на
+    <code>schedule_type</code> («Недостаточно прав для выбора типа «…»»).
+    Правка уже существующего шаблона без смены типа разрешена.
+    DataTables-фильтр по типу без права — пустой результат (в т.ч. crafted query);
+    список без фильтра показывает все шаблоны партнёра.
+    AJAX → <b>200</b> JSON / <b>422</b> <code>errors.schedule_type</code>;
+    non-AJAX → <b>302</b> на index (успех) или назад с session errors.
+    Гость → 302/401. Без <code>lessonPackages.view</code> → <b>403</b>
+    (одно type-право раздел не открывает).
+    <br>
+    3) «Установка цен»: новый выбор пакета без права на его тип → <b>422</b> на поле пакета
+    (<code>lesson_package_id</code>, <code>usersPrice.{i}.lesson_package_id</code>,
+    <code>teamsData.{i}.lesson_package_id</code>, <code>prices.{i}.lesson_package_id</code>);
+    уже назначенный id можно сохранить повторно; каталог скрывает неназначенные шаблоны типа
+    (уже назначенные в <code>team_prices</code> / <code>users_prices</code> остаются в select).
+    Пролонгация месяца пропускает такой шаблон: код <code>type_denied</code> /
+    для postpay <code>postpay_denied</code>; текст пропуска —
+    «Недостаточно прав для выбора абонемента типа «…»»
+    (общий ярлык <code>type_denied</code> в отчёте —
+    «Недостаточно прав для выбора этого типа абонемента.»).
+    <br>
+    4) «Назначение абонементов» (ULP): select пакета режется
+    <code>restrictQueryToAllowedTypes</code> (без keepIds);
+    фильтр <code>filter_schedule_type</code> — option только при праве,
+    <code>postpay</code> в фильтре нет даже с правом (домен: ULP не назначает постоплату).
+    Store без права на тип пакета → <b>422</b> на <code>lesson_package_id</code>.
+    Postpay-store всегда <b>422</b> (доменное сообщение), даже <b>с</b> правом postpay —
+    пакет при этом праве может попасть в select.
+    <br>
+    5) «Уведомления об оплате»: HTML-чекбоксы типов тем же Gate
+    (только <code>fixed</code> / <code>flexible</code> / <code>postpay</code>;
+    <code>no_schedule</code> в конструкторе нет).
+    Store/update с новым типом без права → <b>422</b> на <code>schedule_types</code>;
+    типы, уже стоящие на правиле, можно оставить.
+    Мутации вкладки всегда JSON (201/200/422), не HTML-редирект.
+    JS как в коде: <code>openCreate()</code> вызывает
+    <code>setScheduleTypes(['fixed', 'flexible'])</code>,
+    <code>ensureScheduleTypeCheckbox</code> может подставить чекбоксы, которых нет в HTML;
+    backend всё равно 422. Edit подставляет типы, уже стоящие на правиле.
+    <br>
+    6) Журнал, календарь школы, оплата уже назначенного и карточки на <code>/cabinet</code>
+    этими правами <b>не</b> закрываются. Консоль — отдельные
+    <code>setPrices.cabinetPackages.*.view</code>
+    (<a href="/doc#cabinet-packages-type-permissions">анонс</a>,
+    <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>).
+    Ховер в матрице — <code>config/permission_capability_hints.php</code>
+    (<a href="/doc#permission-capability-hints-index">анонс</a>).
+    <br><br>
+    Карточка —
+    <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>;
+    postpay (2026‑08) —
+    <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>,
+    <a href="/doc#lesson-packages-type-postpay-index">анонс postpay</a>.
+    Тесты: <code>LessonPackageTypePermissionAccessFeatureTest</code>,
+    <code>LessonPackageTypePermissionAjaxContractFeatureTest</code>,
+    <code>LessonPackageTypePermissionNonAjaxSafetyNetFeatureTest</code>,
+    <code>LessonPackageTypePermissionMarkupFeatureTest</code>,
+    <code>LessonPackageTypePermissionWorkflowFeatureTest</code>,
+    <code>LessonPackagesTypePermissionsCatalogFeatureTest</code>,
+    <code>LessonPackagesTypePostpayPermissionCatalogFeatureTest</code>,
+    <code>PostpayTypePermissionAccessFeatureTest</code>,
+    <code>PartnerBasePermissionsTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>LessonPackageTypePermissionsDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="school-schedule-permission-group-index">Матрица прав: группа «Расписание школы» (2026‑09)</h2>
+  <div class="note">
+    В аккордеоне «Права и роли» появилась группа <b>«Расписание школы»</b>
+    (<code>permission_groups.slug=schoolSchedule</code>, <code>sort_order=13</code>, сразу после «Расписание»,
+    группа <code>is_visible=1</code>).
+    Туда перенесены существующие права (имена, Gate и <code>permission_role</code> не менялись).
+    Это <b>не</b> журнал посещаемости <code>/schedule</code> (<code>schedule.view</code>).
+    <code>lessonPackages.view</code> остаётся в группе «Абонементы» и в базовой роли <code>admin</code>:
+    календарь по URL и вкладки «Расписание школы» / «Статусы занятий» / «Абонементы» открываются
+    без прав этой группы.
+    <br><br>
+    1) <b>Каталог.</b>
+    Все шесть прав скрытые (<code>is_visible=0</code>):
+    <code>scheduleSlots.view</code> — пункт сайдбара «Расписание школы»
+    (<code>@can</code> в <code>sidebar.blade.php</code>); в модалках шаблона абонемента —
+    чекбоксы «Автосписание» / «Разрешена заморозка» и поле «Срок действия (дни)»
+    (<a href="/doc#lesson-package-auto-attendance-index">анонс автосписания</a>,
+    <a href="/doc#lesson-package-freeze-permission-index">анонс заморозки</a>,
+    <a href="/doc#lesson-package-duration-permission-index">анонс срока</a>);
+    <code>scheduleSlots.manage</code> — CRUD слотов: include модалок, клик по пустой ячейке календаря,
+    кнопка «Изменить занятие», оба JS-пути <code>schoolCalOpenSlotCreateModal</code> /
+    <code>openSlotCreateModalWithDefaults</code>;
+    <code>scheduleSlots.table</code> — вкладка «Таблица занятий»;
+    <code>lessonPackages.export</code> — Excel с календаря;
+    <code>setPrices.packageAssignments.view</code> — вкладка «Назначение абонементов»;
+    <code>lessonPackages.manualPaid.manage</code> — ручная оплата назначения.
+    Админ школы группу в матрице не видит (все права скрытые, пустая группа отфильтровывается);
+    superadmin видит и выдаёт вручную (<code>Gate::before</code>). Чекбоксов этих прав
+    в HTML матрицы у admin школы нет.
+    <br>
+    2) <b>Страницы и HTTP.</b>
+    Новый <code>admin</code> партнёра:
+    <code>GET /admin/lesson-packages/school-schedule</code> и JSON календаря
+    (неделя, привязки, статусы, пробные, <code>logs-data</code>) — <code>200</code>
+    при одном <code>lessonPackages.view</code>
+    (как <code>SchoolSchedulePageFullAccessFeatureTest</code>).
+    Пункт сайдбара скрыт. Вкладки «Таблица занятий» и «Назначение абонементов» скрыты;
+    их URL и store — <code>403</code>. Excel — кнопка скрыта, endpoint <code>403</code>,
+    в JS <code>exportXlsx: null</code>; при выдаче права URL в HTML может выглядеть как
+    <code>school-schedule\/export</code> (экранирование слэшей в PHP <code>json_encode</code>,
+    не сырая подстрока <code>/export</code>).
+    Store слота — <code>403</code>. Ручная оплата назначения — <code>403</code>.
+    <code>GET …/assignments/users-search</code> остаётся на <code>lessonPackages.view</code>
+    (общий с календарём).
+    Дубль шаблонов <code>/admin/directories/lesson-packages</code> — только вкладка «Абонементы»,
+    без вкладок календаря / таблицы / назначений; те же
+    <code>@can('scheduleSlots.view')</code> в модалках.
+    Гость — redirect / 401, не 500.
+    <br>
+    3) <b>Дефолты и UX.</b>
+    Новым партнёрам эти права <b>не</b> выдаются
+    (<code>config/role_base_permissions.php</code>, строки закомментированы у
+    <code>user</code> / <code>admin</code> / <code>trainer</code>).
+    Кастомная роль с шаблона <code>admin</code> шесть прав не копирует
+    (<code>POST admin.setting.role.create</code>, AJAX <code>200</code>
+    <code>{success, role, permission_ids}</code> без этих имён).
+    Без <code>scheduleSlots.view</code>: create шаблона пишет срок <code>30</code>,
+    заморозка и автосписание выкл; update не сбрасывает уже сохранённые extras
+    (AJAX 422 на <code>errors.freeze_enabled</code> /
+    <code>errors.auto_attendance_enabled</code>, если слать включение).
+    Фильтр «Объект» на календаре — <code>locations.view</code> (у нового admin есть).
+    Выдача одного права открывает только свою поверхность.
+    <br>
+    4) <b>Выдача.</b>
+    Миграция группы <code>2026_09_06_032500_add_school_schedule_permission_group.php</code>
+    никому права не выдаёт и не снимает.
+    Миграция <code>2026_09_06_035300_hide_school_schedule_permissions.php</code>
+    ставит <code>is_visible=0</code> у всех шести (в т.ч. Excel);
+    существующие строки <code>permission_role</code> не трогает.
+    Выдать может superadmin в матрице.
+    <br>
+    5) <b>Тесты и ссылки.</b>
+    Подробно — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>,
+    <a href="/docs/documentation/partners-permissions">partners-permissions §7</a>,
+    <a href="/docs/documentation/settings-roles-custom">settings-roles-custom §3</a>,
+    <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>,
+    <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>,
+    <a href="/docs/documentation/lesson-packages">lesson-packages</a>.
+    Тесты: <code>SchoolSchedulePermissionGroupCatalogFeatureTest</code>,
+    <code>PermissionGroupsReorganizationFeatureTest</code>,
+    <code>PartnerBasePermissionsTest</code>,
+    <code>SchoolScheduleHiddenDefaultPermissionsAccessFeatureTest</code>,
+    <code>SchoolScheduleHiddenDefaultPermissionsUxFeatureTest</code>,
+    <code>SchoolScheduleHiddenDefaultPermissionsAjaxContractFeatureTest</code>,
+    <code>SchoolScheduleHiddenDefaultPermissionsNonAjaxSafetyNetFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_school_schedule_hidden_permissions_gate_export_and_both_slot_create_open_paths</code>,
+    <code>SchoolSchedulePermissionGroupDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="flexible-ui-label-index">Абонементы: тип <code>flexible</code> в UI называется «Предоплата» (2026‑09)</h2>
+  <div class="note">
+    Это <b>переименование подписи</b>, не новый тип абонемента и не миграция данных.
+    В БД, JSON, фильтрах, правах и JS по-прежнему код <code>schedule_type = flexible</code>
+    (<code>setPrices.cabinetPackages.flexible.view</code>,
+    <code>assign-flexible</code>, <code>place-flexible-abonement</code>,
+    <code>schedule.flexible_linked</code>).
+    На экране тип называется <b>«Предоплата»</b>; длинные фразы —
+    <b>«Абонемент предоплаты»</b> / <b>«Привязать абонемент предоплаты»</b>.
+    Название конкретного шаблона (например «Гибкий 8 занятий») <b>не</b> переписывается:
+    в колонке «Тип» будет «Предоплата», в колонке «Название» — как было.
+    <br><br>
+    1) <b>Шаблоны</b> (<code>/admin/lesson-packages</code> и дубль
+    <code>/admin/directories/lesson-packages</code>):
+    селекты фильтра / create / edit —
+    <code>&lt;option value="flexible"&gt;Предоплата&lt;/option&gt;</code>.
+    DataTables колонка «Тип» — серверный <code>schedule_type_label</code> = «Предоплата»,
+    поле <code>schedule_type</code> в JSON остаётся <code>flexible</code>.
+    Show JSON для edit-модалки <b>не</b> отдаёт подпись: JS ставит
+    <code>select.value = lp.schedule_type</code> (код).
+    Повторное открытие create сбрасывает тип на <code>fixed</code>, текст опции не трогает.
+    Подпись <b>«Фиксированный»</b> не меняли. Если админ в карточке шаблона <b>меняет тип</b>
+    с <code>fixed</code> на <code>flexible</code>, аудит пишет diff двух типов:
+    «Тип: Фиксированный → Предоплата» (было / стало), а не переименование «Фиксированный».
+    <br>
+    2) <b>Назначения, календарь, журнал, Excel, письма, консоль.</b>
+    Фильтр назначений — та же пара value/подпись; в строке таблицы — <code>type_label</code>.
+    Календарь школы: кнопка и JS-дефолт
+    <code>schoolCalFlexibleButtonDefaultLabel</code> (и при bind-actions, и при reset picker).
+    Пример второй строки кнопки <code>"Гибкий 8 занятий" (остаток 5)</code> — это
+    <b>имя шаблона</b>, не тип.
+    Журнал: колонка <code>N/M</code>+«Предоплата»; tooltip «Абонемент предоплаты: поставить занятие»;
+    empty-cell chooser <code>Предоплата: «название» — {остаток}/{всего}</code>;
+    Vite и hotfix <code>public/js/schedule-journal.js</code>.
+    Excel календаря: колонка типа «Предоплата».
+    Письма уведомлений: <code>{{package_type}}</code> / <code>schedule_type_labels.flexible</code> = «Предоплата»;
+    чекбокс <code>pn-type-flexible</code>;
+    <code>openCreate</code> по-прежнему <code>setScheduleTypes(['fixed', 'flexible'])</code>.
+    Право консоли: «Консоль: абонемент предоплаты» (ховер: «Консоль: карточки абонемента предоплаты»).
+    <br>
+    3) <b>Что не менялось и ошибки.</b>
+    Фиксированный / разовое / постоплата подписаны как раньше.
+    Store/update с «Предоплата» / «Гибкий» вместо кода → <code>422</code>
+    <code>errors.schedule_type</code> («Некорректный тип абонемента.»).
+    Non-AJAX POST без <code>X-Requested-With</code> → <code>302</code> + запись
+    <code>flexible</code> в БД (не пустой 200).
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/lesson-packages#flexible-ui-label">lesson-packages §flexible-ui-label</a>,
+    календарь —
+    <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>,
+    журнал —
+    <a href="/docs/documentation/schedule-journal#place-flexible">schedule-journal §7.3</a>,
+    консоль —
+    <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>.
+    Тесты: <code>LessonPackageFlexibleUiLabelAccessFeatureTest</code>,
+    <code>LessonPackageFlexibleUiLabelMarkupFeatureTest</code>,
+    <code>LessonPackageFlexibleUiLabelAjaxContractFeatureTest</code>,
+    <code>LessonPackageFlexibleUiLabelNonAjaxSafetyNetFeatureTest</code>,
+    <code>LessonPackageFlexibleUiLabelWorkflowFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (packages / school-schedule / journal / payment-notifications),
+    <code>LessonPackageFlexibleUiLabelDocumentationContractTest</code>.
+  </div>
+
   <h2 id="contract-annul-after-send-index">Договоры: аннулировать sent/opened без возврата 70&nbsp;₽ (2026‑09)</h2>
   <div class="note">
     Если клиент уже нажал «Подписать» (статус <code>sent</code> или <code>opened</code>),
@@ -130,9 +463,11 @@
     (служебные <code>31</code> / <code>1</code>).
     Страница шаблонов без права остаётся <code>200</code>;
     <code>403</code> — только без <code>lessonPackages.view</code>.
-    В базовой роли <code>admin</code> право уже есть
+    В базовой роли <code>admin</code> новых партнёров права нет
     (<code>config/role_base_permissions.php</code>). Superadmin видит поле
     через <code>Gate::before</code>.
+    Право в скрытой группе «Расписание школы» —
+    <a href="/doc#school-schedule-permission-group-index">анонс группы</a>.
     <br>
     2) <b>Сохранение без права.</b>
     Хелпер <code>App\Support\LessonPackageDurationPermission</code>
@@ -193,9 +528,11 @@
     <b>не</b> прячется этим правом. Страница шаблонов без
     <code>scheduleSlots.view</code> остаётся <code>200</code>;
     <code>403</code> — только без <code>lessonPackages.view</code>.
-    В базовой роли <code>admin</code> право уже есть
+    В базовой роли <code>admin</code> новых партнёров права нет
     (<code>config/role_base_permissions.php</code>). Superadmin видит чекбокс
     через <code>Gate::before</code>.
+    Право в скрытой группе «Расписание школы» —
+    <a href="/doc#school-schedule-permission-group-index">анонс группы</a>.
     <br>
     2) <b>Сохранение.</b>
     Хелпер <code>App\Support\LessonPackageFreezePermission</code>.
@@ -255,13 +592,14 @@
     <code>is_enabled=1</code>) и в M у пары ученик+группа уже выбран абонемент.
     Пустой M, новичок без абона, бывшие, выключенные — M+1 не трогаем.
     Сумма = <b>текущая</b> цена шаблона × <b>текущий</b> % карточки
-    (не копия суммы/снимка из M). Постоплата — только с
-    <code>lessonPackages.type.postpay</code>.
+    (не копия суммы/снимка из M). Копия шаблона — только при
+    <code>lessonPackages.type.*</code> этого типа (для постоплаты —
+    <code>lessonPackages.type.postpay</code>).
     <br>
     2) <b>Пропуск с отчётом (не ошибка, без перезаписи):</b>
     в M+1 уже другой пакет/сумма; M+1 оплачен; ULP разложен;
     classic-автопролонг (<code>UserLessonPackageAutoProlongGuard</code>);
-    шаблон недоступен; постоплата без права.
+    шаблон недоступен; тип без права (<code>type_denied</code> / postpay без права).
     Совпадающие пакет и пересчитанная сумма — идемпотентный no-op.
     В JSON <code>skip_reasons</code> ученики и группы считаются раздельно
     (<code>students</code> / <code>teams</code>), без общего <code>count</code>
@@ -444,9 +782,11 @@
     на поле (не тихое обнуление до валидации).
     Страница шаблонов без <code>scheduleSlots.view</code> остаётся <code>200</code>;
     <code>403</code> — только без <code>lessonPackages.view</code>.
-    В базовой роли <code>admin</code> право уже есть
+    В базовой роли <code>admin</code> новых партнёров права нет
     (<code>config/role_base_permissions.php</code>). Superadmin видит чекбокс
     через <code>Gate::before</code>.
+    Право в скрытой группе «Расписание школы» —
+    <a href="/doc#school-schedule-permission-group-index">анонс группы</a>.
     <br>
     2) <b>Сохранение без права.</b>
     Хелпер <code>App\Support\LessonPackageAutoAttendancePermission</code>.
@@ -697,7 +1037,10 @@
     Сейчас ключ лежит на юрлице: у школы может быть 2+ юрлица, документы уходят с ЭП того,
     которое выбрано для группы / зафиксировано на договоре.
     Это <b>не</b> ShopCode T‑Bank и <b>не</b> плейсхолдер Word.
-    Вебхук Подпислона по-прежнему проверяет <code>PODPISLON_WEBHOOK_SECRET</code> из env.
+    Вебхук общий: в кабинете Подпислона у компании указывают
+    <code>https://kidscrm.online/webhooks/podpislon</code> без самодельного <code>?token=</code>.
+    Проба пустого POST — 200. События проверяются полем <code>SIGNATURE</code> Подпислона,
+    не ключом юрлица и не query-токеном.
     <br><br>
     1) <b>Где править.</b>
     Только <code>superadmin</code>, модалки create/edit на <code>/admin/legal-entities</code>,
@@ -745,6 +1088,9 @@
     <code>PodpislonCredentialsResolverTest</code>,
     <code>PodpislonCredentialsHttpFeatureTest</code>,
     <code>AccountContractFillPodpislonKeyFeatureTest</code>,
+    <code>PodpislonWebhookTest</code>,
+    <code>PodpislonWebhookUrlCheckFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_crm_blades_do_not_embed_homemade_podpislon_webhook_token_or_ajax_submit</code>,
     <code>BladeInlineJsSyntaxTest::test_legal_entities_index_podpislon_api_key_js_contract_is_valid_javascript</code>,
     <code>LegalEntitiesPodpislonKeyDocumentationContractTest</code>.
   </div>
@@ -2166,7 +2512,7 @@
     <code>amount_cents</code>, <code>amount_label</code>) в ответы
     <code>POST /schedule/update</code> (в т.ч. <code>create_postpay</code>),
     <code>DELETE /schedule/occurrence/{utss}</code>,
-    постановки гибкого / пробного / разового.
+    постановки предоплаты / пробного / разового.
     Клиент шлёт <code>journal_team_filter</code> (текущий <code>#filter-team</code>).
     JS <code>applyJournalPaymentStatus</code> (hotfix
     <code>public/js/schedule-journal.js</code>) перерисовывает
@@ -2231,7 +2577,7 @@
     <code>result.consuming_count</code> в ответы
     <code>POST /schedule/update</code>,
     <code>DELETE /schedule/occurrence/{utss}</code>,
-    постановки гибкого / пробного / разового.
+    постановки предоплаты / пробного / разового.
     Клиент шлёт <code>journal_team_filter</code> (текущий <code>#filter-team</code>);
     нечисловой мусор, кроме <code>none</code>, сервер считает как <code>all</code>.
     JS <code>applyJournalConsumingCount</code> пишет число в
@@ -3390,7 +3736,12 @@
     ФИО и телефон родителя, последний онлайн («онлайн» / дата-время / «-»), группы.
     Пустые поля карточки — «-». Вкладка «Аккаунт» и шапка диалога партнёра не показывают.
     API <code>GET /chat/api/users/{id}</code> — <code>messages.view</code> + своя школа
-    (чужой партнёр 403, нет пользователя 404). Отключённый ученик той же школы — 200
+    (нет пользователя 404). Чужая школа, английский 403 в модалке и superadmin
+    после смены школы — отдельный анонс
+    <a href="/doc#chat-peer-card-cross-partner-index">карточка чужой школы</a>
+    (superadmin при живом общем треде; 403 «Нет доступа к карточке этого пользователя.»
+    в <code>#peerCardError</code>, не <code>This action is unauthorized.</code>).
+    Отключённый ученик той же школы — 200
     (из старого диалога карточку всё ещё можно открыть). POST/PATCH/DELETE → 405.
     <br>
     5) <b>Realtime.</b> <code>inbox.bump</code> несёт <code>peer_is_online</code>,
@@ -3401,6 +3752,9 @@
     Подробно — <a href="/docs/documentation/chat#presence">chat §онлайн и карточка</a>,
     чат — <a href="/doc#chat-index">анонс чата</a>.
     Тесты: <code>ChatPresenceFeatureTest</code>, <code>ChatPresenceUxFeatureTest</code>,
+    карточка чужой школы —
+    <a href="/doc#chat-peer-card-cross-partner-index">отдельный анонс</a>
+    (<code>ChatPeerCardCrossPartnerFullAccessFeatureTest</code> и соседние),
     <code>ChatPartnerNameFeatureTest</code>, <code>ChatPartnerNameUxFeatureTest</code>
     (<a href="/doc#chat-partner-name-index">название партнёра в модалках</a>),
     <code>ChatHeaderSubtitleFeatureTest</code>, <code>ChatHeaderSubtitleUxFeatureTest</code>
@@ -3864,6 +4218,9 @@
     Онлайн, ФИО родителя в контактах и карточка из шапки — отдельный анонс
     <a href="/doc#chat-presence-index">онлайн / карточка</a>
     (в списке диалогов красной точки нет; ping без <code>messages.view</code>).
+    Карточка человека другой школы из открытого диалога (superadmin при живом общем треде,
+    русский <code>errors.user</code>, не английский 403) —
+    <a href="/doc#chat-peer-card-cross-partner-index">анонс карточки чужой школы</a>.
     Под названием открытого диалога — участники группы или «онлайн» / «был(а) в сети…»,
     не в списке слева:
     <a href="/doc#chat-header-subtitle-index">анонс подзаголовка шапки</a>.
@@ -4949,7 +5306,7 @@
     <br><br>
     1) <b>Карточки ULP</b> (блок «Назначенные абонементы»):
     <code>setPrices.cabinetPackages.fixed.view</code> — <code>schedule_type=fixed</code>,
-    <code>.flexible.view</code> — гибкий,
+    <code>.flexible.view</code> — предоплата,
     <code>.single.view</code> — разовое (<code>no_schedule</code>).
     Фильтр в <code>DashboardController</code> по правам <b>залогиненного</b> (не ученика).
     Нулевая стоимость (<code>fee_amount_cents = 0</code>) по-прежнему скрыта.
@@ -5436,11 +5793,11 @@
     <code>BladeInlineJsSyntaxTest</code> (fixed-bind + preview fetch).
   </div>
 
-  <h2>Журнал: UX модалок «Разложить» / гибкий + превью (2026‑08)</h2>
+  <h2>Журнал: UX модалок «Разложить» / предоплата + превью (2026‑08)</h2>
   <div class="note">
     На <code>/schedule</code> уточнён UI модалок раскладки (доменная модель UTSS без изменений):
     <br><br>
-    1) <b>Шапка</b> «Разложить абонемент» и «Занятие из гибкого» — как у «Установить занятие»:
+    1) <b>Шапка</b> «Разложить абонемент» и «Занятие из абонемента предоплаты» — как у «Установить занятие»:
     ФИО (<code>cell-edit-context__name</code>) → название группы
     (<code>#abonement-team-display</code> / <code>#flexible-team-display</code>), без слова «Группа».
     При одной группе / <code>team_locked</code> select скрыт; при нескольких —
@@ -5455,7 +5812,7 @@
     «Занятий: N; период 1 августа 2026 — 31 августа 2026» и строки
     «K занятие: …» (без ISO <code>Y-m-d</code> в одной строке).
     <br>
-    4) Ховер гибкого в колонке абонементов — с ценой
+    4) Ховер предоплаты в колонке абонементов — с ценой
     «…по абонементу "…" за Y руб» (0 → «за 0 руб»).
     <br><br>
     Документ: <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>,
@@ -5610,7 +5967,7 @@
     удаление status events → удаление UTSS → sync постоплаты → аудит
     <code>schedule.journal_occurrence_deleted</code>.
     Ответ <code>result: { deleted: true, occurrence_count, remaining?, is_postpay, is_flexible,
-    slots_remaining?, … }</code>; DOM — decrement ячейки + hint гибкого
+    slots_remaining?, … }</code>; DOM — decrement ячейки + hint предоплаты
     (<code>syncFlexibleHintAfterAnnul</code>).
     <br><br>
     <b>Ховеры кнопки «Удалить»</b> (kids-tooltip): fixed/flexible — «…Счетчик занятия вернется в абонемент»;
@@ -5662,7 +6019,7 @@
 
   <h2>Журнал: пробное и разовое на пустой ячейке (2026‑08)</h2>
   <div class="note">
-    На <code>/schedule</code> клик по <b>полностью пустой</b> ячейке (нет занятий, нет гибкого/постоплаты)
+    На <code>/schedule</code> клик по <b>полностью пустой</b> ячейке (нет занятий, нет предоплаты/постоплаты)
     при правах <code>schedule.view</code> <b>и</b> <code>lessonPackages.view</code> открывает
     <code>#emptyCellPlaceModal</code> («Установить занятие»).
     Шапка: ФИО → группа → дата (<code>#empty-cell-team-display</code>).
@@ -5674,7 +6031,7 @@
     Группа из фильтра / одна группа ученика — без select (название в шапке);
     иначе — выбор.
     <br><br>
-    Приоритет пустой ячейки: гибкий → постоплата → пробное/разовое.
+    Приоритет пустой ячейки: предоплата → постоплата → пробное/разовое.
     Слот — <code>JournalTeamScheduleSlotEnsureService</code> (дневная модель журнала).
     Разовое: одновременно bind свободного ULP <code>no_schedule</code> и create из шаблона
     (в календаре школы режимы взаимоисключающие).
@@ -5700,9 +6057,9 @@
     (в т.ч. запись <code>team_id</code> и mismatch 422).
   </div>
 
-  <h2>Журнал: занятия из гибкого абонемента «на лету» (2026‑08)</h2>
+  <h2>Журнал: занятия из абонемента предоплаты «на лету» (2026‑08)</h2>
   <div class="note">
-    Месячный <b>гибкий</b> абонемент из «Установки цен» ставится в журнал <code>/schedule</code> по клику на ячейку
+    Месячный <b>flexible</b> (UI: «Предоплата») абонемент из «Установки цен» ставится в журнал <code>/schedule</code> по клику на ячейку
     (не цепочкой, как fixed).
     <br><br>
     <b>Sync при установке цен</b> (<code>UsersPriceLessonPackageSync</code>): для <code>flexible</code> сразу
@@ -5714,8 +6071,8 @@
     <b>UI журнала</b> (<code>schedule.view</code>):
     <br>
     1) Колонка абонементов при остатке слотов: две строки <code>{осталось}/{всего}</code> +
-    <code>Гибкий</code> (напр. <code>10/12</code> / перевод строки / <code>Гибкий</code>),
-    если фильтр группы или один гибкий; при нескольких группах (без фильтра) — иконка <code>(i)</code>
+    <code>Предоплата</code> (напр. <code>10/12</code> / перевод строки / <code>Предоплата</code>),
+    если фильтр группы или один абонемент предоплаты; при нескольких группах (без фильтра) — иконка <code>(i)</code>
     с многострочным tooltip
     (<code>10/12 остаток … по абонементу "A" за Y руб</code> / перевод строки /
     <code>4/8 остаток … по абонементу "B" за Z руб</code>).
@@ -5727,16 +6084,16 @@
     (радио <code>flexible_lesson_occurrence_status_id</code>, по умолчанию «Запись»),
     при «Посетил» — тренер, комментарий. Ошибки Laravel под полями.
     После успешного AJAX <b>без</b> <code>location.reload</code>: обновляются ячейка дня
-    (иконка/цвет статуса) и подпись <code>N/M</code> + <code>Гибкий</code>
+    (иконка/цвет статуса) и подпись <code>N/M</code> + <code>Предоплата</code>
     (<code>renderScheduleCellAfterFlexiblePlace</code> / <code>updateFlexibleHintAfterPlace</code> в
     <code>schedule.js</code>).
     <br>
-    3) Занятая ячейка / ×N → кнопка «Добавить занятие из гибкого абонемента»
+    3) Занятая ячейка / ×N → кнопка «Добавить занятие из абонемента предоплаты»
     (второе занятие в тот же день — другой служебный <code>team_schedule_slot</code>).
     <br>
     4) Фильтр группы → автовыбор; без фильтра и несколько групп — select.
     Только ULP с <code>billing_month</code> = месяц экрана (классика с вкладки «Назначения» — через календарь школы).
-    Если есть гибкий с остатком, пустая ячейка открывает гибкий, а не постоплату.
+    Если есть абонемент предоплаты с остатком, пустая ячейка открывает предоплату, а не постоплату.
     <br><br>
     <b>API:</b> <code>GET …/flexible-context</code>
     (assignments, teams, trainers, <code>scheduled_status_id</code> / <code>visited_status_id</code>);
@@ -5786,12 +6143,16 @@
     <a href="/docs/documentation/payments#ulp-billing-month">payments § billing_month</a>.
   </div>
 
-  <h2>Право lessonPackages.type.postpay — тип «Постоплата» (2026‑08)</h2>
+  <h2 id="lesson-packages-type-postpay-index">Право lessonPackages.type.postpay — тип «Постоплата» (2026‑08)</h2>
   <div class="note">
     Скрытое право <code>lessonPackages.type.postpay</code> (группа <code>lessonPackages</code>,
     <code>is_visible = 0</code>) управляет <b>выбором</b> типа абонемента <code>schedule_type = postpay</code>.
     В базовые роли <code>user</code> / <code>admin</code> / <code>trainer</code> <b>не</b> входит;
     миграция только создаёт право, никому не выдаёт.
+    С 2026‑09 тот же контур у <code>fixed</code> / <code>flexible</code> / <code>no_schedule</code> —
+    <a href="/doc#lesson-packages-type-permissions-index">анонс type.*</a>,
+    <a href="/docs/documentation/lesson-packages-type-permissions">карточка</a>
+    (postpay <code>sort_order</code> 38 → 39).
     <br><br>
     1) UI шаблонов (create/edit/фильтр, дубль в «Справочниках») — option «Постоплата» только при праве.
     <br>
@@ -5807,6 +6168,8 @@
     <code>setPrices.cabinetPackages.postpay.view</code>
     (<a href="/doc#cabinet-packages-type-permissions">анонс</a>,
     <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>).
+    ULP-назначение postpay всегда <b>422</b> (домен), независимо от этого права.
+    Чекбокс postpay в «Уведомлениях об оплате» — тот же Gate.
     <br><br>
     Карточка права —
     <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>;
@@ -5948,7 +6311,7 @@
     без пересечения часов в один день — нет.
     <br>
     Проверка кросс-слотового пересечения времени есть только у <b>assign-fixed</b> (цепочка).
-    Гибкий / разовое / пробное проверяют дубликат «тот же слот + дата» (<code>starts_at</code>), без сравнения часов между разными слотами.
+    Предоплата / разовое / пробное проверяют дубликат «тот же слот + дата» (<code>starts_at</code>), без сравнения часов между разными слотами.
     <br>
     Подробно —
     <a href="/docs/documentation/school-schedule-calendar#school-schedule-fixed-overlap">school-schedule-calendar § конфликт</a>,
@@ -6028,6 +6391,8 @@
     Контакты: телефон ученика, ФИО и телефон родителя — на обоих листах.
     Endpoint <code>GET …/school-schedule/export</code>; AJAX-ошибки валидации —
     <code>422</code> + <code>errors</code> под полями дат; non-AJAX — <code>302</code> + session errors.
+    С 2026‑09 право в группе «Расписание школы», скрытое, новым партнёрам не выдаётся —
+    <a href="/doc#school-schedule-permission-group-index">анонс группы</a>.
     Подробно — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export">school-schedule-calendar § выгрузка</a>,
     права — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>,
     обзор абонементов — <a href="/docs/documentation/lesson-packages#school-schedule-export">lesson-packages § выгрузка</a>.
@@ -6294,11 +6659,12 @@
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, автособытия «ученик добавил группу» (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer) и <b>«договор подписан»</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>, только admin школы, 7 суток), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
-    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>название партнёра в модалках</b> (<a href="/doc#chat-partner-name-index">анонс</a>: под ФИО в «Контакт» и под именем в «Группа», не вкладка «Аккаунт», не шапка), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
+    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>карточка чужой школы</b> (<a href="/doc#chat-peer-card-cross-partner-index">анонс</a>: superadmin при живом общем треде, 403 <code>errors.user</code> по-русски), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>название партнёра в модалках</b> (<a href="/doc#chat-partner-name-index">анонс</a>: под ФИО в «Контакт» и под именем в «Группа», не вкладка «Аккаунт», не шапка), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, ссылка СБП <code>/pm/{code}</code> и автоблок «Оплатить через СБП», право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
-    <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
+    <li><a href="/docs/documentation/lesson-packages-type-permissions"><strong>Права lessonPackages.type.*</strong>: выбор типа шаблона (фиксированный / предоплата / разовое / постоплата); скрытые; не в базовых ролях; UI + store/update + «Установка цен» + уведомления; <a href="/doc#lesson-packages-type-permissions-index">анонс</a></a></li>
+    <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»; с 2026‑09 — общий контур type.* (<a href="/doc#lesson-packages-type-permissions-index">анонс</a>, <a href="/doc#lesson-packages-type-postpay-index">анонс 2026‑08</a>)</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
-    <li><a href="/docs/documentation/set-prices-cabinet-packages"><strong>Права setPrices.cabinetPackages.*</strong>: отображение типов абонементов на консоли (фиксированный / гибкий / разовое / постоплата); скрытые; не в базовых ролях</a></li>
+    <li><a href="/docs/documentation/set-prices-cabinet-packages"><strong>Права setPrices.cabinetPackages.*</strong>: отображение типов абонементов на консоли (фиксированный / предоплата / разовое / постоплата); скрытые; не в базовых ролях</a></li>
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b> (мультирасчёты + обычный эквайринг <code>tbank_acquiring</code>, <a href="/doc#tbank-acquiring-platform-index">анонс</a>), <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (логи <code>SUPERADMIN_ALL_OR_FILTER</code> + soft-scope отчётов §5 / reports-admin §2.4)</a></li>
     <li><a href="/docs/documentation/partner-wallet">Кошелёк партнёра: <code>/partner-wallet</code>, изоляция <code>STRICT_CURRENT</code>, история договоров/SMS, <code>wallet_balance_cents</code>, ЮKassa и T‑Bank СБП (<a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a>, права <a href="/doc#platform-payments-methods-index">«Оплата платформы»</a>), право <code>partnerWallet.view</code> (<a href="/doc#partner-wallet-ledger-index">леджер</a>, <a href="/doc#partner-wallet-isolation-index">изоляция</a>)</a></li>
@@ -6307,7 +6673,7 @@
     <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра); опциональные права в т.ч. <code>users.discount.manage</code>, <code>account.user.team.update</code></a></li>
     <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo; <b>метрики списка</b> — активные ученики, договоры, оборот и комиссия платформы по <code>operation_date</code> / снимку <code>tinkoff_payouts.platform_fee</code>, <a href="/doc#admin-partners-list-metrics">анонс</a> / <a href="/docs/documentation/account-partner-organization#partners-index-metrics">§3.1.1</a>), <code>PartnerLegacyLegalFields</code>, доступ guest 302/401 / 403, AJAX/non-AJAX, оплаты без fallback</a></li>
     <li><a href="/docs/documentation/settings-roles-custom">Настройки: кастомные роли и стартовый набор прав (admin из конфига, UI без перезагрузки)</a></li>
-    <li><a href="/docs/documentation/settings-permission-groups">Матрица прав: группы permissions (permission_groups), аккордеон на «Права и роли», группа «Оплата платформы» (<a href="/doc#platform-payments-methods-index">анонс</a>), ховер возможностей (<a href="/doc#permission-capability-hints-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/settings-permission-groups">Матрица прав: группы permissions (permission_groups), аккордеон на «Права и роли», группа «Расписание школы» (<a href="/doc#school-schedule-permission-group-index">анонс</a>), группа «Оплата платформы» (<a href="/doc#platform-payments-methods-index">анонс</a>), ховер возможностей (<a href="/doc#permission-capability-hints-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/audit-my-logs">Аудит CRM (my_logs): AuditEvent, AuditLogger, колонки event/level</a></li>
     <li><a href="/docs/documentation/settings-logs">Настройки → Логи: вкладка журнала, фильтры, доступ, SUPERADMIN_ALL_OR_FILTER</a></li>
     <li><a href="/docs/documentation/tbank">T‑Bank (мультирасчёты): глобальный терминал, комиссии, автовыплата per метод, карточка платежа (организация, timeline), workflow. Кошелёк и абонплата CRM — <a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a>, не этот терминал</a></li>
@@ -6320,9 +6686,9 @@
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, <b>«Показать N»</b> (<code>page_length</code>), <b>поиск DataTables</b> только ФИО и группа (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>), права, история T‑Bank; ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / intents / fiscal; задолженности и письма — без opt-in), payment-intents / payments / fiscal / emails; <b>поиск DataTables</b> (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>: Платежи/LTV — ФИО+группа; monthly — ещё месяц; intents — ФИО/партнёр/ID); фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Чеки»</b> — только <code>source=marketplace</code>, продажи платформы не входят (<a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), <b>сумма неоплаченного месяца в колонке рубля</b> (<a href="/doc#journal-postpay-payment-due-index">анонс</a>), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = визиты с <code>consumes_lesson</code> × ставка, затем <b>скидка по снимку строки</b></a></li>
-    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <b>автосписание</b> <code>auto_attendance_enabled</code> — чекбокс при <code>scheduleSlots.view</code>, <a href="/doc#lesson-package-auto-attendance-index">анонс</a>; <b>заморозка</b> шаблона — тот же <code>@can</code>, <a href="/doc#lesson-package-freeze-permission-index">анонс</a>; <b>срок действия</b> в модалке — <a href="/doc#lesson-package-duration-permission-index">анонс</a>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, причина ошибки sms.ru в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
-    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
-    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; <b>локальный прелоадер таблицы</b> (§2.3, <a href="/doc#journal-table-preloader-index">анонс</a>); <b>таблица по содержимому</b> (§2.4, <a href="/doc#journal-table-content-width-index">анонс</a>); <b>пагинация 100</b> и серверный поиск <code>q</code> (§2.2, <a href="/doc#journal-pagination-index">анонс</a>); раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка / <b>сумма неоплаченной постоплаты</b> <code>{N}₽</code> — §5.2, <a href="/doc#journal-postpay-payment-due-index">анонс суммы</a>, <a href="/doc#journal-monthly-payment-check">анонс галочки</a>); <b>колонка «кол-во тренировок»</b> по <code>consumes_lesson</code> (§5.3, <a href="/doc#journal-consuming-count-column">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <b>тип flexible в UI — «Предоплата»</b> — <a href="/doc#flexible-ui-label-index">анонс</a>; <b>автосписание</b> <code>auto_attendance_enabled</code> — чекбокс при <code>scheduleSlots.view</code>, <a href="/doc#lesson-package-auto-attendance-index">анонс</a>; <b>заморозка</b> шаблона — тот же <code>@can</code>, <a href="/doc#lesson-package-freeze-permission-index">анонс</a>; <b>срок действия</b> в модалке — <a href="/doc#lesson-package-duration-permission-index">анонс</a>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, причина ошибки sms.ru в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
+    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь (<b>URL</b> — <code>lessonPackages.view</code>; <b>сайдбар</b> — <code>scheduleSlots.view</code>, не в базовом admin — <a href="/doc#school-schedule-permission-group-index">анонс группы</a>), фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, предоплата/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>; право скрытое), JSON/API, аудит «История»</a></li>
+    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; <b>локальный прелоадер таблицы</b> (§2.3, <a href="/doc#journal-table-preloader-index">анонс</a>); <b>таблица по содержимому</b> (§2.4, <a href="/doc#journal-table-content-width-index">анонс</a>); <b>пагинация 100</b> и серверный поиск <code>q</code> (§2.2, <a href="/doc#journal-pagination-index">анонс</a>); раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>предоплата</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Предоплата» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка / <b>сумма неоплаченной постоплаты</b> <code>{N}₽</code> — §5.2, <a href="/doc#journal-postpay-payment-due-index">анонс суммы</a>, <a href="/doc#journal-monthly-payment-check">анонс галочки</a>); <b>колонка «кол-во тренировок»</b> по <code>consumes_lesson</code> (§5.3, <a href="/doc#journal-consuming-count-column">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: схемы <code>classic</code>, <code>kansas</code> и <code>sales</code> («% от продаж», <a href="/doc#trainer-salary-sales-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#sales">§13</a> / <a href="/docs/documentation/schedule-trainer-salary#sales-percent-saved-flash">§13.1 подсветка %</a>), <b>типы тренера</b> (<a href="/doc#trainer-types-kansas-index">анонс</a>), <b>модалка «Настройки месяца»</b> и таблица черновика (<a href="/doc#trainer-salary-kansas-month-settings-index">анонс</a>), <b>целые средние Канзаса</b> (факт 15.1 → 16, база без дробей, <a href="/doc#trainer-salary-kansas-integer-averages-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#kansas-integer-averages">§12.1</a>), включение superadmin в матрице, смена схемы месяца без слепка, черновик, слепки vN / batch, <code>view</code>/<code>manage</code> — <a href="/doc#trainer-salary-kansas-index">анонс Канзаса</a></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>

@@ -206,7 +206,7 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
             ->assertSee('data-flexible="1"', false)
             ->assertSee('data-flexible-remaining="0"', false)
             ->assertDontSee('data-empty-lesson="1"', false)
-            ->assertSee('Гибкий абонемент: поставить занятие', false);
+            ->assertSee('Абонемент предоплаты: поставить занятие', false);
 
         $this->actingAs($actor)->withSession($session)
             ->getJson(route('schedule.empty-cell.context', $student).'?occurrence_date=2026-09-12')
@@ -245,7 +245,7 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
             ->assertSee('data-flexible="1"', false)
             ->assertSee('data-flexible-remaining="3"', false)
             ->assertDontSee('data-empty-lesson="1"', false)
-            ->assertSee('Гибкий абонемент: поставить занятие', false);
+            ->assertSee('Абонемент предоплаты: поставить занятие', false);
     }
 
     public function test_place_scheduled_does_not_reduce_remaining_ajax(): void
@@ -298,7 +298,7 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
             ->assertJsonPath('flexible_options.0.slots_remaining', 0)
             ->assertJsonPath(
                 'flexible_options.0.reason',
-                'Достигнут лимит занятий по гибкому абонементу.'
+                'Достигнут лимит занятий по абонементу предоплаты.'
             )
             ->assertJsonPath('trial.allowed', true);
 
@@ -642,8 +642,8 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
             ->assertSee('data-flexible="1"', false)
             ->assertSee('data-flexible-remaining="0"', false)
             ->assertSee('data-empty-lesson="1"', false)
-            ->assertSee('Пробное, разовое или занятие из гибкого абонемента', false)
-            ->assertSee(">0/1\nГибкий<", false)
+            ->assertSee('Пробное, разовое или занятие из абонемента предоплаты', false)
+            ->assertSee(">0/1\nПредоплата<", false)
             ->assertSee('flexiblePlaceModal', false);
 
         $ctx = $this->getJson(route('schedule.empty-cell.context', $student).'?'.http_build_query([
@@ -681,7 +681,7 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
         $pageAfter->assertSee($student->full_name, false)
             ->assertSee('emptyCellPlaceModal', false)
             ->assertSee('data-occurrence-count="1"', false)
-            ->assertSee(">0/1\nГибкий<", false);
+            ->assertSee(">0/1\nПредоплата<", false);
 
         $singleUlpId = (int) $place->json('result.user_lesson_package_id');
         $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $singleUlpId)->count());

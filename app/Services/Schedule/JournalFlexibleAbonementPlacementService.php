@@ -158,9 +158,9 @@ final class JournalFlexibleAbonementPlacementService
             'lessons_total' => (int) $ulp->lessons_total,
             'fee_amount_cents' => (int) ($ulp->fee_amount_cents ?? 0),
             'comment' => $commentValue,
-            'package_name' => $packageName !== '' ? $packageName : 'Гибкий абонемент',
+            'package_name' => $packageName !== '' ? $packageName : 'Абонемент предоплаты',
             'package_hover' => ScheduleJournalMonthService::packageHoverLabel(
-                $packageName !== '' ? $packageName : 'Гибкий абонемент',
+                $packageName !== '' ? $packageName : 'Абонемент предоплаты',
                 (int) ($ulp->fee_amount_cents ?? 0),
             ),
             'status' => [
@@ -207,12 +207,12 @@ final class JournalFlexibleAbonementPlacementService
             || (int) $package->partner_id !== $partnerId
             || (string) $package->schedule_type !== LessonPackage::SCHEDULE_TYPE_FLEXIBLE
         ) {
-            throw new InvalidArgumentException('Доступна привязка только для гибкого абонемента.');
+            throw new InvalidArgumentException('Доступна привязка только для абонемента предоплаты.');
         }
 
         if (! $ulp->isFromSettingPrices() || $ulp->billing_month === null) {
             throw new InvalidArgumentException(
-                'Из журнала можно ставить занятия только для гибкого абонемента из установки цен.'
+                'Из журнала можно ставить занятия только для абонемента предоплаты из установки цен.'
             );
         }
 

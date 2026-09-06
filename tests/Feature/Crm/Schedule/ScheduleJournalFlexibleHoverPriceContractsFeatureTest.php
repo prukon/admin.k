@@ -259,7 +259,7 @@ final class ScheduleJournalFlexibleHoverPriceContractsFeatureTest extends Schedu
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));
         $pageAfter->assertSee($student->full_name, false)
             ->assertSee('journal-flexible-hint--ratio', false)
-            ->assertSee(">2/2\nГибкий<", false)
+            ->assertSee(">2/2\nПредоплата<", false)
             ->assertSee($hoverHtml, false)
             ->assertSee('data-fee-amount-cents="90000"', false)
             ->assertSee('data-occurrence-count="1"', false);

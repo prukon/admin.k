@@ -35,6 +35,7 @@ final class LessonPackageUserPercentDiscountFeatureTest extends CrmTestCase
         $this->asAdmin();
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('setPrices.packageAssignments.view');
+        $this->grantLessonPackageTypePermissions();
     }
 
     public function test_store_assignment_stamps_snapshot_when_fee_matches_catalog_formula(): void

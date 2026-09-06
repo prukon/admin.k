@@ -214,6 +214,15 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('lessonPackages.export', function (User $user) {
             return $user->hasPermission('lessonPackages.export');
         });
+        Gate::define('lessonPackages.type.fixed', function (User $user) {
+            return $user->hasPermission('lessonPackages.type.fixed');
+        });
+        Gate::define('lessonPackages.type.flexible', function (User $user) {
+            return $user->hasPermission('lessonPackages.type.flexible');
+        });
+        Gate::define('lessonPackages.type.no_schedule', function (User $user) {
+            return $user->hasPermission('lessonPackages.type.no_schedule');
+        });
         Gate::define('lessonPackages.type.postpay', function (User $user) {
             return $user->hasPermission('lessonPackages.type.postpay');
         });

@@ -28,7 +28,7 @@ use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Str;
 use App\Support\BuildsLogTable;
-use App\Support\LessonPackagePostpayPermission;
+use App\Support\LessonPackageTypePermission;
 use App\Services\PartnerContext;
 use App\Http\Requests\Admin\SaveUserYearPricesRequest;
 use App\Http\Requests\Admin\UserYearPricesRequest;
@@ -892,21 +892,21 @@ class SettingPricesController extends AdminBaseController
 
     /**
      * Шаблоны абонементов партнёра для select на вкладке «по месяцам».
-     * Без lessonPackages.type.postpay — postpay-шаблоны скрыты, кроме уже назначенных
+     * Без lessonPackages.type.* — шаблоны этого типа скрыты, кроме уже назначенных
      * (TeamPrice / UserPrice), чтобы текущие значения в UI не «терялись».
      *
      * @return list<array{id: int, name: string, price: float, schedule_type: string, is_postpay: bool}>
      */
     protected function lessonPackagesForPartnerSelect(int $partnerId): array
     {
-        $canPostpay = LessonPackagePostpayPermission::userCanSelect(auth()->user());
-
         $query = LessonPackage::query()
             ->where('partner_id', $partnerId)
             ->orderBy('name')
             ->orderBy('id');
 
-        if (! $canPostpay) {
+        $actor = auth()->user();
+        $allowed = LessonPackageTypePermission::allowedTypes($actor instanceof User ? $actor : null);
+        if (count($allowed) < count(LessonPackageTypePermission::PERMISSIONS)) {
             $keepIds = TeamPrice::query()
                 ->whereNotNull('lesson_package_id')
                 ->whereHas('team', static function ($q) use ($partnerId) {
@@ -927,12 +927,11 @@ class SettingPricesController extends AdminBaseController
                 ->values()
                 ->all();
 
-            $query->where(function ($q) use ($keepIds) {
-                $q->where('schedule_type', '!=', LessonPackage::SCHEDULE_TYPE_POSTPAY);
-                if ($keepIds !== []) {
-                    $q->orWhereIn('id', $keepIds);
-                }
-            });
+            LessonPackageTypePermission::restrictQueryToAllowedTypes(
+                $query,
+                $actor instanceof User ? $actor : null,
+                $keepIds
+            );
         }
 
         return $query

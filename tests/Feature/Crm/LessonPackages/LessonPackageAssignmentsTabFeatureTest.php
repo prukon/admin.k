@@ -30,6 +30,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+        $this->grantLessonPackageTypePermissions();
     }
 
     private function grantPermission(string $permissionName): void
@@ -198,6 +199,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_assignments_page_renders_toolbar_filters_columns_and_datatable(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantLessonPackageTypePermissions();
         $this->grantPermission('setPrices.packageAssignments.view');
 
         $this->get(route('admin.lesson-packages.assignments'))

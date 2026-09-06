@@ -63,6 +63,7 @@ class SettingPricesTest extends CrmTestCase
     public function routes_work_with_set_prices_permission_smoke_for_all_ajax()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -153,6 +154,7 @@ class SettingPricesTest extends CrmTestCase
     public function index_shows_only_current_partner_teams_and_initializes_team_prices()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         // Команды текущего партнёра
         $team1 = Team::factory()->create([
@@ -205,6 +207,7 @@ class SettingPricesTest extends CrmTestCase
     public function update_date_changes_month_and_initializes_team_prices_for_current_partner()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
  
         $team1 = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -253,6 +256,7 @@ class SettingPricesTest extends CrmTestCase
     public function update_date_parses_russian_month_name_correctly()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -274,6 +278,7 @@ class SettingPricesTest extends CrmTestCase
     public function get_team_price_returns_active_users_and_creates_user_prices()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -349,6 +354,7 @@ class SettingPricesTest extends CrmTestCase
     public function get_team_price_cannot_access_foreign_partner_team()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $otherPartner = Partner::factory()->create();
         $foreignTeam  = Team::factory()->create([
@@ -375,6 +381,7 @@ class SettingPricesTest extends CrmTestCase
     public function set_team_price_updates_team_and_unpaid_active_users_only()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -481,6 +488,7 @@ class SettingPricesTest extends CrmTestCase
     public function set_team_price_does_not_touch_other_months_and_teams()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $teamX = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -541,6 +549,7 @@ class SettingPricesTest extends CrmTestCase
     public function set_team_price_cannot_update_foreign_partner_team()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $otherPartner = Partner::factory()->create();
         $foreignTeam  = Team::factory()->create([
@@ -563,6 +572,7 @@ class SettingPricesTest extends CrmTestCase
     public function set_price_all_teams_updates_listed_teams_and_users()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $teamA = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -685,6 +695,7 @@ class SettingPricesTest extends CrmTestCase
     public function set_price_all_teams_ignores_teams_not_in_payload()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $teamA = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -754,6 +765,7 @@ class SettingPricesTest extends CrmTestCase
     public function set_price_all_teams_returns_422_on_invalid_teams_data()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         // teamsData = null
         $this->postJson(route('setPriceAllTeams'), [
@@ -774,6 +786,7 @@ class SettingPricesTest extends CrmTestCase
     public function set_price_all_users_updates_only_changed_unpaid_prices()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -896,6 +909,7 @@ class SettingPricesTest extends CrmTestCase
     public function set_price_all_users_does_not_create_new_records_or_touch_absent_users()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -998,6 +1012,7 @@ class SettingPricesTest extends CrmTestCase
     public function set_price_all_users_returns_422_on_invalid_payload()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         // usersPrice = null
         $this->postJson(route('setPriceAllUsers'), [
@@ -1018,6 +1033,7 @@ class SettingPricesTest extends CrmTestCase
     public function logs_are_written_correctly_for_three_operations()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -1092,6 +1108,7 @@ class SettingPricesTest extends CrmTestCase
     public function get_logs_data_returns_datatables_response_with_type_one_logs()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         MyLog::forceCreate([
             'event'       => AuditEvent::PricingBulkApply->value,
@@ -1138,6 +1155,7 @@ class SettingPricesTest extends CrmTestCase
     public function manual_paid_returns_403_without_hidden_permission()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -1279,6 +1297,7 @@ class SettingPricesTest extends CrmTestCase
     public function user_year_prices_includes_manual_flags_and_can_manage_permission()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -1339,6 +1358,7 @@ class SettingPricesTest extends CrmTestCase
     public function get_team_price_includes_can_manage_manual_paid_flag()
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,

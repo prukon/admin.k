@@ -102,7 +102,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
 
         $response->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('message', 'Занятие из гибкого абонемента поставлено в журнал.')
+            ->assertJsonPath('message', 'Занятие из абонемента предоплаты поставлено в журнал.')
             ->assertJsonStructure([
                 'success',
                 'message',
@@ -369,7 +369,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
 
         $response->assertStatus(302);
         $response->assertRedirect(route('schedule.index'));
-        $response->assertSessionHas('status', 'Занятие из гибкого абонемента поставлено в журнал.');
+        $response->assertSessionHas('status', 'Занятие из абонемента предоплаты поставлено в журнал.');
         $this->assertNotSame(200, $response->getStatusCode());
 
         $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulp->id)->count());
@@ -706,7 +706,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
             ->assertSee('flexible-trainer-wrap', false)
             ->assertSee('flexible-comment', false)
             ->assertSee('journal-flexible-hint--ratio', false)
-            ->assertSee(">2/2\nГибкий<", false)
+            ->assertSee(">2/2\nПредоплата<", false)
             ->assertSee('data-flexible="1"', false)
             ->assertSee('btn-add-flexible-lesson', false)
             ->assertSee($student->full_name, false);
@@ -750,7 +750,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
             ->assertSee('flexiblePlaceModal', false)
             ->assertSee('flexible_lesson_occurrence_status_id', false)
             ->assertSee('data-occurrence-count="1"', false)
-            ->assertSee(">2/2\nГибкий<", false);
+            ->assertSee(">2/2\nПредоплата<", false);
         $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulp->id)->count());
     }
 
@@ -774,7 +774,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
         $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
             ->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
-            ->assertSee(">2/2\nГибкий<", false)
+            ->assertSee(">2/2\nПредоплата<", false)
             ->assertSee('data-flexible="1"', false);
 
         $this->withHeaders($this->ajaxHeaders())
@@ -789,7 +789,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
         $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
             ->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
-            ->assertSee(">1/2\nГибкий<", false)
+            ->assertSee(">1/2\nПредоплата<", false)
             ->assertSee('data-flexible="1"', false);
 
         $this->withHeaders($this->ajaxHeaders())
@@ -805,7 +805,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
         $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
             ->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
-            ->assertSee(">0/2\nГибкий<", false)
+            ->assertSee(">0/2\nПредоплата<", false)
             ->assertSee('data-flexible="1"', false);
     }
 }

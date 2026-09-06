@@ -142,7 +142,9 @@ final class ChatPartnerNameFeatureTest extends ChatTestCase
     {
         $foreign = $this->makePeer('PnForeign_', ['partner_id' => $this->foreignPartner->id]);
 
-        $this->getJson(route('chat.api.users.show', $foreign))->assertForbidden();
+        $this->assertChatPeerCardForbidden(
+            $this->getJson(route('chat.api.users.show', $foreign))
+        );
     }
 
     public function test_superadmin_sees_session_partner_title_on_card_and_group(): void

@@ -252,6 +252,7 @@ final class SettingPricesUsersFormerMembersAccessFeatureTest extends CrmTestCase
     public function test_save_user_year_prices_non_ajax_rejects_former_and_does_not_change_db(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         $response = $this->post(route('setting-prices.user-year-prices.save'), [
             'user_id' => $this->student->id,

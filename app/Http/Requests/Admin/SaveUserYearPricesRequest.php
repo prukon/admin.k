@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\UserPrice;
 use App\Support\LessonPackagePostpayPermission;
+use App\Support\LessonPackageTypePermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -70,10 +71,6 @@ class SaveUserYearPricesRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
-            if (LessonPackagePostpayPermission::userCanSelect($this->user())) {
-                return;
-            }
-
             $rows = $this->input('prices', []);
             if (! is_array($rows) || $rows === []) {
                 return;
@@ -116,7 +113,7 @@ class SaveUserYearPricesRequest extends FormRequest
                     ? $existingByMonth[$monthKey]
                     : null;
 
-                LessonPackagePostpayPermission::rejectUnauthorizedPackageId(
+                LessonPackageTypePermission::rejectUnauthorizedPackageId(
                     $v,
                     $this->user(),
                     $packageId > 0 ? $packageId : null,

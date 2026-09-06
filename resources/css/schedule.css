@@ -52,7 +52,7 @@ body.no-scroll {
     text-overflow: ellipsis;
 }
 
-/* Остаток гибкого: две строки «10/12» + «Гибкий» (один ULP / фильтр группы) */
+/* Остаток гибкого: две строки «10/12» + «Предоплата» (один ULP / фильтр группы) */
 .journal-flexible-hint--ratio {
     display: inline-block;
     font-size: 0.6875rem;
@@ -434,7 +434,7 @@ table.dataTable tbody th, table.dataTable tbody td {
     opacity: 1;
 }
 
-/* Модалки «Статус занятия» / «Гибкий абонемент» */
+/* Модалки «Статус занятия» / «Занятие из абонемента предоплаты» */
 .cell-edit-modal .modal-body {
     padding-top: 1rem;
     padding-bottom: 0.75rem;

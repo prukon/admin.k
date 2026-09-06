@@ -44,10 +44,11 @@
     <tbody>
       <tr><td>Имя</td><td><code>setPrices.packageAssignments.view</code></td></tr>
       <tr><td>Описание (сидер)</td><td>Назначение абонементов</td></tr>
-      <tr><td>Группа матрицы</td><td><code>setPrices</code> («Установка цен») — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a></td></tr>
-      <tr><td><code>is_visible</code></td><td><b>0</b> (невидимое): у admin партнёра в матрице может не отображаться; у superadmin — видно</td></tr>
+      <tr><td>Группа матрицы</td><td><code>schoolSchedule</code> («Расписание школы») — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>. Ранее (до 2026‑09) было <code>setPrices</code></td></tr>
+      <tr><td><code>is_visible</code></td><td><b>0</b> (невидимое): у admin партнёра в матрице <b>не</b> отображается; у superadmin — видно.
+        Анонс группы — <a href="/doc#school-schedule-permission-group-index">/doc</a></td></tr>
       <tr><td>Gate</td><td><code>AuthServiceProvider</code> → <code>setPrices.packageAssignments.view</code></td></tr>
-      <tr><td>Seeder</td><td><code>PermissionSeeder</code> (<code>sort_order: 22</code>)</td></tr>
+      <tr><td>Seeder</td><td><code>PermissionSeeder</code> (<code>sort_order: 50</code> в группе <code>schoolSchedule</code>)</td></tr>
       <tr><td>Миграция</td><td><code>2026_08_03_221000_add_set_prices_package_assignments_view_permission.php</code> — только создаёт право, <b>никому не выдаёт</b></td></tr>
       <tr><td>Базовые роли</td><td>В <code>config/role_base_permissions.php</code> для <code>user</code> / <code>admin</code> / <code>trainer</code> <b>не</b> входит (строка закомментирована). Существующих партнёров миграция не трогает.</td></tr>
     </tbody>
@@ -89,6 +90,9 @@
     <tbody>
       <tr><td><code>lessonPackages.view</code></td><td>Родительский middleware раздела абонементов / календаря (базовый у <code>admin</code>)</td></tr>
       <tr><td><code>setPrices.packageAssignments.view</code></td><td>Вкладка назначений в админке</td></tr>
+      <tr><td><code>lessonPackages.type.fixed</code> / <code>.flexible</code> / <code>.no_schedule</code> / <code>.postpay</code></td><td>Select пакета и фильтр типа на вкладке ULP; store без права на тип → <b>422</b> на <code>lesson_package_id</code>. Postpay в ULP нельзя назначить даже с правом (домен).
+        <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>,
+        <a href="/doc#lesson-packages-type-permissions-index">анонс</a></td></tr>
       <tr><td><code>setPrices.cabinetPackages.*</code></td><td>Типы абонементов на консоли — <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a></td></tr>
       <tr><td><code>lessonPackages.manualPaid.manage</code></td><td>Ручная отметка оплаты назначения</td></tr>
       <tr><td><code>setPrices.customPayments.view</code></td><td>Аналог для доп. платежей (тоже не в базовых ролях с 2026‑08) — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a></td></tr>

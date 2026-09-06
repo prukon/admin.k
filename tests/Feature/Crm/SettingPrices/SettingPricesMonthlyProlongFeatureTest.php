@@ -43,6 +43,7 @@ final class SettingPricesMonthlyProlongFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
         $this->teamSync = app(TeamUserSyncService::class);
 
         $this->team = Team::factory()->create([

@@ -32,7 +32,7 @@ use App\Services\SchoolScheduleViewSettingsService;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageAssignmentDeletionService;
 use App\Services\UserLessonPackageCalendarPeriodService;
-use App\Support\LessonPackagePostpayPermission;
+use App\Support\LessonPackageTypePermission;
 use App\Support\Money;
 use App\Services\Pricing\UserPercentDiscount;
 use App\Support\PartnerLegalEntityMode;
@@ -129,9 +129,8 @@ final class LessonPackageController extends AdminBaseController
 
         $scheduleType = trim((string) ($validated['schedule_type'] ?? ''));
         if ($scheduleType !== '' && in_array($scheduleType, LessonPackage::SCHEDULE_TYPES, true)) {
-            // Фильтр postpay в UI только при lessonPackages.type.postpay; crafted query без права — пустой результат.
-            if ($scheduleType === LessonPackage::SCHEDULE_TYPE_POSTPAY
-                && ! LessonPackagePostpayPermission::userCanSelect(Auth::user())) {
+            // Фильтр типа в UI только при lessonPackages.type.*; crafted query без права — пустой результат.
+            if (! LessonPackageTypePermission::userCanSelectType(Auth::user(), $scheduleType)) {
                 $baseQuery->whereRaw('1 = 0');
             } else {
                 $baseQuery->where('schedule_type', $scheduleType);
@@ -593,9 +592,7 @@ final class LessonPackageController extends AdminBaseController
             ->where('partner_id', $partnerId)
             ->where('is_active', 1)
             ->orderBy('name');
-        if (! LessonPackagePostpayPermission::userCanSelect(Auth::user())) {
-            $packagesListQuery->where('schedule_type', '!=', LessonPackage::SCHEDULE_TYPE_POSTPAY);
-        }
+        LessonPackageTypePermission::restrictQueryToAllowedTypes($packagesListQuery, Auth::user());
         $packagesList = $packagesListQuery->get([
             'id', 'name', 'schedule_type', 'duration_days', 'lessons_count', 'price_cents',
         ]);
@@ -825,7 +822,7 @@ final class LessonPackageController extends AdminBaseController
         $sched = (string) ($a->lessonPackage->schedule_type ?? '');
         $typeLabel = match ($sched) {
             'fixed' => 'Фиксированный',
-            'flexible' => 'Гибкий',
+            'flexible' => 'Предоплата',
             'no_schedule' => 'Разовое занятие',
             'postpay' => 'Постоплата',
             default => 'Абонемент',
@@ -1471,7 +1468,7 @@ final class LessonPackageController extends AdminBaseController
         $sched = (string) ($ulp->lessonPackage->schedule_type ?? '');
         $schedLabel = match ($sched) {
             'fixed' => 'Фиксированный',
-            'flexible' => 'Гибкий',
+            'flexible' => 'Предоплата',
             'no_schedule' => 'Разовое занятие',
             'postpay' => 'Постоплата',
             default => 'Абонемент',
@@ -2018,7 +2015,7 @@ final class LessonPackageController extends AdminBaseController
     {
         return match ($scheduleType) {
             LessonPackage::SCHEDULE_TYPE_FIXED => 'Фиксированный',
-            LessonPackage::SCHEDULE_TYPE_FLEXIBLE => 'Гибкий',
+            LessonPackage::SCHEDULE_TYPE_FLEXIBLE => 'Предоплата',
             LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE => 'Разовое занятие',
             LessonPackage::SCHEDULE_TYPE_POSTPAY => 'Постоплата',
             default => $scheduleType,
@@ -2251,7 +2248,11 @@ final class LessonPackageController extends AdminBaseController
 
         $scheduleType = trim((string) $request->query('filter_schedule_type', ''));
         if ($scheduleType !== '' && in_array($scheduleType, self::ASSIGNMENT_SCHEDULE_TYPES, true)) {
-            $query->where('lesson_packages.schedule_type', $scheduleType);
+            if (! LessonPackageTypePermission::userCanSelectType(Auth::user(), $scheduleType)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where('lesson_packages.schedule_type', $scheduleType);
+            }
         }
 
         $paymentStatus = trim((string) $request->query('filter_payment_status', ''));

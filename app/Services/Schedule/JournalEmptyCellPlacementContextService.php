@@ -204,7 +204,7 @@ final class JournalEmptyCellPlacementContextService
             $total = max(0, (int) ($row['lessons_total'] ?? 0));
             $name = trim((string) ($row['name'] ?? ''));
             if ($name === '') {
-                $name = 'Гибкий абонемент';
+                $name = 'Абонемент предоплаты';
             }
             $ulpId = (int) ($row['id'] ?? 0);
             $teamId = (int) ($row['team_id'] ?? 0);
@@ -216,7 +216,7 @@ final class JournalEmptyCellPlacementContextService
             $options[] = [
                 'key' => 'flexible:'.$ulpId,
                 'mode' => 'flexible',
-                'label' => 'Гибкий: «'.$name.'» — '.$remaining.'/'.$total,
+                'label' => 'Предоплата: «'.$name.'» — '.$remaining.'/'.$total,
                 'user_lesson_package_id' => $ulpId,
                 'team_id' => $teamId,
                 'slots_remaining' => $remaining,
@@ -224,7 +224,7 @@ final class JournalEmptyCellPlacementContextService
                 'allowed' => $allowed,
                 'reason' => $allowed
                     ? null
-                    : 'Достигнут лимит занятий по гибкому абонементу.',
+                    : 'Достигнут лимит занятий по абонементу предоплаты.',
             ];
         }
 

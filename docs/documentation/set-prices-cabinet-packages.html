@@ -38,6 +38,10 @@
     <b>С 2026‑08</b> отображение абонементов на консоли <b>не</b> зависит от
     <code>setPrices.packageAssignments.view</code>. Для каждого типа — своё скрытое право группы
     <code>setPrices</code>. Никому не выдаётся автоматически.
+    Право <code>.flexible.view</code> в матрице: «Консоль: абонемент предоплаты»
+    (ховер: «Консоль: карточки абонемента предоплаты»).
+    Код типа в БД — <code>flexible</code>; в админке тип подписан «Предоплата» —
+    <a href="/doc#flexible-ui-label-index">анонс</a>.
   </div>
 
   <h2 id="permissions">1) Права</h2>
@@ -52,7 +56,7 @@
       </tr>
       <tr>
         <td><code>setPrices.cabinetPackages.flexible.view</code></td>
-        <td>Консоль: гибкий абонемент</td>
+        <td>Консоль: абонемент предоплаты</td>
         <td><code>flexible</code></td>
         <td>Карточка ULP</td>
       </tr>
@@ -128,7 +132,7 @@
     <tbody>
       <tr><td><code>setPrices.packageAssignments.view</code></td><td>Только вкладка/CRUD назначений в админке — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a></td></tr>
       <tr><td><code>setPrices.cabinetSeasons.view</code></td><td>Обычные месяцы сезонов (не postpay)</td></tr>
-      <tr><td><code>lessonPackages.type.postpay</code></td><td>Создание/выбор типа «Постоплата» в CRM — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a></td></tr>
+      <tr><td><code>lessonPackages.type.fixed</code> / <code>.flexible</code> / <code>.no_schedule</code> / <code>.postpay</code></td><td>Создание/выбор типа шаблона в CRM — <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>; postpay — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a></td></tr>
       <tr><td><code>paying.classes</code></td><td>Кнопка «Оплатить» на консоли</td></tr>
     </tbody>
   </table>
@@ -151,7 +155,7 @@
       нет <code>@can packageAssignments</code>; <code>@canany</code> сезоны+postpay на HTML и <code>dashboardSeasonsEnabled</code>;
       <code>filterLessonPackagesByTeam</code> до выхода по сезонам; <code>node --check</code></li>
     <li><code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_cabinet_packages_type_permissions_to_base_roles</code></li>
-    <li><code>PermissionGroupsReorganizationFeatureTest</code> — группа <code>setPrices</code> (10 прав)</li>
+    <li><code>PermissionGroupsReorganizationFeatureTest</code> — группа <code>setPrices</code> (9 прав)</li>
   </ul>
   <pre><code>php artisan test --env=testing --filter 'DashboardCabinetPackages|DashboardPackageAssignmentsAccessFeatureTest|SetPricesCabinetPackagesPermissionCatalog|test_dashboard_cabinet_packages_type_permissions_js'</code></pre>
 

@@ -29,7 +29,6 @@ class PermissionSeeder extends Seeder
             ['name' => 'myGroup.view',                   'description' => 'Страница "Моя группа"',                         'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 35],
             ['name' => 'setPrices.view',                 'description' => 'Страница "Установка цен"',                      'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 40],
             ['name' => 'schedule.view',                  'description' => 'Страница "Журнал расписания"',                  'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 50],
-            ['name' => 'scheduleSlots.view',             'description' => 'Страница "Расписание школы"',                   'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 52],
             ['name' => 'schoolLeads.view',               'description' => 'Страница "Лиды"',                               'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 54],
             ['name' => 'users.view',                     'description' => 'Страница "Пользователи"',                       'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 60],
             ['name' => 'directories.view',               'description' => 'Страница "Справочники"',                        'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 65],
@@ -59,8 +58,14 @@ class PermissionSeeder extends Seeder
             ['name' => 'schedule.trainerSalary.scheme.sales', 'description' => 'ЗП тренеров: схема «% от продаж» (оклад + процент от оплат учеников)', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 28],
             ['name' => 'schedule.trainerSalary.scheme.kansas', 'description' => 'ЗП тренеров: схема «Канзас» (оклад за тренировку + премия от среднего)', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 29],
             ['name' => 'schedule.trainerSalary.scheme.classic', 'description' => 'ЗП тренеров: схема «Классическая» (оклад + ставка за тренировку)', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 30],
-            ['name' => 'scheduleSlots.manage',           'description' => 'Расписание школы: управление слотами',          'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 32],
-            ['name' => 'scheduleSlots.table',            'description' => 'Расписание школы: вкладка «Таблица занятий»',   'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 33],
+
+            // group_slug schoolSchedule
+            ['name' => 'scheduleSlots.view',             'description' => 'Страница "Расписание школы"',                   'group_slug' => 'schoolSchedule', 'is_visible' => 0, 'sort_order' => 10],
+            ['name' => 'scheduleSlots.manage',           'description' => 'Расписание школы: управление слотами',          'group_slug' => 'schoolSchedule', 'is_visible' => 0, 'sort_order' => 20],
+            ['name' => 'scheduleSlots.table',            'description' => 'Расписание школы: вкладка «Таблица занятий»',   'group_slug' => 'schoolSchedule', 'is_visible' => 0, 'sort_order' => 30],
+            ['name' => 'lessonPackages.export',          'description' => 'Абонементы: выгрузка занятий и назначений в Excel', 'group_slug' => 'schoolSchedule', 'is_visible' => 0, 'sort_order' => 40],
+            ['name' => 'setPrices.packageAssignments.view', 'description' => 'Назначение абонементов', 'group_slug' => 'schoolSchedule', 'is_visible' => 0, 'sort_order' => 50],
+            ['name' => 'lessonPackages.manualPaid.manage', 'description' => 'Абонементы: ручная отметка оплаты назначения', 'group_slug' => 'schoolSchedule', 'is_visible' => 0, 'sort_order' => 60],
 
             // group_slug directories
             ['name' => 'districts.view',                 'description' => 'Справочники: районы (просмотр и редактирование)', 'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 36],
@@ -71,21 +76,22 @@ class PermissionSeeder extends Seeder
             ['name' => 'legal_entities.view',          'description' => 'Справочники: юр. лица (просмотр)',              'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 41],
             ['name' => 'legal_entities.manage',        'description' => 'Справочники: юр. лица (создание/редактирование)', 'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 42],
             ['name' => 'legal_entities.sm_register',   'description' => 'Справочники: юр. лица (карточка T‑Bank / sm-register)', 'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 43],
+
             // group_slug lessonPackages
             ['name' => 'lessonPackages.view',            'description' => 'Страница "Абонементы"',                         'group_slug' => 'lessonPackages', 'is_visible' => 1, 'sort_order' => 35],
-            ['name' => 'lessonPackages.manualPaid.manage', 'description' => 'Абонементы: ручная отметка оплаты назначения', 'group_slug' => 'lessonPackages', 'is_visible' => 0, 'sort_order' => 36],
-            ['name' => 'lessonPackages.export',          'description' => 'Абонементы: выгрузка занятий и назначений в Excel', 'group_slug' => 'lessonPackages', 'is_visible' => 1, 'sort_order' => 37],
-            ['name' => 'lessonPackages.type.postpay',    'description' => 'Абонементы, тип «Постоплата»',                  'group_slug' => 'lessonPackages', 'is_visible' => 0, 'sort_order' => 38],
+            ['name' => 'lessonPackages.type.fixed',      'description' => 'Абонементы, тип «Фиксированный»',               'group_slug' => 'lessonPackages', 'is_visible' => 0, 'sort_order' => 36],
+            ['name' => 'lessonPackages.type.flexible',   'description' => 'Абонементы, тип «Предоплата»',                  'group_slug' => 'lessonPackages', 'is_visible' => 0, 'sort_order' => 37],
+            ['name' => 'lessonPackages.type.no_schedule','description' => 'Абонементы, тип «Разовое занятие»',             'group_slug' => 'lessonPackages', 'is_visible' => 0, 'sort_order' => 38],
+            ['name' => 'lessonPackages.type.postpay',    'description' => 'Абонементы, тип «Постоплата»',                  'group_slug' => 'lessonPackages', 'is_visible' => 0, 'sort_order' => 39],
 
             // group_slug setPrices
             ['name' => 'setPrices.cabinetSeasons.view',  'description' => 'Оплата сезонов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 19],
             ['name' => 'setPrices.customPayments.view',  'description' => 'Дополнительные платежи', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 20],
             ['name' => 'setPrices.manualPaid.manage',    'description' => 'Установка цен: ручная отметка оплаты месяца',    'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 21],
-            ['name' => 'setPrices.packageAssignments.view', 'description' => 'Назначение абонементов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 22],
             ['name' => 'payment.clubfee',                'description' => 'Оплата клубного взноса',                         'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 23],
             ['name' => 'setPrices.paymentNotifications.manage', 'description' => 'Уведомления об оплате абонементов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 24],
             ['name' => 'setPrices.cabinetPackages.fixed.view', 'description' => 'Консоль: фиксированный абонемент', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 25],
-            ['name' => 'setPrices.cabinetPackages.flexible.view', 'description' => 'Консоль: гибкий абонемент', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 26],
+            ['name' => 'setPrices.cabinetPackages.flexible.view', 'description' => 'Консоль: абонемент предоплаты', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 26],
             ['name' => 'setPrices.cabinetPackages.single.view', 'description' => 'Консоль: разовое занятие', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 27],
             ['name' => 'setPrices.cabinetPackages.postpay.view', 'description' => 'Консоль: постоплата', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 28],
 

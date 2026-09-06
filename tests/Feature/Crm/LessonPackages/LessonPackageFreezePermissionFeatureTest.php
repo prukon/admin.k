@@ -27,6 +27,7 @@ final class LessonPackageFreezePermissionFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->grantPermission('lessonPackages.view');
+        $this->grantLessonPackageTypePermissions();
     }
 
     private function grantPermission(string $permissionName): void
@@ -72,6 +73,7 @@ final class LessonPackageFreezePermissionFeatureTest extends CrmTestCase
     {
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -95,6 +97,7 @@ final class LessonPackageFreezePermissionFeatureTest extends CrmTestCase
     {
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -133,6 +136,7 @@ final class LessonPackageFreezePermissionFeatureTest extends CrmTestCase
 
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -174,6 +178,7 @@ final class LessonPackageFreezePermissionFeatureTest extends CrmTestCase
 
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -220,6 +225,7 @@ final class LessonPackageFreezePermissionFeatureTest extends CrmTestCase
     {
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,

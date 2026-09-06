@@ -138,7 +138,7 @@ final class PaymentNotificationTemplateRenderer
     {
         return match ($scheduleType) {
             LessonPackage::SCHEDULE_TYPE_FIXED => 'Фиксированный',
-            LessonPackage::SCHEDULE_TYPE_FLEXIBLE => 'Гибкий',
+            LessonPackage::SCHEDULE_TYPE_FLEXIBLE => 'Предоплата',
             LessonPackage::SCHEDULE_TYPE_POSTPAY => 'Постоплата',
             LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE => 'Без расписания',
             default => $scheduleType !== '' ? $scheduleType : '—',

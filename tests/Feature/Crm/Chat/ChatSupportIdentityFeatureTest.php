@@ -105,7 +105,21 @@ final class ChatSupportIdentityFeatureTest extends ChatTestCase
             ->assertJsonPath('team_title', '')
             ->assertJsonPath('partner_name', '');
 
-        $this->getJson(route('chat.api.users.show', $extra))->assertForbidden();
+        $this->assertChatPeerCardForbidden(
+            $this->getJson(route('chat.api.users.show', $extra))
+        );
+    }
+
+    public function test_extra_superadmin_card_stays_403_even_for_support_with_shared_thread(): void
+    {
+        $canonical = $this->makeSupport('СаТредКанон_', 'К');
+        $extra = $this->makeSupport('СаТредЛишний_', 'Л');
+        $this->actingInPartner($canonical);
+        $this->createThreadForUsers([(int) $canonical->id, (int) $extra->id], 'SaExtraPrivate');
+
+        $this->assertChatPeerCardForbidden(
+            $this->getJson(route('chat.api.users.show', $extra))
+        );
     }
 
     public function test_group_members_show_one_support_alias_and_hide_extra(): void

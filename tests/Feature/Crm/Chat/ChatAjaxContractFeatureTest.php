@@ -627,4 +627,11 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
             ->assertJsonPath('is_online', false)
             ->assertJsonPath('last_seen_label', '18.08.2026 11:57');
     }
+
+    public function test_peer_card_forbidden_returns_errors_user_in_russian(): void
+    {
+        $this->assertChatPeerCardForbidden(
+            $this->getJson(route('chat.api.users.show', $this->foreignUser))
+        );
+    }
 }

@@ -318,7 +318,7 @@ final class LessonPackagesSchoolScheduleExportBuilder
     {
         return match ((string) $scheduleType) {
             'fixed' => 'Фиксированный',
-            'flexible' => 'Гибкий',
+            'flexible' => 'Предоплата',
             'no_schedule' => 'Разовое',
             'postpay' => 'Постоплата',
             default => $scheduleType !== null && $scheduleType !== '' ? (string) $scheduleType : '',

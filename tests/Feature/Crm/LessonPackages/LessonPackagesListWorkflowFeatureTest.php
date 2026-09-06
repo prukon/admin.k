@@ -25,6 +25,7 @@ final class LessonPackagesListWorkflowFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->grantPermission('lessonPackages.view');
+        $this->grantLessonPackageTypePermissions();
     }
 
     private function grantPermission(string $permissionName): void
@@ -122,7 +123,7 @@ final class LessonPackagesListWorkflowFeatureTest extends CrmTestCase
         $updatedRow = collect($afterUpdate['data'] ?? [])->firstWhere('id', $createdId);
         $this->assertIsArray($updatedRow, 'Обновлённый абонемент должен быть виден в DataTables без F5.');
         $this->assertSame($updatedName, $updatedRow['name']);
-        $this->assertSame('Гибкий', $updatedRow['schedule_type_label']);
+        $this->assertSame('Предоплата', $updatedRow['schedule_type_label']);
         $this->assertSame(4, (int) $updatedRow['lessons_count']);
 
         $this->deleteJson(route('admin.lesson-packages.destroy', ['lessonPackage' => $createdId]), [], [

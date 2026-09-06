@@ -30,11 +30,10 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
             'setPrices.cabinetSeasons.view' => 'Оплата сезонов',
             'setPrices.customPayments.view' => 'Дополнительные платежи',
             'setPrices.manualPaid.manage' => 'Установка цен: ручная отметка оплаты месяца',
-            'setPrices.packageAssignments.view' => 'Назначение абонементов',
             'payment.clubfee' => 'Оплата клубного взноса',
             'setPrices.paymentNotifications.manage' => 'Уведомления об оплате абонементов',
             'setPrices.cabinetPackages.fixed.view' => 'Консоль: фиксированный абонемент',
-            'setPrices.cabinetPackages.flexible.view' => 'Консоль: гибкий абонемент',
+            'setPrices.cabinetPackages.flexible.view' => 'Консоль: абонемент предоплаты',
             'setPrices.cabinetPackages.single.view' => 'Консоль: разовое занятие',
             'setPrices.cabinetPackages.postpay.view' => 'Консоль: постоплата',
         ];
@@ -54,7 +53,7 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
         }
     }
 
-    public function test_payment_clubfee_sort_order_follows_package_assignments(): void
+    public function test_payment_clubfee_sort_order_follows_manual_paid(): void
     {
         $rows = DB::table('permissions')
             ->join('permission_groups', 'permissions.permission_group_id', '=', 'permission_groups.id')
@@ -68,7 +67,6 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
             'setPrices.cabinetSeasons.view',
             'setPrices.customPayments.view',
             'setPrices.manualPaid.manage',
-            'setPrices.packageAssignments.view',
             'payment.clubfee',
             'setPrices.paymentNotifications.manage',
             'setPrices.cabinetPackages.fixed.view',

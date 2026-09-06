@@ -189,6 +189,7 @@ final class LessonPackageAssignmentsHistoryPageFullAccessFeatureTest extends Crm
     {
         $this->grantPermission($this->user, 'lessonPackages.view');
         $this->grantPermission($this->user, 'setPrices.packageAssignments.view');
+        $this->grantLessonPackageTypePermissions($this->user);
 
         $page = $this->get(route('admin.lesson-packages.assignments'));
         $page->assertOk();
@@ -212,6 +213,7 @@ final class LessonPackageAssignmentsHistoryPageFullAccessFeatureTest extends Crm
         $this->grantPermission($actor, 'lessonPackages.view');
         $this->grantPermission($actor, 'setPrices.packageAssignments.view');
         $this->grantPermission($actor, 'lessonPackages.manualPaid.manage');
+        $this->grantLessonPackageTypePermissions($actor);
 
         foreach ($this->historySectionEndpoints() as $item) {
             $response = $this->json($item['method'], $item['url'], $item['data'] ?? []);
@@ -238,6 +240,7 @@ final class LessonPackageAssignmentsHistoryPageFullAccessFeatureTest extends Crm
     {
         $this->grantPermission($this->user, 'lessonPackages.view');
         $this->grantPermission($this->user, 'setPrices.packageAssignments.view');
+        $this->grantLessonPackageTypePermissions($this->user);
 
         $foreignPartner = Partner::factory()->create();
 

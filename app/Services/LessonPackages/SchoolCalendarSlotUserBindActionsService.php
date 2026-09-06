@@ -144,7 +144,7 @@ final class SchoolCalendarSlotUserBindActionsService
         if ($existingRows->isEmpty()) {
             return [
                 'allowed' => false,
-                'reason' => 'Нет гибкого абонемента со свободной записью в календаре (лимит занятий или период), подходящего для этой даты.',
+                'reason' => 'Нет абонемента предоплаты со свободной записью в календаре (лимит занятий или период), подходящего для этой даты.',
                 'existing_assignments' => [],
             ];
         }

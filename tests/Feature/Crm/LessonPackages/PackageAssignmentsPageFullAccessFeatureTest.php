@@ -86,6 +86,7 @@ final class PackageAssignmentsPageFullAccessFeatureTest extends CrmTestCase
     {
         $this->grantPermission($actor, 'lessonPackages.view');
         $this->grantPermission($actor, 'setPrices.packageAssignments.view');
+        $this->grantLessonPackageTypePermissions($actor);
     }
 
     /**

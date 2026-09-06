@@ -22,6 +22,7 @@ final class SettingPricesMonthlySelectWindowFeatureTest extends CrmTestCase
         parent::setUp();
 
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
     }
 
     public function test_monthly_select_window_starts_september_2025_for_24_months(): void

@@ -144,6 +144,9 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringNotContainsString('modal-xl', $peerModal);
         $this->assertStringNotContainsString('modal-fullscreen', $peerModal);
         $this->assertStringContainsString('class="modal-dialog"', $peerModal);
+        $this->assertStringContainsString('chat-field-error', $peerModal);
+        $this->assertStringContainsString('Контакт', $peerModal);
+        $this->assertStringContainsString('id="peerCardError"', $peerModal);
 
         $groupNameStart = strpos($html, 'id="createGroupNameModal"');
         $this->assertNotFalse($groupNameStart);
@@ -761,6 +764,11 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertNotFalse($openPeerPos);
         $openPeerChunk = substr($js, $openPeerPos, strpos($js, 'function renderContacts(') - $openPeerPos);
         $this->assertStringContainsString('if (!id)', $openPeerChunk);
+        $this->assertStringContainsString("fieldError(res.data, 'user')", $openPeerChunk);
+        $this->assertLessThan(
+            strpos($openPeerChunk, 'res.data.message'),
+            strpos($openPeerChunk, "fieldError(res.data, 'user')")
+        );
         $this->assertStringContainsString('function dashText(', $js);
         $this->assertStringContainsString('function openGroupCard(', $js);
         $this->assertStringContainsString('function headerPeerActivate(', $js);

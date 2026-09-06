@@ -71,19 +71,17 @@
 
                     <div class="mb-3">
                         <div class="form-label">Типы абонементов</div>
-                        <div class="d-flex flex-wrap gap-3">
-                            <div class="form-check">
-                                <input class="form-check-input pn-schedule-type" type="checkbox" value="fixed" id="pn-type-fixed">
-                                <label class="form-check-label" for="pn-type-fixed">Фиксированный</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input pn-schedule-type" type="checkbox" value="flexible" id="pn-type-flexible">
-                                <label class="form-check-label" for="pn-type-flexible">Гибкий</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input pn-schedule-type" type="checkbox" value="postpay" id="pn-type-postpay">
-                                <label class="form-check-label" for="pn-type-postpay">Постоплата</label>
-                            </div>
+                        <div class="d-flex flex-wrap gap-3" id="pn-schedule-types-wrap">
+                            @foreach (\App\Support\LessonPackageTypePermission::options() as $typeOption)
+                                @if (in_array($typeOption['value'], \App\Models\PaymentNotificationRule::ALLOWED_SCHEDULE_TYPES, true))
+                                    @can($typeOption['permission'])
+                                        <div class="form-check">
+                                            <input class="form-check-input pn-schedule-type" type="checkbox" value="{{ $typeOption['value'] }}" id="pn-type-{{ $typeOption['value'] }}">
+                                            <label class="form-check-label" for="pn-type-{{ $typeOption['value'] }}">{{ $typeOption['label'] }}</label>
+                                        </div>
+                                    @endcan
+                                @endif
+                            @endforeach
                         </div>
                         <div class="invalid-feedback d-block pn-field-error" data-field="schedule_types" style="display:none;"></div>
                     </div>
@@ -201,7 +199,7 @@
         testSend: root.dataset.testSendUrl
     };
 
-    var scheduleLabels = { fixed: 'Фиксированный', flexible: 'Гибкий', postpay: 'Постоплата' };
+    var scheduleLabels = { fixed: 'Фиксированный', flexible: 'Предоплата', postpay: 'Постоплата' };
     var triggerLabels = {
         day_of_month: 'День месяца',
         days_after_overdue: 'Дней после начала просрочки'
@@ -255,12 +253,41 @@
         });
     }
 
+    var scheduleTypeLabels = {
+        fixed: 'Фиксированный',
+        flexible: 'Предоплата',
+        postpay: 'Постоплата'
+    };
+
+    function ensureScheduleTypeCheckbox(type) {
+        if (!type) return;
+        var existing = document.getElementById('pn-type-' + type);
+        if (existing) return;
+        var wrap = document.getElementById('pn-schedule-types-wrap');
+        if (!wrap) return;
+        var box = document.createElement('div');
+        box.className = 'form-check';
+        var input = document.createElement('input');
+        input.className = 'form-check-input pn-schedule-type';
+        input.type = 'checkbox';
+        input.value = type;
+        input.id = 'pn-type-' + type;
+        var label = document.createElement('label');
+        label.className = 'form-check-label';
+        label.setAttribute('for', 'pn-type-' + type);
+        label.textContent = scheduleTypeLabels[type] || type;
+        box.appendChild(input);
+        box.appendChild(label);
+        wrap.appendChild(box);
+    }
+
     function selectedScheduleTypes() {
         return Array.prototype.slice.call(document.querySelectorAll('.pn-schedule-type:checked'))
             .map(function (el) { return el.value; });
     }
 
     function setScheduleTypes(types) {
+        (types || []).forEach(function (t) { ensureScheduleTypeCheckbox(t); });
         var set = {};
         (types || []).forEach(function (t) { set[t] = true; });
         document.querySelectorAll('.pn-schedule-type').forEach(function (el) {

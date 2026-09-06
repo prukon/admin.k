@@ -204,6 +204,30 @@ abstract class CrmTestCase extends TestCase
         return $this;
     }
 
+    /**
+     * Выдаёт скрытые lessonPackages.type.* текущему (или указанному) пользователю.
+     *
+     * @param  list<string>|null  $scheduleTypes  Коды schedule_type; null — все типы.
+     */
+    protected function grantLessonPackageTypePermissions(?User $actor = null, ?array $scheduleTypes = null): void
+    {
+        $actor ??= $this->user;
+        $map = \App\Support\LessonPackageTypePermission::PERMISSIONS;
+        $names = $scheduleTypes === null
+            ? array_values($map)
+            : array_values(array_intersect_key($map, array_flip($scheduleTypes)));
+
+        foreach ($names as $name) {
+            DB::table('permission_role')->insertOrIgnore([
+                'partner_id' => $this->partner->id,
+                'role_id' => $actor->role_id,
+                'permission_id' => $this->permissionId($name),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
     // Авторизация superadmin
     protected function asSuperadmin(): self
     {

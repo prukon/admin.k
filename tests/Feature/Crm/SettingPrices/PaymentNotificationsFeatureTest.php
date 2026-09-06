@@ -52,6 +52,7 @@ final class PaymentNotificationsFeatureTest extends CrmTestCase
 
         $this->grantPermission($this->user, 'setPrices.view');
         $this->grantPermission($this->user, 'setPrices.paymentNotifications.manage');
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'postpay']);
 
         $this->team = Team::factory()->create([
             'partner_id' => $this->partner->id,

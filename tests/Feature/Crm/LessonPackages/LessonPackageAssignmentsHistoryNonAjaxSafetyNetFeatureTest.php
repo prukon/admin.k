@@ -30,6 +30,7 @@ final class LessonPackageAssignmentsHistoryNonAjaxSafetyNetFeatureTest extends C
         ]);
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('setPrices.packageAssignments.view');
+        $this->grantLessonPackageTypePermissions();
     }
 
     private function grantPermission(string $permissionName): void

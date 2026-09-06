@@ -28,7 +28,7 @@
 <div class="wrap">
   <p><a href="/doc">← К списку разделов</a></p>
   <h1>Журнал расписания: <code>/schedule</code></h1>
-    <div class="small">Файл: <code>/docs/documentation/schedule-journal.html</code> · вкладка «Журнал»: <code>GET /schedule</code> (<code>schedule.index</code>) · см. также <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a>, <a href="/docs/documentation/school-schedule-calendar">Календарь школы</a>, <a href="/doc#journal-postpay-payment-due-index">сумма постоплаты в колонке рубля</a>, <a href="/doc#journal-monthly-payment-check">галочка оплаты месяца</a>, <a href="/doc#journal-consuming-count-column">кол-во тренировок</a>, <a href="#journal-pagination">пагинация §2.2</a>, <a href="#journal-table-preloader">прелоадер §2.3</a>, <a href="#journal-table-content-width">ширина таблицы §2.4</a> (<a href="/doc#journal-table-preloader-index">анонс /doc</a>)</div>
+    <div class="small">Файл: <code>/docs/documentation/schedule-journal.html</code> · вкладка «Журнал»: <code>GET /schedule</code> (<code>schedule.index</code>) · см. также <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a>, <a href="/docs/documentation/school-schedule-calendar">Календарь школы</a>, <a href="/doc#flexible-ui-label-index">тип flexible в UI — «Предоплата»</a>, <a href="/doc#journal-postpay-payment-due-index">сумма постоплаты в колонке рубля</a>, <a href="/doc#journal-monthly-payment-check">галочка оплаты месяца</a>, <a href="/doc#journal-consuming-count-column">кол-во тренировок</a>, <a href="#journal-pagination">пагинация §2.2</a>, <a href="#journal-table-preloader">прелоадер §2.3</a>, <a href="#journal-table-content-width">ширина таблицы §2.4</a> (<a href="/doc#journal-table-preloader-index">анонс /doc</a>)</div>
 
   <div class="ok">
     <strong>Мультитренеры при «Посетил» (2026‑08).</strong>
@@ -118,7 +118,7 @@
     <tbody>
       <tr><td>Гость</td><td><code>GET /schedule</code> → редирект на логин; JSON-эндпоинты (в т.ч. update / destroy / empty-cell) → <b>401</b></td></tr>
       <tr><td>Авторизован, нет <code>schedule.view</code></td><td>Страница журнала / нагрузка / ячейки / place-fixed / place-flexible / update / destroy → <b>403</b>; empty-cell API тоже <b>403</b></td></tr>
-      <tr><td>Есть <code>schedule.view</code>, нет <code>lessonPackages.view</code></td><td>Журнал и гибкий/fixed/postpay → OK; клик «пробное/разовое» на пустой ячейке <b>не</b> показывается; empty-cell API → <b>403</b></td></tr>
+      <tr><td>Есть <code>schedule.view</code>, нет <code>lessonPackages.view</code></td><td>Журнал и предоплата/fixed/postpay → OK; клик «пробное/разовое» на пустой ячейке <b>не</b> показывается; empty-cell API → <b>403</b></td></tr>
       <tr><td>Есть <code>schedule.view</code> и <code>lessonPackages.view</code></td><td>Страница + empty-cell (context / place-trial / place-single) → <b>200</b> (AJAX) / <b>302</b> (non-AJAX) при валидных данных</td></tr>
       <tr><td>Есть <code>schedule.view</code></td><td>Страница и API журнала / нагрузки (кроме empty-cell) → <b>200</b> при валидных данных; мутации — 200 (AJAX) / 302 (non-AJAX)</td></tr>
     </tbody>
@@ -147,8 +147,8 @@
       <tr><td>DELETE</td><td><code>/schedule/occurrence/{utss}</code></td><td><code>schedule.occurrence.destroy</code></td><td>Аннуляция занятия в журнале (events + UTSS); AJAX без reload</td></tr>
       <tr><td>GET</td><td><code>/schedule/user/{user}/abonement-context</code></td><td><code>schedule.abonement.context</code></td><td>Только fixed из установки цен + группы с placeable / <code>team_locked</code> / опц. <code>context_team_id</code> для модалки «Разложить»</td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/place-fixed-abonement</code></td><td><code>schedule.abonement.place-fixed</code></td><td>Раскладка fixed (UI — месячный из цен): дата начала + дни недели + группа → цепочка UTSS + статус «Запись»; <code>preview=1</code> без записи</td></tr>
-      <tr><td>GET</td><td><code>/schedule/user/{user}/flexible-context</code></td><td><code>schedule.abonement.flexible-context</code></td><td>Месячные гибкие ULP на дату (<code>billing_month</code> = месяц даты) + группы для модалки</td></tr>
-      <tr><td>POST</td><td><code>/schedule/user/{user}/place-flexible-abonement</code></td><td><code>schedule.abonement.place-flexible</code></td><td>Одно занятие из месячного гибкого + выбранный статус (по умолчанию «Запись») → UTSS; AJAX без reload</td></tr>
+      <tr><td>GET</td><td><code>/schedule/user/{user}/flexible-context</code></td><td><code>schedule.abonement.flexible-context</code></td><td>Месячные ULP предоплаты (<code>flexible</code>) на дату (<code>billing_month</code> = месяц даты) + группы для модалки</td></tr>
+      <tr><td>POST</td><td><code>/schedule/user/{user}/place-flexible-abonement</code></td><td><code>schedule.abonement.place-flexible</code></td><td>Одно занятие из месячного абонемента предоплаты + выбранный статус (по умолчанию «Запись») → UTSS; AJAX без reload</td></tr>
       <tr><td>GET</td><td><code>/schedule/user/{user}/empty-cell-context</code></td><td><code>schedule.empty-cell.context</code></td><td>Контекст модалки пробного/разового на <b>полностью пустой</b> ячейке (eligibility, шаблоны/свободные ULP с ценой, группы, тренеры). Права: <code>schedule.view</code> <b>и</b> <code>lessonPackages.view</code></td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/place-trial-lesson</code></td><td><code>schedule.empty-cell.place-trial</code></td><td>Пробное: UTSS <code>is_trial_lesson</code> + статус (+ тренер при «Посетил»); слот через ensure. Те же два права</td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/place-single-lesson</code></td><td><code>schedule.empty-cell.place-single</code></td><td>Разовое (<code>no_schedule</code>): create ULP из шаблона или bind свободного + статус; слот через ensure. Те же два права</td></tr>
@@ -353,7 +353,7 @@
     <li><code>comment</code> — комментарий к статусу (nullable).</li>
   </ul>
   <p>
-    В модалках «Статус занятия» и «Занятие из гибкого абонемента» при «Посетил» —
+    В модалках «Статус занятия» и «Занятие из абонемента предоплаты» при «Посетил» —
     мультиселект <code>trainer_profile_ids[]</code> (<code>KidsCrmGenericMultiselectSelect2</code>);
     пустой выбор = «Без тренера». В тултипе ячейки имена через запятую: <code>Тренер: А, Б</code>.
   </p>
@@ -468,33 +468,33 @@
     <li>Кнопка «+» / «Абонемент» в строке ученика → <code>#abonementPlaceModal</code> —
       только placeable <b>fixed из установки цен</b> (см. <a href="#place-fixed">§7</a>);
       классика без <code>billing_month</code> кнопки не даёт.</li>
-    <li><b>Гибкий (из установки цен):</b> в колонке абонементов —
-      две строки <code>{осталось}/{всего}</code> + <code>Гибкий</code>
+    <li><b>Предоплата (из установки цен):</b> в колонке абонементов —
+      две строки <code>{осталось}/{всего}</code> + <code>Предоплата</code>
       (один ULP / фильтр группы) или иконка <code>(i)</code> при нескольких;
       клик по пустой при <code>lessons_remaining &gt; 0</code> → <code>#flexiblePlaceModal</code>
       (статус по умолчанию «Запись», тренер при «Посетил»,
       комментарий; после AJAX — апдейт ячейки и подписи без reload);
       на лимите (<code>0/N</code>) при <code>lessonPackages.view</code> — chooser empty-cell
-      (§7.4); на занятой — кнопка «Добавить занятие из гибкого абонемента» (см. <a href="#place-flexible">§7.3</a>).</li>
+      (§7.4); на занятой — кнопка «Добавить занятие из абонемента предоплаты» (см. <a href="#place-flexible">§7.3</a>).</li>
     <li><b>Постоплата:</b> при назначенном на месяц шаблоне <code>postpay</code> пустые ячейки кликабельны
       (<code>data-postpay</code>); create через <code>create_postpay=1</code> без ULP; после оплаты месяца — лок.
       В колонке абонементов — ставка в две строки <code>{цена}₽</code> / <code>в день</code>
       (мелкий шрифт; <code>PostpayJournalService::postpayAbonementHintsByUser</code>;
       несколько групп — перечисление).
-      Если у ученика есть гибкий с остатком, пустая ячейка открывает гибкий (не постоплату);
-      при лимите гибкого постоплата важнее empty-cell chooser’а.
+      Если у ученика есть абонемент предоплаты с остатком, пустая ячейка открывает предоплату (не постоплату);
+      при лимите предоплаты постоплата важнее empty-cell chooser’а.
       Право <code>lessonPackages.type.postpay</code> для отметок в журнале <b>не</b> требуется
       (нужен уже назначенный месяц + <code>schedule.view</code>).
       Подробно — <a href="/docs/documentation/postpay#journal">postpay § журнал</a>,
       <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>.</li>
-    <li><b>Пробное / разовое на пустой ячейке</b> (нет занятий; нет гибкого с остатком /
-      нет постоплаты, либо гибкий на лимите; и есть <code>lessonPackages.view</code>):
+    <li><b>Пробное / разовое на пустой ячейке</b> (нет занятий; нет абонемента предоплаты с остатком /
+      нет постоплаты, либо предоплата на лимите; и есть <code>lessonPackages.view</code>):
       <code>data-empty-lesson="1"</code> →
-      <code>#emptyCellPlaceModal</code> — выбор типа (пробное / разовое / гибкий при лимите),
+      <code>#emptyCellPlaceModal</code> — выбор типа (пробное / разовое / предоплата при лимите),
       затем статус/тренер/комментарий
       (см. <a href="#place-empty-cell">§7.4</a>). Приоритет клика по пустой:
-      гибкий с остатком → постоплата → empty-cell (в т.ч. гибкий на лимите) →
-      гибкий на лимите без <code>lessonPackages.view</code>.</li>
+      абонемент предоплаты с остатком → постоплата → empty-cell (в т.ч. предоплата на лимите) →
+      предоплата на лимите без <code>lessonPackages.view</code>.</li>
     <li>Модалки «Настройки статусов» / «Личное расписание» <strong>нет</strong>.</li>
     <li>Полноэкранный режим, логи журнала, модалка «Управление группами» (<code>sync-teams</code>).
       Поиск: кнопка «Найти» и Enter в поле — серверный GET <code>q</code> по всей выборке
@@ -584,7 +584,7 @@
     (<code>window.location.href</code> в <code>resources/js/schedule.js</code>
     и hotfix <code>public/js/schedule-journal.js</code>).
     После AJAX <code>POST /schedule/update</code> (в т.ч. <code>create_postpay</code>),
-    постановки гибкого / пробного / разового
+    постановки предоплаты / пробного / разового
     и <code>DELETE /schedule/occurrence/{utss}</code> ответ содержит
     <code>result.payment_status</code> (тот же payload, что у колонки на GET);
     JS (<code>applyJournalPaymentStatus</code>) перерисовывает ячейку без reload.
@@ -660,7 +660,7 @@
     DataTables: колонка сортируемая (<code>dtColumns</code>: № / ФИО / оплата / счётчик / абонементы).
   </div>
   <p>
-    После AJAX <code>POST /schedule/update</code>, постановки гибкого / пробного / разового
+    После AJAX <code>POST /schedule/update</code>, постановки предоплаты / пробного / разового
     и <code>DELETE /schedule/occurrence/{utss}</code> ответ содержит
     <code>result.consuming_count</code> (пересчёт за месяц с учётом
     <code>journal_team_filter</code> = текущий <code>#filter-team</code>;
@@ -685,7 +685,7 @@
 
   <h2 id="visited-trainer">6) Статус занятия и тренер при «Посетил»</h2>
   <div class="note">
-    Назначение тренеров — в модалке ячейки (<code>#cellEditModal</code>), при постановке из гибкого
+    Назначение тренеров — в модалке ячейки (<code>#cellEditModal</code>), при постановке из абонемента предоплаты
     (<code>#flexiblePlaceModal</code>) и на пустой ячейке (<code>#emptyCellPlaceModal</code>):
     мультиселект <code>trainer_profile_ids[]</code>
     (<code>KidsCrmGenericMultiselectSelect2</code>); дефолт = все тренеры группы.
@@ -750,7 +750,7 @@
   <p class="small">После успешного AJAX <code>POST /schedule/update</code> UI <b>без</b> reload: закрытие
     <code>#cellEditModal</code> + точечный DOM-апдейт ячейки (<code>renderScheduleCellAfterStatusSave</code> /
     <code>renderScheduleCellFromResult</code> в <code>schedule.js</code>), по тому же принципу что и
-    постановка гибкого (<a href="#place-flexible">§7.3</a>).</p>
+    постановка предоплаты (<a href="#place-flexible">§7.3</a>).</p>
 
   <h3 id="occurrence-destroy">6.3.1) API <code>DELETE /schedule/occurrence/{utss}</code></h3>
   <p>Аннуляция занятия «как будто не было»: откат <code>consumes_lesson</code> в ULP (если был) → удаление
@@ -764,7 +764,7 @@
       remaining?, user_lesson_package_id?, slots_remaining?, lessons_total?, package_name?, package_hover?,
       consuming_count, payment_status }</code></li>
     <li>UI: <code>renderScheduleCellFromResult(..., { deleted: true })</code> +
-      <code>syncFlexibleHintAfterAnnul</code> для гибкого.</li>
+      <code>syncFlexibleHintAfterAnnul</code> для подписи предоплаты.</li>
     <li>Non-AJAX → <b>302</b> + flash <code>status</code>.</li>
   </ul>
   <p class="small">Ховеры кнопки «Удалить» (kids-tooltip): абонемент (fixed/flexible) —
@@ -789,7 +789,7 @@
     журнала <b>не</b> показывается — раскладка через календарь школы
     (<code>assign-fixed</code>), см.
     <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>.
-    Гибкий из установки цен — точечно по клику (см. <a href="#place-flexible">§7.3</a>).
+    Предоплата из установки цен — точечно по клику (см. <a href="#place-flexible">§7.3</a>).
     <b>Пробное</b> и <b>разовое</b> (<code>no_schedule</code>) на <em>полностью пустой</em> ячейке —
     см. <a href="#place-empty-cell">§7.4</a> (права <code>schedule.view</code> + <code>lessonPackages.view</code>).
     Классика flexible без <code>billing_month</code> — по-прежнему через календарь школы
@@ -904,7 +904,7 @@
     (<code>create_postpay</code> в ячейке), ULP не создаётся — <a href="/docs/documentation/postpay">postpay</a>.
   </div>
 
-  <h3 id="place-flexible">7.3) Гибкий абонемент из установки цен</h3>
+  <h3 id="place-flexible">7.3) Абонемент предоплаты из установки цен</h3>
   <div class="ok">
     Только ULP с <code>billing_month</code> = месяц экрана журнала и шаблоном <code>flexible</code>.
     Классика без <code>billing_month</code> (вкладка «Назначение абонементов») — вне scope журнала;
@@ -921,8 +921,8 @@
   <h4>7.3.2) UI</h4>
   <ul>
     <li>Колонка абонементов (<code>journal-flexible-hint</code>):
-      один гибкий (или фильтр группы сузил до одного) → две строки
-      <code>{осталось}/{всего}</code> + <code>Гибкий</code>
+      один абонемент предоплаты (или фильтр группы сузил до одного) → две строки
+      <code>{осталось}/{всего}</code> + <code>Предоплата</code>
       (<code>journal-flexible-hint--ratio</code>,
       <code>ScheduleJournalMonthService::flexibleAbonementColumnLabel</code>), tooltip
       «Остаток занятий в текущем месяце по абонементу "название" за Y руб»
@@ -943,13 +943,13 @@
       В модалке выбираются статус (по умолчанию «Запись»), при «Посетил» — мультиселект тренеров, комментарий.
       После успешного AJAX страница <b>не</b> перезагружается: обновляются ячейка и подпись
       в колонке абонементов.</li>
-    <li>Занятая ячейка / список ×N: кнопка «Добавить занятие из гибкого абонемента»
+    <li>Занятая ячейка / список ×N: кнопка «Добавить занятие из абонемента предоплаты»
       (<code>#btn-add-flexible-lesson</code>) — не подменяет модалку статуса.</li>
-    <li>Фильтр журнала по группе → автовыбор <code>team_id</code>; без фильтра и несколько групп с гибким —
-      select «Выберите группу». На юзер+группа+месяц ожидается один гибкий из установки цен.</li>
-    <li>Если у ученика есть гибкий с остатком, пустая ячейка открывает гибкий (не постоплату).
-      При лимите гибкого и <code>lessonPackages.view</code> — empty-cell chooser
-      (пробное / разовое / гибкий); без этого права — снова <code>#flexiblePlaceModal</code>.</li>
+    <li>Фильтр журнала по группе → автовыбор <code>team_id</code>; без фильтра и несколько групп с абонементом предоплаты —
+      select «Выберите группу». На юзер+группа+месяц ожидается один абонемент предоплаты из установки цен.</li>
+    <li>Если у ученика есть абонемент предоплаты с остатком, пустая ячейка открывает предоплату (не постоплату).
+      При лимите предоплаты и <code>lessonPackages.view</code> — empty-cell chooser
+      (пробное / разовое / предоплата); без этого права — снова <code>#flexiblePlaceModal</code>.</li>
   </ul>
   <h4>7.3.3) API и правила</h4>
   <ul>
@@ -987,13 +987,13 @@
   <h3 id="place-empty-cell">7.4) Пробное и разовое на полностью пустой ячейке</h3>
   <div class="ok">
     Только ячейки без занятий (<code>data-occurrence-count="0"</code>).
-    Обычно без прямого гибкого с остатком и без постоплаты; при гибком на лимите
+    Обычно без абонемента предоплаты с остатком и без постоплаты; при предоплате на лимите
     (<code>lessons_remaining = 0</code>) модалка тоже открывается (см. приоритет ниже)
-    и включает пункт гибкого в выборе.
+    и включает пункт предоплаты в выборе.
     Права: <code>schedule.view</code> <strong>и</strong> <code>lessonPackages.view</code>
     (middleware AND). Без <code>lessonPackages.view</code> атрибут <code>data-empty-lesson</code>
     не выставляется, API → <b>403</b>.
-    Слот дня — через <code>JournalTeamScheduleSlotEnsureService</code> (как у гибкого),
+    Слот дня — через <code>JournalTeamScheduleSlotEnsureService</code> (как у предоплаты),
     без обязательного <code>team_schedule_slot_id</code> из календаря школы.
     Статус (и тренер при «Посетил») задаются сразу при установке — в отличие от календаря школы,
     где статус обычно ставят отдельным шагом.
@@ -1001,21 +1001,21 @@
 
   <h4>7.4.1) Приоритет клика по пустой ячейке</h4>
   <ol>
-    <li>Гибкий с <code>lessons_remaining &gt; 0</code> → <code>#flexiblePlaceModal</code> (§7.3).</li>
+    <li>Предоплата с <code>lessons_remaining &gt; 0</code> → <code>#flexiblePlaceModal</code> (§7.3).</li>
     <li>Иначе постоплата (не залочена) → create_postpay в <code>#cellEditModal</code>
-      (важнее chooser’а при лимите гибкого).</li>
-    <li>Гибкий на лимите (<code>lessons_remaining = 0</code>) и есть
+      (важнее chooser’а при лимите предоплаты).</li>
+    <li>Предоплата на лимите (<code>lessons_remaining = 0</code>) и есть
       <code>lessonPackages.view</code> → <code>#emptyCellPlaceModal</code>
-      с выбором: пробное, разовые (если есть), гибкий
-      (гибкий <b>disabled</b> + причина лимита, серый фон);
+      с выбором: пробное, разовые (если есть), предоплата
+      (предоплата <b>disabled</b> + причина лимита, серый фон);
       доступны пробное/разовое.</li>
-    <li>Гибкий на лимите без <code>lessonPackages.view</code> → сразу
+    <li>Предоплата на лимите без <code>lessonPackages.view</code> → сразу
       <code>#flexiblePlaceModal</code> (статусы без списания).</li>
     <li>Иначе при обоих правах → <code>#emptyCellPlaceModal</code> (<code>data-empty-lesson="1"</code>).</li>
     <li>Иначе клик ничего не делает.</li>
   </ol>
   <p class="small">На ячейке: <code>data-flexible</code>, <code>data-flexible-remaining</code>
-    (сумма остатков месячных гибких в фильтре), <code>data-empty-lesson</code>.</p>
+    (сумма остатков месячных абонементов предоплаты в фильтре), <code>data-empty-lesson</code>.</p>
 
   <h4>7.4.2) UI <code>#emptyCellPlaceModal</code></h4>
   <ul>
@@ -1027,8 +1027,8 @@
       <code>#empty-cell-choice-summary</code> нет.</li>
     <li><b>Шаг выбора:</b> радио «Пробное (бесплатное)», варианты разового с ценой в подписи
       (<code>Разовое: «название» — X руб</code> через <code>Money::formatRub</code>),
-      и при наличии месячного гибкого на дату — пункты
-      <code>Гибкий: «название» — {остаток}/{всего}</code>
+      и при наличии месячного абонемента предоплаты на дату — пункты
+      <code>Предоплата: «название» — {остаток}/{всего}</code>
       (<code>flexible_options</code>; при <code>allowed=false</code> / остаток 0 —
       disabled + причина «Достигнут лимит…», как у недоступного пробного;
       при <code>allowed=true</code> выбор → закрытие empty-cell и
@@ -1383,7 +1383,7 @@
         пробное/разовое на пустой ячейке: affordance, create/bind, <code>team_id</code> на ULP (create/bind/mismatch 422),
         eligibility, AND-права, AJAX/non-AJAX (в т.ч. bind пишет группу, non-AJAX mismatch → <code>errors.team_id</code>), P2 smoke</li>
       <li><code>ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest</code> —
-        гибкий при <code>lessons_remaining = 0</code>: empty-cell chooser с disabled flexible,
+        предоплата при <code>lessons_remaining = 0</code>: empty-cell chooser с disabled flexible,
         доступ guest/403/права, AJAX/non-AJAX place, Blade/JS маркеры, P2 smoke</li>
       <li><code>ScheduleJournalMonthlyUlpPlacementFeatureTest</code> / <code>ScheduleJournalMonthlyUlpContractsFeatureTest</code> —
         месячный fixed из установки цен</li>

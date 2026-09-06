@@ -33,7 +33,7 @@ final class LessonPackagesTypePostpayPermissionCatalogFeatureTest extends CrmTes
         $this->assertSame(self::DESCRIPTION, (string) $row->description);
         $this->assertSame($groupId, (int) $row->permission_group_id);
         $this->assertSame(0, (int) $row->is_visible);
-        $this->assertSame(38, (int) $row->sort_order);
+        $this->assertSame(39, (int) $row->sort_order);
     }
 
     public function test_superadmin_rules_page_shows_permission(): void

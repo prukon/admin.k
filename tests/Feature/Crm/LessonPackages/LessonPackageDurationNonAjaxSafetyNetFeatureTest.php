@@ -54,6 +54,7 @@ final class LessonPackageDurationNonAjaxSafetyNetFeatureTest extends CrmTestCase
     {
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -178,6 +179,7 @@ final class LessonPackageDurationNonAjaxSafetyNetFeatureTest extends CrmTestCase
     public function test_store_with_schedule_slots_view_redirects_back_with_duration_field_error_when_omitted(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantLessonPackageTypePermissions();
         $this->grantPermission('scheduleSlots.view');
 
         $response = $this->from(route('admin.lesson-packages.index'))

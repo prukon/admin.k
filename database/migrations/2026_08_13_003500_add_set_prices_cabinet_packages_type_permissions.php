@@ -19,7 +19,7 @@ return new class extends Migration
         ],
         [
             'name' => 'setPrices.cabinetPackages.flexible.view',
-            'description' => 'Консоль: гибкий абонемент',
+            'description' => 'Консоль: абонемент предоплаты',
             'sort_order' => 26,
         ],
         [

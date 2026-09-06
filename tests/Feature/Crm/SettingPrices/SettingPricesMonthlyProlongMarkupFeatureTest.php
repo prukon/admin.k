@@ -21,6 +21,7 @@ final class SettingPricesMonthlyProlongMarkupFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
     }
 
     public function test_monthly_tab_has_prolong_button_and_standard_modal(): void

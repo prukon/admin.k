@@ -498,7 +498,7 @@ class ScheduleController extends AdminBaseController
                             'slots_remaining' => max(0, (int) $ulpFresh->lessons_remaining),
                             'lessons_total' => (int) $ulpFresh->lessons_total,
                             'fee_amount_cents' => (int) ($ulpFresh->fee_amount_cents ?? 0),
-                            'package_name' => $packageName !== '' ? $packageName : 'Гибкий абонемент',
+                            'package_name' => $packageName !== '' ? $packageName : 'Абонемент предоплаты',
                         ];
                     }
                 }
@@ -989,6 +989,7 @@ class ScheduleController extends AdminBaseController
                 || str_contains($msgLower, 'абонемент')
                 || str_contains($msgLower, 'лимит')
                 || str_contains($msgLower, 'гибк')
+                || str_contains($msgLower, 'предоплат')
             ) {
                 $field = 'user_lesson_package_id';
             }
@@ -1018,7 +1019,7 @@ class ScheduleController extends AdminBaseController
         $this->auditLogger->record(
             AuditEvent::ScheduleFlexibleLinked,
             AuditContext::make(sprintf(
-                'Журнал: гибкий абонемент #%d — занятие на %s; ученик: %s; статус: %s; остаток занятий: %d',
+                'Журнал: абонемент предоплаты #%d — занятие на %s; ученик: %s; статус: %s; остаток занятий: %d',
                 (int) $ulp->id,
                 $occurrenceDate->format('d.m.Y'),
                 $user->full_name,
@@ -1031,7 +1032,7 @@ class ScheduleController extends AdminBaseController
                 ->withCreatedAt(now())
         );
 
-        $message = 'Занятие из гибкого абонемента поставлено в журнал.';
+        $message = 'Занятие из абонемента предоплаты поставлено в журнал.';
 
         if ($request->ajax() || $request->expectsJson()) {
             $result = $this->withJournalConsumingCount(

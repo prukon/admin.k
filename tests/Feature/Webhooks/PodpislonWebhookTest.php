@@ -196,6 +196,26 @@ class PodpislonWebhookTest extends TestCase
             ]);
     }
 
+    public function test_empty_post_with_legacy_query_token_still_probe_ok(): void
+    {
+        $response = $this->call(
+            'POST',
+            $this->webhookUrl().'?token=legacy-homemade-token',
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/x-www-form-urlencoded'],
+            ''
+        );
+
+        $response
+            ->assertStatus(200)
+            ->assertJson([
+                'ok'    => true,
+                'probe' => true,
+            ]);
+    }
+
     public function test_empty_post_with_webhook_field_in_query_requires_signature(): void
     {
         $response = $this->call(

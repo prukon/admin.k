@@ -164,6 +164,7 @@ final class LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest extends Cr
             '2fa:passed' => true,
         ]);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
 
         $html = $this->get(route('admin.lesson-packages.school-schedule'))
             ->assertOk()

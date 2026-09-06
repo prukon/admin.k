@@ -46,7 +46,7 @@ final class PaymentNotificationRuleController extends AdminBaseController
             'variables' => PaymentNotificationTemplateRenderer::availableVariables(),
             'schedule_type_labels' => [
                 'fixed' => 'Фиксированный',
-                'flexible' => 'Гибкий',
+                'flexible' => 'Предоплата',
                 'postpay' => 'Постоплата',
             ],
             'trigger_type_labels' => [

@@ -45,6 +45,7 @@ final class MoneyCentsRoundTripFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
 
         $this->team = Team::factory()->create([
             'partner_id' => $this->partner->id,

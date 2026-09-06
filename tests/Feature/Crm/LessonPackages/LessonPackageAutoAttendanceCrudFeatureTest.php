@@ -23,6 +23,7 @@ final class LessonPackageAutoAttendanceCrudFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->grantPermission('lessonPackages.view');
+        $this->grantLessonPackageTypePermissions();
         $this->grantPermission('scheduleSlots.view');
     }
 
@@ -190,6 +191,7 @@ final class LessonPackageAutoAttendanceCrudFeatureTest extends CrmTestCase
     {
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -226,6 +228,7 @@ final class LessonPackageAutoAttendanceCrudFeatureTest extends CrmTestCase
 
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -265,6 +268,7 @@ final class LessonPackageAutoAttendanceCrudFeatureTest extends CrmTestCase
 
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -293,6 +297,7 @@ final class LessonPackageAutoAttendanceCrudFeatureTest extends CrmTestCase
     {
         $actor = $this->createUserWithoutPermission('scheduleSlots.view', $this->partner);
         $this->grantPermissionToUser($actor, 'lessonPackages.view');
+        $this->grantLessonPackageTypePermissions($actor);
         $this->actingAs($actor)->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,

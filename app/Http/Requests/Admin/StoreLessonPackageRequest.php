@@ -6,7 +6,7 @@ use App\Models\LessonPackage;
 use App\Support\LessonPackageAutoAttendancePermission;
 use App\Support\LessonPackageDurationPermission;
 use App\Support\LessonPackageFreezePermission;
-use App\Support\LessonPackagePostpayPermission;
+use App\Support\LessonPackageTypePermission;
 use App\Support\Money;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -141,7 +141,7 @@ final class StoreLessonPackageRequest extends FormRequest
             $scheduleType = (string) $this->input('schedule_type', '');
 
             $existing = $this->route('lessonPackage');
-            LessonPackagePostpayPermission::rejectUnauthorizedScheduleType(
+            LessonPackageTypePermission::rejectUnauthorizedScheduleType(
                 $v,
                 $this->user(),
                 $scheduleType,

@@ -30,6 +30,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
         parent::setUp();
 
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         $this->teamSync = app(TeamUserSyncService::class);
 

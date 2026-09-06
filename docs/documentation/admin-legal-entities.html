@@ -235,6 +235,8 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
     Ключ обязателен — иначе 422, договор не уходит в «ошибка». После первой резолюции
     <code>contracts.legal_entity_id</code> фиксируется, чтобы статус/вебхук/скачивание PDF шли в тот же кабинет.
     Глобальный <code>PODPISLON_API_KEY</code> для отправки документов не используется.
+    Вебхук кабинета — <code>POST /webhooks/podpislon</code> без <code>?token=</code>
+    (<a href="/docs/documentation/contracts#contracts-podpislon">contracts §3.1</a>).
   </p>
 
   <h3>4.3) Карточка регистрации (<code>admin/legal-entities/show.blade.php</code>)</h3>
@@ -373,7 +375,8 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
       <li><code>tests/Feature/Crm/Contracts/PodpislonCredentialsResolverTest.php</code> — резолвер ключа: 1 юр. лицо, нет ключа, пробелы = нет ключа, multi-entity, snapshot <code>contracts.legal_entity_id</code>, soft-delete, чужой partner → <code>legal_entity_missing</code></li>
       <li><code>tests/Feature/Crm/Contracts/PodpislonCredentialsHttpFeatureTest.php</code> — send/resend 422 без ключа (статус не <code>failed</code>, без SMS-cooldown, без HTTP в Подпислон и без <code>PODPISLON_API_KEY</code>), 2 юрлица без группы, <code>X-Api-Key</code> снимка, guest</li>
       <li><code>tests/Feature/Crm/Account/AccountContractFillPodpislonKeyFeatureTest.php</code> — подпись из кабинета без ключа: redirect + <code>errors.podpislon_api_key</code></li>
-      <li><code>tests/Unit/Documentation/LegalEntitiesPodpislonKeyDocumentationContractTest.php</code> — анонс <a href="/doc#legal-entities-podpislon-key-index">/doc</a> совпадает с кодом</li>
+      <li><code>tests/Unit/Documentation/LegalEntitiesPodpislonKeyDocumentationContractTest.php</code> — анонс <a href="/doc#legal-entities-podpislon-key-index">/doc</a> совпадает с кодом; вебхук без <code>?token=</code></li>
+      <li><code>tests/Feature/Webhooks/PodpislonWebhookUrlCheckFeatureTest.php</code> — проба URL без токена: гость 200, CSRF не нужен, право CRM не нужно</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesAccessFeatureTest.php</code> — guest / view / manage / sm_register</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesAjaxContractFeatureTest.php</code> — JSON-контракт, columns-settings, data</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesNonAjaxSafetyNetFeatureTest.php</code> — redirect 302 без AJAX</li>

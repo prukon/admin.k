@@ -60,14 +60,14 @@ final class ScheduleJournalFlexiblePlacementFeatureTest extends ScheduleJournalT
         $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
             ->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
-            ->assertSee(">2/2\nГибкий<", false)
+            ->assertSee(">2/2\nПредоплата<", false)
             ->assertSee(
                 'Остаток занятий в текущем месяце по абонементу &quot;'.$packageName.'&quot; за 5 000 руб',
                 false
             )
             ->assertSee('data-fee-amount-cents="500000"', false)
             ->assertSee('data-flexible="1"', false)
-            ->assertSee('Гибкий абонемент: поставить занятие', false)
+            ->assertSee('Абонемент предоплаты: поставить занятие', false)
             ->assertSee('flexiblePlaceModal', false)
             ->assertSee('btn-add-flexible-lesson', false);
     }
@@ -93,7 +93,7 @@ final class ScheduleJournalFlexiblePlacementFeatureTest extends ScheduleJournalT
         $filtered = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $teamA->id]));
         $filtered->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
-            ->assertSee(">10/10\nГибкий<", false)
+            ->assertSee(">10/10\nПредоплата<", false)
             ->assertSee(
                 'Остаток занятий в текущем месяце по абонементу &quot;'.$nameA.'&quot; за 5 000 руб',
                 false
@@ -123,7 +123,7 @@ final class ScheduleJournalFlexiblePlacementFeatureTest extends ScheduleJournalT
             ->assertSee('data-flexible-ulp-id="'.$ulp->id.'"', false)
             ->assertSee('data-slots-remaining="4"', false)
             ->assertSee('data-lessons-total="4"', false)
-            ->assertSee(">4/4\nГибкий<", false);
+            ->assertSee(">4/4\nПредоплата<", false);
     }
 
     public function test_place_flexible_on_empty_day_creates_utss_with_scheduled_status(): void

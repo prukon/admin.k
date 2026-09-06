@@ -205,7 +205,7 @@
                                     <button type="button" class="btn btn-primary w-100" id="schoolCalOpenSingle" disabled>Добавить разовое занятие</button>
                                 </span>
                                 <span class="d-inline-block school-cal-slot-action-host" title="">
-                                    <button type="button" class="btn btn-primary w-100 text-wrap" id="schoolCalOpenFlexible" disabled>Привязать гибкий абонемент</button>
+                                    <button type="button" class="btn btn-primary w-100 text-wrap" id="schoolCalOpenFlexible" disabled>Привязать абонемент предоплаты</button>
                                 </span>
                                 <span class="d-inline-block school-cal-slot-action-host" title="">
                                     <button type="button" class="btn btn-primary w-100" id="schoolCalOpenFixed" disabled>Привязать фиксированный абонемент</button>
@@ -536,7 +536,7 @@
                     api.hideBadge(wrap);
                 }
             }
-            const schoolCalFlexibleButtonDefaultLabel = 'Привязать гибкий абонемент';
+            const schoolCalFlexibleButtonDefaultLabel = 'Привязать абонемент предоплаты';
             const schoolCalFixedButtonDefaultLabel = 'Привязать фиксированный абонемент';
             const schoolCalSingleButtonDefaultLabel = 'Добавить разовое занятие';
             const SchoolCalSlotBindAnimMs = 300;
@@ -2174,7 +2174,7 @@
                 const flex = schoolCalSlotBindAction('flexible');
                 const existing = flex.existing_assignments || [];
                 if (!flex.allowed || existing.length < 1) {
-                    showAlert('danger', 'Гибкий абонемент недоступен для выбранного ученика.');
+                    showAlert('danger', 'Абонемент предоплаты недоступен для выбранного ученика.');
                     return;
                 }
                 let ulpId = existing.length === 1
@@ -2214,7 +2214,7 @@
                         if (data.message) {
                             showAlert('danger', data.message);
                         } else if (!Object.keys(err).length) {
-                            showAlert('danger', 'Не удалось привязать гибкий абонемент.');
+                            showAlert('danger', 'Не удалось привязать абонемент предоплаты.');
                         }
                         showSchoolCalSlotFlexibleFormIfNeeded();
                         return;

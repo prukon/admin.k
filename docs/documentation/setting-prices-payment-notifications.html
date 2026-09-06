@@ -66,6 +66,15 @@
   <h2 id="permissions">1) Право</h2>
   <ul>
     <li><code>setPrices.paymentNotifications.manage</code> — вкладка + CRUD правил + превью + тест-отправка.</li>
+    <li>Чекбоксы типов абонемента дополнительно закрыты
+      <code>lessonPackages.type.fixed</code> / <code>.flexible</code> / <code>.postpay</code>
+      (как option шаблона). Без права HTML-чекбокс скрыт; store/update с новым типом → <b>422</b>
+      на <code>schedule_types</code>; типы, уже стоящие на правиле, можно оставить.
+      <code>no_schedule</code> в конструкторе нет.
+      JS <code>openCreate()</code> вызывает <code>setScheduleTypes(['fixed', 'flexible'])</code>
+      и <code>ensureScheduleTypeCheckbox</code> может подставить чекбоксы, которых нет в HTML;
+      backend всё равно 422. Edit подставляет типы, уже стоящие на правиле.
+      Анонс — <a href="/doc#lesson-packages-type-permissions-index">/doc#lesson-packages-type-permissions-index</a>.</li>
     <li>Группа <code>setPrices</code>, <code>is_visible=0</code>, <b>не</b> в базовых ролях
       (<code>user</code> / <code>admin</code> / <code>trainer</code>) — opt-in через матрицу прав.</li>
     <li>Миграция каталога: <code>2026_08_12_100200_add_set_prices_payment_notifications_manage_permission.php</code>
@@ -99,7 +108,8 @@
     <tr><td><code>name</code></td><td>Название в UI</td></tr>
     <tr><td><code>is_enabled</code></td><td>Вкл/выкл (также toggle без полного update)</td></tr>
     <tr><td><code>schedule_types</code></td><td>JSON: подмножество <code>fixed</code>, <code>flexible</code>, <code>postpay</code>
-      (<code>no_schedule</code> в конструкторе <b>нет</b>)</td></tr>
+      (<code>no_schedule</code> в конструкторе <b>нет</b>). В UI <code>flexible</code> подписан «Предоплата»;
+      <code>GET …/rules</code> отдаёт <code>schedule_type_labels.flexible = Предоплата</code></td></tr>
     <tr><td><code>trigger_type</code></td><td><code>day_of_month</code> или <code>days_after_overdue</code></td></tr>
     <tr><td><code>trigger_value</code></td><td>День 1–31 или N дней просрочки 1–90</td></tr>
     <tr><td><code>billing_month_offset</code></td><td>Только для дня месяца: <code>0</code> = текущий календарный месяц (MSK),
@@ -215,9 +225,14 @@
     <li>Текст шапки:
       «Правила email-рассылки:» / «Абонемент не оплачен.» / «Отправка в 10:00 (Europe/Moscow).»</li>
     <li>Дефолты «Добавить правило» (<code>openCreate</code>): типы fixed+flexible, день месяца = 5,
-      offset = текущий, правило включено. Тело письма <b>без</b> <code>{{pay_url}}</code> —
+      offset = текущий, правило включено. Чекбокс <code>flexible</code> подписан «Предоплата»
+      (JSON <code>schedule_type_labels.flexible</code>, <code>setScheduleTypes</code> шлёт код).
+      <code>ensureScheduleTypeCheckbox</code> при этом может создать чекбокс, скрытый
+      <code>@can</code> на HTML; store без type-права → 422 на <code>schedule_types</code>.
+      Тело письма <b>без</b> <code>{{pay_url}}</code> —
       чтобы сработал автоблок «Оплатить через СБП». <code>openEdit</code> подставляет
-      сохранённый шаблон, дефолт не навязывает.</li>
+      сохранённый шаблон, дефолт не навязывает. Анонс подписи типа —
+      <a href="/doc#flexible-ui-label-index">/doc#flexible-ui-label-index</a>.</li>
     <li>При триггере overdue блок «Месяц начисления» скрывается (<code>syncTriggerUi</code>).</li>
     <li>Превью без <code>users_price_id</code> — <b>демо-данные</b>: текущий календарный месяц MSK
       + полная обёртка в <code>email_html</code> (iframe). Поле «Месяц начисления» правила на демо

@@ -231,6 +231,7 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
     {
         $actor = $this->createUserWithoutPermission('setPrices.view', $this->partner);
         $this->grantPermission($actor, 'setPrices.view');
+        $this->grantLessonPackageTypePermissions($actor, ['fixed', 'flexible', 'no_schedule']);
         $this->actingAs($actor);
 
         $page = $this->get(route('admin.settingPrices.indexMenu'));
@@ -318,6 +319,7 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
     public function test_set_team_price_non_ajax_redirects_and_does_not_change_former_row(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         $response = $this->post(route('setTeamPrice'), [
             'teamId' => $this->team->id,
@@ -347,6 +349,7 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
     public function test_set_price_all_users_non_ajax_redirects_and_skips_former_row(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         $response = $this->post(route('setPriceAllUsers'), [
             'selectedDate' => 'Февраль 2026',
@@ -387,6 +390,7 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
     public function test_set_price_all_teams_non_ajax_redirects_and_skips_former_row(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         $response = $this->post(route('setPriceAllTeams'), [
             'selectedDate' => 'Февраль 2026',

@@ -356,7 +356,7 @@ final class ScheduleJournalMonthService
 
             $result[$userId][] = [
                 'id' => (int) $ulp->id,
-                'name' => (string) ($ulp->lessonPackage?->name ?? 'Гибкий абонемент'),
+                'name' => (string) ($ulp->lessonPackage?->name ?? 'Абонемент предоплаты'),
                 'team_id' => $teamId,
                 'team_title' => (string) ($ulp->team?->title ?? ''),
                 'lessons_total' => $total,
@@ -480,11 +480,11 @@ final class ScheduleJournalMonthService
     /**
      * Видимая подпись в колонке абонементов журнала для одного гибкого (две строки):
      * 10/12
-     * Гибкий
+     * Предоплата
      */
     public static function flexibleAbonementColumnLabel(int $slotsRemaining, int $lessonsTotal): string
     {
-        return $slotsRemaining.'/'.$lessonsTotal."\nГибкий";
+        return $slotsRemaining.'/'.$lessonsTotal."\nПредоплата";
     }
 
     /**
@@ -502,7 +502,7 @@ final class ScheduleJournalMonthService
     ): string {
         $trimmed = trim($name);
         if ($trimmed === '') {
-            $trimmed = 'Гибкий абонемент';
+            $trimmed = 'Абонемент предоплаты';
         }
 
         $tail = ' по абонементу "'.$trimmed.'" за '.Money::formatRub($feeAmountCents, ' руб');
