@@ -285,8 +285,9 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
     public function test_set_team_price_creates_user_price_only_for_target_team(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
-        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->fixed()->create([
             'price_cents' => 180000,
         ]);
 

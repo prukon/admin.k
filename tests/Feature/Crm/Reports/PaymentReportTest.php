@@ -1640,6 +1640,7 @@ class PaymentReportTest extends CrmTestCase
             'platform_commission' => false,
             'net_to_partner' => false,
             'refund_status' => false,
+            'commission_total' => false,
         ];
         $this->assertSame($expected, $setting->columns);
     }
@@ -1685,6 +1686,7 @@ class PaymentReportTest extends CrmTestCase
             'platform_commission' => false,
             'net_to_partner' => false,
             'refund_status' => false,
+            'commission_total' => false,
         ];
         $this->assertSame($expected, $setting->columns);
     }
