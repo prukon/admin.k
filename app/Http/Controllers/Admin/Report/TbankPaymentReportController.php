@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
 use App\Http\Requests\Admin\Report\TbankPaymentsReportFilterRequest;
 use App\Models\Partner;
 use App\Models\TinkoffPayment;
+use App\Models\TinkoffPayout;
 use App\Models\UserTableSetting;
 use App\Services\PartnerContext;
 use Illuminate\Http\Request;
@@ -66,7 +67,15 @@ class TbankPaymentReportController extends AdminBaseController
     {
         $query = TinkoffPayment::query()
             ->with('partner')
-            ->select('tinkoff_payments.*');
+            ->select('tinkoff_payments.*')
+            ->addSelect([
+                'payout_amount_cents' => TinkoffPayout::query()
+                    ->selectRaw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount)')
+                    ->whereColumn('tinkoff_payouts.payment_id', 'tinkoff_payments.id')
+                    ->where('tinkoff_payouts.status', '<>', 'REJECTED')
+                    ->orderByDesc('tinkoff_payouts.id')
+                    ->limit(1),
+            ]);
 
         $this->applyReportFilters($query, $request);
 
@@ -93,12 +102,28 @@ class TbankPaymentReportController extends AdminBaseController
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $query->orderBy('tinkoff_payments.amount', $dir);
             })
+            ->addColumn('payout_amount', function (TinkoffPayment $payment) {
+                $cents = $payment->getAttribute('payout_amount_cents');
+                if ($cents === null || $cents === '') {
+                    return null;
+                }
+
+                return round(((int) $cents) / 100, 2);
+            })
+            ->orderColumn('payout_amount', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderByRaw(
+                    '(SELECT COALESCE(tp.net_amount, tp.amount) FROM tinkoff_payouts AS tp WHERE tp.payment_id = tinkoff_payments.id AND tp.status <> ? ORDER BY tp.id DESC LIMIT 1) '.$dir,
+                    ['REJECTED']
+                );
+            })
             ->addColumn('show_url', function (TinkoffPayment $payment) {
                 return url('/admin/tinkoff/payments/'.$payment->id);
             })
             ->editColumn('created_at', function (TinkoffPayment $payment) {
                 return self::formatReportDateTime($payment->created_at);
             })
+            ->removeColumn('payout_amount_cents')
             ->toJson();
     }
 

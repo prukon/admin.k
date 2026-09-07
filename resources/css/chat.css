@@ -128,8 +128,19 @@ html { touch-action: pan-x pan-y; }
 }
 .msg-row:hover .msg-react-btn,
 .msg-row.is-react-open .msg-react-btn { opacity: 1; pointer-events: auto; }
+.msg-delete-btn {
+    flex: 0 0 auto; align-self: flex-end; margin: 0 2px 2px;
+    width: 28px; height: 28px; padding: 0; border: 0;
+    border-radius: 50%; background: #fff; color: #6c757d;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+    display: inline-flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; cursor: pointer;
+}
+.msg-delete-btn:hover { color: #dc3545; }
+.msg-row:hover .msg-delete-btn { opacity: 1; pointer-events: auto; }
 @media (hover: none) {
     .msg-react-btn { opacity: .72; pointer-events: auto; }
+    .msg-delete-btn { opacity: .72; pointer-events: auto; }
 }
 .chat-composer-field { position: relative; flex: 1 1 auto; min-width: 0; }
 .chat-composer-field #msgInput { padding-right: 2.6rem; }
@@ -225,7 +236,8 @@ html { touch-action: pan-x pan-y; }
 .group-member-row.is-selected .group-pick-check { display: flex; }
 .group-pick-check svg { width: 10px; height: 10px; display: block; }
 .chat-field-error { min-height: 1.2rem; font-size: .85rem; }
-#msgReactionError:empty { min-height: 0; display: none; }
+#msgReactionError:empty,
+#msgDeleteError:empty { min-height: 0; display: none; }
 .chat-empty { color: #6c757d; text-align: center; padding: 2rem 1rem; }
 .chat-header-peer { min-width: 0; flex: 1 1 auto; text-align: left; }
 .chat-header-peer:not(.is-idle) { cursor: pointer; }
@@ -396,7 +408,8 @@ html { touch-action: pan-x pan-y; }
     #messagesBox { flex: 1 1 auto; min-height: 0; overflow: auto; }
     .chat-composer { flex: 0 0 auto; margin-top: auto; }
     .chat-composer #msgBodyError:empty,
-    .chat-composer #msgReactionError:empty { min-height: 0; display: none; }
+    .chat-composer #msgReactionError:empty,
+    .chat-composer #msgDeleteError:empty { min-height: 0; display: none; }
     .chat-mobile-back {
         display: none; align-items: center; justify-content: center;
         width: 2rem; height: 2rem; padding: 0; border: 0; background: transparent; color: #212529; flex: 0 0 auto;

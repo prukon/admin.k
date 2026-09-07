@@ -189,10 +189,41 @@
         btn.setAttribute('aria-label', 'Добавить реакцию');
         btn.innerHTML = '<i class="fa-regular fa-face-smile" aria-hidden="true"></i>';
         if (mine) {
-            row.insertBefore(btn, row.firstChild);
+            const del = row.querySelector('.msg-delete-btn');
+            if (del && del.nextSibling) {
+                row.insertBefore(btn, del.nextSibling);
+            } else {
+                row.insertBefore(btn, row.firstChild);
+            }
         } else {
             row.appendChild(btn);
         }
+    }
+
+    function canDeleteOwnMessage() {
+        return !!(root && root.getAttribute('data-can-delete-own-message') === '1');
+    }
+
+    function ownMessageDeleteBtnHtml(mine, isTemp) {
+        if (!mine || isTemp || !canDeleteOwnMessage()) {
+            return '';
+        }
+        return '<button type="button" class="msg-delete-btn" aria-label="Удалить сообщение"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>';
+    }
+
+    function ensureDeleteButton(row, mine) {
+        if (!mine || !row || row.getAttribute('data-temp') === '1' || !canDeleteOwnMessage()) {
+            return;
+        }
+        if (row.querySelector('.msg-delete-btn')) {
+            return;
+        }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'msg-delete-btn';
+        btn.setAttribute('aria-label', 'Удалить сообщение');
+        btn.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
+        row.insertBefore(btn, row.firstChild);
     }
 
     function fillEmojiGrid(el, list, btnClass) {
@@ -625,6 +656,7 @@
         const reactBtn = opts.tempId
             ? ''
             : '<button type="button" class="msg-react-btn" aria-label="Добавить реакцию"><i class="fa-regular fa-face-smile" aria-hidden="true"></i></button>';
+        const deleteBtn = ownMessageDeleteBtnHtml(mine, !!opts.tempId);
         const avatarSrc = m.author_avatar || (mine ? meAvatar : '/img/default-avatar.png');
         const avatarBtn = msgAvatarHtml(m.user_id, avatarSrc);
         const authorName = currentIsGroup && !mine ? msgAuthorNameHtml(m.author_name) : '';
@@ -633,7 +665,7 @@
             '<div class="msg-inner"><div class="' + bubbleClass + '">' + authorName + escapeHtml(m.body) +
             '<div class="msg-meta"><span class="time">' + escapeHtml(fmtTime(m.created_at)) + '</span>' + checks + '</div>' +
             '</div>' + reactionsHtml(m.reactions) + '</div>';
-        row.innerHTML = mine ? (reactBtn + inner + avatarBtn) : (avatarBtn + inner + reactBtn);
+        row.innerHTML = mine ? (deleteBtn + reactBtn + inner + avatarBtn) : (avatarBtn + inner + reactBtn);
 
         if (opts.prepend) {
             box.insertBefore(row, box.firstChild);
@@ -997,7 +1029,7 @@
         try {
             if (threadChannel) {
                 try {
-                    threadChannel.stopListening('.message.created').stopListening('.thread.read').stopListening('.message.reaction');
+                    threadChannel.stopListening('.message.created').stopListening('.thread.read').stopListening('.message.reaction').stopListening('.message.deleted');
                 } catch (e) {}
             }
             threadChannel = window.Echo.private('thread.' + threadId);
@@ -1017,6 +1049,7 @@
                         checks.outerHTML = ticksHtml(!!msg.is_read);
                     }
                     ensureReactButton(opt, true);
+                    ensureDeleteButton(opt, true);
                     applyReactions(msg.id, msg.reactions || []);
                 } else if (!messageExists(msg.id)) {
                     appendMessage(msg);
@@ -1041,6 +1074,9 @@
                 return;
             }
             applyReactions(e.message_id, e.reactions || []);
+        });
+        threadChannel.listen('.message.deleted', function (e) {
+            applyMessageDeleted(e);
         });
         threadChannel.listen('.thread.read', function (e) {
             if (e && Number(e.user_id) !== me) {
@@ -1311,6 +1347,18 @@
         if (reactBtn) {
             e.preventDefault();
             openReactionPickerForRow(reactBtn.closest('.msg-row'));
+            return;
+        }
+        const deleteBtn = e.target.closest('.msg-delete-btn');
+        if (deleteBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const row = deleteBtn.closest('.msg-row');
+            const mid = row ? row.getAttribute('data-mid') : '';
+            if (!mid || (row && row.getAttribute('data-temp') === '1')) {
+                return;
+            }
+            confirmDeleteOwnMessage(mid);
         }
     });
 
@@ -2215,6 +2263,89 @@
             })
             .catch(function () {
                 showThreadDeleteError('Не удалось удалить чат.');
+            });
+    }
+
+    function showMsgDeleteError(text) {
+        const el = document.getElementById('msgDeleteError');
+        if (el) {
+            el.textContent = text || '';
+        }
+    }
+
+    function removeMessageRow(messageId) {
+        const box = document.getElementById('messagesBox');
+        if (!box) {
+            return;
+        }
+        const row = box.querySelector('[data-mid="' + CSS.escape(String(messageId)) + '"]');
+        if (row) {
+            row.remove();
+        }
+        if (!box.querySelector('.msg-row')) {
+            box.innerHTML = '<div class="chat-empty">Напишите первое сообщение</div>';
+            lastMessageId = null;
+            return;
+        }
+        if (String(lastMessageId) === String(messageId)) {
+            const rows = box.querySelectorAll('.msg-row[data-mid]');
+            const last = rows.length ? rows[rows.length - 1] : null;
+            const mid = last ? last.getAttribute('data-mid') : '';
+            lastMessageId = mid ? Number(mid) : null;
+        }
+    }
+
+    function applyMessageDeleted(e) {
+        if (!e || !e.message_id) {
+            return;
+        }
+        if (currentThreadId && e.thread_id && String(e.thread_id) !== String(currentThreadId)) {
+            return;
+        }
+        removeMessageRow(e.message_id);
+    }
+
+    function confirmDeleteOwnMessage(messageId) {
+        if (!currentThreadId || !canDeleteOwnMessage() || !messageId) {
+            return;
+        }
+        if (typeof showConfirmDeleteModal !== 'function') {
+            return;
+        }
+        showMsgDeleteError('');
+        showConfirmDeleteModal(
+            'Удалить сообщение',
+            'Вы уверены, что хотите удалить это сообщение? Оно пропадёт у всех участников.',
+            function () {
+                submitDeleteOwnMessage(messageId);
+            }
+        );
+    }
+
+    function submitDeleteOwnMessage(messageId) {
+        if (!currentThreadId || !canDeleteOwnMessage() || !messageId) {
+            return;
+        }
+        const threadId = currentThreadId;
+        showMsgDeleteError('');
+        fetch(threadUrl(threadId, '/messages/' + messageId), {
+            method: 'DELETE',
+            headers: headers(true),
+            credentials: 'same-origin'
+        })
+            .then(function (r) {
+                return r.json().then(function (data) { return { ok: r.ok, data: data }; });
+            })
+            .then(function (res) {
+                if (!res.ok) {
+                    showMsgDeleteError(fieldError(res.data, 'message') || res.data.message || 'Не удалось удалить сообщение.');
+                    return;
+                }
+                removeMessageRow(res.data.message_id || messageId);
+                chatToast(res.data.message || 'Сообщение удалено.');
+            })
+            .catch(function () {
+                showMsgDeleteError('Не удалось удалить сообщение.');
             });
     }
 

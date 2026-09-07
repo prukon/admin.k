@@ -2491,6 +2491,7 @@ JS;
             'partner: true',
             'order_id: true',
             'amount: true',
+            'payout_amount: true',
             'status: true',
             'deal_id: true',
             'actions: true',

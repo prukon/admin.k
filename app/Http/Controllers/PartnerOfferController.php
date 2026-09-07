@@ -2,11 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 
 class PartnerOfferController extends Controller
 {
+    public function downloadPdf(): Response
+    {
+        $html = view('agreements.partner-offerta-pdf')->render();
+
+        $options = new Options();
+        $options->set('defaultFont', (string) config('contracts.dompdf_font', 'DejaVu Sans'));
+        $options->set('isRemoteEnabled', false);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->render();
+
+        return response($dompdf->output(), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="partnerskaya-oferta-kidscrm.pdf"',
+        ]);
+    }
+
     /**
      * Обработка принятия партнёрской оферты.
      *

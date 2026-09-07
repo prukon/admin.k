@@ -213,6 +213,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     Не-superadmin видит только платежи своего партнёра. Кнопки выплат — только при <code>manage.payment.method.tbank</code>.
     Гость — редирект на вход; без обоих прав — <b>403</b>.
     Список платежей: вкладка отчётов <code>GET /admin/reports/tbank-payments</code> (DataTables, server-side, право <code>reports.tbank.payments.view</code>).
+    В таблице колонка <b>«Выплата»</b> — сумма последней выплаты по платежу со статусом не <code>REJECTED</code> (выполнена, отложена или в процессе); иначе «—».
     На тулбаре вкладки кнопка <b>«Комиссии»</b> (<code>#tp-toolbar-commissions</code>) — только при <code>settings.commission</code>, ведёт на <code>/admin/settings/tbank-commissions</code>. Страница комиссий не переносится.
     Старый URL списка <code>/admin/tinkoff/payments</code> удалён (404, в т.ч. для гостя — не редирект на логин).
     Анонс вкладки: <a href="/doc#reports-tbank-payments-index">/doc#reports-tbank-payments-index</a>.

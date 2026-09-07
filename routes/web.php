@@ -193,6 +193,11 @@ Route::middleware(['throttle:60,1'])->group(function () {
 
 //Страница Публичная оферта
 Route::view('/public-offerta', 'landing.agreements.public-offerta')->name('public-offerta');
+//Страница Партнёрская оферта (публичная редакция, без авторизации)
+Route::view('/partner/oferta', 'landing.agreements.partner-offerta')->name('partner.oferta');
+Route::get('/partner/oferta.pdf', [\App\Http\Controllers\PartnerOfferController::class, 'downloadPdf'])
+    ->middleware(['auth', '2fa', 'can:partner.oferta.pdf'])
+    ->name('partner.oferta.pdf');
 //Страница Политика конфиденциальности
 Route::view('/policy', 'landing.agreements.policy')->name('policy');
 
@@ -1180,6 +1185,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'storeMessage'])->whereNumber('thread')->name('chat.api.threads.messages.store');
         Route::put('/chat/api/threads/{thread}/messages/{message}/reaction', [ChatApiController::class, 'upsertMessageReaction'])->whereNumber('thread')->whereNumber('message')->name('chat.api.threads.messages.reaction.update');
         Route::delete('/chat/api/threads/{thread}/messages/{message}/reaction', [ChatApiController::class, 'destroyMessageReaction'])->whereNumber('thread')->whereNumber('message')->name('chat.api.threads.messages.reaction.destroy');
+        Route::delete('/chat/api/threads/{thread}/messages/{message}', [ChatApiController::class, 'destroyMessage'])->whereNumber('thread')->whereNumber('message')->name('chat.api.threads.messages.destroy');
         Route::patch('/chat/api/threads/{thread}/read', [ChatApiController::class, 'markRead'])->whereNumber('thread')->name('chat.api.threads.read');
         Route::patch('/chat/api/threads/{thread}/draft', [ChatApiController::class, 'saveDraft'])->whereNumber('thread')->name('chat.api.threads.draft');
     });
@@ -1303,6 +1309,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     //Страница Партнёрская оферта
     Route::view('/admin/partner-offerta', 'admin.agreements.partnerOferta')->name('admin.partnerOferta');
+    Route::get('/admin/partner-offerta/pdf', [\App\Http\Controllers\PartnerOfferController::class, 'downloadPdf'])
+        ->middleware('can:partner.oferta.pdf')
+        ->name('admin.partnerOferta.pdf');
     //Страница Публичная (пользовательская) оферта
     Route::view('/admin/public-offerta', 'admin.agreements.public-offerta')->name('admin.public-offerta');
     //Страница Пользовательское соглашение

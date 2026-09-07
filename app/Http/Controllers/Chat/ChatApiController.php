@@ -10,6 +10,7 @@ use App\Http\Requests\Chat\ChatParticipantsIndexRequest;
 use App\Http\Requests\Chat\ChatUsersIndexRequest;
 use App\Http\Requests\Chat\ChatUserShowRequest;
 use App\Http\Requests\Chat\DestroyChatMessageReactionRequest;
+use App\Http\Requests\Chat\DestroyChatMessageRequest;
 use App\Http\Requests\Chat\DestroyChatThreadRequest;
 use App\Http\Requests\Chat\PresencePingRequest;
 use App\Http\Requests\Chat\ReverbStatusRequest;
@@ -143,6 +144,22 @@ class ChatApiController extends AdminBaseController
         }
 
         return redirect()->route('chat.index')->with('status', 'Реакция снята.');
+    }
+
+    public function destroyMessage(
+        DestroyChatMessageRequest $request,
+        ChatThread $thread,
+        ChatMessage $message
+    ): JsonResponse|RedirectResponse {
+        $this->assertMessageInThread($thread, $message);
+
+        $payload = $this->chat->deleteOwnMessage($thread, $message, $this->currentUser());
+
+        if ($this->wantsJsonPayload($request)) {
+            return response()->json($payload);
+        }
+
+        return redirect()->route('chat.index')->with('status', (string) ($payload['message'] ?? 'Сообщение удалено.'));
     }
 
     public function storeThread(StoreChatThreadRequest $request): JsonResponse|RedirectResponse

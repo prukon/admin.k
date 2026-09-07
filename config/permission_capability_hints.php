@@ -85,6 +85,9 @@ return [
     'messages.threads.delete' => [
         'Корзина в шапке диалога: мягкое удаление чата',
     ],
+    'messages.own.delete' => [
+        'Удаление своих сообщений в чате (корзина у пузыря)',
+    ],
     'partner.view' => [
         'Пункт бокового меню «Партнеры»',
         'Список и карточка школы /admin/partners',
@@ -276,6 +279,10 @@ return [
         'Пункт «Кошелек» в шапке',
         'Страница /partner-wallet: баланс, пополнение, история',
         'QR пополнения кошелька T‑Bank СБП (нужно ещё platformPayments.method.tbankSbp)',
+    ],
+    'partner.oferta.pdf' => [
+        'Кнопка «Скачать PDF» на партнёрской оферте',
+        'Скачивание /partner/oferta.pdf и /admin/partner-offerta/pdf',
     ],
 
     'platformPayments.method.tbankSbp' => [

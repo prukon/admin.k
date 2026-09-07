@@ -42,7 +42,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
     private function expectedPermissionCountsByGroupSlug(): array
     {
         return [
-            'mainMenu'        => 17,
+            'mainMenu'        => 18,
             'reports'         => 10,
             'schedule'        => 5,
             'schoolSchedule'  => 6,
@@ -51,7 +51,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             'setPrices'       => 9,
             'contracts'       => 3,
             'leads'           => 3,
-            'partner'         => 3,
+            'partner'         => 4,
             'account'         => 11,
             'users'           => 16,
             'settings'        => 8,
@@ -101,6 +101,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'documentations.view',
                 'messages.view',
                 'messages.threads.delete',
+                'messages.own.delete',
                 'partner.view',
             ],
             'reports' => [
@@ -172,6 +173,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'partner.switch',
                 'servicePayments.view',
                 'partnerWallet.view',
+                'partner.oferta.pdf',
             ],
             'account' => [
                 'account.user.view',

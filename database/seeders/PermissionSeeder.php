@@ -39,6 +39,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'documentations.view',            'description' => 'Страница "Документация"',                       'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 100],
             ['name' => 'messages.view',                  'description' => 'Страница "Сообщения"',                          'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 110],
             ['name' => 'messages.threads.delete',        'description' => 'Удаление чата (шапка диалога)',                 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 111],
+            ['name' => 'messages.own.delete',            'description' => 'Удаление своих сообщений в чате',               'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 112],
             ['name' => 'partner.view',                   'description' => 'Страница "Партнеры"',                           'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 120],
 
             // group_slug reports
@@ -110,6 +111,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'partner.switch',                 'description' => 'Переключение партнёра (контекст)',              'group_slug' => 'partner', 'is_visible' => 0, 'sort_order' => 56],
             ['name' => 'servicePayments.view',           'description' => 'Страница "Оплата сервиса"',                     'group_slug' => 'partner', 'is_visible' => 0, 'sort_order' => 80],
             ['name' => 'partnerWallet.view',             'description' => 'Страница "Кошелек"',                            'group_slug' => 'partner', 'is_visible' => 0, 'sort_order' => 90],
+            ['name' => 'partner.oferta.pdf',              'description' => 'Скачать партнёрскую оферту в PDF',              'group_slug' => 'partner', 'is_visible' => 0, 'sort_order' => 100],
 
             // group_slug account
             ['name' => 'account.user.view',              'description' => 'Страница "Учетная запись -> Личные данные"',    'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 65],

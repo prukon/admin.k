@@ -310,6 +310,12 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('partner.switch');
         });
 
+        // Скачать партнёрскую оферту в PDF: невидимое право, никому не выдаётся.
+        // Superadmin проходит Gate::before.
+        Gate::define('partner.oferta.pdf', function (User $user) {
+            return $user->hasPermission('partner.oferta.pdf');
+        });
+
         // Страница "Договоры"
         Gate::define('contracts.view', function (User $user) {
             return $user->hasPermission('contracts.view');
@@ -412,6 +418,13 @@ class AuthServiceProvider extends ServiceProvider
         // Superadmin проходит Gate::before.
         Gate::define('messages.threads.delete', function (User $user) {
             return $user->hasPermission('messages.threads.delete');
+        });
+
+        // Удаление своих сообщений. Скрытое, не в базовых ролях.
+        // Superadmin проходит Gate::before, но Form Request всё равно
+        // проверяет автора: чужие сообщения нельзя.
+        Gate::define('messages.own.delete', function (User $user) {
+            return $user->hasPermission('messages.own.delete');
         });
 
         // Страница "Блог" (управление статьями)

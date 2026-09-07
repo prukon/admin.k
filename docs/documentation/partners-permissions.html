@@ -183,6 +183,11 @@
         <code>mainMenu</code>); не в базовых ролях; superadmin видит через <code>Gate::before</code>;
         <a href="/docs/documentation/chat#thread-delete">chat §2.8</a>,
         анонс <a href="/doc#chat-thread-delete-index">/doc</a>;</li>
+      <li><code>messages.own.delete</code> — корзина у своего сообщения в чате (soft-delete пузыря у всех,
+        только автор, в том числе в авто-чате учебной группы); скрытое (<code>is_visible=0</code>, группа
+        <code>mainMenu</code>); не в базовых ролях; superadmin видит через <code>Gate::before</code>,
+        чужие — 403; <a href="/docs/documentation/chat#own-message-delete">chat §2.10</a>,
+        анонс <a href="/doc#chat-own-message-delete-index">/doc</a>;</li>
       <li><code>sport_types.manage</code> — создание/редактирование видов спорта (<a href="/docs/documentation/admin-sport-types">admin-sport-types</a>); просмотр <code>sport_types.view</code> в базовый набор <b>входит</b> (с 2026‑07);</li>
       <li><code>legal_entities.sm_register</code> — sm-register в T‑Bank (<a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>); <code>legal_entities.view</code> и <code>legal_entities.manage</code> в базовый набор входят;</li>
       <li><code>schoolWidget.view</code> — вкладка «Виджет для сайта» (iframe / Telegram); <code>schoolLeads.view</code> и <code>schoolLeadLanding.view</code> в базовый набор входят;</li>

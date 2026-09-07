@@ -33,6 +33,8 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('reports_tbank_payments', $chunk);
         $this->assertStringContainsString('#tbank-payments-table', $chunk);
         $this->assertStringContainsString('persistPageLength', $chunk);
+        $this->assertStringContainsString('Выплата', $chunk);
+        $this->assertStringContainsString('REJECTED', $chunk);
         $this->assertStringContainsString('status=all', $chunk);
         $this->assertStringContainsString('dtApi.reload()', $chunk);
         $this->assertStringContainsString('tp-toolbar-commissions', $chunk);
@@ -66,6 +68,8 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#reports-tbank-payments-index', $reports);
         $this->assertStringContainsString('reports.tbank.payments.view', $reports);
         $this->assertStringContainsString('ReportsTbankPaymentsDocumentationContractTest', $reports);
+        $this->assertStringContainsString('payout_amount', $reports);
+        $this->assertStringContainsString('Выплата', $reports);
 
         $this->assertStringContainsString('/doc#reports-tbank-payments-index', $tbank);
         $this->assertStringContainsString('reports.tbank.payments.view', $tbank);
@@ -117,6 +121,9 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
 
         $this->assertStringContainsString("KidsCrmDataTable.create('#tbank-payments-table'", $blade);
         $this->assertStringContainsString('persistPageLength: true', $blade);
+        $this->assertStringContainsString("key: 'payout_amount'", $blade);
+        $this->assertStringContainsString('data-column-key="payout_amount"', $blade);
+        $this->assertStringContainsString('payout_amount: true', $blade);
         $this->assertStringContainsString('@can(\'settings.commission\')', $blade);
         $this->assertStringContainsString('id="tp-toolbar-commissions"', $blade);
         $this->assertStringContainsString("route('admin.setting.tbankCommissions')", $blade);

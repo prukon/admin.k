@@ -80,6 +80,10 @@
                                 <label class="form-check-label" for="tpColAmount">Сумма</label>
                             </div>
                             <div class="form-check">
+                                <input class="form-check-input tbank-payments-column-toggle" type="checkbox" data-column-key="payout_amount" id="tpColPayoutAmount" checked>
+                                <label class="form-check-label" for="tpColPayoutAmount">Выплата</label>
+                            </div>
+                            <div class="form-check">
                                 <input class="form-check-input tbank-payments-column-toggle" type="checkbox" data-column-key="status" id="tpColStatus" checked>
                                 <label class="form-check-label" for="tpColStatus">Статус</label>
                             </div>
@@ -151,6 +155,7 @@
             <th>Партнер</th>
             <th>Order</th>
             <th>Сумма</th>
+            <th>Выплата</th>
             <th>Статус</th>
             <th>Deal</th>
             <th></th>
@@ -332,6 +337,7 @@
                         partner: true,
                         order_id: true,
                         amount: true,
+                        payout_amount: true,
                         status: true,
                         deal_id: true,
                         actions: true
@@ -369,6 +375,7 @@
                     },
                     { key: 'order_id', type: 'text', data: 'order_id', name: 'order_id' },
                     { key: 'amount', type: 'money', data: 'amount', name: 'amount', searchable: false },
+                    { key: 'payout_amount', type: 'money', data: 'payout_amount', name: 'payout_amount', searchable: false },
                     {
                         key: 'status',
                         type: 'badge',

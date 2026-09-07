@@ -97,6 +97,9 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('chat-thread-delete-index', $chunk);
         $this->assertStringContainsString('ChatThreadDeleteFeatureTest', $chunk);
         $this->assertStringContainsString('messages.threads.delete', $chunk);
+        $this->assertStringContainsString('chat-own-message-delete-index', $chunk);
+        $this->assertStringContainsString('ChatMessageDeleteFeatureTest', $chunk);
+        $this->assertStringContainsString('messages.own.delete', $chunk);
         $this->assertStringNotContainsString('красный бейдж', $chunk);
         $this->assertStringNotContainsString("wsPath: '/app'", str_replace(
             "<b>без</b> <code>wsPath: '/app'</code>",
@@ -250,9 +253,16 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('ChatThreadDeleteAjaxContractFeatureTest', $html);
         $this->assertStringContainsString('ChatThreadDeleteUxFeatureTest', $html);
         $this->assertStringContainsString('messages.threads.delete', $html);
+        $this->assertStringContainsString('messages.own.delete', $html);
         $this->assertStringContainsString('chat.api.threads.destroy', $html);
         $this->assertStringContainsString('deleteThreadBtn', $html);
         $this->assertStringContainsString('/doc#chat-thread-delete-index', $html);
+        $this->assertStringContainsString('/doc#chat-own-message-delete-index', $html);
+        $this->assertStringContainsString('ChatMessageDeleteFeatureTest', $html);
+        $this->assertStringContainsString('ChatMessageDeleteFullAccessFeatureTest', $html);
+        $this->assertStringContainsString('ChatMessageDeleteNonAjaxSafetyNetFeatureTest', $html);
+        $this->assertStringContainsString('ChatMessageDeleteAjaxContractFeatureTest', $html);
+        $this->assertStringContainsString('ChatMessageDeleteUxFeatureTest', $html);
         $this->assertStringContainsString('id="emoji"', $html);
         $this->assertStringContainsString('/doc#chat-emoji-index', $html);
         $this->assertStringContainsString('ChatReactionFeatureTest', $html);
@@ -462,9 +472,12 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#chat-partner-name-index', $index);
         $this->assertStringContainsString('/doc#chat-peer-card-cross-partner-index', $index);
         $this->assertStringContainsString('/doc#chat-thread-delete-index', $index);
+        $this->assertStringContainsString('/doc#chat-own-message-delete-index', $index);
         $this->assertStringContainsString('/doc#chat-emoji-index', $index);
         $this->assertStringContainsString('<b>удаление диалога</b>', $index);
+        $this->assertStringContainsString('<b>удаление своих сообщений</b>', $index);
         $this->assertStringContainsString('скрытое messages.threads.delete', $controller);
+        $this->assertStringContainsString('скрытое messages.own.delete', $controller);
         $this->assertStringContainsString('имя группы в списке не', $controller);
         $this->assertStringContainsString('добавить/удалить — admin/superadmin', $controller);
         $this->assertStringContainsString('0 участников soft-delete кроме team_id', $controller);
@@ -1001,7 +1014,7 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('id="chat-thread-delete-index"', $html);
         $start = strpos($html, 'id="chat-thread-delete-index"');
         $this->assertNotFalse($start);
-        $end = strpos($html, 'id="chat-mobile-inbox-split-index"');
+        $end = strpos($html, 'id="chat-own-message-delete-index"');
         $this->assertNotFalse($end);
         $this->assertGreaterThan($start, $end);
         $chunk = substr($html, $start, $end - $start);
@@ -1084,6 +1097,94 @@ final class ChatDocumentationContractTest extends TestCase
 
         $this->assertStringContainsString('messages.threads.delete', $migration);
         $this->assertStringContainsString("'is_visible'          => 0", $migration);
+    }
+
+    public function test_doc_index_announces_chat_own_message_delete(): void
+    {
+        $html = $this->docFile('index.html');
+
+        $this->assertStringContainsString('id="chat-own-message-delete-index"', $html);
+        $start = strpos($html, 'id="chat-own-message-delete-index"');
+        $this->assertNotFalse($start);
+        $end = strpos($html, 'id="chat-mobile-inbox-split-index"');
+        $this->assertNotFalse($end);
+        $this->assertGreaterThan($start, $end);
+        $chunk = substr($html, $start, $end - $start);
+
+        $this->assertStringContainsString('messages.own.delete', $chunk);
+        $this->assertStringContainsString('is_visible=0', $chunk);
+        $this->assertStringContainsString('Gate::before', $chunk);
+        $this->assertStringContainsString('.msg-delete-btn', $chunk);
+        $this->assertStringContainsString('fa-trash', $chunk);
+        $this->assertStringContainsString('#confirmDeleteModal', $chunk);
+        $this->assertStringContainsString('#msgDeleteError', $chunk);
+        $this->assertStringContainsString('errors.message', $chunk);
+        $this->assertStringContainsString('DELETE /chat/api/threads/{thread}/messages/{message}', $chunk);
+        $this->assertStringContainsString('DestroyChatMessageRequest', $chunk);
+        $this->assertStringContainsString('ChatService::deleteOwnMessage', $chunk);
+        $this->assertStringContainsString('ChatMessageDeleteFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatMessageDeleteFullAccessFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatMessageDeleteNonAjaxSafetyNetFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatMessageDeleteAjaxContractFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatMessageDeleteUxFeatureTest', $chunk);
+        $this->assertStringContainsString('message.deleted', $chunk);
+        $this->assertStringContainsString('только свои', $chunk);
+        $this->assertStringContainsString('/docs/documentation/chat#own-message-delete', $chunk);
+        $this->assertStringContainsString('Не в этом срезе', $chunk);
+        $this->assertStringNotContainsString('заглушка «Сообщение удалено» в этом срезе', $chunk);
+    }
+
+    public function test_live_code_matches_documented_own_message_delete(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $docs = $this->docFile('chat.html');
+        $index = $this->docFile('index.html');
+        $request = (string) file_get_contents($root.'/app/Http/Requests/Chat/DestroyChatMessageRequest.php');
+        $service = (string) file_get_contents($root.'/app/Services/Chat/ChatService.php');
+        $api = (string) file_get_contents($root.'/app/Http/Controllers/Chat/ChatApiController.php');
+        $routes = (string) file_get_contents($root.'/routes/web.php');
+        $blade = (string) file_get_contents($root.'/resources/views/chat/index.blade.php');
+        $js = (string) file_get_contents($root.'/resources/js/chat.js');
+        $migration = (string) file_get_contents(
+            $root.'/database/migrations/2026_09_07_222000_add_messages_own_delete_permission.php'
+        );
+
+        $this->assertStringContainsString('id="own-message-delete"', $docs);
+        $this->assertStringContainsString('/doc#chat-own-message-delete-index', $docs);
+        $this->assertStringContainsString('DestroyChatMessageRequest', $docs);
+        $this->assertStringContainsString('ChatService::deleteOwnMessage', $docs);
+        $this->assertStringContainsString('chat.api.threads.messages.destroy', $docs);
+        $this->assertStringContainsString('id="chat-own-message-delete-index"', $index);
+        $this->assertStringContainsString('/docs/documentation/chat#own-message-delete', $index);
+
+        $this->assertStringContainsString("can('messages.own.delete')", $request);
+        $this->assertStringContainsString('$message->user_id', $request);
+
+        $this->assertStringContainsString('function deleteOwnMessage(', $service);
+        $this->assertStringContainsString("'message' => 'Сообщение удалено.'", $service);
+        $this->assertStringContainsString('MessageDeleted', $service);
+
+        $this->assertStringContainsString('function destroyMessage(', $api);
+        $this->assertStringContainsString("->name('chat.api.threads.messages.destroy')", $routes);
+        $this->assertStringContainsString("Route::delete('/chat/api/threads/{thread}/messages/{message}'", $routes);
+
+        $this->assertStringContainsString('data-can-delete-own-message', $blade);
+        $this->assertStringContainsString('id="msgDeleteError"', $blade);
+
+        $this->assertStringContainsString('function canDeleteOwnMessage(', $js);
+        $this->assertStringContainsString('function confirmDeleteOwnMessage(', $js);
+        $this->assertStringContainsString('function submitDeleteOwnMessage(', $js);
+        $this->assertStringContainsString("listen('.message.deleted'", $js);
+        $this->assertStringContainsString('msg-delete-btn', $js);
+
+        $this->assertStringContainsString('messages.own.delete', $migration);
+        $this->assertStringContainsString("'is_visible'          => 0", $migration);
+        $upStart = strpos($migration, 'function up');
+        $downStart = strpos($migration, 'function down');
+        $this->assertNotFalse($upStart);
+        $this->assertNotFalse($downStart);
+        $up = substr($migration, $upStart, $downStart - $upStart);
+        $this->assertStringNotContainsString('permission_role', $up);
     }
 
     public function test_doc_index_announces_chat_private_thread_identity(): void

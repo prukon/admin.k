@@ -22,7 +22,8 @@
          data-store-group-url="{{ route('chat.api.threads.groups.store') }}"
          data-users-url="{{ route('chat.api.users') }}"
          data-unread-url="{{ route('chat.api.unread') }}"
-         data-can-delete-thread="{{ auth()->user()?->can('messages.threads.delete') ? '1' : '0' }}">
+         data-can-delete-thread="{{ auth()->user()?->can('messages.threads.delete') ? '1' : '0' }}"
+         data-can-delete-own-message="{{ auth()->user()?->can('messages.own.delete') ? '1' : '0' }}">
         <div class="row g-0 g-lg-3 chat-desktop-row">
             <div class="col-12 col-lg-4 chat-list-col">
                 <div class="card h-100">
@@ -74,6 +75,7 @@
                                 </div>
                                 <div class="text-danger chat-field-error" id="msgBodyError"></div>
                                 <div class="text-danger chat-field-error" id="msgReactionError" data-error-for="emoji"></div>
+                                <div class="text-danger chat-field-error" id="msgDeleteError" data-error-for="message"></div>
                             </form>
                         </div>
                         <div id="reactionPicker" class="chat-reaction-picker" hidden></div>

@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Reports;
 
 use App\Models\Partner;
 use App\Models\TinkoffPayment;
+use App\Models\TinkoffPayout;
 use App\Models\UserTableSetting;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -163,6 +164,7 @@ class TbankPaymentsReportTest extends CrmTestCase
         $this->assertSame('deal-tbank-report-1', $row['deal_id']);
         $this->assertSame('CONFIRMED', $row['status']);
         $this->assertEquals(1500.0, (float) $row['amount']);
+        $this->assertNull($row['payout_amount']);
         $this->assertSame('2026-09-07 11:30:00', $row['created_at']);
         $this->assertStringContainsString('/admin/tinkoff/payments/'.$payment->id, (string) $row['show_url']);
     }
@@ -197,6 +199,79 @@ class TbankPaymentsReportTest extends CrmTestCase
 
         $this->assertContains($hit->id, $ids);
         $this->assertNotContains($miss->id, $ids);
+    }
+
+    public function test_datatable_payout_amount_for_completed_initiated_and_rejected(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $noPayout = $this->makePayment([
+            'partner_id' => $this->partner->id,
+            'amount' => 10000,
+            'status' => 'CONFIRMED',
+        ]);
+        $completed = $this->makePayment([
+            'partner_id' => $this->partner->id,
+            'amount' => 20000,
+            'status' => 'CONFIRMED',
+        ]);
+        $deferred = $this->makePayment([
+            'partner_id' => $this->partner->id,
+            'amount' => 30000,
+            'status' => 'CONFIRMED',
+        ]);
+        $rejectedOnly = $this->makePayment([
+            'partner_id' => $this->partner->id,
+            'amount' => 40000,
+            'status' => 'CONFIRMED',
+        ]);
+        $retryAfterReject = $this->makePayment([
+            'partner_id' => $this->partner->id,
+            'amount' => 50000,
+            'status' => 'CONFIRMED',
+        ]);
+
+        $this->makePayout($completed, [
+            'amount' => 18500,
+            'net_amount' => 18500,
+            'status' => 'COMPLETED',
+        ]);
+        $this->makePayout($deferred, [
+            'amount' => 27000,
+            'net_amount' => 27000,
+            'status' => 'INITIATED',
+            'when_to_run' => Carbon::parse('2026-09-10 12:00:00'),
+        ]);
+        $this->makePayout($rejectedOnly, [
+            'amount' => 36000,
+            'net_amount' => 36000,
+            'status' => 'REJECTED',
+        ]);
+        $this->makePayout($retryAfterReject, [
+            'amount' => 1000,
+            'net_amount' => 1000,
+            'status' => 'REJECTED',
+        ]);
+        $this->makePayout($retryAfterReject, [
+            'amount' => 45000,
+            'net_amount' => 45000,
+            'status' => 'COMPLETED',
+        ]);
+
+        $rows = collect(
+            $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+                ->get(route('reports.tbank-payments.data', ['draw' => 1]))
+                ->assertOk()
+                ->json('data')
+        )->keyBy('id');
+
+        $this->assertNull($rows[$noPayout->id]['payout_amount']);
+        $this->assertEquals(185.0, (float) $rows[$completed->id]['payout_amount']);
+        $this->assertEquals(270.0, (float) $rows[$deferred->id]['payout_amount']);
+        $this->assertNull($rows[$rejectedOnly->id]['payout_amount']);
+        $this->assertEquals(450.0, (float) $rows[$retryAfterReject->id]['payout_amount']);
+        $this->assertArrayNotHasKey('payout_amount_cents', $rows[$completed->id]);
     }
 
     public function test_user_with_report_permission_can_open_own_card_and_not_foreign(): void
@@ -266,7 +341,7 @@ class TbankPaymentsReportTest extends CrmTestCase
         $this->assertSame(1, preg_match('/<div\b[^>]*\bid="tbankPaymentsFiltersCollapse"[^>]*>/', $html, $collapseTag));
         $this->assertStringNotContainsString('show', $collapseTag[0]);
         $this->assertStringContainsString('<option value="" selected>Все статусы</option>', $html);
-        foreach (['created_at', 'partner', 'order_id', 'amount', 'status', 'deal_id', 'actions'] as $key) {
+        foreach (['created_at', 'partner', 'order_id', 'amount', 'payout_amount', 'status', 'deal_id', 'actions'] as $key) {
             $this->assertMatchesRegularExpression(
                 '/class="form-check-input tbank-payments-column-toggle"[^>]*data-column-key="'.$key.'"[^>]*checked/',
                 $html
@@ -481,6 +556,22 @@ class TbankPaymentsReportTest extends CrmTestCase
             'amount' => 10000,
             'method' => 'card',
             'status' => 'CONFIRMED',
+        ], $overrides));
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function makePayout(TinkoffPayment $payment, array $overrides = []): TinkoffPayout
+    {
+        return TinkoffPayout::query()->create(array_merge([
+            'payment_id' => $payment->id,
+            'partner_id' => $payment->partner_id,
+            'deal_id' => (string) ($payment->deal_id ?: 'deal-'.$payment->id),
+            'amount' => 1000,
+            'is_final' => true,
+            'status' => 'COMPLETED',
+            'source' => 'auto',
         ], $overrides));
     }
 

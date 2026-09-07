@@ -42,6 +42,7 @@
     · чат учебной группы: <a href="/doc#chat-team-groups-index">/doc#chat-team-groups-index</a>
     · служба поддержки: <a href="/doc#chat-support-identity-index">/doc#chat-support-identity-index</a>
     · удаление чата: <a href="/doc#chat-thread-delete-index">/doc#chat-thread-delete-index</a>
+    · удаление своих сообщений: <a href="/doc#chat-own-message-delete-index">/doc#chat-own-message-delete-index</a>
     · смайлы и реакции: <a href="/doc#chat-emoji-index">/doc#chat-emoji-index</a>
     · идентичность 1-на-1: <a href="/doc#chat-private-thread-identity-index">/doc#chat-private-thread-identity-index</a>
     · имя группы в списке: <a href="/doc#chat-group-list-title-index">/doc#chat-group-list-title-index</a>
@@ -81,6 +82,8 @@
     (<a href="/doc#chat-inbox-sort-index">анонс порядка</a>).
     Справа в шапке открытой лички или ручной группы — корзина: soft-delete у всех
     (<a href="/doc#chat-thread-delete-index">анонс удаления</a>).
+    Свои сообщения можно удалить скрытым правом
+    (<a href="/doc#chat-own-message-delete-index">анонс удаления сообщения</a>).
     Фильтр контактов по учебной группе — селект в модалке
     (<a href="/doc#chat-contacts-team-filter-index">анонс</a>), не сам групповой чат.
     На планшете и телефоне (с 992px) — нижняя панель как в Telegram
@@ -118,6 +121,8 @@
     Корзина в шапке удаляет диалог у всех (soft-delete), это не «Покинуть группу»
     и не авто-чат <code>threads.team_id</code>
     (<a href="/doc#chat-thread-delete-index">анонс удаления</a>).
+    Корзина у своего пузыря удаляет только это сообщение у всех, не весь чат
+    (<a href="/doc#chat-own-message-delete-index">анонс удаления сообщения</a>).
     После корзины клик по контакту создаёт <b>новый</b> 1-на-1, не restore leftover
     с 0 живыми (<a href="/doc#chat-private-thread-identity-index">анонс идентичности</a>).
   </div>
@@ -146,6 +151,17 @@
           Остальным — только после выдачи скрытого права. Авто-чат учебной группы
           (<code>threads.team_id</code>) этим правом не удаляется.</td>
       </tr>
+      <tr>
+        <td><code>messages.own.delete</code></td>
+        <td><code>is_visible=0</code>, группа <code>mainMenu</code></td>
+        <td>никому, не в базовых ролях</td>
+        <td>Корзина у своего пузыря и
+          <code>DELETE /chat/api/threads/{thread}/messages/{message}</code>.
+          Superadmin видит через <code>Gate::before</code>, без записи в матрицу,
+          но удаляет только свои сообщения (проверка автора в Form Request).
+          Чужие — 403 даже у superadmin. Авто-чат учебной группы этим правом
+          сообщение удаляет (в отличие от корзины чата).</td>
+      </tr>
     </tbody>
   </table>
   <p>Без права — 403 на страницу и API <code>/chat/api/*</code> (кроме
@@ -159,7 +175,13 @@
     <code>2026_08_16_220000_enable_chat_messages_view_for_base_roles</code>.
     Скрытое <code>messages.threads.delete</code> ролям не выдаётся: миграция
     <code>2026_08_20_003000_add_messages_threads_delete_permission</code>
-    только добавляет право в каталог.</p>
+    только добавляет право в каталог.
+    Скрытое <code>messages.own.delete</code> ролям не выдаётся: миграция
+    <code>2026_09_07_222000_add_messages_own_delete_permission</code>
+    только добавляет право в каталог.
+    <code>DELETE /chat/api/threads/{thread}/messages/{message}</code> при одном
+    <code>messages.view</code> (без <code>messages.own.delete</code>) — 403, сообщение живо.
+    Чужое сообщение при выданном праве — тоже 403.</p>
 
   <h2 id="ux">2) Как это выглядит</h2>
   <ol>
@@ -263,8 +285,17 @@
       (<code>threads.team_id</code>) кнопки нет. Клик — <code>#confirmDeleteModal</code>
       («Удалить чат»). Успех AJAX: строка исчезает из списка, диалог закрывается, тост
       «Чат удалён.». Ошибка — <code>#threadDeleteError</code> / <code>errors.thread</code>.
+      У своих сообщений при <code>can(messages.own.delete)</code> — корзина
+      <code>.msg-delete-btn</code> (hover / на таче видна), не у чужих и не у черновика.
+      Клик — <code>#confirmDeleteModal</code> («Удалить сообщение»). Успех: пузырь
+      пропадает у всех, тост «Сообщение удалено.». Ошибка —
+      <code>#msgDeleteError</code> / <code>errors.message</code>.
+      Подробно — <a href="#own-message-delete">§2.10</a> /
+      <a href="/doc#chat-own-message-delete-index">анонс</a>.
       Ошибки — под полями
-      (<code>#msgBodyError</code>, <code>#msgReactionError</code> / <code>errors.emoji</code>, в модалке контактов <code>#contactsError</code>, в карточке <code>#peerCardError</code>,
+      (<code>#msgBodyError</code>, <code>#msgReactionError</code> / <code>errors.emoji</code>,
+      удаление сообщения <code>#msgDeleteError</code>,
+      в модалке контактов <code>#contactsError</code>, в карточке <code>#peerCardError</code>,
       в карточке группы <code>#groupCardError</code>, удаление чата <code>#threadDeleteError</code>).</li>
     <li>История вверх: скролл (в т.ч. свайп) внутри <code>#messagesBox</code>.
       Подгрузка <code>GET .../messages?before_id=</code> начинается заранее
@@ -993,6 +1024,45 @@
       несколько смайлов от одного человека на одно сообщение.</li>
   </ol>
 
+  <h2 id="own-message-delete">2.10) Удаление своих сообщений</h2>
+  <p>Анонс: <a href="/doc#chat-own-message-delete-index">/doc#chat-own-message-delete-index</a>.
+    Soft-delete только своего пузыря у всех участников. Не путать с корзиной чата
+    в шапке (<a href="#thread-delete">§2.8</a>: тред целиком) и с «Покинуть группу».
+    Заглушки «Сообщение удалено» нет: пузырь просто пропадает.</p>
+  <ol>
+    <li><b>Кнопка.</b> У своего сохранённого сообщения — <code>.msg-delete-btn</code>
+      (<code>fa-trash</code>), hover / на таче видна, рядом с реакцией.
+      Нет у чужих, у черновика (<code>data-temp</code>) и без
+      <code>can(messages.own.delete)</code> (<code>data-can-delete-own-message</code>).
+      Superadmin — через <code>Gate::before</code>, без записи в матрицу, но только свои.
+      Есть и в авто-чате учебной группы. Клик — общая
+      <code>#confirmDeleteModal</code> («Удалить сообщение» / «Вы уверены, что хотите
+      удалить это сообщение? Оно пропадёт у всех участников.»), не fullscreen.
+      Ошибка — <code>#msgDeleteError</code> / <code>errors.message</code>.</li>
+    <li><b>API.</b> <code>DELETE /chat/api/threads/{thread}/messages/{message}</code>
+      (<code>chat.api.threads.messages.destroy</code>, <code>DestroyChatMessageRequest</code>):
+      <code>messages.view</code> + <code>messages.own.delete</code> + живой участник +
+      автор сообщения. AJAX 200 <code>ok</code> + <code>message</code>
+      «Сообщение удалено.» + <code>thread_id</code> + <code>message_id</code>.
+      Без XHR — 302 на <code>/chat</code>, не сырой JSON 200.
+      Soft-delete (<code>ChatService::deleteOwnMessage</code>): если это было
+      <code>last_message_id</code> — подставляется предыдущее живое или
+      <code>null</code>; у тех, кто ещё не прочитал, <code>unread_count</code> − 1.
+      Гость 302/401, без права / не автор / не участник 403, нет сообщения и
+      повторный DELETE 404, чужой тред у id сообщения 404. GET/POST/PATCH/PUT — 404/405.</li>
+    <li><b>Realtime.</b> Событие <code>message.deleted</code> в канале
+      <code>thread.{id}</code> (<code>MessageDeleted</code>), payload
+      <code>thread_id</code> + <code>message_id</code>. Плюс <code>inbox.bump</code>
+      всем живым участникам (превью и бейдж). Клиент снимает пузырь
+      (<code>removeMessageRow</code>); пустая история — «Напишите первое сообщение».</li>
+    <li><b>Клиент</b> (<code>resources/js/chat.js</code>).
+      Отмена модалки fetch не шлёт. Успех: пузырь снят, тост <code>showToast</code>.
+      403/сеть — <code>#msgDeleteError</code>, пузырь остаётся.</li>
+    <li><b>Не в этом срезе.</b> Редактирование, удаление чужих сообщений (в том числе
+      superadmin), лимит по времени, hard-delete, заглушка «Сообщение удалено»,
+      кнопка у роли без выдачи скрытого права.</li>
+  </ol>
+
   <h2 id="routes">3) Маршруты</h2>
   <p>Страница и API чата: группа <code>auth</code> + <code>2fa</code> + <code>can:messages.view</code>.
     <code>GET /chat/api/reverb-status</code> — только <code>auth</code> + <code>2fa</code>, без
@@ -1019,6 +1089,7 @@
       <tr><td>DELETE</td><td><code>/chat/api/threads/{thread}/participants/{user}</code></td><td><code>chat.api.threads.participants.destroy</code></td><td>себя — любой участник (покинуть); другого — только admin; AJAX JSON <code>ok</code>+<code>message</code>, иначе 302; 0 участников — soft-delete треда, кроме <code>threads.team_id</code>; GET/PATCH → 404/405</td></tr>
       <tr><td>GET</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.index</code></td><td><code>after_id</code> / <code>before_id</code> (integer min 1; <code>0</code> → JSON 422 <code>errors.before_id</code> «Некорректный идентификатор сообщения.», нативный GET 302 с ошибкой поля); PATCH/DELETE → 405</td></tr>
       <tr><td>POST</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.store</code></td><td>поле <code>body</code>; AJAX 201 JSON (в т.ч. <code>reactions: []</code>), иначе 302 на <code>/chat</code></td></tr>
+      <tr><td>DELETE</td><td><code>/chat/api/threads/{thread}/messages/{message}</code></td><td><code>chat.api.threads.messages.destroy</code></td><td><code>messages.view</code> + <code>messages.own.delete</code> + живой участник + автор; soft-delete сообщения; AJAX JSON <code>ok</code>+<code>message</code> «Сообщение удалено.» + <code>thread_id</code>+<code>message_id</code>; иначе 302 на <code>/chat</code>; без права / не автор / не участник 403; нет сообщения 404; гость 302/401; GET/POST/PATCH/PUT → 404/405; превью inbox и unread пересчитываются</td></tr>
       <tr><td>PUT</td><td><code>/chat/api/threads/{thread}/messages/{message}/reaction</code></td><td><code>chat.api.threads.messages.reaction.update</code></td><td>поле <code>emoji</code> из белого списка; AJAX 200 <code>ok</code>+<code>reactions</code>, иначе 302; 422 <code>errors.emoji</code>; не участник 403; чужое/нет сообщения 404; GET/POST/PATCH → 404/405</td></tr>
       <tr><td>DELETE</td><td><code>/chat/api/threads/{thread}/messages/{message}/reaction</code></td><td><code>chat.api.threads.messages.reaction.destroy</code></td><td>снять свою реакцию; AJAX 200 <code>ok</code>+<code>reactions</code>, иначе 302; GET/POST/PATCH → 404/405</td></tr>
       <tr><td>PATCH</td><td><code>/chat/api/threads/{thread}/read</code></td><td><code>chat.api.threads.read</code></td><td>помечает диалог прочитанным; AJAX JSON <code>unread_total</code>, иначе 302 на <code>/chat</code></td></tr>
@@ -1394,6 +1465,19 @@
       idle / team / без права не открывают модалку), модалка, тост, ошибка под
       <code>#threadDeleteError</code>, успех скрывает корзину, <code>inbox.bump removed</code>
       закрывает открытый диалог без upsert, fetch DELETE + JSON-заголовки.</li>
+    <li><code>ChatMessageDeleteFeatureTest</code> — soft-delete своего сообщения, превью inbox
+      на предыдущее / пустое, unread − 1 только у непрочитавших, чужое / без права / не участник 403,
+      superadmin только своё, авто-чат учебной группы можно, нет id / чужой тред 404,
+      история без удалённого, <code>message.deleted</code> + <code>inbox.bump</code>.</li>
+    <li><code>ChatMessageDeleteFullAccessFeatureTest</code> — гость 302/401, без
+      <code>messages.view</code> 403, со <code>messages.view</code> без delete 403 и сообщение живо,
+      admin/trainer с выдачей права 200, PUT 405.</li>
+    <li><code>ChatMessageDeleteNonAjaxSafetyNetFeatureTest</code> — нативный DELETE 302 на
+      <code>/chat</code> и soft-delete, нативный GET не удаляет, POST/PATCH не сырой JSON 200.</li>
+    <li><code>ChatMessageDeleteAjaxContractFeatureTest</code> — JSON 200 <code>ok</code>+<code>message</code>
+      + ids, 403 без права и на чужое.</li>
+    <li><code>ChatMessageDeleteUxFeatureTest</code> — корзина только у своего сохранённого при праве,
+      модалка, отмена без fetch, тост, ошибка <code>#msgDeleteError</code>, сокет снимает пузырь.</li>
     <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST группы 302+запись, AJAX 201 JSON не редирект,
       нативный повтор 1-на-1 (в т.ч. после soft-delete собеседника) 302 без второго треда.</li>
     <li><code>ChatUiContractsFeatureTest</code> — композер disabled до выбора диалога, бейдж <code>display:none</code> при 0, пункт меню через <code>@can</code>, JS: <code>preventDefault</code>, <code>setComposerEnabled(true)</code> только в <code>openThread</code>, сброс поиска и фильтра групп контактов, <code>message.created</code> → <code>markThreadRead</code>, оверлей Reverb только у superadmin при включённом флаге, мобильная оболочка (<code>chat-immersive</code>, <code>#chatMobileNav</code>, локальный FA, кнопка «Создать группу»), оба пути <code>renderContacts</code> / <code>renderGroupMembers</code> с <code>.contact-parent</code>.</li>
@@ -1436,6 +1520,7 @@
       <code>/doc#chat-presence-index</code>, <code>/doc#chat-group-members-index</code>,
       <code>/doc#chat-private-thread-identity-index</code>,
       <code>/doc#chat-thread-delete-index</code> / <code>id="thread-delete"</code>,
+      <code>/doc#chat-own-message-delete-index</code> / <code>id="own-message-delete"</code>,
       <code>/doc#chat-mobile-inbox-split-index</code>
       и эта страница не противоречат UX
       (бейдж info, без вспышки, без HTTP-опроса, Echo без <code>wsPath</code>,

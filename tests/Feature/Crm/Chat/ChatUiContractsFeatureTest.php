@@ -41,6 +41,8 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('id="reactionPicker"', $html);
         $this->assertStringContainsString('id="msgReactionError"', $html);
         $this->assertStringContainsString('data-error-for="emoji"', $html);
+        $this->assertStringContainsString('id="msgDeleteError"', $html);
+        $this->assertStringContainsString('data-error-for="message"', $html);
         $this->assertStringContainsString('chat-composer-field', $html);
         $this->assertMatchesRegularExpression(
             '/id="emojiBtn"[^>]*\bdisabled/',
@@ -106,6 +108,8 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringNotContainsString('id="deleteThreadBtn"', $html);
         $this->assertStringNotContainsString('data-can-delete-thread="1"', $html);
         $this->assertStringContainsString('data-can-delete-thread="0"', $html);
+        $this->assertStringNotContainsString('data-can-delete-own-message="1"', $html);
+        $this->assertStringContainsString('data-can-delete-own-message="0"', $html);
         $this->assertStringContainsString('id="addGroupMembersForm"', $html);
         $this->assertStringContainsString('id="addGroupMembersTeamFilter"', $html);
         $this->assertStringContainsString('id="addGroupMembersSearch"', $html);
@@ -340,6 +344,7 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $saHtml = $this->get(route('chat.index'))->assertOk()->getContent();
         $this->assertStringContainsString('id="deleteThreadBtn"', $saHtml);
         $this->assertStringContainsString('data-can-delete-thread="1"', $saHtml);
+        $this->assertStringContainsString('data-can-delete-own-message="1"', $saHtml);
         $this->assertStringContainsString('fa-trash', $saHtml);
         $this->assertStringContainsString('id="threadDeleteError"', $saHtml);
         $this->assertStringContainsString('data-error-for="thread"', $saHtml);
@@ -368,6 +373,7 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $css = (string) file_get_contents(resource_path('css/chat.css'));
         $this->assertStringContainsString('.chat-header-delete-wrap', $css);
         $this->assertStringContainsString('.chat-header-delete {', $css);
+        $this->assertStringContainsString('.msg-delete-btn {', $css);
     }
 
     public function test_granted_user_sees_trash_admin_and_trainer_without_grant_do_not(): void
@@ -378,17 +384,23 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('data-can-delete-thread="1"', $granted);
         $this->assertStringContainsString('id="threadDeleteError"', $granted);
 
+        $this->grantPermission($this->user, 'messages.own.delete');
+        $grantedOwn = $this->get(route('chat.index'))->assertOk()->getContent();
+        $this->assertStringContainsString('data-can-delete-own-message="1"', $grantedOwn);
+
         $admin = $this->createUserWithRole('admin');
         $this->actingInPartner($admin);
         $adminHtml = $this->get(route('chat.index'))->assertOk()->getContent();
         $this->assertStringNotContainsString('id="deleteThreadBtn"', $adminHtml);
         $this->assertStringContainsString('data-can-delete-thread="0"', $adminHtml);
+        $this->assertStringContainsString('data-can-delete-own-message="0"', $adminHtml);
 
         $trainer = $this->createUserWithRole('trainer');
         $this->actingInPartner($trainer);
         $trainerHtml = $this->get(route('chat.index'))->assertOk()->getContent();
         $this->assertStringNotContainsString('id="deleteThreadBtn"', $trainerHtml);
         $this->assertStringContainsString('data-can-delete-thread="0"', $trainerHtml);
+        $this->assertStringContainsString('data-can-delete-own-message="0"', $trainerHtml);
     }
 
     public function test_contacts_modal_lists_own_partner_teams_and_not_foreign(): void

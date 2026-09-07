@@ -6,6 +6,7 @@ namespace App\Services\Chat;
 
 use App\Events\InboxBump;
 use App\Events\MessageCreated;
+use App\Events\MessageDeleted;
 use App\Events\MessageReactionUpdated;
 use App\Events\ThreadReadUpdated;
 use App\Models\ChatMessage;
@@ -527,6 +528,70 @@ class ChatService
             'ok' => true,
             'message' => 'Чат удалён.',
             'thread_id' => $threadId,
+        ];
+    }
+
+    /**
+     * Soft-delete своего сообщения. Превью inbox и unread пересчитываются.
+     *
+     * @return array<string, mixed>
+     */
+    public function deleteOwnMessage(ChatThread $thread, ChatMessage $message, User $actor): array
+    {
+        $threadId = (int) $thread->id;
+        $messageId = (int) $message->id;
+        $authorId = (int) $message->user_id;
+        $createdAt = $message->created_at;
+
+        DB::transaction(function () use ($thread, $message, $threadId, $messageId, $authorId, $createdAt): void {
+            $wasLast = (int) $thread->last_message_id === $messageId;
+            $message->delete();
+
+            if ($wasLast) {
+                $previousId = ChatMessage::query()
+                    ->where('thread_id', $threadId)
+                    ->orderByDesc('id')
+                    ->value('id');
+                $thread->forceFill(['last_message_id' => $previousId])->save();
+            }
+
+            ChatParticipant::query()
+                ->where('thread_id', $threadId)
+                ->where('user_id', '<>', $authorId)
+                ->where('unread_count', '>', 0)
+                ->where(function ($q) use ($createdAt): void {
+                    $q->whereNull('last_read');
+                    if ($createdAt) {
+                        $q->orWhere('last_read', '<', $createdAt);
+                    }
+                })
+                ->decrement('unread_count');
+        });
+
+        $thread->unsetRelation('lastMessage');
+        $thread->unsetRelation('participants');
+        $thread->refresh();
+        $thread->load(['participants.user:'.self::PEER_USER_COLUMNS, 'lastMessage']);
+
+        $this->safeBroadcast(new MessageDeleted($threadId, $messageId));
+
+        foreach ($thread->participants as $participant) {
+            $uid = (int) $participant->user_id;
+            $payload = $this->serializeThread(
+                $thread,
+                $uid,
+                $this->unreadCountForThread($threadId, $uid)
+            );
+            $payload['thread_id'] = $threadId;
+            $payload['unread_total'] = $this->unreadTotal($uid);
+            $this->safeBroadcast(new InboxBump($uid, $payload));
+        }
+
+        return [
+            'ok' => true,
+            'message' => 'Сообщение удалено.',
+            'thread_id' => $threadId,
+            'message_id' => $messageId,
         ];
     }
 
