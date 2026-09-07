@@ -63,30 +63,56 @@
                         <hr>
 
                         <h6 class="mb-2">Калькуляция</h6>
-                        <div class="row text-nowrap">
-                            <div class="col">Поступило</div>
-                            <div class="col text-end">{{ roubles($breakdown['gross']) }} ₽</div>
-                        </div>
-                        <div class="row text-nowrap">
-                            <div class="col">Комиссия оплаты</div>
-                            <div class="col text-end">− {{ roubles($breakdown['bankAccept']) }} ₽</div>
-                        </div>
-                        <div class="row text-nowrap">
-                            <div class="col">Комиссия выплаты</div>
-                            <div class="col text-end">
-                                @if(!empty($hasCompletedPayout))
-                                    − {{ roubles($breakdown['bankPayout']) }} ₽
-                                @endif
-                            </div>
-                        </div>
-                        <div class="row text-nowrap">
-                            <div class="col">Моя комиссия</div>
-                            <div class="col text-end">− {{ roubles($breakdown['platformFee']) }} ₽</div>
-                        </div>
-                        <div class="row fw-bold text-nowrap">
-                            <div class="col">К перечислению партнёру</div>
-                            <div class="col text-end">{{ roubles($breakdown['net']) }} ₽</div>
-                        </div>
+                        @php
+                            $fmtBreakdownPercent = static function ($value): string {
+                                if ($value === null) {
+                                    return '—';
+                                }
+
+                                return number_format((float) $value, 2, ',', ' ') . '%';
+                            };
+                        @endphp
+                        <table class="table table-sm mb-0">
+                            <thead>
+                            <tr>
+                                <th>Описание</th>
+                                <th class="text-end" style="width: 5.5rem;">%</th>
+                                <th class="text-end" style="width: 8.5rem;">Сумма</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>Поступило</td>
+                                <td class="text-end">—</td>
+                                <td class="text-end text-nowrap">{{ roubles($breakdown['gross']) }} ₽</td>
+                            </tr>
+                            <tr>
+                                <td>Комиссия оплаты</td>
+                                <td class="text-end text-nowrap">{{ $fmtBreakdownPercent($breakdown['acquiringPercent'] ?? null) }}</td>
+                                <td class="text-end text-nowrap">− {{ roubles($breakdown['bankAccept']) }} ₽</td>
+                            </tr>
+                            <tr>
+                                <td>Комиссия выплаты</td>
+                                <td class="text-end text-nowrap">{{ $fmtBreakdownPercent($breakdown['payoutPercent'] ?? null) }}</td>
+                                <td class="text-end text-nowrap">− {{ roubles($breakdown['bankPayout']) }} ₽</td>
+                            </tr>
+                            <tr>
+                                <td>Моя комиссия</td>
+                                <td class="text-end text-nowrap">{{ $fmtBreakdownPercent($breakdown['platformPercent'] ?? null) }}</td>
+                                <td class="text-end text-nowrap">− {{ roubles($breakdown['platformFee']) }} ₽</td>
+                            </tr>
+                            <tr>
+                                <td>Итого комиссия</td>
+                                <td class="text-end text-nowrap">{{ $fmtBreakdownPercent($breakdown['totalPercent'] ?? null) }}</td>
+                                <td class="text-end text-nowrap">− {{ roubles($breakdown['totalFee'] ?? 0) }} ₽</td>
+                            </tr>
+                            <tr class="fw-bold">
+                                <td>К перечислению партнёру</td>
+                                <td class="text-end">—</td>
+                                <td class="text-end text-nowrap">{{ roubles($breakdown['net']) }} ₽</td>
+                            </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 

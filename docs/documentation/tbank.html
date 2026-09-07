@@ -216,9 +216,24 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     Timeline — <b>обзорный UI</b> для оператора, не заменяет блок «История статусов» (webhook-логи из <code>tinkoff_payment_status_logs</code> и логи выплат). Для диагностики банковских переходов по-прежнему смотрите историю и карточку выплаты.
   </div>
 
-  <h3>5.7.3 Прочие блоки карточки (без изменений)</h3>
+  <h3 id="payment-show-breakdown">5.7.3 Калькуляция на карточке платежа</h3>
+  <div class="note">
+    Блок «Калькуляция» — таблица из трёх колонок: <b>Описание</b>, <b>%</b>, <b>Сумма</b>.
+    Ставки и суммы считаются <b>сейчас</b> по подобранному правилу
+    (<code>TinkoffCommissionRule::pickForPartner</code>), не по снимку на момент оплаты.
+  </div>
   <ul>
-    <li>Калькуляция комиссий — <code>TinkoffPayoutsService::breakdownForPayment</code>.</li>
+    <li>Источник: <code>TinkoffPayoutsService::breakdownForPayment</code> — в ответе также
+      <code>acquiringPercent</code> / <code>payoutPercent</code> / <code>platformPercent</code> /
+      <code>totalPercent</code> (сумма трёх ставок) и <code>totalFee</code> (сумма трёх комиссий, копейки).</li>
+    <li>Строки: Поступило (без %); Комиссия оплаты; Комиссия выплаты; Моя комиссия;
+      <b>Итого комиссия</b> (сумма трёх ставок и трёх сумм); К перечислению партнёру (без %).</li>
+    <li>Все три комиссии в сумме видны сразу (ожидаемый расчёт по текущему правилу), в том числе до фактической выплаты.
+      «К перечислению партнёру» = поступило − итого комиссия — это сумма, которая уйдёт в банк по «Выплатить сейчас».</li>
+  </ul>
+
+  <h3>5.7.4 Прочие блоки карточки</h3>
+  <ul>
     <li>Окно возврата — при автовыплате с <code>auto_payout_delay_hours &gt; 0</code> в правиле комиссии.</li>
     <li>Действия: «Выплатить сейчас», «Отложить», «Закрыть сделку» — см. п. <a href="#auto-payout">5</a> и <a href="/docs/documentation/tbank-refunds-payout-cancel">возвраты</a>.</li>
   </ul>
@@ -381,7 +396,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
         <li><b>Защита от дублей</b>: вторая выплата по одному платежу не создаётся, если уже есть выплата не в <code>REJECTED</code>; при <code>REJECTED</code> разрешён retry. UI карточки платежа: кнопки «Выплатить сейчас»/«Отложить» только при отсутствии активной выплаты.</li>
       </ul>
     </li>
-    <li><code>tests/Feature/Crm/Payments/TBank/TbankPaymentShowEnhancementsFeatureTest.php</code> — карточка платежа: доступ <code>manage.payment.method.tbank</code> (403/200), строка «Организация» из снимка <code>legal_entity_id</code> (withTrashed), timeline (4 шага, состояния done/pending/active/failed).</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankPaymentShowEnhancementsFeatureTest.php</code> — карточка платежа: доступ <code>manage.payment.method.tbank</code> (403/200), строка «Организация» из снимка <code>legal_entity_id</code> (withTrashed), timeline (4 шага, состояния done/pending/active/failed), калькуляция: колонки Описание / % / Сумма и строка «Итого комиссия».</li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankPaymentShowPayoutActionsTest.php</code> — кнопки выплаты на карточке + отображение «Организация».</li>
     <li><code>tests/Unit/Services/Tinkoff/TinkoffPaymentTimelineBuilderTest.php</code> — unit-тесты builder'а timeline.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsLegalEntityColumnFeatureTest.php</code> — колонка «Организация» в списке выплат (см. <a href="/docs/documentation/tbank-admin-payouts#payouts-table-columns">tbank-admin-payouts §4.1</a>).</li>

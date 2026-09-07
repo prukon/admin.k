@@ -30,32 +30,42 @@ class TinkoffPayoutsService
         $gross = (int) $payment->amount; // копейки
         $rule = TinkoffCommissionRule::pickForPartner((int) $payment->partner_id, $payment->method);
 
+        $acquiringPercent = (float) ($rule->acquiring_percent ?? 2.49);
+        $payoutPercent = (float) ($rule->payout_percent ?? 0.10);
+        $platformPercent = (float) ($rule->platform_percent ?? $rule->percent ?? 2.00);
+
         $bankAcceptFee = $this->calcFeeCents(
             $gross,
-            (float) ($rule->acquiring_percent ?? 2.49),
+            $acquiringPercent,
             (float) ($rule->acquiring_min_fixed ?? 3.49)
         );
 
         $bankPayoutFee = $this->calcFeeCents(
             $gross,
-            (float) ($rule->payout_percent ?? 0.10),
+            $payoutPercent,
             (float) ($rule->payout_min_fixed ?? 0.00)
         );
 
         $platformFee = $this->calcFeeCents(
             $gross,
-            (float) ($rule->platform_percent ?? $rule->percent ?? 2.00),
+            $platformPercent,
             (float) ($rule->platform_min_fixed ?? $rule->min_fixed ?? 0.00)
         );
 
-        $net = max(0, $gross - $bankAcceptFee - $bankPayoutFee - $platformFee);
+        $totalFee = $bankAcceptFee + $bankPayoutFee + $platformFee;
+        $net = max(0, $gross - $totalFee);
 
         return [
             'gross' => $gross,
             'bankAccept' => $bankAcceptFee,
             'bankPayout' => $bankPayoutFee,
             'platformFee' => $platformFee,
+            'totalFee' => $totalFee,
             'net' => $net,
+            'acquiringPercent' => $acquiringPercent,
+            'payoutPercent' => $payoutPercent,
+            'platformPercent' => $platformPercent,
+            'totalPercent' => round($acquiringPercent + $payoutPercent + $platformPercent, 2),
             'rule' => $rule,
         ];
     }

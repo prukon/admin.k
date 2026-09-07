@@ -25,6 +25,14 @@ class TbankCommissionRulePriorityTest extends CrmTestCase
 
         // платформа 2% от 100.00 = 2.00 => 200 коп.
         $this->assertSame(200, (int) ($b['platformFee'] ?? 0));
+        $this->assertEqualsWithDelta(2.00, (float) ($b['platformPercent'] ?? 0), 0.001);
+        $this->assertEqualsWithDelta(2.49, (float) ($b['acquiringPercent'] ?? 0), 0.001);
+        $this->assertEqualsWithDelta(0.10, (float) ($b['payoutPercent'] ?? 0), 0.001);
+        $this->assertEqualsWithDelta(4.59, (float) ($b['totalPercent'] ?? 0), 0.001);
+        $this->assertSame(
+            (int) $b['bankAccept'] + (int) $b['bankPayout'] + (int) $b['platformFee'],
+            (int) ($b['totalFee'] ?? 0)
+        );
     }
 
     public function test_rule_priority_partner_and_method_over_global(): void

@@ -143,11 +143,9 @@ class TinkoffAdminPaymentController extends Controller
         $showPayoutActions = !empty($payment->deal_id)
             && ($payouts->isEmpty() || (string) $payouts->last()->status === 'REJECTED');
 
-        $hasCompletedPayout = $payouts->contains(fn (TinkoffPayout $p) => (string) $p->status === 'COMPLETED');
-
         $paymentTimeline = $timelineBuilder->build($payment, $payouts);
         $fiscalReceipts = $fiscalReceiptResolver->resolve($payment);
 
-        return view('tinkoff.payments.show', compact('payment', 'breakdown', 'refundUntil', 'historyEvents', 'payouts', 'showPayoutActions', 'hasCompletedPayout', 'paymentTimeline', 'fiscalReceipts'));
+        return view('tinkoff.payments.show', compact('payment', 'breakdown', 'refundUntil', 'historyEvents', 'payouts', 'showPayoutActions', 'paymentTimeline', 'fiscalReceipts'));
     }
 }

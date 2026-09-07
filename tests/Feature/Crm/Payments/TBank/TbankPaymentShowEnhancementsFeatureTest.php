@@ -9,6 +9,7 @@ use App\Models\PartnerLegalEntity;
 use App\Models\Payable;
 use App\Models\Payment;
 use App\Models\Refund;
+use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use Illuminate\Support\Carbon;
@@ -311,6 +312,46 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
             substr_count($html, 'tbank-payment-timeline__step tbank-payment-timeline__step--done'),
             'Минимум 4 выполненных шага timeline (оплата и выплата)'
         );
+    }
+
+    public function test_show_breakdown_has_percent_column_and_total_commission_row(): void
+    {
+        $this->asSuperadmin();
+
+        TinkoffCommissionRule::query()->create([
+            'partner_id' => $this->partner->id,
+            'method' => 'card',
+            'acquiring_percent' => 2.49,
+            'acquiring_min_fixed' => 0,
+            'payout_percent' => 0.10,
+            'payout_min_fixed' => 0,
+            'platform_percent' => 7.50,
+            'platform_min_fixed' => 0,
+            'is_enabled' => 1,
+        ]);
+
+        $html = $this->get('/admin/tinkoff/payments/' . $this->payment->id)
+            ->assertOk()
+            ->assertSee('Калькуляция', false)
+            ->assertSee('>Описание<', false)
+            ->assertSee('>%</th>', false)
+            ->assertSee('>Сумма<', false)
+            ->assertSee('Итого комиссия', false)
+            ->assertSee('2,49%', false)
+            ->assertSee('0,10%', false)
+            ->assertSee('7,50%', false)
+            ->assertSee('10,09%', false)
+            ->getContent();
+
+        $this->assertIsString($html);
+        $posDescription = strpos($html, '>Описание<');
+        $posPercent = strpos($html, '>%</th>');
+        $posAmount = strpos($html, '>Сумма<');
+        $this->assertNotFalse($posDescription);
+        $this->assertNotFalse($posPercent);
+        $this->assertNotFalse($posAmount);
+        $this->assertLessThan($posPercent, $posDescription);
+        $this->assertLessThan($posAmount, $posPercent);
     }
 
     public function test_show_timeline_marks_failed_payment_step_when_canceled(): void
