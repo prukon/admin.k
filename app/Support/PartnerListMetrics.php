@@ -208,6 +208,41 @@ final class PartnerListMetrics
         ];
     }
 
+    /**
+     * Итоги по отфильтрованной выборке (после {@see applyJoins}, без пагинации).
+     *
+     * @param  Builder<Partner>  $query
+     * @return array<string, int|float>
+     */
+    public static function totalsPayloadFromJoinedQuery(Builder $query): array
+    {
+        $row = $query->clone()
+            ->toBase()
+            ->reorder()
+            ->select([
+                DB::raw('COALESCE(SUM(COALESCE(partner_active_users.active_users_count, 0)), 0) as active_users_count'),
+                DB::raw('COALESCE(SUM(COALESCE(partner_signed_contracts.signed_contracts_count, 0)), 0) as signed_contracts_count'),
+                DB::raw('COALESCE(SUM(COALESCE(partner_turnover.turnover_all_cents, 0)), 0) as turnover_all_cents'),
+                DB::raw('COALESCE(SUM(COALESCE(partner_platform_commission.platform_commission_all_cents, 0)), 0) as platform_commission_all_cents'),
+                DB::raw('COALESCE(SUM(COALESCE(partner_turnover.turnover_month_0_cents, 0)), 0) as turnover_month_0_cents'),
+                DB::raw('COALESCE(SUM(COALESCE(partner_platform_commission.platform_commission_month_0_cents, 0)), 0) as platform_commission_month_0_cents'),
+                DB::raw('COALESCE(SUM(COALESCE(partner_turnover.turnover_month_1_cents, 0)), 0) as turnover_month_1_cents'),
+                DB::raw('COALESCE(SUM(COALESCE(partner_platform_commission.platform_commission_month_1_cents, 0)), 0) as platform_commission_month_1_cents'),
+                DB::raw('COALESCE(SUM(COALESCE(partner_turnover.turnover_month_2_cents, 0)), 0) as turnover_month_2_cents'),
+                DB::raw('COALESCE(SUM(COALESCE(partner_platform_commission.platform_commission_month_2_cents, 0)), 0) as platform_commission_month_2_cents'),
+            ])
+            ->first();
+
+        $partner = new Partner();
+        if ($row !== null) {
+            foreach ((array) $row as $key => $value) {
+                $partner->setAttribute($key, $value);
+            }
+        }
+
+        return self::payload($partner);
+    }
+
     public static function centsToRubles(int $cents): float
     {
         return round($cents / 100, 2);

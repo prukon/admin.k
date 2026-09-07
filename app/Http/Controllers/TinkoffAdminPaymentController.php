@@ -5,48 +5,35 @@ namespace App\Http\Controllers;
 use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
+use App\Services\PartnerContext;
 use App\Services\Tinkoff\TinkoffPaymentFiscalReceiptResolver;
 use App\Services\Tinkoff\TinkoffPaymentTimelineBuilder;
 use App\Services\Tinkoff\TinkoffPayoutsService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 
 class TinkoffAdminPaymentController extends Controller
 {
-
-    public function index(\Illuminate\Http\Request $r)
+    public function show($id, TinkoffPayoutsService $svc, TinkoffPaymentTimelineBuilder $timelineBuilder, TinkoffPaymentFiscalReceiptResolver $fiscalReceiptResolver, PartnerContext $partnerContext)
     {
-        $q = \App\Models\TinkoffPayment::query()->with('partner');
-
-        if ($r->filled('status')) {
-            $q->where('status', $r->string('status'));
-        }
-        if ($r->filled('partner_id')) {
-            $q->where('partner_id', (int)$r->partner_id);
-        }
-        if ($r->filled('from')) {
-            $q->where('created_at', '>=', $r->date('from'));
-        }
-        if ($r->filled('to')) {
-            $q->where('created_at', '<', $r->date('to')->addDay());
+        if (! Gate::allows('reports.tbank.payments.view') && ! Gate::allows('manage.payment.method.tbank')) {
+            abort(403);
         }
 
-        $payments = $q->latest()->paginate(30)->appends($r->query());
-        $partners = \App\Models\Partner::orderBy('title')->get(['id','title']);
-
-        return view('tinkoff.payments.index', compact('payments','partners'));
-    }
-
-
-
-    public function show($id, TinkoffPayoutsService $svc, TinkoffPaymentTimelineBuilder $timelineBuilder, TinkoffPaymentFiscalReceiptResolver $fiscalReceiptResolver)
-    {
         $payment = TinkoffPayment::with([
             'partner',
             'payout',
             'legalEntity' => static fn ($q) => $q->withTrashed(),
         ])->findOrFail($id);
+
+        if (! $partnerContext->isSuperAdmin()) {
+            $ownPartnerId = $partnerContext->partnerId();
+            if (! $ownPartnerId || (int) $payment->partner_id !== (int) $ownPartnerId) {
+                abort(403);
+            }
+        }
 
         // Калькуляция (поступило/банк/платформа/партнёру)
         $breakdown = $svc->breakdownForPayment($payment);
@@ -140,7 +127,8 @@ class TinkoffAdminPaymentController extends Controller
             return strcmp($atA, $atB);
         });
 
-        $showPayoutActions = !empty($payment->deal_id)
+        $showPayoutActions = Gate::allows('manage.payment.method.tbank')
+            && !empty($payment->deal_id)
             && ($payouts->isEmpty() || (string) $payouts->last()->status === 'REJECTED');
 
         $paymentTimeline = $timelineBuilder->build($payment, $payouts);

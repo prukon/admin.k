@@ -195,6 +195,9 @@
         <a href="/docs/documentation/schedule-trainer-salary#sales">schedule-trainer-salary §13</a>,
         анонс <a href="/doc#trainer-salary-sales-index">/doc</a>;</li>
       <li><code>schedule.view</code> — журнал <code>/schedule</code> и расписание в модалках групп (в конфиге закомментировано);</li>
+      <li><code>reports.tbank.payments.view</code> — вкладка отчётов «Платежи T‑Bank»; скрытое (<code>is_visible=0</code>); не в базовых ролях;
+        <a href="/docs/documentation/reports-admin#reports-tbank-payments">reports-admin §9</a>,
+        анонс <a href="/doc#reports-tbank-payments-index">/doc</a>;</li>
       <li>многие отчётные и узкие права (см. <code>reports.payments.*</code>, <code>schedule.trainerSalary.view</code> / <code>manage</code>, <code>settings.commission</code> и т.д.).</li>
     </ul>
     Тесты: <code>SchoolScheduleHiddenDefaultPermissionsAccessFeatureTest</code> / <code>Ux</code> / <code>AjaxContract</code> / <code>NonAjaxSafetyNet</code>
@@ -210,7 +213,7 @@
     <code>test_new_partner_does_not_assign_trainer_salary_scheme_sales_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_account_user_team_update_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_reports_payments_commission_total_to_base_roles</code>,
-    <code>ReportsPaymentsCommissionTotalPermissionCatalogFeatureTest</code>,
+    <code>ReportsTbankPaymentsPermissionCatalogFeatureTest</code>,
     <code>UserPercentDiscountFeatureTest::test_permission_is_visible_and_not_in_role_base_permissions</code>.
   </div>
 

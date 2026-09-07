@@ -93,6 +93,7 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
                 'recordsTotal',
                 'recordsFiltered',
                 'data',
+                'totals' => PartnerListMetrics::JSON_KEYS,
             ])
             ->json();
 
@@ -105,6 +106,142 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
                 $this->assertArrayHasKey($key, $row);
             }
         }
+
+        $this->assertIsArray($json['totals'] ?? null);
+        foreach (PartnerListMetrics::JSON_KEYS as $key) {
+            $this->assertArrayHasKey($key, $json['totals']);
+        }
+    }
+
+    public function test_data_totals_sum_filtered_partners_not_only_current_page(): void
+    {
+        $prefix = 'TotalsPage ' . uniqid('', true);
+        $first = Partner::factory()->create([
+            'title' => $prefix . ' A',
+            'is_enabled' => true,
+        ]);
+        $second = Partner::factory()->create([
+            'title' => $prefix . ' B',
+            'is_enabled' => true,
+        ]);
+
+        $studentA = User::factory()->create([
+            'partner_id' => $first->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+        $studentB = User::factory()->create([
+            'partner_id' => $second->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+        User::factory()->create([
+            'partner_id' => $second->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        $this->createContract($first, $studentA, Contract::STATUS_SIGNED);
+        $this->createContract($second, $studentB, Contract::STATUS_SIGNED);
+        $this->createContract($second, $studentB, Contract::STATUS_SIGNED);
+
+        Payment::factory()->forUser($studentA)->create([
+            'summ_cents' => 100000,
+            'operation_date' => '2026-08-10 12:00:00',
+        ]);
+        Payment::factory()->forUser($studentB)->create([
+            'summ_cents' => 250000,
+            'operation_date' => '2026-08-10 12:00:00',
+        ]);
+
+        $json = $this->getJson(route('admin.partner.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 1,
+            'status' => 'active',
+            'title' => $prefix,
+        ]))->assertOk()->json();
+
+        $this->assertSame(2, $json['recordsFiltered']);
+        $this->assertCount(1, $json['data']);
+        $this->assertSame(3, $json['totals']['active_users_count']);
+        $this->assertSame(3, $json['totals']['signed_contracts_count']);
+        $this->assertEquals(3500, $json['totals']['turnover_all']);
+        $this->assertEquals(3500, $json['totals']['turnover_month_0']);
+        $this->assertEquals(0, $json['totals']['platform_commission_all']);
+    }
+
+    public function test_data_totals_respect_status_and_search_filters(): void
+    {
+        $prefix = 'TotalsFilter ' . uniqid('', true);
+        $active = Partner::factory()->create([
+            'title' => $prefix . ' Active',
+            'is_enabled' => true,
+        ]);
+        $inactive = Partner::factory()->create([
+            'title' => $prefix . ' Inactive',
+            'is_enabled' => false,
+        ]);
+
+        $activeStudent = User::factory()->create([
+            'partner_id' => $active->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+        $inactiveStudent = User::factory()->create([
+            'partner_id' => $inactive->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        Payment::factory()->forUser($activeStudent)->create([
+            'summ_cents' => 400000,
+            'operation_date' => '2026-08-10 12:00:00',
+        ]);
+        Payment::factory()->forUser($inactiveStudent)->create([
+            'summ_cents' => 900000,
+            'operation_date' => '2026-08-10 12:00:00',
+        ]);
+
+        $activeJson = $this->getJson(route('admin.partner.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'status' => 'active',
+            'title' => $prefix,
+        ]))->assertOk()->json();
+        $this->assertEquals(4000, $activeJson['totals']['turnover_all']);
+        $this->assertSame(1, $activeJson['totals']['active_users_count']);
+
+        $inactiveJson = $this->getJson(route('admin.partner.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'status' => 'inactive',
+            'title' => $prefix,
+        ]))->assertOk()->json();
+        $this->assertEquals(9000, $inactiveJson['totals']['turnover_all']);
+        $this->assertSame(1, $inactiveJson['totals']['active_users_count']);
+
+        $allJson = $this->getJson(route('admin.partner.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'status' => '',
+            'title' => $prefix,
+        ]))->assertOk()->json();
+        $this->assertEquals(13000, $allJson['totals']['turnover_all']);
+        $this->assertSame(2, $allJson['totals']['active_users_count']);
+
+        $searchJson = $this->getJson(route('admin.partner.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'status' => '',
+            'title' => $prefix . ' Inactive',
+        ]))->assertOk()->json();
+        $this->assertEquals(9000, $searchJson['totals']['turnover_all']);
+        $this->assertSame(1, $searchJson['recordsFiltered']);
     }
 
     public function test_non_ajax_get_data_still_returns_json_metrics_not_empty_html(): void
@@ -120,7 +257,10 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
         $this->assertStringContainsString('application/json', (string) $response->headers->get('Content-Type'));
         $json = $response->json();
         $this->assertIsArray($json['data'] ?? null);
-        $this->assertArrayHasKey('recordsTotal', $json);
+        $this->assertArrayHasKey('totals', $json);
+        foreach (PartnerListMetrics::JSON_KEYS as $key) {
+            $this->assertArrayHasKey($key, $json['totals']);
+        }
     }
 
     public function test_invalid_status_filter_returns_422_with_status_field_error(): void
@@ -429,6 +569,28 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
         $this->assertNotEmpty($theadMatch[1] ?? null);
         preg_match_all('/<th\b/i', $theadMatch[1], $thMatch);
         $this->assertCount(17, $thMatch[0], 'thead и JS columns должны совпадать по числу колонок');
+    }
+
+    public function test_index_has_totals_tfoot_matching_thead_and_fixed_footer(): void
+    {
+        $html = $this->get(route('admin.partner.index'))->assertOk()->getContent();
+
+        $tablePos = strpos($html, 'id="partners-table"');
+        $this->assertNotFalse($tablePos);
+        $tableHtml = substr($html, $tablePos, 8000);
+
+        preg_match('/<tfoot>(.*?)<\/tfoot>/s', $tableHtml, $tfootMatch);
+        $this->assertNotEmpty($tfootMatch[1] ?? null, 'В таблице партнёров должен быть tfoot для итогов');
+        preg_match_all('/<th\b/i', $tfootMatch[1], $thMatch);
+        $this->assertCount(17, $thMatch[0], 'tfoot и thead должны совпадать по числу колонок');
+
+        $this->assertStringContainsString('footerCallback', $html);
+        $this->assertStringContainsString('partners-dt-totals-label', $html);
+        $this->assertStringContainsString('Итого', $html);
+        $this->assertStringContainsString('fixedHeader', $html);
+        $this->assertStringContainsString('footer: true', $html);
+        $this->assertStringContainsString('dataTables.fixedHeader.min.js', $html);
+        $this->assertStringContainsString('json.totals', $html);
     }
 
     public function test_index_metric_column_toggles_are_checked_by_default(): void

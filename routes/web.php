@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
 use App\Http\Controllers\Admin\Report\PaymentMonthlyReportController;
 use App\Http\Controllers\Admin\Report\PaymentRefundController;
 use App\Http\Controllers\Admin\Report\PaymentReportController;
+use App\Http\Controllers\Admin\Report\TbankPaymentReportController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\ScheduleTrainerWorkloadController;
 use App\Http\Controllers\Admin\SchoolScheduleViewSettingsController;
@@ -335,6 +336,20 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/fiscal-receipts/columns-settings', [FiscalReceiptReportController::class, 'getColumnsSettings']);
         Route::post('/admin/reports/fiscal-receipts/columns-settings', [FiscalReceiptReportController::class, 'saveColumnsSettings']);
     });
+
+    // Отчёты -> "Платежи T‑Bank"
+    Route::middleware(['can:reports.tbank.payments.view'])->group(function () {
+        Route::get('/admin/reports/tbank-payments', [TbankPaymentReportController::class, 'index'])->name('reports.tbank-payments.index');
+        Route::get('/admin/reports/tbank-payments/total', [TbankPaymentReportController::class, 'total'])->name('reports.tbank-payments.total');
+        Route::get('/admin/reports/tbank-payments/partners-search', [TbankPaymentReportController::class, 'partnersSearch'])->name('reports.tbank-payments.partners.search');
+        Route::get('/admin/reports/tbank-payments/data', [TbankPaymentReportController::class, 'data'])->name('reports.tbank-payments.data');
+        Route::get('/admin/reports/tbank-payments/columns-settings', [TbankPaymentReportController::class, 'getColumnsSettings']);
+        Route::post('/admin/reports/tbank-payments/columns-settings', [TbankPaymentReportController::class, 'saveColumnsSettings']);
+    });
+
+    Route::get('/admin/tinkoff/payments/{id}', [TinkoffAdminPaymentController::class, 'show'])
+        ->whereNumber('id')
+        ->name('admin.tinkoff.payments.show');
 
     // Отчёты -> "Исходящие письма"
     Route::middleware(['can:reports.emails.view'])->group(function () {
@@ -963,12 +978,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:settings.commission')->group(function () {
         Route::get('admin/settings/tbank-commissions', [TbankCommissionsController::class, 'index'])->name('admin.setting.tbankCommissions');
         Route::get('admin/settings/tbank-commissions/data', [TbankCommissionsController::class, 'data'])->name('admin.setting.tbankCommissions.data');
+        Route::get('admin/settings/tbank-commissions/columns-settings', [TbankCommissionsController::class, 'getColumnsSettings'])->name('admin.setting.tbankCommissions.columns-settings.get');
+        Route::post('admin/settings/tbank-commissions/columns-settings', [TbankCommissionsController::class, 'saveColumnsSettings'])->name('admin.setting.tbankCommissions.columns-settings.save');
         Route::post('admin/settings/tbank-commissions/payout-settings', [TbankCommissionsController::class, 'updatePayoutSettings'])->name('admin.setting.tbankCommissions.payoutSettings');
         Route::get('admin/settings/tbank-commissions/create', [TbankCommissionsController::class, 'create'])->name('admin.setting.tbankCommissions.create');
         Route::post('admin/settings/tbank-commissions', [TbankCommissionsController::class, 'store'])->name('admin.setting.tbankCommissions.store');
-        Route::get('admin/settings/tbank-commissions/{id}/edit', [TbankCommissionsController::class, 'edit'])->name('admin.setting.tbankCommissions.edit');
-        Route::put('admin/settings/tbank-commissions/{id}', [TbankCommissionsController::class, 'update'])->name('admin.setting.tbankCommissions.update');
-        Route::delete('admin/settings/tbank-commissions/{id}', [TbankCommissionsController::class, 'destroy'])->name('admin.setting.tbankCommissions.destroy');
+        Route::get('admin/settings/tbank-commissions/{id}/edit', [TbankCommissionsController::class, 'edit'])->name('admin.setting.tbankCommissions.edit')->whereNumber('id');
+        Route::put('admin/settings/tbank-commissions/{id}', [TbankCommissionsController::class, 'update'])->name('admin.setting.tbankCommissions.update')->whereNumber('id');
+        Route::delete('admin/settings/tbank-commissions/{id}', [TbankCommissionsController::class, 'destroy'])->name('admin.setting.tbankCommissions.destroy')->whereNumber('id');
     });
 
     // Учетная запись (текущий пользователь) (feature test +)
@@ -1219,9 +1236,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:manage.payment.method.tbank')->group(function () {
         Route::post('/tinkoff/deals/{deal}/close', [TinkoffDealController::class, 'close']);
 
-        // Карточки
-        Route::get('/admin/tinkoff/payments', [TinkoffAdminPaymentController::class, 'index']);
-        Route::get('/admin/tinkoff/payments/{id}', [TinkoffAdminPaymentController::class, 'show']);
         Route::get('/admin/tinkoff/partners/{id}', [TinkoffAdminPartnerController::class, 'show']);
 
         // debug

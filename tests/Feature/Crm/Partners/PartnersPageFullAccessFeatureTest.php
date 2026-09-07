@@ -63,7 +63,7 @@ final class PartnersPageFullAccessFeatureTest extends CrmTestCase
             'status' => 'active',
         ]))
             ->assertOk()
-            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data', 'totals']);
 
         $this->getJson(route('admin.partner.data', [
             'draw' => 1,

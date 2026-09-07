@@ -44,6 +44,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'account user parent form' => ['account/users.blade.php'];
         yield 'outgoing emails report tab' => ['admin/report/outgoing_emails.blade.php'];
         yield 'fiscal receipts report tab' => ['admin/report/fiscal_receipts.blade.php'];
+        yield 'tbank payments report tab' => ['admin/report/tbank_payments.blade.php'];
         yield 'payment intents report tab' => ['admin/report/payment_intents.blade.php'];
         yield 'debts report tab' => ['admin/report/debt.blade.php'];
         yield 'payments report tab' => ['admin/report/payment.blade.php'];
@@ -573,6 +574,16 @@ JS;
         $this->assertStringContainsString("key: 'turnover_month_2', type: 'money'", $content);
         $this->assertStringContainsString("key: 'platform_commission_month_2', type: 'money'", $content);
 
+        $this->assertStringContainsString('<tfoot>', $content);
+        $this->assertStringContainsString('footerCallback', $content);
+        $this->assertStringContainsString('fillPartnersTotalsFooter', $content);
+        $this->assertStringContainsString('partners-dt-totals-label', $content);
+        $this->assertStringContainsString('Итого', $content);
+        $this->assertStringContainsString('fixedHeader', $content);
+        $this->assertStringContainsString('footer: true', $content);
+        $this->assertStringContainsString('dataTables.fixedHeader.min.js', $content);
+        $this->assertStringContainsString('json.totals', $content);
+
         $this->assertStringContainsString('% {{ $partnerMetricMonthLabels[0] }}', $content);
         $this->assertStringContainsString('% {{ $partnerMetricMonthLabels[1] }}', $content);
         $this->assertStringContainsString('% {{ $partnerMetricMonthLabels[2] }}', $content);
@@ -586,6 +597,52 @@ JS;
 
         $createPos = strpos($content, "KidsCrmDataTable.create('#partners-table'");
         $this->assertNotFalse($createPos);
+        $pluginPos = strpos($content, 'dataTables.fixedHeader.min.js');
+        $this->assertNotFalse($pluginPos);
+        $this->assertLessThan(
+            $createPos,
+            $pluginPos,
+            'FixedHeader должен загружаться до KidsCrmDataTable.create, иначе футер не закрепится'
+        );
+        $this->assertStringContainsString('header: false', $content);
+        $this->assertStringContainsString('d.title = params.title', $content);
+        $this->assertStringContainsString('d.status = params.status', $content);
+        $this->assertStringContainsString('api.ajax.json()', $content);
+
+        preg_match('/<tfoot>(.*?)<\/tfoot>/s', $content, $tfootMatch);
+        $this->assertNotEmpty($tfootMatch[1] ?? null);
+        $this->assertStringNotContainsString(
+            'Итого',
+            $tfootMatch[1],
+            '«Итого» пишет footerCallback, иначе до ajax в подвале будет ложная подпись'
+        );
+        preg_match_all('/<th\b/i', $tfootMatch[1], $tfootTh);
+        preg_match('/<thead>(.*?)<\/thead>/s', $content, $theadForTfoot);
+        $this->assertNotEmpty($theadForTfoot[1] ?? null);
+        preg_match_all('/<th\b/i', $theadForTfoot[1], $theadTh);
+        $this->assertCount(
+            count($theadTh[0]),
+            $tfootTh[0],
+            'Разное число th в thead/tfoot сдвигает итоги по колонкам'
+        );
+
+        $fillPos = strpos($content, 'function fillPartnersTotalsFooter');
+        $this->assertNotFalse($fillPos);
+        $fillChunk = substr($content, $fillPos, 2200);
+        $this->assertStringContainsString('json.totals', $fillChunk);
+        $this->assertStringContainsString('partnersTotalsKeys', $fillChunk);
+        $this->assertStringNotContainsString('reduce(', $fillChunk);
+        $this->assertStringNotContainsString('.data().sum', $fillChunk);
+        $this->assertStringNotContainsString("rows({page: 'current'", $fillChunk);
+
+        $applyPos = strpos($content, "$('#filter-apply').on('click'");
+        $this->assertNotFalse($applyPos);
+        $this->assertStringContainsString('reloadPartnersTable', substr($content, $applyPos, 250));
+        $submitPos = strpos($content, "$('#partners-report-filters').on('submit'");
+        $this->assertNotFalse($submitPos);
+        $submitChunk = substr($content, $submitPos, 280);
+        $this->assertStringContainsString('e.preventDefault()', $submitChunk);
+        $this->assertStringContainsString('reloadPartnersTable', $submitChunk);
         $columnsPos = strpos($content, 'columns: [', $createPos);
         $this->assertNotFalse($columnsPos);
         $actionsKeyPos = strpos($content, "key: 'actions'", $columnsPos);
@@ -2161,7 +2218,9 @@ JS;
             'admin/report/payment.blade.php',
             'admin/report/payment_intents.blade.php',
             'admin/report/payment_monthly.blade.php',
+            'admin/report/tbank_payments.blade.php',
             'admin/school-leads/tabs/leads.blade.php',
+            'admin/setting/tbankCommissions.blade.php',
             'admin/team.blade.php',
             'admin/user.blade.php',
         ], $hits);
@@ -2207,10 +2266,20 @@ JS;
                 'pageLength' => 'pageLength: @json((int) ($fiscalReceiptsPageLength ?? 10))',
                 'prefix' => 'blade-js-fiscal-receipts-page-length',
             ],
+            "KidsCrmDataTable.create('#tbank-payments-table'" => [
+                'file' => resource_path('views/admin/report/tbank_payments.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($tbankPaymentsPageLength ?? 10))',
+                'prefix' => 'blade-js-tbank-payments-page-length',
+            ],
             "KidsCrmDataTable.create('#payouts-table'" => [
                 'file' => resource_path('views/admin/partners/tabs/payouts.blade.php'),
                 'pageLength' => 'pageLength: @json((int) ($payoutsPageLength ?? 10))',
                 'prefix' => 'blade-js-payouts-page-length',
+            ],
+            "KidsCrmDataTable.create('#tbank-commissions-table'" => [
+                'file' => resource_path('views/admin/setting/tbankCommissions.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($tbankCommissionsPageLength ?? 10))',
+                'prefix' => 'blade-js-tbank-commissions-page-length',
             ],
         ];
 
@@ -2299,9 +2368,19 @@ JS;
                 'submit' => '$form.on(\'submit\'',
                 'reload' => 'dtApi.reload();',
             ],
+            resource_path('views/admin/report/tbank_payments.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#tbank-payments-table'",
+                'submit' => '$form.on(\'submit\'',
+                'reload' => 'dtApi.reload();',
+            ],
             resource_path('views/admin/partners/tabs/payouts.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#payouts-table'",
                 'submit' => '$filtersForm.on(\'submit\'',
+                'reload' => 'dtApi.reload({ keepPage: true });',
+            ],
+            resource_path('views/admin/setting/tbankCommissions.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#tbank-commissions-table'",
+                'submit' => '$form.on(\'submit\'',
                 'reload' => 'dtApi.reload({ keepPage: true });',
             ],
         ];
@@ -2321,6 +2400,135 @@ JS;
                 'blade-js-filter-reload-'.basename($path)
             );
         }
+    }
+
+    /**
+     * P1: комиссии Т‑Банк — «Колонки» / persistPageLength / фильтры не пересоздают таблицу.
+     * UX-баг: повторный KidsCrmDataTable.create на «Применить»/«Сброс» сбросит N и видимость колонок.
+     */
+    public function test_tbank_commissions_columns_inline_script_keeps_defaults_and_reloads_without_recreate(): void
+    {
+        $path = resource_path('views/admin/setting/tbankCommissions.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertSame(1, substr_count($content, "KidsCrmDataTable.create('#tbank-commissions-table'"));
+        $this->assertSame(1, substr_count($content, 'persistPageLength: true'));
+        $this->assertStringContainsString('pageLength: @json((int) ($tbankCommissionsPageLength ?? 10))', $content);
+        $this->assertStringContainsString("class=\"form-check-input column-toggle\"", $content);
+        $this->assertStringNotContainsString('data-column-key="rownum"', $content);
+
+        $createPos = strpos($content, "KidsCrmDataTable.create('#tbank-commissions-table'");
+        $this->assertNotFalse($createPos);
+        $createChunk = substr($content, $createPos, 4500);
+        $this->assertStringContainsString('persistPageLength: true', $createChunk);
+        foreach ([
+            'partner_title: true',
+            'method: true',
+            'acquiring_percent: true',
+            'payout_percent: true',
+            'platform_percent: true',
+            'auto_payout: true',
+            'payouts_30d: true',
+            'is_enabled: true',
+            'actions: true',
+        ] as $defaultLine) {
+            $this->assertStringContainsString($defaultLine, $createChunk);
+        }
+        $this->assertStringContainsString('admin.setting.tbankCommissions.columns-settings.get', $createChunk);
+        $this->assertStringContainsString('admin.setting.tbankCommissions.columns-settings.save', $createChunk);
+
+        $submitPos = strpos($content, '$form.on(\'submit\'');
+        $this->assertNotFalse($submitPos);
+        $this->assertGreaterThan($createPos, $submitPos);
+        $submitChunk = substr($content, $submitPos, 400);
+        $this->assertStringContainsString('e.preventDefault()', $submitChunk);
+        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $submitChunk);
+        $this->assertStringNotContainsString('KidsCrmDataTable.create', $submitChunk);
+
+        $resetPos = strpos($content, '$(\'#tbank-commissions-filters-reset\').on(\'click\'');
+        $this->assertNotFalse($resetPos);
+        $resetChunk = substr($content, $resetPos, 500);
+        $this->assertStringContainsString('dtApi.reload()', $resetChunk);
+        $this->assertStringNotContainsString('KidsCrmDataTable.create', $resetChunk);
+        $this->assertStringNotContainsString('pageLength:', $resetChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "KidsCrmDataTable.create('#tbank-commissions-table'",
+            'blade-js-tbank-commissions-columns'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            '$(\'#tbank-commissions-filters-reset\').on(\'click\'',
+            'blade-js-tbank-commissions-filter-reset'
+        );
+    }
+
+    /**
+     * P1: отчёт «Платежи T‑Bank» — persist N, дефолты колонок, фильтры в ajax.data,
+     * «Применить»/«Сброс» reload без пересоздания таблицы (иначе сбросится N).
+     */
+    public function test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate(): void
+    {
+        $path = resource_path('views/admin/report/tbank_payments.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertSame(1, substr_count($content, "KidsCrmDataTable.create('#tbank-payments-table'"));
+        $this->assertSame(1, substr_count($content, 'persistPageLength: true'));
+        $this->assertStringContainsString('pageLength: @json((int) ($tbankPaymentsPageLength ?? 10))', $content);
+        $this->assertStringContainsString('@can(\'settings.commission\')', $content);
+        $this->assertStringContainsString('id="tp-toolbar-commissions"', $content);
+        $this->assertStringContainsString("route('admin.setting.tbankCommissions')", $content);
+
+        $createPos = strpos($content, "KidsCrmDataTable.create('#tbank-payments-table'");
+        $this->assertNotFalse($createPos);
+        $createChunk = substr($content, $createPos, 4500);
+        $this->assertStringContainsString('persistPageLength: true', $createChunk);
+        foreach ([
+            'created_at: true',
+            'partner: true',
+            'order_id: true',
+            'amount: true',
+            'status: true',
+            'deal_id: true',
+            'actions: true',
+        ] as $defaultLine) {
+            $this->assertStringContainsString($defaultLine, $createChunk);
+        }
+        $this->assertStringContainsString("url: \"{{ route('reports.tbank-payments.data') }}\"", $createChunk);
+        $this->assertStringContainsString('tpFilterParams()', $createChunk);
+        $this->assertStringContainsString('d[key] = extra[key]', $createChunk);
+
+        $submitPos = strpos($content, '$form.on(\'submit\'');
+        $this->assertNotFalse($submitPos);
+        $this->assertGreaterThan($createPos, $submitPos);
+        $submitChunk = substr($content, $submitPos, 400);
+        $this->assertStringContainsString('e.preventDefault()', $submitChunk);
+        $this->assertStringContainsString('refreshTbankPaymentsTotal()', $submitChunk);
+        $this->assertStringContainsString('dtApi.reload();', $submitChunk);
+        $this->assertStringNotContainsString('KidsCrmDataTable.create', $submitChunk);
+
+        $resetPos = strpos($content, '$(\'#tbankPaymentsResetBtn\').on(\'click\'');
+        $this->assertNotFalse($resetPos);
+        $resetChunk = substr($content, $resetPos, 500);
+        $this->assertStringContainsString('$form[0].reset()', $resetChunk);
+        $this->assertStringContainsString('refreshTbankPaymentsTotal()', $resetChunk);
+        $this->assertStringContainsString('dtApi.reload();', $resetChunk);
+        $this->assertStringNotContainsString('KidsCrmDataTable.create', $resetChunk);
+        $this->assertStringNotContainsString('pageLength:', $resetChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "KidsCrmDataTable.create('#tbank-payments-table'",
+            'blade-js-tbank-payments-columns'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            '$(\'#tbankPaymentsResetBtn\').on(\'click\'',
+            'blade-js-tbank-payments-filter-reset'
+        );
     }
 
     /**

@@ -92,6 +92,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('reports.emails.view');
         });
 
+        // Отчёты -> вкладка "Платежи T‑Bank"
+        Gate::define('reports.tbank.payments.view', function (User $user) {
+            return $user->hasPermission('reports.tbank.payments.view');
+        });
+
         // Отчёты -> доп. значения (комиссии/нетто и т.п.)
         Gate::define('reports.additional.value.view', function (User $user) {
             return $user->hasPermission('reports.additional.value.view');

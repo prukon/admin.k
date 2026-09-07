@@ -43,7 +43,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
     {
         return [
             'mainMenu'        => 17,
-            'reports'         => 9,
+            'reports'         => 10,
             'schedule'        => 5,
             'schoolSchedule'  => 6,
             'directories'     => 8,
@@ -107,6 +107,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'reports.payment.intents.view',
                 'reports.fiscal.receipts.view',
                 'reports.emails.view',
+                'reports.tbank.payments.view',
                 'reports.additional.value.view',
                 'reports.payments.totals.net_to_partner.view',
                 'reports.payments.totals.payout_amount.view',

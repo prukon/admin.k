@@ -134,6 +134,65 @@
                             <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
                             <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
                         </button>
+
+                        <div class="dropdown payments-report-toolbar-dropdown">
+                            <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                                    type="button"
+                                    id="tbankCommissionsColumnsDropdown"
+                                    data-bs-toggle="dropdown"
+                                    data-bs-auto-close="outside"
+                                    aria-expanded="false"
+                                    aria-haspopup="true"
+                                    title="Какие колонки показывать в таблице">
+                                <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                    <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                                </span>
+                                <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                                <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                            </button>
+
+                            <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                                 aria-labelledby="tbankCommissionsColumnsDropdown">
+                                <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="partner_title" id="colTbankPartner" checked>
+                                    <label class="form-check-label" for="colTbankPartner">Партнёр</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="method" id="colTbankMethod" checked>
+                                    <label class="form-check-label" for="colTbankMethod">Метод</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="acquiring_percent" id="colTbankAcquiring" checked>
+                                    <label class="form-check-label" for="colTbankAcquiring">Эквайринг банка</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="payout_percent" id="colTbankPayout" checked>
+                                    <label class="form-check-label" for="colTbankPayout">Выплата банка</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="platform_percent" id="colTbankPlatform" checked>
+                                    <label class="form-check-label" for="colTbankPlatform">Комиссия платформы</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="auto_payout" id="colTbankAutoPayout" checked>
+                                    <label class="form-check-label" for="colTbankAutoPayout">Автовыплата</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="payouts_30d" id="colTbankPayouts30d" checked>
+                                    <label class="form-check-label" for="colTbankPayouts30d">Выплат за 30 дн.</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="is_enabled" id="colTbankEnabled" checked>
+                                    <label class="form-check-label" for="colTbankEnabled">Активность</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="actions" id="colTbankActions" checked>
+                                    <label class="form-check-label" for="colTbankActions">Действия</label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -359,8 +418,27 @@
                 }
 
                 var dtApi = KidsCrmDataTable.create('#tbank-commissions-table', {
+                    columnsSettings: {
+                        persistPageLength: true,
+                        defaults: {
+                            partner_title: true,
+                            method: true,
+                            acquiring_percent: true,
+                            payout_percent: true,
+                            platform_percent: true,
+                            auto_payout: true,
+                            payouts_30d: true,
+                            is_enabled: true,
+                            actions: true,
+                        },
+                        urls: {
+                            get: @json(route('admin.setting.tbankCommissions.columns-settings.get')),
+                            save: @json(route('admin.setting.tbankCommissions.columns-settings.save')),
+                        },
+                        csrfToken: '{{ csrf_token() }}',
+                    },
                     dataTable: {
-                        pageLength: 20,
+                        pageLength: @json((int) ($tbankCommissionsPageLength ?? 10)),
                         lengthMenu: [10, 20, 50, 100],
                         order: [[1, 'asc']],
                         searching: true,

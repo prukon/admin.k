@@ -171,6 +171,11 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('id="fiscal-receipts-table"', false);
 
+        $this->get(route('reports.tbank-payments.index'))
+            ->assertOk()
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee('id="tbank-payments-table"', false);
+
         $this->get(route('reports.payment-intents.index'))
             ->assertOk()
             ->assertSee('KidsCrmDataTable.create', false)
@@ -493,6 +498,30 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
 
         $this->postJson('/admin/reports/fiscal-receipts/columns-settings', [
             'columns' => ['partner' => true, 'error' => true],
+        ])->assertOk()->assertJson(['success' => true]);
+    }
+
+    public function test_tbank_payments_page_and_all_endpoints_return_200_for_authorized_user(): void
+    {
+        $this->asSuperadmin();
+
+        $this->get(route('reports.tbank-payments.index'))
+            ->assertOk()
+            ->assertSee('KidsCrmDataTable.create', false);
+
+        $this->get(route('reports.tbank-payments.total'))->assertOk();
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->getJson(route('reports.tbank-payments.data', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+
+        $this->get(route('reports.tbank-payments.partners.search', ['q' => '']))->assertOk();
+
+        $this->get('/admin/reports/tbank-payments/columns-settings')->assertOk();
+
+        $this->postJson('/admin/reports/tbank-payments/columns-settings', [
+            'columns' => ['partner' => true, 'deal_id' => true],
         ])->assertOk()->assertJson(['success' => true]);
     }
 

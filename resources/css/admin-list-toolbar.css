@@ -36,6 +36,10 @@
 }
 
 /* Единый вид кнопок «Фильтры» и «Колонки» */
+a.payments-report-toolbar-action {
+    text-decoration: none;
+}
+
 .payments-report-toolbar-action {
     cursor: pointer;
     user-select: none;

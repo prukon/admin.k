@@ -268,6 +268,18 @@ final class KidsCrmDataTableColumnsMigrationIter1Iter2Test extends CrmTestCase
         $this->assertStringNotContainsString("type: 'custom'", $html);
     }
 
+    public function test_tbank_payments_page_uses_preset_types_without_custom(): void
+    {
+        $this->asSuperadmin();
+
+        $html = $this->get(route('reports.tbank-payments.index'))->assertOk()->getContent();
+
+        $this->assertColumnBlockUsesType($html, 'amount', 'money');
+        $this->assertColumnBlockUsesType($html, 'created_at', 'datetime');
+        $this->assertColumnBlockUsesType($html, 'actions', 'actions');
+        $this->assertStringNotContainsString("type: 'custom'", $html);
+    }
+
     public function test_get_debts_formats_month_for_display(): void
     {
         Carbon::setTestNow('2026-02-15');

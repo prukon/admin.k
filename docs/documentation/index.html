@@ -28,6 +28,199 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="tbank-commissions-columns-index">Комиссии Т‑Банк: кнопка «Колонки» и «Показать N» (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/settings/tbank-commissions</code> (право <code>settings.commission</code>)
+    в toolbar после «Фильтры» — dropdown <b>«Колонки»</b> / «Вид таблицы», как на
+    <a href="/docs/documentation/reports-payments">отчёте «Платежи»</a>.
+    Это <b>не</b> вкладка отчётов
+    <a href="/doc#reports-tbank-payments-index"><code>/admin/reports/tbank-payments</code></a>
+    (там другое право и другой <code>table_key</code>).
+    <br><br>
+    1) <b>Что в меню.</b> Все колонки таблицы, кроме служебного «№»
+    (он всегда виден, в чекбоксах его нет). Порядок thead = чекбоксы = JS
+    <code>columns[].key</code>: Партнёр, Метод, Эквайринг банка, Выплата банка,
+    Комиссия платформы, Автовыплата, Выплат за 30 дн., Активность, <b>Действия</b>.
+    Первое открытие — все тумблеры включены. Hide/show идёт <b>по ключу</b>
+    (<code>data-column-key</code>), не по индексу: скрытый «Метод» не сдвигает шапку.
+    <br>
+    2) <b>Где хранится.</b> Строка текущего пользователя
+    <code>user_table_settings.table_key = tbank_commissions_index</code>.
+    GET/POST <code>/admin/settings/tbank-commissions/columns-settings</code>
+    (имена <code>admin.setting.tbankCommissions.columns-settings.get</code> /
+    <code>.save</code>). GET — объект <code>{ ключ: bool }</code> или <code>[]</code>,
+    без ключа <code>page_length</code>. Отсутствующие ключи сервер не дополняет:
+    клиентский <code>defaults</code> оставляет их <code>true</code>; сохранённый
+    <code>false</code> не сбрасывается.
+    <br>
+    3) <b>«Показать N».</b> Opt-in <code>persistPageLength: true</code>, дефолт <b>10</b>
+    (<code>$tbankCommissionsPageLength</code>). Допустимы 10 / 20 / 50 / 100.
+    Смена селекта шлёт только <code>page_length</code> (без <code>columns</code> и без
+    номера страницы). N чужого пользователя и N с «Все платежи» /
+    <code>/admin/reports/tbank-payments</code> не подставляются.
+    Общий каталог — <a href="#datatable-page-length-index">анонс «Показать N»</a>.
+    <br>
+    4) <b>Что не сбрасывает вид.</b> Query-фильтры партнёра/метода и
+    <code>?open_create=1</code> не убирают toolbar и не сбрасывают N.
+    «Применить» — <code>e.preventDefault()</code> + <code>dtApi.reload({ keepPage: true })</code>;
+    «Сброс» — <code>dtApi.reload()</code>. Таблицу не пересоздают.
+    Без query-фильтров блок фильтров свёрнут. Страница правки правила
+    (<code>…/{id}/edit</code>) dropdown и persist N не рендерит.
+    <br>
+    5) <b>Доступ и ошибки.</b> С правом — HTML списка <b>200</b>, AJAX save <b>200</b>
+    <code>{success: true}</code>. Без <code>settings.commission</code> → <b>403</b>.
+    Гость — 302/401/419, не 200 и не 500. Пустой POST / <code>columns: []</code>:
+    AJAX → <b>422</b> <code>errors.columns</code> «Передайте настройки колонок.»;
+    non-AJAX → <b>302</b> + session errors (запись не затирается).
+    Неверный N → AJAX <b>422</b> <code>errors.page_length</code>
+    («Можно показать 10, 20, 50 или 100 записей.»), non-AJAX → 302.
+    Успешный non-AJAX save — JSON 200, не пустой HTML.
+    PUT/PATCH/DELETE на URI настроек → 404/405 (<code>{id}</code> в CRUD —
+    <code>whereNumber</code>).
+    <br><br>
+    Подробно — <a href="/docs/documentation/tbank#commissions-ui">tbank §4.3</a>,
+    пресет — <a href="/docs/documentation/reusable-ui-partials#persist-page-length">reusable-ui-partials § persistPageLength</a>.
+    Тесты: <code>TbankCommissionsColumnsSettingsFeatureTest</code>,
+    <code>TbankCommissionsColumnsSettingsAjaxContractFeatureTest</code>,
+    <code>TbankCommissionsColumnsSettingsNonAjaxSafetyNetFeatureTest</code>,
+    <code>TbankCommissionsColumnsSettingsFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_tbank_commissions_columns_inline_script_keeps_defaults_and_reloads_without_recreate</code>,
+    <code>TbankCommissionsColumnsDocumentationContractTest</code>.
+    Анонс: <a href="/doc#tbank-commissions-columns-index">/doc#tbank-commissions-columns-index</a>.
+  </div>
+
+  <h2 id="reports-tbank-payments-index">Отчёт «Платежи T‑Bank» (2026‑09)</h2>
+  <div class="note">
+    Список платежей T‑Bank (таблица <code>tinkoff_payments</code>) перенесён во вкладку отчётов
+    <code>/admin/reports/tbank-payments</code>: DataTables, server-side,
+    <code>KidsCrmDataTable.create('#tbank-payments-table')</code>.
+    Это <b>не</b> страница правил комиссий
+    <a href="/doc#tbank-commissions-columns-index"><code>/admin/settings/tbank-commissions</code></a>
+    (другое право и другой <code>table_key</code>).
+    Анонс: <a href="/doc#reports-tbank-payments-index">/doc#reports-tbank-payments-index</a>.
+    <br><br>
+    1) <b>Право.</b> Скрытое <code>reports.tbank.payments.view</code>
+    (группа <code>reports</code>, <code>is_visible=0</code>, не в
+    <code>role_base_permissions</code>).
+    Миграция <code>2026_09_07_073200_add_reports_tbank_payments_view_permission.php</code>
+    в <code>up()</code> <b>не</b> пишет <code>permission_role</code>.
+    Вкладка и AJAX закрыты middleware <code>can:reports.tbank.payments.view</code>.
+    Без права вкладки нет, endpoints → <b>403</b>.
+    Superadmin проходит <code>Gate::before</code>.
+    Гость: HTML → <b>302</b> на вход, JSON → <b>401</b>.
+    <br>
+    2) <b>Скоуп партнёра</b> как у «Чеки» / «Платежные запросы».
+    Superadmin видит все школы, фильтр «Партнер» (Select2 <code>#tp-filter-partner</code>).
+    Не-superadmin с правом — только свой партнёр; фильтр скрыт; чужой
+    <code>partner_id</code> в URL игнорируется.
+    <br>
+    3) <b>Старый список.</b> <code>/admin/tinkoff/payments</code> (без id) <b>удалён</b>:
+    404, в том числе у гостя (не редирект на логин).
+    Карточка <code>/admin/tinkoff/payments/{id}</code> (<code>whereNumber</code>) осталась.
+    <br>
+    4) <b>Карточка.</b> Просмотр при <code>reports.tbank.payments.view</code>
+    <b>или</b> <code>manage.payment.method.tbank</code>.
+    Не-superadmin — только свой партнёр (чужой → <b>403</b>).
+    Кнопки «Выплатить сейчас» / «Отложить» — только при
+    <code>manage.payment.method.tbank</code> (и если выплаты ещё нет или последняя
+    <code>REJECTED</code>).
+    «Закрыть сделку» на карточке показывается при наличии <code>deal_id</code>
+    и у просмотра по праву отчёта; сам POST
+    <code>/tinkoff/deals/{deal}/close</code> закрыт
+    <code>can:manage.payment.method.tbank</code> (без права → <b>403</b>).
+    <br>
+    5) <b>Комиссии.</b> На тулбаре вкладки кнопка-ссылка «Комиссии»
+    (<code>#tp-toolbar-commissions</code>, настоящий <code>&lt;a href&gt;</code>)
+    только при <code>settings.commission</code>, ведёт на
+    <code>/admin/settings/tbank-commissions</code>.
+    CRUD правил <b>не</b> переезжает в отчёты.
+    <br>
+    6) <b>Таблица и фильтры.</b> Колонки: ID, Создан, Партнер, Order, Сумма, Статус, Deal, «Открыть».
+    Суммы в БД — копейки, в JSON/шапке — рубли
+    (<code>GET …/total</code>: <code>{ total_formatted, total_raw }</code>).
+    Фильтры: статус (NEW / FORM / CONFIRMED / REJECTED / CANCELED), период,
+    партнёр (только SA).
+    Пустой статус и sentinel <code>status=all</code> = все статусы: панель свёрнута,
+    в селекте «Все статусы».
+    Невалидный статус / даты / <code>partner_id</code> — ошибка поля
+    (AJAX <b>422</b>, non-AJAX GET <b>302</b>), не 500.
+    Поиск DataTables: Order, Deal, id, название партнёра (не сумма/статус/дата).
+    «Применить» / «Сброс»: <code>e.preventDefault()</code> + <code>dtApi.reload()</code>,
+    таблицу не пересоздают (иначе сбросится «Показать N»).
+    <br>
+    7) <b>«Показать N» / «Колонки».</b>
+    <code>table_key = reports_tbank_payments</code>,
+    <code>persistPageLength: true</code>, дефолт 10.
+    GET/POST <code>/admin/reports/tbank-payments/columns-settings</code>.
+    PUT/PATCH/DELETE на URI настроек → <b>404/405</b>, запись не создаётся.
+    Первое открытие: все чекбоксы колонок включены, фильтры свёрнуты.
+    <br><br>
+    Подробно:
+    <a href="/docs/documentation/reports-admin#reports-tbank-payments">reports-admin §9</a>,
+    <a href="/docs/documentation/tbank#payment-show-card">tbank §5.7</a>,
+    <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
+    Тесты: <code>TbankPaymentsReportTest</code>,
+    <code>TbankPaymentsPageFullAccessFeatureTest</code>,
+    <code>TbankPaymentsNonAjaxSafetyNetFeatureTest</code>,
+    <code>ReportsTbankPaymentsPermissionCatalogFeatureTest</code>,
+    <code>ReportsTbankPaymentsDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate</code>.
+  </div>
+
+  <h2 id="admin-partners-list-totals-index">Админка: итоги в подвале списка партнёров (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/partners</code> (вкладка клубов, право <code>partner.view</code>)
+    под таблицей — строка «Итого»: суммы всех числовых колонок
+    (акт. польз., договоры, оборот и комиссия платформы за всё время и три месяца)
+    по <b>текущим фильтрам</b> поиска и статуса, <b>не</b> по видимой странице пагинации.
+    Колонки метрик и формулы — как у строки
+    (<a href="/doc#admin-partners-list-metrics">анонс метрик</a>);
+    этот блок только про подвал.
+    <br><br>
+    1) <b>Сервер.</b> <code>GET /admin/partners/data</code> рядом с <code>draw</code> / <code>data</code>
+    отдаёт объект <code>totals</code> с ключами <code>PartnerListMetrics::JSON_KEYS</code>.
+    Считается после тех же фильтров и join'ов метрик, <b>до</b> <code>skip</code>/<code>take</code>
+    (<code>totalsPayloadFromJoinedQuery</code>: <code>clone</code> + <code>select(SUM…)</code>
+    вместо колонок строки — иначе MySQL 1140).
+    Soft-deleted партнёры не входят. Пустая выборка — нули, ключи на месте.
+    Деньги в JSON — рубли, как у строки (1050 коп. → <code>10.5</code>).
+    <br>
+    2) <b>Фильтры.</b> Поиск <code>title</code> и <code>status=active|inactive</code> те же, что у строк.
+    UI по умолчанию «Только активные»; <code>ajax.data</code> шлёт <code>d.status</code>.
+    API <b>без</b> <code>status</code> считает всех (не навязывает active).
+    Apply / Submit / Reset зовут <code>reloadPartnersTable</code> — футер без F5.
+    <br>
+    3) <b>Клиент.</b> <code>footerCallback</code> → <code>fillPartnersTotalsFooter</code>
+    из <code>api.ajax.json().totals</code>, не сумма <code>tbody</code>.
+    Статический <code>tfoot</code> пустой (17 <code>th</code> как в thead);
+    «Итого» пишет JS в первую видимую из
+    <code>title</code> → <code>order_by</code> → <code>email</code> → <code>phone</code>
+    → <code>status_label</code> → <code>rownum</code>, не в денежные колонки.
+    <br>
+    4) <b>Закрепление.</b> DataTables FixedHeader только footer
+    (<code>header: false</code>), скрипт из
+    <code>public/plugins/datatables-fixedheader/</code>
+    <b>до</b> <code>KidsCrmDataTable.create</code>.
+    Горизонтальный скролл <code>.kids-dt-scroll-x</code> сдвигает клон футера.
+    Нет плагина — строка остаётся внизу таблицы.
+    <br>
+    5) <b>Доступ</b> как у списка: гость HTML → <b>302</b>, JSON → <b>401</b>;
+    без <code>partner.view</code> → <b>403</b>.
+    Валидация 422 с <code>errors</code> по полям — в ответе <b>нет</b> <code>totals</code>.
+    Non-AJAX GET data — тот же JSON <b>200</b>, не пустой HTML.
+    Это <b>не</b> LTV и не отчёт «Платежи» (там комиссия по текущим правилам).
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/account-partner-organization#partners-index-totals">account-partner-organization §3.1.2</a>,
+    формулы колонок —
+    <a href="/docs/documentation/account-partner-organization#partners-index-metrics">§3.1.1</a>.
+    Тесты: <code>PartnersListTotalsFeatureTest</code>,
+    <code>PartnersListMetricsFeatureTest</code> (JSON <code>totals</code> / tfoot),
+    <code>BladeInlineJsSyntaxTest::test_partners_list_metrics_inline_script_contract_and_valid_javascript</code>,
+    <code>PartnersListTotalsDocumentationContractTest</code>.
+    Анонс: <a href="/doc#admin-partners-list-totals-index">/doc#admin-partners-list-totals-index</a>.
+  </div>
+
   <h2 id="contract-invitation-parent-email-index">Договор: приглашение на email ученика и родителя (2026‑09)</h2>
   <div class="note">
     При создании договора по шаблону письмо «заполните договор»
@@ -4747,7 +4940,9 @@
         <tr><td>LTV</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/ltv</code></a></td><td><code>reports_ltv</code></td><td><code>reports.view</code></td></tr>
         <tr><td>Платежные запросы</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payment-intents</code></a></td><td><code>reports_payment_intents</code></td><td><code>reports.payment.intents.view</code></td></tr>
         <tr><td>Фискальные чеки</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/fiscal-receipts</code></a></td><td><code>reports_fiscal_receipts</code></td><td><code>reports.fiscal.receipts.view</code></td></tr>
+        <tr><td>Платежи T‑Bank</td><td><a href="/docs/documentation/reports-admin#reports-tbank-payments"><code>/admin/reports/tbank-payments</code></a></td><td><code>reports_tbank_payments</code></td><td><code>reports.tbank.payments.view</code></td></tr>
         <tr><td>Выплаты T‑Bank</td><td><a href="/docs/documentation/tbank-admin-payouts"><code>/admin/tinkoff/payouts</code></a></td><td><code>tinkoff_payouts_index</code></td><td><code>tbank.payouts.manage</code></td></tr>
+        <tr><td>Комиссии Т‑Банк</td><td><a href="/docs/documentation/tbank#commissions-ui"><code>/admin/settings/tbank-commissions</code></a></td><td><code>tbank_commissions_index</code></td><td><code>settings.commission</code></td></tr>
       </tbody>
     </table>
     <br>
@@ -4756,7 +4951,8 @@
     <code>$teamsPageLength</code>,
     <code>$paymentsPageLength</code>, <code>$paymentsMonthlyPageLength</code>,
     <code>$ltvPageLength</code>, <code>$paymentIntentsPageLength</code>,
-    <code>$fiscalReceiptsPageLength</code>, <code>$payoutsPageLength</code>).
+    <code>$fiscalReceiptsPageLength</code>, <code>$tbankPaymentsPageLength</code>, <code>$payoutsPageLength</code>,
+    <code>$tbankCommissionsPageLength</code>).
     Пресет получает <code>dataTable.pageLength</code> — первый AJAX сразу с нужным <code>length</code>.
     Нет записи или значение не из <code>10/20/50/100</code> → <b>10</b>
     (<code>UserTableSetting::resolvePageLength</code>).
@@ -4790,8 +4986,10 @@
     <a href="/docs/documentation/admin-users#users-page-length">ученики §2.0</a>,
     <a href="/docs/documentation/admin-teams#teams-page-length">группы §2.0</a>,
     <a href="/docs/documentation/reports-admin#reports-page-length">отчёты §1.1</a>,
-    <a href="/docs/documentation/tbank-admin-payouts">выплаты T‑Bank</a>.
-    Тесты: <code>DatatablePageLengthCatalogFeatureTest</code> (ровно эти 9 URL / <code>table_key</code> / blade),
+    <a href="/docs/documentation/tbank-admin-payouts">выплаты T‑Bank</a>,
+    <a href="/docs/documentation/tbank#commissions-ui">комиссии Т‑Банк</a>
+    (<a href="#tbank-commissions-columns-index">анонс «Колонки»</a>).
+    Тесты: <code>DatatablePageLengthCatalogFeatureTest</code> (ровно эти URL / <code>table_key</code> / blade),
     <code>SchoolLeadsPageLengthFeatureTest</code> / <code>FullAccess</code>,
     <code>UsersPageLengthFeatureTest</code> / <code>FullAccess</code>,
     <code>TeamsPageLengthFeatureTest</code> / <code>FullAccess</code>,
@@ -5304,7 +5502,11 @@
     (leftJoin после фильтров, <code>recordsFiltered</code> до join).
     JSON: <code>GET /admin/partners/data</code>.
     <br>
-    6) Доступ: гость HTML → <b>302</b>, JSON → <b>401</b>; без <code>partner.view</code> → <b>403</b>.
+    6) <b>Итоги</b> в подвале — отдельный анонс
+    <a href="/doc#admin-partners-list-totals-index">/doc#admin-partners-list-totals-index</a>
+    (JSON <code>totals</code> по фильтрам, не сумма страницы; tfoot + FixedHeader).
+    <br>
+    7) Доступ: гость HTML → <b>302</b>, JSON → <b>401</b>; без <code>partner.view</code> → <b>403</b>.
     Без организации (SetPartner) → <b>302</b>, актор становится guest,
     ошибка под Email «Ваша организация недоступна.».
     Валидация DataTables: <code>PartnerDataTableRequest</code>; 422 с <code>errors</code>
@@ -5319,6 +5521,8 @@
     <a href="/docs/documentation/reports-admin#ltv-vs-partners-turnover">reports-admin §4</a>.
     Тесты:
     <code>PartnersListMetricsFeatureTest</code>,
+    <code>PartnersListTotalsFeatureTest</code>,
+    <code>PartnersListTotalsDocumentationContractTest</code>,
     <code>PartnerColumnsSettingsTest</code>,
     <code>PartnersDataTableFeatureTest</code>,
     <code>tests/Unit/Support/PartnerListMetricsTest.php</code>,
@@ -6628,8 +6832,10 @@
     <b>Общее:</b> несколько юр. лиц на партнёра; CRUD в модалках; sm-register на карточке <code>/admin/legal-entities/{id}</code> (<code>legal_entities.sm_register</code>); <code>LegalEntityResolver</code> для оплат — ShopCode и реквизиты <b>только</b> из <code>partner_legal_entities</code> (без fallback на <code>partners</code>). При <b>одном</b> активном юр. лице группа может быть без <code>legal_entity_id</code> — резолвер использует единственное юр. лицо.
     <br><br>
     <b>Организация партнёра (2026‑06‑30):</b> реквизиты и НДС — только в «Юр. лица»; с карточки партнёра и вкладки «Организация» в ЛК убраны legacy-поля, а также <b>город</b>, <b>индекс</b> и <b>данные руководителя</b> (поле <code>title</code> переименовано в UI в «Название школы/секции»). Legacy-колонки <code>partners.*</code> в БД сохранены, приложение их не пишет из форм (<code>PartnerLegacyLegalFields</code>). Подробно — <a href="/docs/documentation/account-partner-organization">account-partner-organization</a>.
-    Метрики списка <code>/admin/partners</code> (2026‑08) — отдельный анонс
-    <a href="/doc#admin-partners-list-metrics">выше на этой странице</a>.
+    Метрики списка <code>/admin/partners</code> (2026‑08) —
+    <a href="/doc#admin-partners-list-metrics">анонс колонок</a>;
+    итоги в tfoot (2026‑09) —
+    <a href="/doc#admin-partners-list-totals-index">анонс подвала</a>.
   </div>
 
   <h2>Изменения в оплатах (T‑Bank, 2026‑06)</h2>
@@ -6702,13 +6908,13 @@
     <li><a href="/docs/documentation/partner-wallet">Кошелёк партнёра: <code>/partner-wallet</code>, изоляция <code>STRICT_CURRENT</code>, история договоров/SMS, <code>wallet_balance_cents</code>, ЮKassa и T‑Bank СБП (<a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a>, права <a href="/doc#platform-payments-methods-index">«Оплата платформы»</a>), право <code>partnerWallet.view</code> (<a href="/doc#partner-wallet-ledger-index">леджер</a>, <a href="/doc#partner-wallet-isolation-index">изоляция</a>)</a></li>
     <li><a href="/docs/documentation/partner-service-payments">Оплата сервиса: <code>/partner-payment</code>, T‑Bank СБП / ЮKassa по <code>platformPayments.method.*</code> (<a href="/doc#platform-payments-methods-index">анонс прав</a>, <a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>), изоляция <code>STRICT_CURRENT</code>, <code>CreatePartnerServicePaymentRequest</code>, право <code>servicePayments.view</code> (<a href="/doc#partner-service-payment-isolation-index">анонс изоляции</a>)</a></li>
     <li><a href="/docs/documentation/partner-context">Партнёр‑контекст и SetPartner: current_partner, anti‑leak, блокировки</a></li>
-    <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра); опциональные права в т.ч. <code>users.discount.manage</code>, <code>account.user.team.update</code></a></li>
-    <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo; <b>метрики списка</b> — активные ученики, договоры, оборот и комиссия платформы по <code>operation_date</code> / снимку <code>tinkoff_payouts.platform_fee</code>, <a href="/doc#admin-partners-list-metrics">анонс</a> / <a href="/docs/documentation/account-partner-organization#partners-index-metrics">§3.1.1</a>), <code>PartnerLegacyLegalFields</code>, доступ guest 302/401 / 403, AJAX/non-AJAX, оплаты без fallback</a></li>
+    <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра); опциональные права в т.ч. <code>users.discount.manage</code>, <code>account.user.team.update</code>, скрытое <code>reports.tbank.payments.view</code> (<a href="/doc#reports-tbank-payments-index">анонс вкладки</a>)</a></li>
+    <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo; <b>метрики списка</b> — активные ученики, договоры, оборот и комиссия платформы по <code>operation_date</code> / снимку <code>tinkoff_payouts.platform_fee</code>, <a href="/doc#admin-partners-list-metrics">анонс колонок</a> / <a href="/docs/documentation/account-partner-organization#partners-index-metrics">§3.1.1</a>; <b>итоги в tfoot</b> по фильтрам, не по странице — <a href="/doc#admin-partners-list-totals-index">анонс подвала</a> / <a href="/docs/documentation/account-partner-organization#partners-index-totals">§3.1.2</a>), <code>PartnerLegacyLegalFields</code>, доступ guest 302/401 / 403, AJAX/non-AJAX, оплаты без fallback</a></li>
     <li><a href="/docs/documentation/settings-roles-custom">Настройки: кастомные роли и стартовый набор прав (admin из конфига, UI без перезагрузки)</a></li>
     <li><a href="/docs/documentation/settings-permission-groups">Матрица прав: группы permissions (permission_groups), аккордеон на «Права и роли», группа «Расписание школы» (<a href="/doc#school-schedule-permission-group-index">анонс</a>), группа «Оплата платформы» (<a href="/doc#platform-payments-methods-index">анонс</a>), ховер возможностей (<a href="/doc#permission-capability-hints-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/audit-my-logs">Аудит CRM (my_logs): AuditEvent, AuditLogger, колонки event/level</a></li>
     <li><a href="/docs/documentation/settings-logs">Настройки → Логи: вкладка журнала, фильтры, доступ, SUPERADMIN_ALL_OR_FILTER</a></li>
-    <li><a href="/docs/documentation/tbank">T‑Bank (мультирасчёты): глобальный терминал, комиссии, автовыплата per метод, карточка платежа (организация, timeline), workflow. Кошелёк и абонплата CRM — <a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a>, не этот терминал</a></li>
+    <li><a href="/docs/documentation/tbank">T‑Bank (мультирасчёты): глобальный терминал, комиссии (<b>«Колонки»</b> / persist N на <code>/admin/settings/tbank-commissions</code> — <a href="/doc#tbank-commissions-columns-index">анонс</a>), автовыплата per метод, карточка платежа (организация, timeline; просмотр ещё по <code>reports.tbank.payments.view</code>), вкладка отчётов <a href="/doc#reports-tbank-payments-index">«Платежи T‑Bank»</a>, workflow. Кошелёк и абонплата CRM — <a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a>, не этот терминал</a></li>
     <li><a href="/docs/documentation/tbank-admin-payouts">T‑Bank: админка выплат (список, DataTables, колонка «Организация», <b>«Показать N»</b> / <code>page_length</code>, карточка, изоляция по партнёру)</a></li>
     <li><a href="/docs/documentation/tbank-refunds-payout-cancel">T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты</a></li>
     <li><a href="/docs/documentation/tbank#sbp-qr-ui">T‑Bank: СБП (QR) в интерфейсе — GetQr/Data, страница <code>/tinkoff/qr/…</code>, доступы</a></li>
@@ -6716,7 +6922,7 @@
     <li><a href="/docs/documentation/tbank#payout-settings">T‑Bank: интервал джобы отложенных выплат, автовыплаты в правилах комиссий, защита от дублей</a></li>
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, <b>«Показать N»</b> (<code>page_length</code>), <b>поиск DataTables</b> только ФИО и группа (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>), права, история T‑Bank; ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
-    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / intents / fiscal; задолженности и письма — без opt-in), payment-intents / payments / fiscal / emails; <b>поиск DataTables</b> (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>: Платежи/LTV — ФИО+группа; monthly — ещё месяц; intents — ФИО/партнёр/ID); фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Чеки»</b> — только <code>source=marketplace</code>, продажи платформы не входят (<a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
+    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / intents / fiscal / tbank-payments; задолженности и письма — без opt-in), payment-intents / payments / fiscal / emails / <b>«Платежи T‑Bank»</b> (§9, <a href="/doc#reports-tbank-payments-index">анонс</a>); <b>поиск DataTables</b> (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>: Платежи/LTV — ФИО+группа; monthly — ещё месяц; intents — ФИО/партнёр/ID; T‑Bank — Order/Deal/id/партнёр); фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4, в т.ч. T‑Bank); <b>«Чеки»</b> — только <code>source=marketplace</code>, продажи платформы не входят (<a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), <b>сумма неоплаченного месяца в колонке рубля</b> (<a href="/doc#journal-postpay-payment-due-index">анонс</a>), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = визиты с <code>consumes_lesson</code> × ставка, затем <b>скидка по снимку строки</b></a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <b>тип flexible в UI — «Предоплата»</b> — <a href="/doc#flexible-ui-label-index">анонс</a>; <b>автосписание</b> <code>auto_attendance_enabled</code> — чекбокс при <code>scheduleSlots.view</code>, <a href="/doc#lesson-package-auto-attendance-index">анонс</a>; <b>заморозка</b> шаблона — тот же <code>@can</code>, <a href="/doc#lesson-package-freeze-permission-index">анонс</a>; <b>срок действия</b> в модалке — <a href="/doc#lesson-package-duration-permission-index">анонс</a>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, причина ошибки sms.ru в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь (<b>URL</b> — <code>lessonPackages.view</code>; <b>сайдбар</b> — <code>scheduleSlots.view</code>, не в базовом admin — <a href="/doc#school-schedule-permission-group-index">анонс группы</a>), фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, предоплата/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>; право скрытое), JSON/API, аудит «История»</a></li>

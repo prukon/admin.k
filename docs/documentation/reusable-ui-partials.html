@@ -82,7 +82,7 @@
     <tbody>
       <tr><td><code>/admin/locations</code></td><td><code>admin/locations/index.blade.php</code></td></tr>
       <tr><td><code>/admin/sport-types</code></td><td><code>admin/sport-types/index.blade.php</code></td></tr>
-      <tr><td><code>/admin/partners</code></td><td><code>admin/partners/tabs/partners.blade.php</code> (метрики: <code>count</code> / <code>money</code>, <code>table_key = partners_index</code>; <a href="/docs/documentation/account-partner-organization#partners-index-metrics">account-partner-organization §3.1.1</a>)</td></tr>
+      <tr><td><code>/admin/partners</code></td><td><code>admin/partners/tabs/partners.blade.php</code> (метрики: <code>count</code> / <code>money</code>, <code>table_key = partners_index</code>; tfoot итогов + FixedHeader footer — <a href="/docs/documentation/account-partner-organization#partners-index-metrics">§3.1.1</a> / <a href="/docs/documentation/account-partner-organization#partners-index-totals">§3.1.2</a>)</td></tr>
       <tr><td><code>/admin/lesson-packages/occurrence-statuses</code>, <code>/schedule/occurrence-statuses</code></td><td><code>admin/shared/occurrence_statuses_crud.blade.php</code></td></tr>
       <tr><td><code>/admin/teams</code></td><td><code>admin/team.blade.php</code></td></tr>
       <tr><td><code>/admin/users</code></td><td><code>admin/user.blade.php</code></td></tr>
@@ -504,10 +504,13 @@ dataTable: {
       <tr><td>LTV</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/ltv</code></a></td><td><code>reports_ltv</code></td></tr>
       <tr><td>Платежные запросы</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payment-intents</code></a></td><td><code>reports_payment_intents</code></td></tr>
       <tr><td>Фискальные чеки</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/fiscal-receipts</code></a></td><td><code>reports_fiscal_receipts</code></td></tr>
+      <tr><td>Платежи T‑Bank</td><td><a href="/docs/documentation/reports-admin#reports-tbank-payments"><code>/admin/reports/tbank-payments</code></a>
+        (<a href="/doc#reports-tbank-payments-index">анонс</a>)</td><td><code>reports_tbank_payments</code></td></tr>
       <tr><td>Выплаты T‑Bank</td><td><a href="/docs/documentation/tbank-admin-payouts"><code>/admin/tinkoff/payouts</code></a></td><td><code>tinkoff_payouts_index</code></td></tr>
+      <tr><td>Комиссии Т‑Банк</td><td><a href="/docs/documentation/tbank#commissions-ui"><code>/admin/settings/tbank-commissions</code></a></td><td><code>tbank_commissions_index</code></td></tr>
     </tbody>
   </table>
-  <p class="small">Тесты: <code>DatatablePageLengthCatalogFeatureTest</code> (ровно эти 9 URL / <code>table_key</code> / blade),
+  <p class="small">Тесты: <code>DatatablePageLengthCatalogFeatureTest</code> (ровно эти URL / <code>table_key</code> / blade),
     <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>
     (тело POST: только <code>page_length</code>, gate <code>persistPageLength !== true</code>),
     <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>
@@ -515,8 +518,11 @@ dataTable: {
     <code>ReportsAndPayoutsPageLengthFeatureTest</code>,
     <code>UsersPageLengthFeatureTest</code>,
     <code>TeamsPageLengthFeatureTest</code>,
-    <code>SchoolLeadsPageLengthFeatureTest</code>.
-    Анонс — <a href="/doc#datatable-page-length-index">/doc</a>.</p>
+    <code>SchoolLeadsPageLengthFeatureTest</code>,
+    <code>TbankCommissionsColumnsSettingsFeatureTest</code> (UX N/колонок комиссий),
+    <code>BladeInlineJsSyntaxTest::test_tbank_commissions_columns_inline_script_keeps_defaults_and_reloads_without_recreate</code>.
+    Анонс «Показать N» — <a href="/doc#datatable-page-length-index">/doc</a>;
+    кнопка «Колонки» на комиссиях — <a href="/doc#tbank-commissions-columns-index">/doc#tbank-commissions-columns-index</a>.</p>
 
   <h3>Эталонные страницы</h3>
   <ul>
@@ -534,7 +540,7 @@ dataTable: {
     <li><a href="/docs/documentation/reports-admin#reports-outgoing-emails">/admin/reports/emails</a> — <code>datetime</code> (создано/отправлено), <code>link</code> (колонка «Кому» → модалка), колонка «Партнер» (id + title, как в чеках), фильтр партнёра только для SA (<a href="/docs/documentation/reports-admin#partner-filter-cross-report">§2.4</a>)</li>
     <li><a href="/docs/documentation/reports-admin">Прочие отчёты админки</a> — debt, LTV, monthly, payment-intents, fiscal-receipts (<code>table_key</code> см. §9 там)</li>
     <li><a href="/docs/documentation/settings-logs">/admin/settings/logs</a> — журнал <code>my_logs</code> без columns-settings (фиксированные колонки)</li>
-    <li><a href="/docs/documentation/tbank#commissions-ui">/admin/settings/tbank-commissions</a> — server-side таблица правил комиссий</li>
+    <li><a href="/docs/documentation/tbank#commissions-ui">/admin/settings/tbank-commissions</a> — server-side таблица правил комиссий, dropdown «Колонки», <code>table_key = tbank_commissions_index</code>, opt-in <code>persistPageLength</code></li>
   </ul>
 
   <h3 id="logmodal">Модалка «История изменений» (<code>logModal</code>)</h3>

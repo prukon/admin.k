@@ -77,6 +77,15 @@ final class ReportsAndPayoutsPageLengthFullAccessFeatureTest extends CrmTestCase
             'view_var'    => 'fiscalReceiptsPageLength',
             'create'      => "KidsCrmDataTable.create('#fiscal-receipts-table'",
         ]];
+        yield 'tbank_payments' => [[
+            'permission'  => 'reports.tbank.payments.view',
+            'index_route' => 'reports.tbank-payments.index',
+            'get_url'     => '/admin/reports/tbank-payments/columns-settings',
+            'save_url'    => '/admin/reports/tbank-payments/columns-settings',
+            'table_key'   => 'reports_tbank_payments',
+            'view_var'    => 'tbankPaymentsPageLength',
+            'create'      => "KidsCrmDataTable.create('#tbank-payments-table'",
+        ]];
         yield 'tinkoff_payouts' => [[
             'permission'  => 'tbank.payouts.manage',
             'index_route' => 'admin.tinkoff.payouts.index',

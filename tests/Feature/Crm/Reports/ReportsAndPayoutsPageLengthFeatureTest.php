@@ -87,6 +87,17 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
             'view_var'      => 'fiscalReceiptsPageLength',
             'sample_columns'=> ['partner' => true, 'error' => false],
         ]];
+        yield 'tbank_payments' => [[
+            'auth'          => 'superadmin',
+            'permission'    => 'reports.tbank.payments.view',
+            'index_route'   => 'reports.tbank-payments.index',
+            'get_url'       => '/admin/reports/tbank-payments/columns-settings',
+            'save_url'      => '/admin/reports/tbank-payments/columns-settings',
+            'table_key'     => 'reports_tbank_payments',
+            'create'        => "KidsCrmDataTable.create('#tbank-payments-table'",
+            'view_var'      => 'tbankPaymentsPageLength',
+            'sample_columns'=> ['partner' => true, 'deal_id' => false],
+        ]];
         yield 'tinkoff_payouts' => [[
             'auth'          => 'payouts',
             'permission'    => 'tbank.payouts.manage',

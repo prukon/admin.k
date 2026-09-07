@@ -142,6 +142,18 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
                 'permission'  => 'reports.fiscal.receipts.view',
             ],
             [
+                'label'       => 'Платежи T‑Bank',
+                'url'         => '/admin/reports/tbank-payments',
+                'index_route' => 'reports.tbank-payments.index',
+                'save_url'    => '/admin/reports/tbank-payments/columns-settings',
+                'table_key'   => 'reports_tbank_payments',
+                'view_var'    => 'tbankPaymentsPageLength',
+                'create'      => "KidsCrmDataTable.create('#tbank-payments-table'",
+                'blade'       => 'admin/report/tbank_payments.blade.php',
+                'auth'        => 'superadmin',
+                'permission'  => 'reports.tbank.payments.view',
+            ],
+            [
                 'label'       => 'Выплаты T‑Bank',
                 'url'         => '/admin/tinkoff/payouts',
                 'index_route' => 'admin.tinkoff.payouts.index',
@@ -152,6 +164,18 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
                 'blade'       => 'admin/partners/tabs/payouts.blade.php',
                 'auth'        => 'payouts',
                 'permission'  => 'tbank.payouts.manage',
+            ],
+            [
+                'label'       => 'Комиссии Т‑Банк',
+                'url'         => '/admin/settings/tbank-commissions',
+                'index_route' => 'admin.setting.tbankCommissions',
+                'save_url'    => '/admin/settings/tbank-commissions/columns-settings',
+                'table_key'   => 'tbank_commissions_index',
+                'view_var'    => 'tbankCommissionsPageLength',
+                'create'      => "KidsCrmDataTable.create('#tbank-commissions-table'",
+                'blade'       => 'admin/setting/tbankCommissions.blade.php',
+                'auth'        => 'superadmin',
+                'permission'  => 'settings.commission',
             ],
         ];
     }
@@ -197,7 +221,7 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
         sort($expected);
 
         $this->assertSame($expected, $hits);
-        $this->assertCount(9, $hits);
+        $this->assertCount(11, $hits);
     }
 
     /**

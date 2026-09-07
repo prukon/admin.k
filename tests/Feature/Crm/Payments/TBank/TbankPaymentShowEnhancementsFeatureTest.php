@@ -90,19 +90,25 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
         }
     }
 
-    public function test_user_with_tbank_manage_permission_gets_200_on_index_and_show(): void
+    public function test_user_with_tbank_manage_permission_gets_200_on_show(): void
     {
         $actor = $this->createUserWithoutPermission('manage.payment.method.tbank', $this->partner);
         $this->grantTbankManage((int) $actor->role_id);
         $this->actingAs($actor);
 
-        $this->get('/admin/tinkoff/payments')
-            ->assertOk();
-
         $this->get('/admin/tinkoff/payments/' . $this->payment->id)
             ->assertOk()
             ->assertSee('Ход платежа, чеков и выплаты', false)
             ->assertSee('tbank-payment-timeline', false);
+    }
+
+    public function test_old_payments_list_url_is_not_found(): void
+    {
+        $actor = $this->createUserWithoutPermission('manage.payment.method.tbank', $this->partner);
+        $this->grantTbankManage((int) $actor->role_id);
+        $this->actingAs($actor);
+
+        $this->get('/admin/tinkoff/payments')->assertNotFound();
     }
 
     public function test_show_displays_legal_entity_organization_from_snapshot(): void
@@ -397,11 +403,6 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
     private function paymentAdminRoutes(): array
     {
         return [
-            [
-                'method' => 'GET',
-                'url' => '/admin/tinkoff/payments',
-                'headers' => ['HTTP_ACCEPT' => 'text/html'],
-            ],
             [
                 'method' => 'GET',
                 'url' => '/admin/tinkoff/payments/' . $this->payment->id,

@@ -6,6 +6,7 @@ use App\Models\FiscalReceipt;
 use App\Models\OutgoingEmailLog;
 use App\Models\Partner;
 use App\Models\PaymentIntent;
+use App\Models\TinkoffPayment;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -337,6 +338,95 @@ final class ReportsPartnerFilterFeatureTest extends CrmTestCase
     }
 
     // -----------------------------------------------------------------------
+    // Платежи T‑Bank
+    // -----------------------------------------------------------------------
+
+    public function test_tbank_payments_superadmin_sees_partner_filter_non_superadmin_hides(): void
+    {
+        $this->asSuperadmin();
+        $this->get(route('reports.tbank-payments.index'))
+            ->assertOk()
+            ->assertViewHas('tpCanFilterPartner', true)
+            ->assertSee('tp-filter-partner', false);
+
+        $actor = $this->grantTbankPaymentsViewToAdmin();
+        $this->actingAs($actor);
+        $this->get(route('reports.tbank-payments.index'))
+            ->assertOk()
+            ->assertViewHas('tpCanFilterPartner', false)
+            ->assertDontSee('tp-filter-partner', false);
+    }
+
+    public function test_tbank_payments_superadmin_partner_id_filter_on_total_and_data(): void
+    {
+        $this->asSuperadmin();
+
+        TinkoffPayment::query()->create([
+            'order_id' => 'tp-own-'.uniqid(),
+            'partner_id' => $this->partner->id,
+            'amount' => 10000,
+            'method' => 'card',
+            'status' => 'CONFIRMED',
+        ]);
+        TinkoffPayment::query()->create([
+            'order_id' => 'tp-foreign-'.uniqid(),
+            'partner_id' => $this->foreignPartner->id,
+            'amount' => 50000,
+            'method' => 'card',
+            'status' => 'CONFIRMED',
+        ]);
+
+        $this->get(route('reports.tbank-payments.total'))
+            ->assertOk()
+            ->assertJsonPath('total_raw', 600);
+
+        $this->get(route('reports.tbank-payments.total', ['partner_id' => $this->partner->id]))
+            ->assertOk()
+            ->assertJsonPath('total_raw', 100);
+
+        $json = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('reports.tbank-payments.data', [
+                'draw' => 1,
+                'start' => 0,
+                'length' => 50,
+                'partner_id' => $this->partner->id,
+            ]))
+            ->assertOk()
+            ->json();
+
+        foreach ($json['data'] as $row) {
+            $this->assertSame($this->partner->id, (int) ($row['partner_id'] ?? 0));
+        }
+    }
+
+    public function test_tbank_payments_non_superadmin_ignores_foreign_partner_id_query(): void
+    {
+        $actor = $this->grantTbankPaymentsViewToAdmin();
+        $this->actingAs($actor);
+
+        TinkoffPayment::query()->create([
+            'order_id' => 'tp-own-ns-'.uniqid(),
+            'partner_id' => $this->partner->id,
+            'amount' => 5000,
+            'method' => 'card',
+            'status' => 'CONFIRMED',
+        ]);
+        TinkoffPayment::query()->create([
+            'order_id' => 'tp-foreign-ns-'.uniqid(),
+            'partner_id' => $this->foreignPartner->id,
+            'amount' => 99900,
+            'method' => 'card',
+            'status' => 'CONFIRMED',
+        ]);
+
+        $this->get(route('reports.tbank-payments.total', [
+            'partner_id' => $this->foreignPartner->id,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('total_raw', 50);
+    }
+
+    // -----------------------------------------------------------------------
     // Платежные запросы
     // -----------------------------------------------------------------------
 
@@ -454,6 +544,14 @@ final class ReportsPartnerFilterFeatureTest extends CrmTestCase
     {
         $actor = $this->createUserWithoutPermission('reports.payment.intents.view', $this->partner);
         $this->grantPermissionToRole((int) $actor->role_id, 'reports.payment.intents.view');
+
+        return $actor;
+    }
+
+    private function grantTbankPaymentsViewToAdmin(): \App\Models\User
+    {
+        $actor = $this->createUserWithoutPermission('reports.tbank.payments.view', $this->partner);
+        $this->grantPermissionToRole((int) $actor->role_id, 'reports.tbank.payments.view');
 
         return $actor;
     }

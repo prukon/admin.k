@@ -33,7 +33,9 @@
     Оплаты / resolver: <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a> ·
     Права партнёра: <a href="/docs/documentation/partners-permissions">partners-permissions</a> ·
     Метрики списка: <a href="#partners-index-metrics">§3.1.1</a>
-    (<a href="/doc#admin-partners-list-metrics">анонс на /doc</a>)
+    (<a href="/doc#admin-partners-list-metrics">анонс колонок</a>) ·
+    Итоги tfoot: <a href="#partners-index-totals">§3.1.2</a>
+    (<a href="/doc#admin-partners-list-totals-index">анонс подвала</a>)
   </div>
 
   <div class="note">
@@ -132,6 +134,8 @@
     из JS (<code>KidsCrmDataTable</code> merge: ключ отсутствует в ответе GET → <code>defaults</code>), новые колонки не скрываются.
     Агрегаты: <code>App\Support\PartnerListMetrics</code> (leftJoin подзапросов после фильтров, <code>recordsFiltered</code> считается до join),
     JSON DataTables <code>GET /admin/partners/data</code>. Сортировка по метрикам — <code>orderByExpression()</code>.
+    Итоги в подвале — <a href="#partners-index-totals">§3.1.2</a>
+    (<a href="/doc#admin-partners-list-totals-index">анонс на /doc</a>): JSON <code>totals</code> по фильтрам, не по странице.
     Неактивные и soft-deleted ученики не входят в «Акт. польз.», но их платежи входят в оборот
     и в комиссию платформы (join идёт через <code>DB::table('users')</code> без <code>whereNull(deleted_at)</code>).
     Договоры в статусах кроме <code>signed</code> не считаются.
@@ -180,14 +184,73 @@
   </table>
   <p>Доступ к HTML и JSON тот же, что у раздела (§3.4): гость GET index → <b>302</b>, JSON data/columns-settings → <b>401</b>; без <code>partner.view</code> → <b>403</b>.
   Валидация DataTables: <code>PartnerDataTableRequest</code> (<code>attributes</code> + <code>messages</code>); 422 отдаёт <code>errors</code> с ключами полей (<code>title</code> / <code>status</code> / <code>length</code> и т.д.).</p>
-    <p class="small">Тесты: <code>PartnersListMetricsFeatureTest</code> (гость 302/401, 403, 200, 422 <code>errors[status|title|length|draw]</code>, SetPartner без организации, superadmin, non-AJAX 422/302 не пустой 200, порядок thead = JS columns = чекбоксы «Колонки», короткие заголовки в th и labels, дефолт фильтра active / негатив inactive, дефолтные тумблеры, январские заголовки, старые column-settings без ключа → клиентский true / сохранённый false не навязывается, сброс фильтра не трогает колонки, границы месяца, неактивный ученик в обороте, копейки, отсутствие дублей строк, комиссия по <code>operation_date</code> а не <code>completed_at</code>, <code>REJECTED</code> исключён / <code>INITIATED|CHECKED|CREDIT_CHECKING</code> входят, Robokassa без выплаты → комиссия 0, снимок не пересчитывается при смене правила), <code>PartnerColumnsSettingsTest</code>, <code>PartnersDataTableFeatureTest</code>, <code>BladeInlineJsSyntaxTest::test_partners_list_metrics_inline_script_contract_and_valid_javascript</code>, <code>tests/Unit/Support/PartnerListMetricsTest.php</code>.</p>
+    <p class="small">Тесты: <code>PartnersListMetricsFeatureTest</code> (гость 302/401, 403, 200, 422 <code>errors[status|title|length|draw]</code>, SetPartner без организации, superadmin, non-AJAX 422/302 не пустой 200, порядок thead = JS columns = чекбоксы «Колонки», короткие заголовки в th и labels, дефолт фильтра active / негатив inactive, дефолтные тумблеры, январские заголовки, старые column-settings без ключа → клиентский true / сохранённый false не навязывается, сброс фильтра не трогает колонки, границы месяца, неактивный ученик в обороте, копейки, отсутствие дублей строк, комиссия по <code>operation_date</code> а не <code>completed_at</code>, <code>REJECTED</code> исключён / <code>INITIATED|CHECKED|CREDIT_CHECKING</code> входят, Robokassa без выплаты → комиссия 0, снимок не пересчитывается при смене правила, JSON <code>totals</code> по фильтрам / не по странице, tfoot 17 колонок + FixedHeader footer), <code>PartnersListTotalsFeatureTest</code> (см. §3.1.2), <code>PartnerColumnsSettingsTest</code>, <code>PartnersDataTableFeatureTest</code>, <code>BladeInlineJsSyntaxTest::test_partners_list_metrics_inline_script_contract_and_valid_javascript</code>, <code>tests/Unit/Support/PartnerListMetricsTest.php</code>.</p>
+
+  <h3 id="partners-index-totals">3.1.2) Итоги в подвале таблицы <code>/admin/partners</code></h3>
+  <p class="small">Анонс: <a href="/doc#admin-partners-list-totals-index">/doc#admin-partners-list-totals-index</a>.
+  Формулы колонок — <a href="#partners-index-metrics">§3.1.1</a>.</p>
+  <div class="note">
+    Server-side DataTables не умеет суммировать <b>всю</b> отфильтрованную выборку по видимой странице.
+    Поэтому <code>PartnerController::data</code> после <code>applyJoins()</code> и <b>до</b> <code>skip</code>/<code>take</code>
+    считает объект <code>totals</code> через <code>PartnerListMetrics::totalsPayloadFromJoinedQuery</code>
+    (клон запроса, <code>reorder()</code>, <code>select([DB::raw('SUM(…)')])</code> —
+    колонки строки <b>заменяются</b>, не дополняются: <code>selectRaw</code> оставлял <code>partners.*</code>
+    и ловил MySQL 1140 «Mixing of GROUP columns»).
+    Те же ключи и те же формулы, что у строки (<code>JSON_KEYS</code> / <code>payload()</code>):
+    счётчики — целые, деньги — рубли с дробью.
+    Soft-deleted партнёры не входят (SoftDeletes на <code>Partner</code>).
+    Если фильтр никого не нашёл — все ключи на месте, значения 0.
+  </div>
+  <table>
+    <thead><tr><th>Слой</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>JSON</td>
+        <td><code>GET /admin/partners/data</code> → <code>{ draw, recordsTotal, recordsFiltered, data, totals }</code>.
+        AJAX и non-AJAX GET — один JSON <b>200</b> (не пустой HTML).
+        POST/PATCH/DELETE на этот URL — не <b>500</b> (обычно 404/405/419).
+        422 валидации (<code>PartnerDataTableRequest</code>) — <code>errors[status|title|length|…]</code>, поля <code>totals</code> нет.</td>
+      </tr>
+      <tr>
+        <td>Фильтры</td>
+        <td>Поиск <code>title</code> и <code>status</code> те же, что у строк.
+        UI-дефолт «Только активные»: <code>option value="active" selected</code> + <code>ajax.data</code> шлёт <code>d.status</code>.
+        API без <code>status</code> не навязывает active (считает всех не-soft-deleted).
+        Сброс фильтра возвращает <code>defaultFilterStatus</code>, не <code>val('')</code>.
+        Apply / Submit / Reset → <code>reloadPartnersTable</code>, без перезагрузки страницы.</td>
+      </tr>
+      <tr>
+        <td>Клиент</td>
+        <td>Статический <code>tfoot</code> пустой (без текста «Итого»), 17 <code>th</code> как в thead.
+        <code>footerCallback</code> → <code>fillPartnersTotalsFooter(api)</code> из <code>api.ajax.json().totals</code>,
+        не <code>reduce</code> и не сумма видимых строк.
+        Подпись «Итого» — первая видимая из
+        <code>title</code>, <code>order_by</code>, <code>email</code>, <code>phone</code>, <code>status_label</code>, <code>rownum</code>;
+        в ключи <code>JSON_KEYS</code> не пишется.</td>
+      </tr>
+      <tr>
+        <td>Закрепление</td>
+        <td>Плагин <code>public/plugins/datatables-fixedheader/</code> подключается <b>до</b> <code>KidsCrmDataTable.create</code>.
+        Опция <code>fixedHeader: { header: false, footer: true }</code> (шапка не липнет).
+        Нет плагина → <code>fixedHeader: false</code>, строка остаётся внизу таблицы.
+        Горизонтальный скролл <code>.kids-dt-scroll-x</code> задаёт <code>margin-left</code> клону
+        <code>.dtfh-floatingparentfoot table</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Не путать с LTV (<a href="/docs/documentation/reports-admin#ltv-vs-partners-turnover">reports-admin §4</a>)
+  и с отчётом «Платежи» (комиссия платформы там по <em>текущим</em> правилам).
+  Тесты: <code>PartnersListTotalsFeatureTest</code>,
+  <code>PartnersListMetricsFeatureTest</code> (<code>test_data_totals_*</code>, tfoot),
+  <code>BladeInlineJsSyntaxTest::test_partners_list_metrics_inline_script_contract_and_valid_javascript</code>,
+  <code>PartnersListTotalsDocumentationContractTest</code>.</p>
 
   <h3>3.2) Эндпоинты (право <code>partner.view</code>)</h3>
   <table>
     <thead><tr><th>Метод</th><th>URL</th><th>Назначение</th><th>AJAX / JSON</th><th>Non-AJAX</th></tr></thead>
     <tbody>
       <tr><td>GET</td><td><code>/admin/partners</code></td><td>HTML списка + модалки create/edit</td><td>—</td><td><b>200</b></td></tr>
-      <tr><td>GET</td><td><code>/admin/partners/data</code></td><td>JSON DataTables</td><td><b>200</b></td><td>—</td></tr>
+      <tr><td>GET</td><td><code>/admin/partners/data</code></td><td>JSON DataTables + <code>totals</code></td><td><b>200</b></td><td><b>200</b> тот же JSON (не пустой HTML)</td></tr>
       <tr><td>GET</td><td><code>/admin/partners/columns-settings</code></td><td>Настройки колонок пользователя</td><td><b>200</b></td><td>—</td></tr>
       <tr><td>POST</td><td><code>/admin/partners/columns-settings</code></td><td>Сохранение колонок</td><td><b>200</b> <code>{ success }</code></td><td>—</td></tr>
       <tr><td>GET</td><td><code>/admin/partner/logs-data</code></td><td>История раздела (DataTables)</td><td><b>200</b></td><td>—</td></tr>
@@ -245,7 +308,7 @@
   <h2>6) Ключевые файлы</h2>
   <ul>
     <li><code>app/Support/PartnerLegacyLegalFields.php</code></li>
-    <li><code>app/Support/PartnerListMetrics.php</code></li>
+    <li><code>app/Support/PartnerListMetrics.php</code> (<code>applyJoins</code>, <code>payload</code>, <code>totalsPayloadFromJoinedQuery</code>)</li>
     <li><code>app/Http/Controllers/Admin/PartnerSettingController.php</code></li>
     <li><code>app/Http/Controllers/Admin/PartnerController.php</code></li>
     <li><code>app/Http/Requests/Partner/PartnerDataTableRequest.php</code></li>
@@ -253,7 +316,8 @@
     <li><code>app/Services/PartnerLegalEntities/LegalEntityResolver.php</code></li>
     <li><code>resources/views/account/organizations.blade.php</code></li>
     <li><code>resources/views/includes/modal/editPartner.blade.php</code></li>
-    <li><code>resources/views/admin/partners/tabs/partners.blade.php</code></li>
+    <li><code>resources/views/admin/partners/tabs/partners.blade.php</code> (tfoot, <code>fillPartnersTotalsFooter</code>, FixedHeader)</li>
+    <li><code>public/plugins/datatables-fixedheader/</code></li>
   </ul>
 
   <h2>7) Автотесты</h2>
@@ -265,7 +329,9 @@
       <li><code>tests/Feature/Crm/Partners/PartnerAdminOperationalFieldsFeatureTest.php</code> — UI подписи, edit JSON, strip city/zip/ceo, сохранение полей</li>
       <li><code>tests/Feature/Crm/Partners/PartnerAdminSectionAccessFeatureTest.php</code> — guest/403/200/201/302/422 по всем endpoint'ам раздела</li>
       <li><code>tests/Feature/Crm/Partners/PartnerAdminLegacyFieldsFeatureTest.php</code> — UI, strip legacy, AJAX, доступ</li>
-      <li><code>tests/Feature/Crm/Partners/PartnersListMetricsFeatureTest.php</code> — активные ученики, подписанные договоры, оборот по <code>operation_date</code></li>
+      <li><code>tests/Feature/Crm/Partners/PartnersListMetricsFeatureTest.php</code> — активные ученики, подписанные договоры, оборот по <code>operation_date</code>, JSON <code>totals</code></li>
+      <li><code>tests/Feature/Crm/Partners/PartnersListTotalsFeatureTest.php</code> — итоги tfoot: доступ 302/401/403/200/422, non-AJAX JSON, пагинация не меняет сумму, API без <code>status</code> не навязывает «только активные», JS футера берёт <code>json.totals</code> а не строки страницы, «Итого» не в денежных колонках</li>
+      <li><code>tests/Unit/Documentation/PartnersListTotalsDocumentationContractTest.php</code> — анонс /doc и §3.1.2 совпадают с кодом</li>
       <li><code>tests/Feature/Crm/Partners/PartnersDataTableFeatureTest.php</code> — структура строки DataTables, в т.ч. ключи метрик</li>
       <li><code>tests/Unit/Support/PartnerListMetricsTest.php</code> — подписи месяцев и окна дат</li>
       <li><code>tests/Feature/Crm/PartnerLegalEntities/PartnerLegacyLegalFieldsResolverFeatureTest.php</code> — resolver и PaymentService без fallback на <code>partners</code></li>
@@ -283,6 +349,8 @@
   tests/Feature/Crm/Partners/PartnerAdminLegacyFieldsFeatureTest.php \
   tests/Feature/Crm/Partners/PartnerAdminNonAjaxSafetyNetFeatureTest.php \
   tests/Feature/Crm/Partners/PartnersListMetricsFeatureTest.php \
+  tests/Feature/Crm/Partners/PartnersListTotalsFeatureTest.php \
+  tests/Unit/Documentation/PartnersListTotalsDocumentationContractTest.php \
   tests/Feature/Crm/Partners/PartnersDataTableFeatureTest.php \
   tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php --filter=partners_list_metrics \
   tests/Unit/Support/PartnerListMetricsTest.php \

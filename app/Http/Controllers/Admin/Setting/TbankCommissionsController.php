@@ -3,17 +3,22 @@
 namespace App\Http\Controllers\Admin\Setting;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Models\Partner;
 use App\Models\Setting;
 use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayout;
+use App\Models\UserTableSetting;
 use App\Services\Tinkoff\TbankTerminalConfig;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class TbankCommissionsController extends Controller
 {
+    private const TABLE_KEY = 'tbank_commissions_index';
+
     public function index()
     {
         $maps = $this->tinkoffCommissionRulesAuxiliaryMaps();
@@ -24,6 +29,10 @@ class TbankCommissionsController extends Controller
             'partners' => Partner::orderBy('title')->get(['id', 'title']),
             'payoutScheduledIntervalMinutes' => Setting::getTinkoffPayoutScheduledIntervalMinutes(),
             'tbankGloballyConnected' => TbankTerminalConfig::isGloballyActive(),
+            'tbankCommissionsPageLength' => UserTableSetting::pageLengthForUser(
+                Auth::id() !== null ? (int) Auth::id() : null,
+                self::TABLE_KEY
+            ),
         ], $maps));
     }
 
@@ -220,6 +229,39 @@ class TbankCommissionsController extends Controller
         return [
             'autoPayoutStatsByPartnerId' => $autoPayoutStatsByPartnerId,
         ];
+    }
+
+    public function getColumnsSettings()
+    {
+        $settings = UserTableSetting::query()
+            ->where('user_id', (int) Auth::id())
+            ->where('table_key', self::TABLE_KEY)
+            ->first();
+
+        $columns = $settings?->columns;
+        if (! is_array($columns)) {
+            $columns = [];
+        }
+
+        return response()->json($columns);
+    }
+
+    public function saveColumnsSettings(ColumnsSettingsWithPageLengthSaveRequest $request)
+    {
+        $payload = $request->persistPayload();
+        if ($payload === []) {
+            return response()->json(['success' => true]);
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id' => (int) Auth::id(),
+                'table_key' => self::TABLE_KEY,
+            ],
+            $payload
+        );
+
+        return response()->json(['success' => true]);
     }
 
     /**

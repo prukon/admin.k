@@ -27,6 +27,7 @@ class TbankCommissionsFeatureCoverageTest extends CrmTestCase
         $resp->assertSee('id="tbankCommissionCreateModal"', false);
         $resp->assertSee('Настройки выплат', false);
         $resp->assertSee('Добавить комиссию', false);
+        $resp->assertSee('Колонки', false);
         $resp->assertSee('Правила комиссий и выплат', false);
     }
 

@@ -39,6 +39,13 @@
                     </li>
                 @endcan
 
+                @can('reports.tbank.payments.view')
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link {{ $activeTab == 'tbank-payments' ? 'active' : '' }}"
+                            href="{{ route('reports.tbank-payments.index') }}" role="tab">Платежи T‑Bank</a>
+                    </li>
+                @endcan
+
                 @can('reports.emails.view')
                     <li class="nav-item" role="presentation">
                         <a class="nav-link {{ $activeTab == 'emails' ? 'active' : '' }}"
@@ -106,6 +113,14 @@
                         'frFilterPartner' => $frFilterPartner ?? null,
                         'frCanFilterPartner' => $frCanFilterPartner ?? false,
                         'frHasActiveFilters' => $frHasActiveFilters ?? false,
+                    ])
+                @elseif($activeTab === 'tbank-payments')
+                    @include('admin.report.tbank_payments', [
+                        'filters' => $filters ?? [],
+                        'totalPaidPrice' => $totalPaidPrice ?? '0',
+                        'tpFilterPartner' => $tpFilterPartner ?? null,
+                        'tpCanFilterPartner' => $tpCanFilterPartner ?? false,
+                        'tpHasActiveFilters' => $tpHasActiveFilters ?? false,
                     ])
                 @elseif($activeTab === 'emails')
                     <!-- Контент вкладки "Исходящие письма" -->

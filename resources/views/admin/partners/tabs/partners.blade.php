@@ -5,6 +5,36 @@
 
 @vite(['resources/css/admin-list-toolbar.css'])
 
+<style>
+    #partners-table tfoot th {
+        font-weight: 600;
+        background-color: var(--bs-light, #f8f9fa);
+        box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.08);
+    }
+
+    #partners-table tfoot th.dt-col-count .dt-col-money-value,
+    table.fixedHeader-floating tfoot th .dt-col-money-value,
+    table.fixedHeader-locked tfoot th .dt-col-money-value {
+        display: block;
+        text-align: end;
+    }
+
+    .dtfh-floatingparentfoot {
+        z-index: 3 !important;
+        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .dtfh-floatingparentfoot table tfoot th {
+        font-weight: 600;
+        background-color: var(--bs-light, #f8f9fa);
+    }
+
+    .partners-dt-totals-label {
+        font-weight: 700;
+        white-space: nowrap;
+    }
+</style>
+
 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
             <div class="card-body px-3 py-3">
                 <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
@@ -267,6 +297,27 @@
                     <th>Действия</th>
                 </tr>
                 </thead>
+                <tfoot>
+                <tr>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                </tr>
+                </tfoot>
                 <tbody></tbody>
             </table>
         </div>
@@ -275,9 +326,31 @@
 @include('includes.logModal')
 
 @push('scripts')
+    <link rel="stylesheet" href="{{ asset('plugins/datatables-fixedheader/css/fixedHeader.bootstrap4.min.css') }}">
+    <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script>
         $(document).ready(function () {
             const defaultFilterStatus = 'active';
+            const partnersTotalsKeys = [
+                'active_users_count',
+                'signed_contracts_count',
+                'turnover_all',
+                'platform_commission_all',
+                'turnover_month_0',
+                'platform_commission_month_0',
+                'turnover_month_1',
+                'platform_commission_month_1',
+                'turnover_month_2',
+                'platform_commission_month_2',
+            ];
+            const partnersTotalsLabelColumns = [
+                'title',
+                'order_by',
+                'email',
+                'phone',
+                'status_label',
+                'rownum',
+            ];
 
             function escapeHtml(text) {
                 if (text === null || text === undefined) return '';
@@ -293,6 +366,66 @@
                     title: $('#filter-title').val() || '',
                     status: $('#filter-status').val() || '',
                 };
+            }
+
+            function renderPartnersFooterCell(api, colIdx, value) {
+                const col = api.settings()[0].aoColumns[colIdx];
+                const renderer = col && col.mRender;
+                if (typeof renderer === 'function') {
+                    return renderer(value, 'display', {}, {
+                        row: 0,
+                        col: colIdx,
+                        settings: api.settings()[0],
+                    });
+                }
+
+                if (value === null || value === undefined || value === '') {
+                    return '';
+                }
+
+                return String(value);
+            }
+
+            function fillPartnersTotalsFooter(api) {
+                const json = api.ajax.json() || {};
+                const totals = json.totals || {};
+
+                api.columns().every(function () {
+                    const idx = this.index();
+                    const name = (api.settings()[0].aoColumns[idx] || {}).sName || '';
+                    const $footer = $(this.footer());
+
+                    if (partnersTotalsKeys.indexOf(name) !== -1) {
+                        const value = Object.prototype.hasOwnProperty.call(totals, name)
+                            ? totals[name]
+                            : 0;
+                        $footer.html(renderPartnersFooterCell(api, idx, value));
+                        return;
+                    }
+
+                    $footer.html('');
+                });
+
+                for (let i = 0; i < partnersTotalsLabelColumns.length; i++) {
+                    const col = api.column(partnersTotalsLabelColumns[i] + ':name');
+                    if (col.visible()) {
+                        $(col.footer()).html('<span class="partners-dt-totals-label">Итого</span>');
+                        break;
+                    }
+                }
+            }
+
+            function bindPartnersTotalsHScroll() {
+                const $host = $('#partners-table').closest('.kids-dt-scroll-x');
+                if (!$host.length || $host.data('partnersTotalsHScroll')) {
+                    return;
+                }
+
+                $host.data('partnersTotalsHScroll', true);
+                $host.on('scroll.partnersTotals', function () {
+                    const sl = $host.scrollLeft();
+                    $('.dtfh-floatingparentfoot table').css('margin-left', (-sl) + 'px');
+                });
             }
 
             function partnersHasNonDefaultFilters() {
@@ -352,6 +485,15 @@
                     },
                     order: [[1, 'asc']],
                     language: @include('partials.datatables.ru'),
+                    footerCallback: function () {
+                        fillPartnersTotalsFooter(this.api());
+                    },
+                    fixedHeader: ($.fn.dataTable && $.fn.dataTable.FixedHeader)
+                        ? { header: false, footer: true }
+                        : false,
+                    drawCallback: function () {
+                        bindPartnersTotalsHScroll();
+                    },
                 },
                 columns: [
                     { type: 'rownum' },
@@ -411,6 +553,7 @@
             });
 
             const table = dtApi.table;
+            bindPartnersTotalsHScroll();
 
             window.reloadPartnersTable = function () {
                 dtApi.reload({ keepPage: true });

@@ -213,12 +213,18 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
 
   <h3>5.5) Референсные тестовые файлы</h3>
   <ul class="small">
-    <li><code>tests/Feature/Crm/Ui/DatatablePageLengthCatalogFeatureTest.php</code> — канонический список страниц, где «Показать N» пишется в <code>user_table_settings.page_length</code> (9 URL / <code>table_key</code> / blade; HTTP save + сверка документации) — <a href="/doc#datatable-page-length-catalog">/doc</a></li>
+    <li><code>tests/Feature/Crm/Ui/DatatablePageLengthCatalogFeatureTest.php</code> — канонический список страниц, где «Показать N» пишется в <code>user_table_settings.page_length</code> (URL / <code>table_key</code> / blade; HTTP save + сверка документации) — <a href="/doc#datatable-page-length-catalog">/doc</a></li>
     <li><code>tests/Feature/Database/DevSeedStackFeatureTest.php</code> — целостность dev-фикстур (<code>SEED_DEV_DATA</code>, юр. лица, комиссии, history) — <a href="/docs/documentation/dev-seed-data">dev-seed-data</a></li>
     <li><code>tests/Feature/Crm/SportTypes/SportTypesNonAjaxSafetyNetFeatureTest.php</code>, <code>SportTypesAjaxContractFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Districts/DistrictsNonAjaxSafetyNetFeatureTest.php</code>, <code>DistrictsAjaxContractFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesNonAjaxSafetyNetFeatureTest.php</code>, <code>LegalEntitiesAjaxContractFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsNonAjaxSafetyNetFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsColumnsSettingsFeatureTest.php</code>,
+      <code>TbankCommissionsColumnsSettingsAjaxContractFeatureTest.php</code>,
+      <code>TbankCommissionsColumnsSettingsNonAjaxSafetyNetFeatureTest.php</code>,
+      <code>TbankCommissionsColumnsSettingsFullAccessFeatureTest.php</code> —
+      «Колонки» / persist N на <code>/admin/settings/tbank-commissions</code>
+      (<a href="/docs/documentation/tbank#commissions-ui">tbank §4.3</a>)</li>
     <li><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/UserClassPaymentFlowTest.php</code>, <code>MultiTeamMonthlyPaymentAccessFeatureTest.php</code>, <code>MultiTeamMonthlyPaymentFlowTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/PayableTeamPaymentInitFeatureTest.php</code></li>

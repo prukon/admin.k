@@ -10,6 +10,7 @@ use Tests\Feature\Crm\CrmTestCase;
 
 /**
  * Non-AJAX safety-net для форм раздела комиссий T‑Bank (store/update/payout-settings).
+ * columns-settings — TbankCommissionsColumnsSettingsNonAjaxSafetyNetFeatureTest.
  */
 final class TbankCommissionsNonAjaxSafetyNetFeatureTest extends CrmTestCase
 {

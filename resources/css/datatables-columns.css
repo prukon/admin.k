@@ -104,9 +104,30 @@ table.dataTable.dt-columns-managed td.dt-col-actions {
     min-width: 5.5rem;
 }
 
-table.dataTable.dt-columns-managed td.dt-col-count .dt-col-money-value {
+table.dataTable.dt-columns-managed td.dt-col-count .dt-col-money-value,
+table.dataTable.dt-columns-managed tfoot th.dt-col-count .dt-col-money-value,
+table.dataTable.fixedHeader-floating tfoot th .dt-col-money-value,
+table.dataTable.fixedHeader-locked tfoot th .dt-col-money-value {
     display: block;
     text-align: end;
+}
+
+table.dataTable.dt-columns-managed tfoot th,
+table.dataTable.fixedHeader-floating tfoot th,
+table.dataTable.fixedHeader-locked tfoot th {
+    font-weight: 600;
+    background-color: var(--bs-light, #f8f9fa);
+    box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.08);
+}
+
+.dtfh-floatingparentfoot {
+    z-index: 3 !important;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.partners-dt-totals-label {
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 /* Раскрытие вложенной строки (chevron): ширина по кнопке. */

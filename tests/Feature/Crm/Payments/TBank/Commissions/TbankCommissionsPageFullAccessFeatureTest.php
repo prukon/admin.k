@@ -10,7 +10,7 @@ use Tests\Feature\Crm\CrmTestCase;
 
 /**
  * Доступ к /admin/settings/tbank-commissions и связанным эндпоинтам
- * (settings.commission → успешный ответ, без права → 403).
+ * (settings.commission → успешный ответ, без права → 403), включая columns-settings.
  */
 final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
 {
@@ -52,6 +52,7 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('>Настройки выплат</span>', false)
             ->assertSee('>Добавить комиссию</span>', false)
             ->assertSee('>Фильтры</span>', false)
+            ->assertSee('>Колонки</span>', false)
             ->assertSee('id="tbank-commissions-table"', false);
     }
 
@@ -80,6 +81,10 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->get(route('admin.setting.tbankCommissions'))->assertForbidden();
         $this->getJson(route('admin.setting.tbankCommissions.data', ['draw' => 1]))->assertForbidden();
+        $this->get(route('admin.setting.tbankCommissions.columns-settings.get'))->assertForbidden();
+        $this->postJson(route('admin.setting.tbankCommissions.columns-settings.save'), [
+            'columns' => ['partner_title' => true],
+        ])->assertForbidden();
         $this->get(route('admin.setting.tbankCommissions.create'))->assertForbidden();
         $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $ruleId]))->assertForbidden();
 
@@ -106,6 +111,10 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
         $endpoints = [
             fn () => $this->get(route('admin.setting.tbankCommissions')),
             fn () => $this->getJson(route('admin.setting.tbankCommissions.data', ['draw' => 1])),
+            fn () => $this->get(route('admin.setting.tbankCommissions.columns-settings.get')),
+            fn () => $this->postJson(route('admin.setting.tbankCommissions.columns-settings.save'), [
+                'columns' => ['partner_title' => true],
+            ]),
             fn () => $this->get(route('admin.setting.tbankCommissions.create')),
             fn () => $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $ruleId])),
             fn () => $this->post(route('admin.setting.tbankCommissions.payoutSettings'), [
@@ -146,6 +155,25 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
             'filter_partner_id' => $this->partner->id,
             'filter_method' => 'card',
         ]))->assertOk();
+
+        $this->getJson(route('admin.setting.tbankCommissions.columns-settings.get'))
+            ->assertOk()
+            ->assertExactJson([]);
+
+        $this->postJson(route('admin.setting.tbankCommissions.columns-settings.save'), [
+            'columns' => [
+                'partner_title' => true,
+                'method' => false,
+            ],
+        ])
+            ->assertOk()
+            ->assertExactJson(['success' => true]);
+
+        $this->postJson(route('admin.setting.tbankCommissions.columns-settings.save'), [
+            'page_length' => 50,
+        ])
+            ->assertOk()
+            ->assertExactJson(['success' => true]);
 
         $this->get(route('admin.setting.tbankCommissions.create'))
             ->assertRedirect(route('admin.setting.tbankCommissions', ['open_create' => 1]));

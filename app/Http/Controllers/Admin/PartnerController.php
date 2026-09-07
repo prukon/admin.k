@@ -94,6 +94,8 @@ class PartnerController extends AdminBaseController
 
         PartnerListMetrics::applyJoins($baseQuery);
 
+        $totals = PartnerListMetrics::totalsPayloadFromJoinedQuery($baseQuery);
+
         $orderColumnIndex = $request->input('order.0.column');
         $orderDir         = $request->input('order.0.dir', 'asc') === 'desc' ? 'desc' : 'asc';
         $columnsDef       = $request->input('columns', []);
@@ -164,6 +166,7 @@ class PartnerController extends AdminBaseController
             'recordsTotal'    => $totalRecords,
             'recordsFiltered' => $recordsFiltered,
             'data'            => $data,
+            'totals'          => $totals,
         ]);
     }
 

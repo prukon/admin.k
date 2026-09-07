@@ -115,6 +115,7 @@
                             'rules' => $rules ?? null,
                             'partners' => $partners ?? null,
                             'rule' => $rule ?? null,
+                            'tbankCommissionsPageLength' => $tbankCommissionsPageLength ?? 10,
                         ])
                     @elseif($activeTab === 'queues')
                         @include('admin.setting.queues')

@@ -37,12 +37,16 @@ final class TbankCommissionsToolbarFeatureTest extends CrmTestCase
         $this->assertStringContainsString('>Настройки выплат</span>', $html);
         $this->assertStringContainsString('>Добавить комиссию</span>', $html);
         $this->assertStringContainsString('>Фильтры</span>', $html);
+        $this->assertStringContainsString('>Колонки</span>', $html);
         $this->assertStringContainsString('data-bs-target="#tbankPayoutSettingsModal"', $html);
         $this->assertStringContainsString('data-bs-target="#tbankCommissionCreateModal"', $html);
         $this->assertStringContainsString('data-bs-target="#tbankCommissionsFiltersCollapse"', $html);
         $this->assertStringContainsString('fa-gear payments-report-toolbar-icon', $html);
         $this->assertStringContainsString('fa-plus payments-report-toolbar-icon', $html);
         $this->assertStringContainsString('fa-sliders-h payments-report-toolbar-icon', $html);
+        $this->assertStringContainsString('fa-table-columns payments-report-toolbar-icon', $html);
+        $this->assertStringContainsString('id="tbankCommissionsColumnsDropdown"', $html);
+        $this->assertStringContainsString('payments-report-columns-menu', $html);
 
         $this->assertStringContainsString('id="tbankPayoutSettingsModal"', $html);
         $this->assertStringContainsString('id="tbankCommissionCreateModal"', $html);
@@ -56,11 +60,14 @@ final class TbankCommissionsToolbarFeatureTest extends CrmTestCase
         $payoutPos = strpos($html, '>Настройки выплат</span>');
         $addPos = strpos($html, '>Добавить комиссию</span>');
         $filtersPos = strpos($html, '>Фильтры</span>');
+        $columnsPos = strpos($html, '>Колонки</span>');
         $this->assertNotFalse($payoutPos);
         $this->assertNotFalse($addPos);
         $this->assertNotFalse($filtersPos);
+        $this->assertNotFalse($columnsPos);
         $this->assertLessThan($addPos, $payoutPos);
         $this->assertLessThan($filtersPos, $addPos);
+        $this->assertLessThan($columnsPos, $filtersPos);
     }
 
     public function test_filters_collapse_is_expanded_when_query_filters_are_present(): void
