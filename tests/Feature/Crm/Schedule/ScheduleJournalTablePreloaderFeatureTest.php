@@ -108,7 +108,6 @@ final class ScheduleJournalTablePreloaderFeatureTest extends ScheduleJournalTest
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
         $this->assertStringContainsString('id="users-table"', $html);
-        $this->assertStringContainsString('class="table-responsive"', $html);
         $this->assertStringContainsString('payments-report-toolbar', $html);
         $this->assertStringNotContainsString('id="schedule-journal-stage"', $html);
         $this->assertStringNotContainsString('schedule-journal-preloader', $html);

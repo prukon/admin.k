@@ -44,15 +44,15 @@ final class UserPercentDiscountFeatureTest extends CrmTestCase
         $this->assertFalse(\Gate::forUser($this->user)->allows('users.discount.manage'));
     }
 
-    public function test_permission_is_visible_and_not_in_role_base_permissions(): void
+    public function test_permission_is_visible_and_in_admin_role_base_permissions(): void
     {
         $row = DB::table('permissions')->where('name', 'users.discount.manage')->first();
         $this->assertNotNull($row);
         $this->assertSame(1, (int) $row->is_visible);
 
-        $names = config('role_base_permissions.roles.admin', []);
-        $this->assertNotContains('users.discount.manage', $names);
+        $this->assertContains('users.discount.manage', config('role_base_permissions.roles.admin', []));
         $this->assertNotContains('users.discount.manage', config('role_base_permissions.roles.user', []));
+        $this->assertNotContains('users.discount.manage', config('role_base_permissions.roles.trainer', []));
     }
 
     public function test_users_page_shows_discount_fields_with_permission(): void

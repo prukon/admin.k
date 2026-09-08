@@ -86,6 +86,7 @@ final class SchoolLeadsPageFeatureTest extends CrmTestCase
             ->assertSee('school-leads-column-toggle', false)
             ->assertSee('id="sl-filter-team"', false)
             ->assertSee('id="sl-filter-special-conditions"', false)
+            ->assertSee('KidsCrmGenericMultiselectSelect2.init', false)
             ->assertSee('id="leads-table"', false);
     }
 
@@ -183,6 +184,7 @@ final class SchoolLeadsPageFeatureTest extends CrmTestCase
         $this->get(route('admin.school-leads'))
             ->assertOk()
             ->assertSee('id="sl-filter-location"', false)
+            ->assertSee('name="location_ids[]"', false)
             ->assertSee('Все объекты', false)
             ->assertSee('Без объекта', false)
             ->assertSee('>АктивныйФилиал</option>', false)
@@ -408,6 +410,7 @@ final class SchoolLeadsPageFeatureTest extends CrmTestCase
         $this->get(route('admin.school-leads'))
             ->assertOk()
             ->assertSee('id="sl-filter-team"', false)
+            ->assertSee('name="team_ids[]"', false)
             ->assertSee('Все секции', false)
             ->assertSee('Без секции', false)
             ->assertSee('>АктивнаяСекция</option>', false)

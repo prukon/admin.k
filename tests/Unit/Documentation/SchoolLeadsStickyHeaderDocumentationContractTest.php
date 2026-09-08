@@ -18,7 +18,7 @@ final class SchoolLeadsStickyHeaderDocumentationContractTest extends TestCase
         $this->assertStringContainsString('id="school-leads-sticky-header-index"', $html);
         $start = strpos($html, 'id="school-leads-sticky-header-index"');
         $this->assertNotFalse($start);
-        $end = strpos($html, 'id="account-documents-family-link-index"');
+        $end = strpos($html, 'id="users-sticky-header-index"');
         $this->assertNotFalse($end);
         $this->assertGreaterThan($start, $end);
         $chunk = substr($html, $start, $end - $start);

@@ -117,6 +117,7 @@
     <li>Проверяют fail-fast без “полупартнёра”</li>
     <li>Проверяют идемпотентность и наличие UNIQUE по тройке (MySQL/MariaDB)</li>
     <li>Проверяют, что шесть прав группы <code>schoolSchedule</code> не входят в базовые роли нового партнёра</li>
+    <li>Проверяют, что <code>schedule.view</code> и <code>users.discount.manage</code> входят в базовый набор <code>admin</code> нового партнёра (не <code>user</code> / <code>trainer</code>)</li>
   </ul>
   <pre><code>php artisan test --env=testing --filter 'PartnerBasePermissionsTest|SchoolScheduleHiddenDefaultPermissions'</code></pre>
 
@@ -161,10 +162,6 @@
       <li><code>users.full_name_genitive</code> — ФИО ученика в родительном падеже (CRM / ЛК / колонка импорта Excel); скрытое (<code>is_visible=0</code>);
         по умолчанию никому; договоры <code>{{child_full_name_genitive}}</code> работают независимо —
         <a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>;</li>
-      <li><code>users.discount.manage</code> — персональная скидка ученика % (карточка create/edit, снимок на начислении/назначении);
-        видно в матрице (<code>is_visible=1</code>); не в базовых ролях —
-        <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a>,
-        <a href="/doc#user-percent-discount-index">/doc</a>;</li>
       <li><code>reports.payments.commission_total.view</code> — отчёт «Платежи»: колонка «Комиссия» (сводно);
         скрытое (<code>is_visible=0</code>); не в базовых ролях; строка в конфиге закомментирована;
         миграция hide не трогает <code>permission_role</code> —
@@ -199,7 +196,6 @@
       <li><code>schedule.trainerSalary.scheme.sales</code> — схема «% от продаж»; скрытое; не в базовых ролях; включает superadmin, без выдачи на базовые роли —
         <a href="/docs/documentation/schedule-trainer-salary#sales">schedule-trainer-salary §13</a>,
         анонс <a href="/doc#trainer-salary-sales-index">/doc</a>;</li>
-      <li><code>schedule.view</code> — журнал <code>/schedule</code> и расписание в модалках групп (в конфиге закомментировано);</li>
       <li><code>reports.tbank.payments.view</code> — вкладка отчётов «Платежи T‑Bank»; скрытое (<code>is_visible=0</code>); не в базовых ролях;
         <a href="/docs/documentation/reports-admin#reports-tbank-payments">reports-admin §9</a>,
         анонс <a href="/doc#reports-tbank-payments-index">/doc</a>;</li>
@@ -218,9 +214,15 @@
     <code>test_new_partner_does_not_assign_trainer_salary_scheme_sales_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_account_user_team_update_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_reports_payments_commission_total_to_base_roles</code>,
-    <code>ReportsTbankPaymentsPermissionCatalogFeatureTest</code>,
-    <code>UserPercentDiscountFeatureTest::test_permission_is_visible_and_not_in_role_base_permissions</code>.
+    <code>ReportsTbankPaymentsPermissionCatalogFeatureTest</code>.
   </div>
+  <p class="small">
+    С 2026‑09 у роли <code>admin</code> нового партнёра по умолчанию входят
+    <code>schedule.view</code> (журнал <code>/schedule</code> и колонка «Расписание» в группах) и
+    <code>users.discount.manage</code> (персональная скидка ученика, <code>is_visible=1</code>).
+    У <code>user</code> / <code>trainer</code> их нет. Существующим партнёрам выдача не накатывается.
+    Тест: <code>UserPercentDiscountFeatureTest::test_permission_is_visible_and_in_admin_role_base_permissions</code>.
+  </p>
 
   <h2>8) Роль <code>trainer</code> и право <code>trainers.view</code></h2>
   <div class="note">

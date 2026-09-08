@@ -302,7 +302,6 @@ final class ContractSignedInAppNotificationUiContractsFeatureTest extends Contra
         $html = $this->get(route('dashboard'))->assertOk()->getContent();
         $bell = $this->bellMarkup($html);
 
-        $this->assertStringContainsString('white-space: pre-line', $html);
         $this->assertStringContainsString('bell-preview', $bell);
         $this->assertStringContainsString("Родитель: Иванов Иван\n", $bell);
         $this->assertStringContainsString('Договор подписан', $bell);

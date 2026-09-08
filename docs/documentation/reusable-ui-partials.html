@@ -447,7 +447,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
   <ul>
     <li>У <code>.dataTables_wrapper</code> — <code>overflow-x: visible</code>.</li>
     <li>Скролл только у области таблицы: обёртка <code>.kids-dt-scroll-x</code> (добавляется в <code>init.dt</code> через <code>KidsCrmDataTable.ensureTableScrollHost</code>) или встроенный <code>.dataTables_scroll</code> при <code>scrollX</code> / <code>fixedColumns</code>.</li>
-    <li>На <code>/admin/school-leads</code> дополнительно: FixedHeader для <code>thead</code> и липкий клон полосы <code>.kids-dt-sticky-hscroll</code> (не пресет; CSS — <code>resources/css/school-leads-table.css</code>, см. <a href="/docs/documentation/school-leads-widget#school-leads-sticky-header">school-leads-widget §5.1.6</a>).</li>
+    <li>На <code>/admin/school-leads</code> и <code>/admin/users</code> дополнительно: FixedHeader для <code>thead</code> и липкий клон полосы <code>.kids-dt-sticky-hscroll</code> (не пресет). CSS — Vite-бандлы <code>school-leads-table.css</code> / <code>admin-users-table.css</code>. См. <a href="/docs/documentation/school-leads-widget#school-leads-sticky-header">school-leads-widget §5.1.6</a>, <a href="/docs/documentation/admin-users#users-sticky-header">admin-users §2.0.1</a>.</li>
   </ul>
 
   <h3>API возвращаемого объекта</h3>
@@ -537,7 +537,7 @@ dataTable: {
     <li><code>/admin/administrators</code>, <code>/admin/roles/{name}</code> — тот же паттерн toolbar + DataTables, что у тренеров (см. <a href="/docs/documentation/admin-role-staff">admin-role-staff</a>)</li>
     <li><a href="/docs/documentation/admin-teams">/admin/teams</a> — <code>link</code>, <code>list</code> (расписание — <code>list</code> + свой <code>render</code> для badge дней), <code>money</code>, условные колонки по правам; 0 <code>custom</code></li>
     <li><a href="/docs/documentation/reports-payments">/admin/reports/payments</a> — <code>icon</code> (чек), <code>actions</code> (возврат); 0 <code>custom</code></li>
-    <li><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> — <code>inline-select</code> (динамические статусы), filter multiselect статусов (§4.1), порядок колонок ребёнок→родитель→статус→объект→секция→телефон, затем <code>contract</code> (§5.5.3 / §5.6); редактирование по клику на ФИО (§5.5.2–5.5.3); без колонки <code>actions</code>; 0 <code>custom</code></li>
+    <li><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> — <code>inline-select</code> (динамические статусы), filter multiselect статусов (§4.1), фильтры «Секция»/«Объект» — <code>generic-multiselect</code> (§4.2 / school-leads-widget §5.1.7), порядок колонок ребёнок→родитель→статус→объект→секция→телефон, затем <code>contract</code> (§5.5.3 / §5.6); редактирование по клику на ФИО (§5.5.2–5.5.3); без колонки <code>actions</code>; 0 <code>custom</code></li>
     <li><a href="/docs/documentation/reports-admin#reports-outgoing-emails">/admin/reports/emails</a> — <code>datetime</code> (создано/отправлено), <code>link</code> (колонка «Кому» → модалка), колонка «Партнер» (id + title, как в чеках), фильтр партнёра только для SA (<a href="/docs/documentation/reports-admin#partner-filter-cross-report">§2.4</a>)</li>
     <li><a href="/docs/documentation/reports-admin">Прочие отчёты админки</a> — debt, LTV, monthly, payment-intents, fiscal-receipts (<code>table_key</code> см. §9 там)</li>
     <li><a href="/docs/documentation/settings-logs">/admin/settings/logs</a> — журнал <code>my_logs</code> без columns-settings (фиксированные колонки)</li>
@@ -558,7 +558,7 @@ dataTable: {
     Глобальный поиск основных таблиц четырёх отчётов — <a href="/doc#reports-datatable-search-index">/doc</a>, <a href="/docs/documentation/reports-admin#reports-datatable-search">reports-admin §1.2</a>.</p>
 
   <h2 id="select2-multiselect">4) Multiselect: модалки (Select2) и фильтры (кастомный UI)</h2>
-  <p>Два независимых компонента. Не смешивать: в модалках — chip-теги на Select2; в панелях фильтров — trigger как <code>form-select</code> без Select2.</p>
+  <p>Два независимых компонента. В модалках — chip-теги на Select2; в панелях фильтров статусов — trigger как <code>form-select</code> без Select2. Исключение: на <code>/admin/school-leads</code> фильтры «Секция» и «Объект» используют тот же <code>generic-multiselect</code>, что поле «Тренеры» в редактировании группы (<a href="/docs/documentation/school-leads-widget#school-leads-filter-select2">school-leads-widget §5.1.7</a>).</p>
 
   <h3>4.1) Filter multiselect (<code>filter-multiselect</code>)</h3>
   <p>Partial: <code>resources/views/partials/select2/filter-multiselect.blade.php</code></p>
@@ -593,6 +593,10 @@ dataTable: {
     (email в модалке «Уведомления»: после выбора список закрывается).
     Синхронизация галочек в списке — через <code>.select2-results__option[aria-selected]</code> (не через устаревший класс <code>--selectable</code>).
     Оболочка поля — как у соседних <code>form-control</code> (класс-обёртка <code>.generic-multiselect-field</code>).
+    CSS компонента — <code>resources/css/generic-multiselect.css</code>.
+    На <code>/admin/school-leads</code> он входит в Vite-бандл <code>school-leads-table.css</code>
+    (<a href="/docs/documentation/school-leads-widget#school-leads-filter-select2">§5.1.7</a>);
+    на остальных экранах partial вставляет тот же файл в <code>@push('styles')</code>.
   </p>
   <div class="note">
     <strong>Журнал <code>/schedule</code>:</strong> тренеры при «Посетил» в
@@ -666,7 +670,7 @@ dataTable: {
     <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — <code>locationCreateTeamIds</code>, <code>locationEditTeamIds</code>, <code>admin_user_ids[]</code> (при <code>locations.manage</code>).</li>
     <li><a href="/docs/documentation/admin-districts">/admin/districts</a> — <code>districtCreateLocationIds</code>, <code>districtEditLocationIds</code> (<code>location_ids[]</code>).</li>
     <li><a href="/docs/documentation/schedule-journal">/schedule</a> — модалка «Управление группами» (<code>journalUserTeamIds</code>).</li>
-    <li><a href="/docs/documentation/school-leads-widget#school-leads-email-notifications">/admin/school-leads</a> — модалка «Уведомления», <code>emails[]</code> (<code>tags: true</code>).</li>
+    <li><a href="/docs/documentation/school-leads-widget#school-leads-email-notifications">/admin/school-leads</a> — модалка «Уведомления», <code>emails[]</code> (<code>tags: true</code>); фильтры «Секция» / «Объект» — тот же <code>KidsCrmGenericMultiselectSelect2</code> (<a href="/docs/documentation/school-leads-widget#school-leads-filter-select2">§5.1.7</a>).</li>
   </ul>
   <p class="small">
     Статическая проверка inline-JS в blade с AJAX-обработчиками — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code>
@@ -713,7 +717,9 @@ dataTable: {
   <div class="note">
     Общий Bootstrap 5 toast админки (как локальные toast на заявках / ценах): правый нижний угол, поверх модалок (<code>z-index: 4050</code> — выше <code>#confirmDeleteModal</code> 1900 и <code>#errorModal</code>/<code>#successModal</code> 4010).
     Partial: <code>resources/views/partials/ui/main-toast.blade.php</code>.
-    Подключение: <code>@include('partials.ui.main-toast')</code> в <code>layouts/admin2.blade.php</code> — на всех admin-страницах доступен <code>window.showToast(message, type)</code>
+    Подключение: <code>@include('partials.ui.main-toast')</code> в <code>layouts/admin2.blade.php</code> и в <code>admin/school-leads/partials/edit-lead-modal.blade.php</code> (снаружи <code>#editLeadModal</code>).
+    Partial обёрнут в <code>@once</code> — второй include не дублирует <code>#kidsMainToast</code>.
+    На всех admin-страницах доступен <code>window.showToast(message, type)</code>
     (<code>success</code> / <code>error</code> / <code>warning</code> / <code>info</code>).
     При показе обёртка переносится в <code>document.body</code>, предыдущий экземпляр Bootstrap Toast <code>dispose()</code>, delay 2500&nbsp;ms.
     Объекты: create/edit — toast сразу после AJAX (<code>data.message</code> «Объект создан» / «Объект обновлён»).
@@ -726,7 +732,8 @@ dataTable: {
     Смена пароля в карточке админа / ученика / тренера использует эту всплывайку («Пароль успешно изменен»), а не success-модалку (запасного <code>showSuccessModal</code> нет).
     Полный список действий с toast и исключений («Применить» слева всем группам, CRUD партнёров) —
     <a href="/doc#success-toast-instead-of-modal-index">анонс на /doc</a>.
-    Заявки школы по-прежнему могут иметь <b>свой</b> локальный <code>#mainToast</code> — «Создать клиента» зовёт <code>window.showToast</code> (общий), не локальный.
+    Модалка заявки: ошибки сохранения и «Создать клиента» — <code>window.showToast(..., 'error')</code>, не алерт <code>#editLeadError</code> и не <code>showErrorModal</code>; локального <code>#mainToast</code> на вкладке заявок больше нет.
+    Тесты UX занятой почты → справочник: <code>SchoolLeadCreateClientDirectorySwitchFeatureTest</code> и соседние <code>SchoolLeadCreateClientDirectorySwitch*</code>, JS — <code>BladeInlineJsSyntaxTest::test_school_leads_create_client_directory_switch_and_error_toast_inline_script_is_valid_javascript</code>.
     Create/edit ученика на <code>/admin/users</code> — та же общая всплывайка, модалка закрывается, DataTables
     <code>ajax.reload(null, false)</code>, не F5
     (<a href="/doc#users-create-edit-toast-index">анонс</a>).

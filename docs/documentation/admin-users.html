@@ -33,6 +33,7 @@
     Тренеры, администраторы и кастомные роли — на отдельных вкладках (<a href="/docs/documentation/admin-users-section">обзор</a>, <a href="/docs/documentation/admin-trainers">тренеры</a>, <a href="/docs/documentation/admin-role-staff">администраторы и кастомные роли</a>).
     Анонс на <code>/doc</code>: <a href="/doc#users-client-naming-index">нейминг «Клиенты»</a>,
     <a href="/doc#users-create-edit-toast-index">create/edit без «OK» и без F5</a>,
+    <a href="/doc#users-sticky-header-index">шапка и горизонтальный скролл на экране</a>,
     <a href="/doc#users-import-parent-fill-index">дозапись родителя при импорте Excel</a>,
     <a href="/doc#users-contract-create-index">создать договор со списка клиентов</a>,
     <a href="/doc#contract-annul-after-send-index">аннулирование sent/opened</a>.
@@ -93,16 +94,19 @@
   <h2>2) Список учеников (DataTables)</h2>
   <ul>
     <li><b>Фильтры</b> (кнопка «Применить»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code> по <code>lastname</code>/<code>firstname</code>/<code>middlename</code>, <b>не</b> по <code>parents.full_name_genitive</code> и <b>не</b> по <code>users.full_name_genitive</code>), телефону родителя (<code>parents.phone</code>), email, телефону ученика, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>); при <code>contracts.view</code> — <code>contract</code> (§<a href="#user-contract-column">2.3</a>).</li>
-    <li><b>Таблица без прелоадера.</b> Список — <code>.table-responsive</code> + <code>#users-table</code> + <code>KidsCrmDataTable.create('#users-table')</code>.
+    <li><b>Таблица без прелоадера.</b> Список — <code>#users-table</code> + <code>KidsCrmDataTable.create('#users-table')</code>
+      (без обёртки <code>.table-responsive</code>: горизонтальный скролл даёт <code>.kids-dt-scroll-x</code>, как на заявках).
       Общего <code>&lt;x-ui.table-preloader&gt;</code> / <code>#users-table-stage</code> <b>нет</b>: обёртка ломала ширину AdminLTE
       (тулбар <code>justify-content-between</code> разъезжался) и оставляла вечный спиннер
       (Vite <code>kids-datatable.js</code> — <code>type=module</code>, parse-time wrap <code>create()</code> не срабатывал).
       CSS тулбара — в <code>@push('styles')</code> до <code>@section('content')</code>
       (<code>admin-list-toolbar.css</code> + <code>user.css</code>).
+      Стили закрепления таблицы — Vite-бандл <code>resources/css/admin-users-table.css</code>.
       Локальный прелоадер есть только у журнала — <a href="/docs/documentation/schedule-journal#journal-table-preloader">schedule-journal §2.3</a>,
       анонс — <a href="/doc#journal-table-preloader-index">/doc</a>.</li>
     <li><b>Колонки</b> настраиваются через «Колонки» в toolbar; настройки per user в <code>user_table_settings</code> (ключи <code>parent</code>, <code>parent_phone</code>, <code>contract</code> и др.). Колонка «Договор» — только при <code>contracts.view</code> (§<a href="#user-contract-column">2.3</a>).</li>
     <li><b>«Показать N»</b> — персонально на пользователя с <code>users.view</code> (§<a href="#users-page-length">2.0</a>).</li>
+    <li><b>Шапка и горизонтальный скролл</b> остаются на экране при длинном списке — §<a href="#users-sticky-header">2.0.1</a>.</li>
   </ul>
 
   <h3 id="users-page-length">2.0) «Показать N» — персонально на пользователя</h3>
@@ -134,6 +138,47 @@
     (канонический список всех 9 страниц — <a href="/doc#datatable-page-length-catalog">таблица</a>).
     Тот же механизм на группах — <a href="/docs/documentation/admin-teams#teams-page-length">admin-teams §2.0</a>,
     на заявках — <a href="/docs/documentation/school-leads-widget#school-leads-page-length">school-leads-widget §5.1.4</a>.</p>
+
+  <h3 id="users-sticky-header">2.0.1) Закрепление шапки и горизонтального скролла</h3>
+  <p>Только вкладка «Клиенты» (<code>/admin/users</code>, таблица <code>#users-table</code>).
+    Вкладки «Тренеры» и сотрудники без этого. В пресет <code>KidsCrmDataTable</code> не выносилось.
+    CSS — Vite-бандл <code>resources/css/admin-users-table.css</code>
+    (вход в <code>vite.config.js</code>, <code>@vite</code> на странице вместе
+    с toolbar и <code>user.css</code>, не <code>public/css</code>
+    и не inline <code>&lt;style&gt;</code> в blade).</p>
+  <ul>
+    <li><b>Шапка.</b> Плагин DataTables FixedHeader
+      (<code>public/plugins/datatables-fixedheader/</code>) подключается <b>до</b>
+      <code>KidsCrmDataTable.create</code>. Опция
+      <code>fixedHeader: { header: true, footer: false }</code>
+      (нет плагина → <code>false</code>, thead остаётся на месте).
+      Горизонтальный скролл <code>.kids-dt-scroll-x</code> сдвигает клон шапки
+      тем же <code>scrollLeft</code>, что и тело таблицы
+      (<code>.dtfh-floatingparenthead.scrollLeft</code>), не <code>margin-left</code>:
+      FixedHeader и так пишет <code>scrollLeft</code>,
+      второй сдвиг рассинхронизирует заголовки со столбцами.
+      Клон на <code>body</code> обрезается по видимой ширине обёртки:
+      <code>left</code>/<code>width</code> из <code>getBoundingClientRect()</code> хоста,
+      <code>overflow: hidden</code> — иначе широкая шапка вылезает за карточку.
+      Ширины <code>th</code> клона копируются с ячеек строки (<code>offsetWidth</code>,
+      <code>box-sizing: border-box</code>, <code>max-width</code>), иначе
+      <code>table-layout: fixed</code> раздувает колонки на padding и шапка едет быстрее столбцов.
+      Пересчёт после вертикального скролла страницы (FixedHeader сам переписывает геометрию).</li>
+    <li><b>Полоса скролла.</b> Не <code>scrollX</code>/<code>scrollY</code> DataTables
+      (страница скроллится как раньше). После обёртки
+      <code>.kids-dt-scroll-x</code> — клон <code>.kids-dt-sticky-hscroll</code>
+      (<code>position: sticky; bottom: 0</code>), ширина спейсера = <code>scrollWidth</code> таблицы.
+      Пока таблица шире карточки, нативная полоса у обёртки скрыта, виден клон у нижнего края окна.
+      Узкая таблица — клон <code>hidden</code>. <code>scrollLeft</code> синхронизируется в обе стороны;
+      после смены колонок / resize — <code>bindUsersStickyHScroll</code>.</li>
+  </ul>
+  <p class="small">Тесты: <code>AdminUsersPageFeatureTest::test_users_page_pins_thead_and_sticky_horizontal_scrollbar</code>,
+    <code>UsersSectionTabsFeatureTest</code> (вкладки «Тренеры», «Администраторы» и кастомная роль без плагина и без клона),
+    <code>BladeInlineJsSyntaxTest::test_admin_users_sticky_header_and_hscroll_inline_script_contract_and_valid_javascript</code>
+    (<code>@vite</code>, вход в <code>vite.config.js</code>, <code>position: sticky</code>),
+    <code>UsersStickyHeaderDocumentationContractTest</code>.
+    Анонс — <a href="/doc#users-sticky-header-index">/doc#users-sticky-header-index</a>.
+    Тот же приём на заявках — <a href="/docs/documentation/school-leads-widget#school-leads-sticky-header">school-leads-widget §5.1.6</a>.</p>
 
   <h3>Индексы колонок DataTables</h3>
   <p class="small">Индексы фиксированы для сортировки на сервере (<code>UserController@data</code>, <code>order.0.column</code>). Сервер строит порядок колонок методом <code>usersListColumnKeys()</code> — он должен совпадать с массивом <code>columns</code> в JS (<code>admin/user.blade.php</code>).</p>
@@ -863,7 +908,7 @@
   </table>
   <p>
     Право <code>users.discount.manage</code> (группа <code>users</code>, <code>is_visible = 1</code>).
-    <b>Не</b> входит в <code>role_base_permissions</code> — назначается вручную в матрице ролей.
+    У роли <code>admin</code> нового партнёра входит в <code>role_base_permissions</code>; у <code>user</code> / <code>trainer</code> — нет. Существующим партнёрам выдача не накатывается.
     Без права поля в модалках не рендерятся, ключи из store/update снимаются.
     Колонки скидки в DataTables <code>/admin/users</code> <b>нет</b>.
   </p>
@@ -1117,8 +1162,10 @@
     На странице <a href="/docs/documentation/school-leads-widget">«Заявки с сайта»</a> (<code>/admin/school-leads</code>) при <code>schoolLeads.view</code> + <code>users.view</code>
     создание клиента выполняется из модалки «Редактирование лида» (§<a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">school-leads-widget §5.5.2</a>):
     кнопка «Создать клиента» → сохранение заявки (<code>PUT</code>) → <code>POST /admin/users</code> с полями модалки и скрытым <code>school_lead_id</code>.
+    <code>PUT</code> при автосопоставлении оставляет снимок <code>parent_*</code> заявки; тело <code>POST /admin/users</code> берёт <code>parent_id</code> / <code>parent_email</code> и остальные <code>parent_*</code> из <b>текущих полей формы</b> (Select2 / «Новый родитель»), не из снимка.
+    После 422 «Этот адрес электронной почты уже зарегистрирован.» модалка не закрывается: можно переключить «Из справочника», выбрать карточку и создать клиента без F5.
     Район и объект заявки в ученика не копируются.
-    Подробнее о UI и обязательном <code>parent_email</code> — <a href="/docs/documentation/school-leads-widget#school-lead-welcome-credentials">school-leads-widget §5.7.1</a>.
+    Подробнее о UI и обязательном <code>parent_email</code> — <a href="/docs/documentation/school-leads-widget#school-lead-welcome-credentials">school-leads-widget §5.7.1</a>, матч — <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">§5.5.5</a>.
   </div>
   <ul>
     <li>Опциональное поле <code>school_lead_id</code> в <code>StoreRequest</code>: заявка текущего партнёра, не удалена, <code>school_leads.user_id</code> ещё <code>null</code>.</li>
@@ -1128,6 +1175,7 @@
     <li>После успешного <code>store</code> в <code>UserController</code>: <code>school_leads.user_id</code> = id нового ученика (в той же транзакции); затем письмо (§<a href="#user-welcome-credentials">5.1</a>): credentials для первого ребёнка или sibling-уведомление для следующих.</li>
     <li>При выборе родителя из справочника (<code>parent_id</code>) правка полей родителя (в т.ч. email) обновляет карточку <code>parents</code> через <code>StudentParentSyncService</code>.</li>
     <li>Отдельного маршрута у заявок для создания клиента нет — только <code>POST /admin/users</code> с middleware <code>can:users.view</code>.</li>
+    <li>AJAX: 200 JSON <code>message</code> / <code>user</code> / <code>welcome_email_sent</code> или 422 <code>errors.parent_email</code> (текст под полем + toast). Non-AJAX: успех → 302 на <code>admin.user1</code> + запись в БД; занятый email → 302 + session errors. Гость → 302/401; без <code>users.view</code> → 403. Тесты: <code>SchoolLeadCreateClientDirectorySwitchFeatureTest</code> и соседние <code>SchoolLeadCreateClientDirectorySwitch*</code>.</li>
   </ul>
 
   <h3 id="user-welcome-credentials">5.1) Welcome-письмо с данными для входа</h3>
@@ -1516,7 +1564,9 @@
       <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — полное покрытие §<a href="#user-contract-column">2.3</a> (колонка, фильтр, сортировка, доступ); см. §<a href="#user-contract-column-tests">2.3.8</a></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersContractCreateUxFeatureTest.php</code>, <code>AdminUsersContractCreateAccessFeatureTest.php</code>, <code>AdminUsersContractCreateFullAccessFeatureTest.php</code>, <code>AdminUsersContractCreateAjaxContractFeatureTest.php</code>, <code>AdminUsersContractCreateNonAjaxSafetyNetFeatureTest.php</code> — создание договора со списка клиентов §<a href="#user-contract-create">2.3.9</a>: UX ячейки и lockUser, guest/403/200, AJAX lookup, native POST 302</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingFeatureTest.php</code>, <code>AdminUsersClientNamingAjaxContractFeatureTest.php</code>, <code>AdminUsersClientNamingNonAjaxSafetyNetFeatureTest.php</code>, <code>AdminUsersClientNamingFullAccessFeatureTest.php</code> — нейминг «Клиенты»/«Клиент» vs зонтик «Пользователи»: HTML (сайдбар, h4, вкладка, h1, модалки), JSON 200/422, non-AJAX 302, guest/403, оба JS-пути editUser; см. <a href="/docs/documentation/admin-users-section">admin-users-section §6</a></li>
-      <li><code>tests/Feature/Crm/Users/AdminUsersPageFeatureTest.php</code> — toolbar, фильтры, smoke 200 endpoint’ов раздела</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersPageFeatureTest.php</code> — toolbar, фильтры, smoke 200 endpoint’ов раздела, закрепление шапки §<a href="#users-sticky-header">2.0.1</a></li>
+      <li><code>tests/Unit/Documentation/UsersStickyHeaderDocumentationContractTest.php</code> — анонс <code>/doc#users-sticky-header-index</code>, Vite-вход <code>resources/css/admin-users-table.css</code>, <code>@vite</code>, нет <code>public/css</code></li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php::test_admin_users_sticky_header_and_hscroll_inline_script_contract_and_valid_javascript</code> — inline JS sticky + <code>node --check</code>, <code>@vite</code>, <code>position: sticky</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersTablePreloaderRegressionFeatureTest.php</code> — список без table-preloader: guest/403/200, тулбар снаружи таблицы, AdminLTE <code>.wrapper</code> не размазан, PUT/PATCH/DELETE → 404/405</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, parents/search, store/update, columns-settings</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentPhoneColumnFeatureTest.php</code> — колонка <code>parent_phone</code> / «Телефон ученика»: Blade-порядок, JSON, поиск, сортировка, guest/403/200, изоляция партнёра, columns-settings 422</li>
@@ -1532,6 +1582,8 @@
       <li><code>tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code> — изоляция партнёра для edit/update/data и флагов</li>
       <li><code>tests/Feature/Crm/Users/UsersPartnerScopeFullAccessFeatureTest.php</code> — smoke 200 всех endpoint’ов раздела, изоляция CRUD</li>
       <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadClientWelcomeCredentialsFeatureTest.php</code> — welcome-письмо при <code>store</code> из лида, resend, SMTP-failure, валидация <code>parent_email</code></li>
+      <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadCreateClientDirectorySwitchFeatureTest.php</code> — UX: занятый email «нового родителя» → 422 <code>errors.parent_email</code>; после выбора из справочника POST с email/<code>parent_id</code> формы, снимок заявки не затирается</li>
+      <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadCreateClientDirectorySwitchAjaxContractFeatureTest.php</code> / <code>…NonAjaxSafetyNetFeatureTest</code> / <code>…AccessFeatureTest</code> / <code>…FullAccessFeatureTest</code> / <code>…UiContractsFeatureTest</code> / <code>…WorkflowFeatureTest</code> [P2] — JSON 200/422, non-AJAX 302, доступ, toast, DataTables без F5</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsWelcomeAccountingFeatureTest.php</code> — пульт Welcome: ложный missing при <code>sent</code> без типа; create из лида → 0</li>
       <li><code>tests/Feature/Crm/Reports/LogOutgoingEmailMailableClassFeatureTest.php</code> — welcome/sibling/payment пишут <code>mailable_class</code></li>
       <li><code>tests/Feature/Crm/Users/FamilyStudentLoginOnCreateFeatureTest.php</code> — логин семьи: первый/второй ребёнок из лида и ручного create, 422 чужая семья / тренер</li>
@@ -1569,7 +1621,7 @@
       <li><code>tests/Unit/Documentation/UserDeleteClearsEmailDocumentationContractTest.php</code> — анонс <code>/doc#user-delete-clears-email-index</code> и хук <code>User::deleting</code></li>
       <li><code>tests/Feature/Crm/Ui/GenericMultiselectFullAccessFeatureTest.php</code> — multiselect групп, UI модалок §<a href="#user-modals">4.5</a></li>
       <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline-JS create/edit user</li>
-      <li><code>tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php</code>, <code>AdminUsersSectionFeatureTest.php</code>, <code>RoleStaffUsersFeatureTest.php</code> — вкладки раздела, фиксация роли при create, CRUD сотрудников по ролям</li>
+      <li><code>tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php</code>, <code>AdminUsersSectionFeatureTest.php</code>, <code>RoleStaffUsersFeatureTest.php</code> — вкладки раздела, фиксация роли при create, CRUD сотрудников по ролям; вкладки «Тренеры» / «Администраторы» / кастомная роль без sticky CSS §<a href="#users-sticky-header">2.0.1</a></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersCustomFieldsFeatureTest.php</code> — доп. поля (<code>UserField</code>, не путать с <code>parent_*</code>)</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPhoneOnCreateFeatureTest.php</code> — телефон при создании</li>
       <li><code>tests/Feature/Crm/Users/UserTableSettingsControllerTest.php</code> — columns-settings</li>

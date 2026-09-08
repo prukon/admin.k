@@ -21,6 +21,32 @@
             'subject' => ContractTemplateEmailDefaults::subject(),
             'body_html' => ContractTemplateEmailDefaults::bodyHtml(),
         ]);
+        const DOCUMENTS_URL_PLACEHOLDER = @json(ContractTemplateEmailDefaults::PLACEHOLDER_DOCUMENTS_URL);
+
+        function urlHasMustachePlaceholder(url) {
+            return /\{\{[a-z0-9_]+\}\}/i.test(String(url || ''));
+        }
+
+        function preservePlaceholderLinkUrl(url) {
+            const trimmed = String(url || '').trim();
+            if (trimmed.indexOf(DOCUMENTS_URL_PLACEHOLDER) !== -1) {
+                return DOCUMENTS_URL_PLACEHOLDER;
+            }
+            if (urlHasMustachePlaceholder(trimmed)) {
+                return trimmed;
+            }
+
+            return /^([A-Za-z][A-Za-z0-9+-.]*:|#|\/)/.test(trimmed)
+                ? trimmed
+                : ('http://' + trimmed);
+        }
+
+        function restoreDocumentsUrlHrefs(html) {
+            const escaped = DOCUMENTS_URL_PLACEHOLDER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const re = new RegExp('href=([\"\\\'])(?:[^\"\\\'<>]*?)' + escaped + '(?:[^\"\\\'<>]*?)\\1', 'gi');
+
+            return String(html).replace(re, 'href=$1' + DOCUMENTS_URL_PLACEHOLDER + '$1');
+        }
 
         const summernoteOptions = {
             height: 280,
@@ -36,6 +62,7 @@
                 image: [],
                 air: [],
             },
+            onCreateLink: preservePlaceholderLinkUrl,
         };
 
         function $emailBody() {
@@ -61,7 +88,7 @@
                 return;
             }
 
-            const html = $body.summernote('code');
+            const html = restoreDocumentsUrlHrefs($body.summernote('code'));
             $body.summernote('destroy');
             $body.val(html);
         }
@@ -69,16 +96,17 @@
         function syncEditorToTextarea() {
             const $body = $emailBody();
             if ($body.data('summernote')) {
-                $body.val($body.summernote('code'));
+                $body.val(restoreDocumentsUrlHrefs($body.summernote('code')));
             }
         }
 
         function setEmailBodyHtml(html) {
+            const normalized = restoreDocumentsUrlHrefs(html);
             const $body = $emailBody();
             if ($body.data('summernote')) {
-                $body.summernote('code', html);
+                $body.summernote('code', normalized);
             } else {
-                $body.val(html);
+                $body.val(normalized);
             }
         }
 

@@ -1,5 +1,7 @@
 /*хедер*/
 
+@import './in-app-bell.css';
+
 :root {
     --color-main-grey: #4e4e4e;
     --color-yellow: #f3a12b;

@@ -58,8 +58,7 @@ final class GenericMultiselectFullAccessFeatureTest extends CrmTestCase
         $this->assertStringContainsString('if (options.tags === true)', $source);
         $this->assertStringContainsString('select2Options.tags = true', $source);
         $this->assertStringContainsString('generic-multiselect-field--tags', $source);
-        $this->assertStringContainsString('height: auto !important', $source);
-        $this->assertStringContainsString('#cfe2ff', $source);
+        $this->assertStringContainsString("resource_path('css/generic-multiselect.css')", $source);
         $this->assertStringContainsString('kidsCrmMsTags', $source);
         $this->assertStringContainsString('clearTagSearchField', $source);
         $this->assertStringContainsString('bindTagSearchKeyboard', $source);
@@ -67,10 +66,16 @@ final class GenericMultiselectFullAccessFeatureTest extends CrmTestCase
         $this->assertStringContainsString('expandTagSearchField', $source);
         $this->assertStringContainsString("addEventListener('keydown', handler, true)", $source);
         $this->assertStringContainsString('resizeSearch', $source);
-        $this->assertStringContainsString('word-break: break-word', $source);
         $this->assertStringContainsString('.select2-results__option[aria-selected]', $source);
         $this->assertStringContainsString('window.KidsCrmUserStudentTeamsSelect2 = window.KidsCrmGenericMultiselectSelect2', $source);
-        $this->assertStringContainsString('.generic-multiselect-field .select2-container--bootstrap-5 .select2-selection.select2-selection--multiple', $source);
+
+        $cssPath = resource_path('css/generic-multiselect.css');
+        $this->assertFileExists($cssPath);
+        $css = (string) file_get_contents($cssPath);
+        $this->assertStringContainsString('height: auto !important', $css);
+        $this->assertStringContainsString('#cfe2ff', $css);
+        $this->assertStringContainsString('word-break: break-word', $css);
+        $this->assertStringContainsString('.generic-multiselect-field .select2-container--bootstrap-5 .select2-selection.select2-selection--multiple', $css);
 
         $this->assertStringNotContainsString("on('select2:closing'", $source);
         $this->assertStringNotContainsString(".select2-results__option.select2-results__option--selectable').filter", $source);

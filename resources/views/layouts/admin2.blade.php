@@ -75,9 +75,9 @@
 
     @vite([
         'resources/sass/app.scss',
-        'resources/css/style.css',
-        'resources/css/datatables-columns.css',
-        'resources/css/kids-tooltip.css',
+                'resources/css/style.css',
+                'resources/css/datatables-columns.css',
+                'resources/css/kids-tooltip.css',
         'resources/js/kids-tooltip.js',
         'resources/js/kids-datatable.js',
     ])

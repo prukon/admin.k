@@ -102,6 +102,32 @@ final class AdminUsersPageFeatureTest extends CrmTestCase
         $this->assertLessThan($columnsPos, $filtersPos);
     }
 
+    public function test_users_page_pins_thead_and_sticky_horizontal_scrollbar(): void
+    {
+        $this->asAdmin();
+        $this->grantUsersView($this->user);
+
+        $html = $this->get(route('admin.user1'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('dataTables.fixedHeader.min.js', $html);
+        $this->assertStringContainsString('admin-users-table', $html);
+        $this->assertStringContainsString('kids-dt-sticky-hscroll', $html);
+        $this->assertStringContainsString('bindUsersStickyHScroll', $html);
+        $this->assertStringContainsString('header: true', $html);
+        $this->assertStringContainsString('footer: false', $html);
+
+        $usersTablePos = strpos($html, 'id="users-table"');
+        $this->assertNotFalse($usersTablePos);
+        $beforeTable = substr($html, max(0, $usersTablePos - 120), 120);
+        $this->assertStringNotContainsString('table-responsive', $beforeTable);
+
+        $pluginPos = strpos($html, 'dataTables.fixedHeader.min.js');
+        $createPos = strpos($html, "KidsCrmDataTable.create('#users-table'");
+        $this->assertNotFalse($pluginPos);
+        $this->assertNotFalse($createPos);
+        $this->assertLessThan($createPos, $pluginPos);
+    }
+
   // --- DataTables: фильтры панели и стандартный поиск ---
 
     public function test_users_data_filters_by_panel_name_parameter(): void

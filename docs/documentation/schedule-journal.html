@@ -131,7 +131,7 @@
     Право <code>trainers.view</code> для журнала <strong>не обязательно</strong>: выбор тренера в ячейке «Посетил» доступен при <code>schedule.view</code>, список берётся из активных <code>trainer_profiles</code> текущего партнёра.
   </p>
   <p class="small">
-    В <code>config/role_base_permissions.php</code> для роли <code>admin</code> строка <code>schedule.view</code> по умолчанию <strong>закомментирована</strong> — на новом партнёре право нужно включить в матрице прав.
+    В <code>config/role_base_permissions.php</code> для роли <code>admin</code> строка <code>schedule.view</code> по умолчанию <strong>включена</strong> — новый партнёр получает журнал без ручной выдачи. У <code>user</code> / <code>trainer</code> права нет. Существующим партнёрам выдача не накатывается.
   </p>
 
   <h2>2) Эндпоинты</h2>
@@ -255,7 +255,8 @@
     Только вкладка «Журнал» на <code>GET /schedule</code>. Общего компонента
     <code>&lt;x-ui.table-preloader&gt;</code> / <code>KidsCrmTablePreloader</code> <b>нет</b>
     (извлечение ломало AdminLTE на <code>/admin/users</code> и на журнале: страница «размазана» на всю ширину,
-    спиннер не снимался). <code>/admin/users</code> — обычный <code>.table-responsive</code> + <code>#users-table</code>.
+    спиннер не снимался). <code>/admin/users</code> — <code>#users-table</code> без обёртки <code>.table-responsive</code>
+    вокруг списка (горизонтальный скролл — <code>.kids-dt-scroll-x</code>).
     Анонс — <a href="/doc#journal-table-preloader-index">/doc</a>.
   </div>
   <ul>

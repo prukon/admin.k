@@ -82,6 +82,8 @@ class TeamScheduleViewAndPageAccessFeatureTest extends CrmTestCase
 
     public function test_teams_index_hides_schedule_table_header_without_schedule_view(): void
     {
+        $this->asGroupsViewerWithoutScheduleView();
+
         $this->get('/admin/teams')
             ->assertOk()
             ->assertDontSee('<th>Расписание</th>', false);
@@ -117,8 +119,19 @@ class TeamScheduleViewAndPageAccessFeatureTest extends CrmTestCase
         ]);
     }
 
+    private function asGroupsViewerWithoutScheduleView(): User
+    {
+        $actor = $this->createUserWithoutPermission('schedule.view', $this->partner);
+        $this->grantGroupsViewForUser($actor);
+        $this->actingAs($actor);
+
+        return $actor;
+    }
+
     public function test_teams_index_hides_create_modal_schedule_block_without_schedule_view(): void
     {
+        $this->asGroupsViewerWithoutScheduleView();
+
         $this->get('/admin/teams')
             ->assertOk()
             ->assertDontSee('id="weekdays"', false);
@@ -135,6 +148,8 @@ class TeamScheduleViewAndPageAccessFeatureTest extends CrmTestCase
 
     public function test_update_without_schedule_view_does_not_change_weekdays_even_when_sent(): void
     {
+        $this->asGroupsViewerWithoutScheduleView();
+
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
             'title'      => 'Weekday lock',

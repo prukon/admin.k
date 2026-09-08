@@ -31,5 +31,9 @@ class ContractTemplateEmailDefaultsTest extends TestCase
         $this->assertStringContainsString('Подпишите договор прямо в личном кабинете', $body);
         $this->assertStringContainsString('Пожалуйста, заполните до', $body);
         $this->assertStringContainsString('С уважением', $body);
+        $this->assertStringContainsString('href="' . ContractTemplateEmailDefaults::PLACEHOLDER_DOCUMENTS_URL . '"', $body);
+        $this->assertStringNotContainsString('?student=', $body);
+        $this->assertStringNotContainsString('http://{{', $body);
+        $this->assertStringNotContainsString('href="/account-settings/documents"', $body);
     }
 }

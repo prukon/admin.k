@@ -9,7 +9,9 @@ use App\Models\Contract;
 use App\Models\Team;
 use App\Models\UserTableSetting;
 use App\Services\Contracts\ContractPathTimelineBuilder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ContractTableController extends Controller
 {
@@ -84,9 +86,11 @@ class ContractTableController extends Controller
         $filteredQuery = clone $baseQuery;
         $recordsFiltered = $filteredQuery->count();
 
+        $baseQuery->addSelect(DB::raw($this->lastEventAtSubquery() . ' as last_event_at'));
+
         // --- сортировка DataTables ---
         $orderColumnIndex = $request->input('order.0.column');
-        $orderDir         = $request->input('order.0.dir', 'asc');
+        $orderDir         = strtolower((string) $request->input('order.0.dir', 'asc')) === 'desc' ? 'desc' : 'asc';
 
         if ($orderColumnIndex !== null) {
             switch ((int)$orderColumnIndex) {
@@ -112,7 +116,7 @@ class ContractTableController extends Controller
                     $baseQuery->orderBy('contracts.status', $orderDir);
                     break;
                 case 7:
-                    $baseQuery->orderBy('contracts.updated_at', $orderDir);
+                    $baseQuery->orderByRaw('last_event_at is null, last_event_at ' . $orderDir);
                     break;
                 case 8:
                 default:
@@ -145,9 +149,7 @@ class ContractTableController extends Controller
                 'creation_mode'      => $contract->creation_mode,
                 'path_title'         => $this->pathTimelineBuilder->title($contract),
                 'path_steps'         => $this->pathTimelineBuilder->build($contract),
-                'updated_at'         => $contract->updated_at
-                    ? $contract->updated_at->format('d.m.Y H:i:s')
-                    : '',
+                'updated_at'         => $this->formatLastEventAt($contract->last_event_at ?? null),
             ];
         })->toArray();
 
@@ -196,6 +198,23 @@ class ContractTableController extends Controller
         );
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Дата последнего события журнала этого договора (как на карточке: max id).
+     */
+    private function lastEventAtSubquery(): string
+    {
+        return '(select last_ce.created_at from contract_events as last_ce where last_ce.contract_id = contracts.id order by last_ce.id desc limit 1)';
+    }
+
+    private function formatLastEventAt(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        return Carbon::parse($value)->format('d.m.Y H:i:s');
     }
 }
 

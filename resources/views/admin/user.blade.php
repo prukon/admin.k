@@ -8,7 +8,8 @@
 @endphp
 
 @push('styles')
-    @vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css'])
+    @vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css', 'resources/css/admin-users-table.css'])
+    <link rel="stylesheet" href="{{ asset('plugins/datatables-fixedheader/css/fixedHeader.bootstrap4.min.css') }}">
 @endpush
 
 @section('content')
@@ -285,8 +286,7 @@
                     </form>
                 </div>
 
-                <div class="table-responsive">
-                    <table id="users-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
+                <table id="users-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
                         <thead>
                         <tr>
                             <th>№</th>
@@ -313,7 +313,6 @@
                         </thead>
                         <tbody></tbody>
                     </table>
-                </div>
 
                 @include('includes.modal.createUser', [
                     'lockStudentRole' => true,
@@ -354,6 +353,7 @@
 @endsection
 
 @push('scripts')
+<script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
 @include('partials.select2.generic-multiselect')
     <script>
         $(document).ready(function () {
@@ -462,6 +462,126 @@
                 }
             }
 
+            function usersScrollHost() {
+                return $('#users-table').closest('.kids-dt-scroll-x');
+            }
+
+            function matchUsersFloatingHeaderWidths(cloneTable) {
+                var srcTable = document.getElementById('users-table');
+                if (!srcTable || !cloneTable) {
+                    return;
+                }
+
+                var srcRow = srcTable.tBodies[0] && srcTable.tBodies[0].rows[0]
+                    ? srcTable.tBodies[0].rows[0]
+                    : (srcTable.tHead ? srcTable.tHead.rows[0] : null);
+                var cloneThs = cloneTable.tHead ? cloneTable.tHead.querySelectorAll('th') : [];
+                var srcCells = srcRow ? srcRow.cells : [];
+                var i;
+                var n = Math.min(srcCells.length, cloneThs.length);
+
+                cloneTable.style.tableLayout = 'fixed';
+                cloneTable.style.boxSizing = 'border-box';
+
+                for (i = 0; i < n; i++) {
+                    var widthPx = srcCells[i].offsetWidth + 'px';
+                    cloneThs[i].style.boxSizing = 'border-box';
+                    cloneThs[i].style.width = widthPx;
+                    cloneThs[i].style.minWidth = widthPx;
+                    cloneThs[i].style.maxWidth = widthPx;
+                }
+
+                cloneTable.style.marginLeft = '0px';
+                cloneTable.style.setProperty('width', srcTable.offsetWidth + 'px', 'important');
+            }
+
+            function syncUsersHeaderHScroll() {
+                var $host = usersScrollHost();
+                var parent = document.querySelector('.dtfh-floatingparenthead');
+                if (!$host.length || !parent) {
+                    return;
+                }
+
+                var hostEl = $host.get(0);
+                var hostRect = hostEl.getBoundingClientRect();
+                var style = parent.style;
+
+                style.setProperty('left', hostRect.left + 'px', 'important');
+                style.setProperty('width', hostRect.width + 'px', 'important');
+                style.setProperty('overflow', 'hidden', 'important');
+
+                matchUsersFloatingHeaderWidths(parent.querySelector('table'));
+                parent.scrollLeft = hostEl.scrollLeft;
+            }
+
+            function updateUsersStickyHScroll() {
+                var $host = usersScrollHost();
+                var $wrapper = $('#users-table').closest('.dataTables_wrapper');
+                var $bar = $wrapper.children('.kids-dt-sticky-hscroll');
+                if (!$host.length || !$bar.length) {
+                    return;
+                }
+
+                var hostEl = $host.get(0);
+                var tableWidth = hostEl.scrollWidth;
+                var hostWidth = hostEl.clientWidth;
+                var needsBar = tableWidth > hostWidth + 1;
+
+                $bar.children('.kids-dt-sticky-hscroll-spacer').css('width', tableWidth + 'px');
+                $host.toggleClass('kids-dt-scroll-x--has-sticky-bar', needsBar);
+                $bar.prop('hidden', !needsBar);
+
+                if (needsBar) {
+                    $bar.scrollLeft($host.scrollLeft());
+                }
+
+                syncUsersHeaderHScroll();
+            }
+
+            function bindUsersStickyHScroll() {
+                var $host = usersScrollHost();
+                var $wrapper = $('#users-table').closest('.dataTables_wrapper');
+                if (!$host.length || !$wrapper.length) {
+                    return;
+                }
+
+                var $bar = $wrapper.children('.kids-dt-sticky-hscroll');
+                if (!$bar.length) {
+                    $bar = $('<div class="kids-dt-sticky-hscroll" hidden aria-label="Горизонтальная прокрутка таблицы">'
+                        + '<div class="kids-dt-sticky-hscroll-spacer"></div>'
+                        + '</div>');
+                    $host.after($bar);
+
+                    var syncing = false;
+                    $host.on('scroll.usersStickyH', function () {
+                        if (syncing) {
+                            return;
+                        }
+                        syncing = true;
+                        $bar.scrollLeft($host.scrollLeft());
+                        syncUsersHeaderHScroll();
+                        syncing = false;
+                    });
+                    $bar.on('scroll.usersStickyH', function () {
+                        if (syncing) {
+                            return;
+                        }
+                        syncing = true;
+                        $host.scrollLeft($bar.scrollLeft());
+                        syncUsersHeaderHScroll();
+                        syncing = false;
+                    });
+                    $(window).on('resize.usersStickyH', function () {
+                        updateUsersStickyHScroll();
+                    });
+                    $(window).on('scroll.usersStickyH', function () {
+                        syncUsersHeaderHScroll();
+                    });
+                }
+
+                updateUsersStickyHScroll();
+            }
+
             const dtApi = KidsCrmDataTable.create('#users-table', {
                 columnsSettings: {
                     defaults: {
@@ -503,6 +623,12 @@
                     },
                     order: [[2, 'asc']],
                     language: @include('partials.datatables.ru'),
+                    fixedHeader: ($.fn.dataTable && $.fn.dataTable.FixedHeader)
+                        ? { header: true, footer: false }
+                        : false,
+                    drawCallback: function () {
+                        bindUsersStickyHScroll();
+                    },
                 },
                 columns: [
                     { type: 'rownum' },
@@ -605,6 +731,15 @@
             });
 
             const table = dtApi.table;
+            bindUsersStickyHScroll();
+            table.on('column-visibility.dt.usersSticky column-sizing.dt.usersSticky', function () {
+                window.requestAnimationFrame(function () {
+                    bindUsersStickyHScroll();
+                    if (table.fixedHeader && typeof table.fixedHeader.adjust === 'function') {
+                        table.fixedHeader.adjust();
+                    }
+                });
+            });
 
             @if ($canViewContracts)
             function buildContractPreselectedUser(rowData) {

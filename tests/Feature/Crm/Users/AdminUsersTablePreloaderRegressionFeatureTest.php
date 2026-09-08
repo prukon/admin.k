@@ -125,7 +125,10 @@ final class AdminUsersTablePreloaderRegressionFeatureTest extends CrmTestCase
     private function assertUsersListKeepsAdminLayoutWithoutPreloader(string $html): void
     {
         $this->assertStringContainsString('id="users-table"', $html);
-        $this->assertStringContainsString('table-responsive', $html);
+        $usersTablePos = strpos($html, 'id="users-table"');
+        $this->assertNotFalse($usersTablePos);
+        $beforeTable = substr($html, max(0, $usersTablePos - 120), 120);
+        $this->assertStringNotContainsString('table-responsive', $beforeTable);
         $this->assertStringContainsString('payments-report-toolbar', $html);
         $this->assertStringContainsString('payments-report-title', $html);
         $this->assertStringNotContainsString('kids-table-preloader', $html);

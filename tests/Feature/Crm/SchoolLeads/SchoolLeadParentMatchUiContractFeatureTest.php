@@ -20,6 +20,41 @@ final class SchoolLeadParentMatchUiContractFeatureTest extends CrmTestCase
         app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
     }
 
+    public function test_create_client_payload_reads_parent_fields_from_form_not_lead_snapshot(): void
+    {
+        $content = (string) file_get_contents(resource_path('views/admin/school-leads/tabs/leads.blade.php'));
+        $start = strpos($content, 'function collectCreateClientPayload()');
+        $end = strpos($content, 'function saveLeadAjax()');
+
+        $this->assertNotFalse($start);
+        $this->assertNotFalse($end);
+        $this->assertGreaterThan($start, $end);
+
+        $fn = substr($content, $start, $end - $start);
+
+        $this->assertStringContainsString("$('#lead-parent-id').val()", $fn);
+        $this->assertStringContainsString("$('#lead-parent-lastname').val()", $fn);
+        $this->assertStringContainsString("$('#lead-parent-firstname').val()", $fn);
+        $this->assertStringContainsString("$('#lead-parent-middlename').val()", $fn);
+        $this->assertStringContainsString("$('#lead-parent-phone').val()", $fn);
+        $this->assertStringContainsString("$('#lead-parent-email').val()", $fn);
+        $this->assertStringNotContainsString('payload.parent_email', $fn);
+        $this->assertStringNotContainsString('payload.parent_phone', $fn);
+        $this->assertStringNotContainsString('payload.parent_lastname', $fn);
+        $this->assertStringNotContainsString('snapshot.email', $fn);
+        $this->assertStringNotContainsString('useSnapshotParentFields', $fn);
+    }
+
+    public function test_widget_doc_states_create_client_uses_form_parent_fields(): void
+    {
+        $html = (string) file_get_contents(base_path('docs/documentation/school-leads-widget.html'));
+
+        $this->assertStringContainsString('collectCreateClientPayload', $html);
+        $this->assertStringContainsString('#lead-parent-email', $html);
+        $this->assertStringContainsString('не из снимка', $html);
+        $this->assertStringContainsString('При сохранении лида с матчем фронт шлёт', $html);
+    }
+
     public function test_edit_modal_contains_parent_match_ui(): void
     {
         $this->get(route('admin.school-leads'))

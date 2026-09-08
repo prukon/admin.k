@@ -1,5 +1,9 @@
 /* Закреплённая шапка и липкий горизонтальный скролл таблицы заявок (#leads-table).
+   Select2 single в модалке лида (#editLeadModal).
+   Чипы/чекбоксы фильтров «Секция»/«Объект» — generic-multiselect.css.
    Только вкладка /admin/school-leads. Не пресет KidsCrmDataTable. */
+
+@import './generic-multiselect.css';
 
 #leads-table thead th,
 table.fixedHeader-floating thead th,
@@ -42,4 +46,17 @@ table.fixedHeader-locked thead th {
 
 #leads-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar {
     display: none;
+}
+
+#editLeadModal .select2-container {
+    width: 100% !important;
+}
+
+#editLeadModal .select2-container--bootstrap-5 .select2-selection.is-invalid {
+    border-color: var(--bs-form-invalid-border-color, #dc3545) !important;
+}
+
+#editLeadModal.lead-modal-readonly .select2-container .select2-selection {
+    pointer-events: none;
+    background-color: #e9ecef;
 }

@@ -78,6 +78,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'partner self registration recaptcha' => ['landing/partner-register.blade.php'];
         yield 'contract templates variables reference copy js' => ['contract-templates/partials/variables-reference.blade.php'];
         yield 'contract templates edit modal init' => ['contract-templates/partials/edit-modal-init.blade.php'];
+        yield 'contract templates email summernote' => ['contract-templates/partials/email-summernote-init.blade.php'];
         yield 'contract templates index page scripts' => ['contract-templates/index.blade.php'];
         yield 'account documents fill modal ajax' => ['account/documents.blade.php'];
         yield 'account settings tabs shell' => ['account/index.blade.php'];
@@ -5263,6 +5264,8 @@ JS;
         $this->assertStringContainsString('.dtfh-floatingparenthead', $css);
         $this->assertStringContainsString('.kids-dt-sticky-hscroll', $css);
         $this->assertStringContainsString('kids-dt-scroll-x--has-sticky-bar', $css);
+        $this->assertStringContainsString("@import './generic-multiselect.css'", $css);
+        $this->assertStringContainsString('#editLeadModal .select2-container', $css);
 
         $this->assertStringContainsString('dataTables.fixedHeader.min.js', $content);
         $this->assertStringContainsString('fixedHeader.bootstrap4.min.css', $content);
@@ -5294,6 +5297,59 @@ JS;
             $path,
             'bindSchoolLeadsStickyHScroll',
             'blade-js-school-leads-sticky-hscroll'
+        );
+    }
+
+    /**
+     * P1: закрепление thead (FixedHeader) и липкий горизонтальный скролл на /admin/users.
+     */
+    public function test_admin_users_sticky_header_and_hscroll_inline_script_contract_and_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/user.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('dataTables.fixedHeader.min.js', $content);
+        $this->assertStringContainsString('fixedHeader.bootstrap4.min.css', $content);
+        $this->assertStringContainsString('kids-dt-sticky-hscroll', $content);
+        $this->assertStringContainsString('bindUsersStickyHScroll', $content);
+        $this->assertStringContainsString('dtfh-floatingparenthead', $content);
+        $this->assertStringContainsString('header: true', $content);
+        $this->assertStringContainsString('footer: false', $content);
+        $this->assertStringContainsString('getBoundingClientRect()', $content);
+        $this->assertStringContainsString("setProperty('overflow'", $content);
+        $this->assertStringContainsString('parent.scrollLeft', $content);
+        $this->assertStringContainsString('matchUsersFloatingHeaderWidths', $content);
+        $this->assertStringContainsString('boxSizing', $content);
+        $this->assertStringContainsString('maxWidth', $content);
+        $this->assertStringContainsString('scroll.usersStickyH', $content);
+        $this->assertStringNotContainsString("margin-left', (-", $content);
+
+        $pluginPos = strpos($content, 'dataTables.fixedHeader.min.js');
+        $createPos = strpos($content, "KidsCrmDataTable.create('#users-table'");
+        $this->assertNotFalse($pluginPos);
+        $this->assertNotFalse($createPos);
+        $this->assertLessThan(
+            $createPos,
+            $pluginPos,
+            'FixedHeader должен загружаться до KidsCrmDataTable.create, иначе шапка не закрепится'
+        );
+
+        $css = (string) file_get_contents(resource_path('css/admin-users-table.css'));
+        $this->assertStringContainsString('.dtfh-floatingparenthead', $css);
+        $this->assertStringContainsString('#users-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('kids-dt-scroll-x--has-sticky-bar', $css);
+        $this->assertStringContainsString("@vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css', 'resources/css/admin-users-table.css'])", $content);
+        $this->assertStringNotContainsString("asset('css/admin-users-table.css')", $content);
+        $vite = (string) file_get_contents(base_path('vite.config.js'));
+        $this->assertStringContainsString("'resources/css/admin-users-table.css'", $vite);
+        $this->assertStringContainsString('position: sticky', $css);
+        $this->assertStringContainsString('overflow-x: scroll', $css);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'bindUsersStickyHScroll',
+            'blade-js-users-sticky-hscroll'
         );
     }
 
@@ -5372,6 +5428,8 @@ JS;
         $this->assertStringContainsString('parent_match_needs_decision', $content);
         $this->assertStringContainsString('matched_parent', $content);
         $this->assertStringContainsString('useSnapshotParentFields', $content);
+        $this->assertStringContainsString('function collectCreateClientPayload()', $content);
+        $this->assertStringContainsString("$('#lead-parent-email').val()", $content);
         $this->assertStringContainsString('leadParentMatchAcceptBtn', $content);
         $this->assertStringContainsString('leadParentMatchRejectBtn', $content);
         $this->assertStringContainsString('highlightLeadParentSnapshotMatches', $content);
@@ -5431,6 +5489,106 @@ JS;
         }
 
         $this->assertTrue($found, 'В leads.blade.php не найден script с acceptLeadParentMatch + needsParentDecision');
+    }
+
+    /**
+     * P1: «Создать клиента» после занятой почты и переключения на справочник —
+     * payload из формы, PUT оставляет снимок, ошибки в window.showToast.
+     */
+    public function test_school_leads_create_client_directory_switch_and_error_toast_inline_script_is_valid_javascript(): void
+    {
+        $leadsPath = resource_path('views/admin/school-leads/tabs/leads.blade.php');
+        $this->assertFileExists($leadsPath);
+        $content = (string) file_get_contents($leadsPath);
+
+        $createStart = strpos($content, 'function collectCreateClientPayload()');
+        $createEnd = strpos($content, 'function saveLeadAjax()');
+        $this->assertNotFalse($createStart);
+        $this->assertNotFalse($createEnd);
+        $createFn = substr($content, $createStart, $createEnd - $createStart);
+
+        $this->assertStringContainsString("$('#lead-parent-email').val()", $createFn);
+        $this->assertStringContainsString("$('#lead-parent-id').val()", $createFn);
+        $this->assertStringNotContainsString('useSnapshotParentFields', $createFn);
+        $this->assertStringNotContainsString('snapshot.email', $createFn);
+        $this->assertStringNotContainsString('payload.parent_email', $createFn);
+
+        $putStart = strpos($content, 'function collectLeadPayload()');
+        $this->assertNotFalse($putStart);
+        $putFn = substr($content, $putStart, $createStart - $putStart);
+        $this->assertStringContainsString('useSnapshotParentFields', $putFn);
+        $this->assertStringContainsString('snapshot.email', $putFn);
+
+        $this->assertStringContainsString("showToast(text, isSuccess ? 'success' : 'error')", $content);
+        $this->assertStringContainsString("if (typeof window.showToast === 'function')", $content);
+        $this->assertStringContainsString('window.showToast(message, type)', $content);
+        $this->assertStringNotContainsString("showErrorModal('Создание клиента'", $content);
+
+        $createClick = strpos($content, "$('#createClientBtn').on('click'");
+        $this->assertNotFalse($createClick);
+        $createChunk = substr($content, $createClick, 2800);
+        $this->assertStringContainsString('collectCreateClientPayload()', $createChunk);
+        $this->assertStringContainsString('saveLeadAjax()', $createChunk);
+        $this->assertStringContainsString('showCreateClientResultModal(false, message)', $createChunk);
+
+        $modalPath = resource_path('views/admin/school-leads/partials/edit-lead-modal.blade.php');
+        $this->assertFileExists($modalPath);
+        $modal = (string) file_get_contents($modalPath);
+        $this->assertStringContainsString("@include('partials.ui.main-toast')", $modal);
+        $includePos = strpos($modal, "@include('partials.ui.main-toast')");
+        $lastDiv = strrpos($modal, '</div>');
+        $this->assertNotFalse($includePos);
+        $this->assertGreaterThan($lastDiv, $includePos);
+
+        $parentPath = resource_path('views/admin/users/_parent_form.blade.php');
+        $this->assertFileExists($parentPath);
+        $parentJs = (string) file_get_contents($parentPath);
+        $this->assertStringContainsString("$(document).on('click', '.js-parent-mode-btn'", $parentJs);
+        $this->assertStringContainsString("setParentFormMode(prefix, 'directory'", $parentJs);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $leadsPath,
+            'collectCreateClientPayload',
+            'blade-js-school-leads-create-client-directory-switch'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $parentPath,
+            'js-parent-mode-btn',
+            'blade-js-parent-form-directory-mode'
+        );
+    }
+
+    /**
+     * P1: фильтры «Секция»/«Объект» — Select2 generic-multiselect, apply/reset, модалка single.
+     */
+    public function test_school_leads_filter_select2_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/school-leads/tabs/leads.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.init($teamFilter', $content);
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.init($locationFilter', $content);
+        $this->assertStringContainsString("dropdownParent: $('#school-leads-filters')", $content);
+        $this->assertStringContainsString('d.team_ids = appliedFilters.team_ids', $content);
+        $this->assertStringContainsString('d.location_ids = appliedFilters.location_ids', $content);
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.reset($teamFilter)', $content);
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.reset($locationFilter)', $content);
+        $this->assertStringContainsString('function initLeadModalSingleSelect2($select)', $content);
+        $this->assertStringContainsString('$leadTeamSelect.val(rowData.team_id ? String(rowData.team_id) : \'\').trigger(\'change\')', $content);
+        $this->assertStringContainsString('$leadLocationSelect.val(rowData.location_id ? String(rowData.location_id) : \'\').trigger(\'change\')', $content);
+        $this->assertStringNotContainsString('KidsCrmGenericMultiselectSelect2.init($districtFilter', $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'KidsCrmGenericMultiselectSelect2.init($teamFilter',
+            'blade-js-school-leads-filter-select2'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'initLeadModalSingleSelect2',
+            'blade-js-school-leads-modal-select2'
+        );
     }
 
     /**
@@ -5868,7 +6026,7 @@ JS;
         $this->assertStringNotContainsString('<x-ui.table-preloader', $content);
         $this->assertStringNotContainsString('users-table-stage', $content);
         $this->assertStringNotContainsString('kids-table-preloader', $content);
-        $this->assertStringContainsString('<div class="table-responsive">', $content);
+        $this->assertStringNotContainsString('<div class="table-responsive">', $content);
         $this->assertStringContainsString('id="users-table"', $content);
         $this->assertStringContainsString("KidsCrmDataTable.create('#users-table'", $content);
         $createPos = strpos($content, "KidsCrmDataTable.create('#users-table'");
@@ -5891,8 +6049,10 @@ JS;
         $this->assertNotFalse($sectionPos);
         $this->assertLessThan($sectionPos, $pushPos);
         $stylesChunk = substr($content, $pushPos, $sectionPos - $pushPos);
-        $this->assertStringContainsString("@vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css'])", $stylesChunk);
-        $this->assertStringNotContainsString("@vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css'])", substr($content, $sectionPos));
+        $this->assertStringContainsString("@vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css', 'resources/css/admin-users-table.css'])", $stylesChunk);
+        $this->assertStringNotContainsString("@vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css', 'resources/css/admin-users-table.css'])", substr($content, $sectionPos));
+        $this->assertStringContainsString('fixedHeader.bootstrap4.min.css', $stylesChunk);
+        $this->assertStringNotContainsString("asset('css/admin-users-table.css')", $stylesChunk);
 
         $css = (string) file_get_contents(resource_path('css/user.css'));
         $this->assertStringNotContainsString('#users-table-stage:not(.is-ready)', $css);
@@ -6205,6 +6365,42 @@ JS;
         }
 
         $this->assertTrue($found, 'В variables-reference.blade.php не найден script копирования переменных');
+    }
+
+    /**
+     * P1: модалка письма шаблона — «По умолчанию» сохраняет {{documents_url}},
+     * Summernote не дописывает http:// к плейсхолдерам.
+     */
+    public function test_contract_template_email_summernote_preserves_documents_url_placeholder(): void
+    {
+        $path = resource_path('views/contract-templates/partials/email-summernote-init.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('template-email-reset-defaults', $content);
+        $this->assertStringContainsString('applyDefaultEmailText', $content);
+        $this->assertStringContainsString('preservePlaceholderLinkUrl', $content);
+        $this->assertStringContainsString('restoreDocumentsUrlHrefs', $content);
+        $this->assertStringContainsString('onCreateLink: preservePlaceholderLinkUrl', $content);
+        $this->assertStringContainsString('DOCUMENTS_URL_PLACEHOLDER', $content);
+        $this->assertStringContainsString('ContractTemplateEmailDefaults::PLACEHOLDER_DOCUMENTS_URL', $content);
+        $this->assertStringContainsString('ContractTemplateEmailDefaults::bodyHtml()', $content);
+        $this->assertStringNotContainsString("indexOf('{{')", $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'preservePlaceholderLinkUrl',
+            'blade-js-ct-email-summernote'
+        );
+
+        $hint = (string) file_get_contents(resource_path('views/contract-templates/partials/email-placeholders-hint.blade.php'));
+        $this->assertStringContainsString('&#123;&#123;documents_url&#125;&#125;', $hint);
+        $this->assertStringContainsString('?student=', $hint);
+        $this->assertStringContainsString('fill=…', $hint);
+
+        $modal = (string) file_get_contents(resource_path('views/contract-templates/partials/email-edit-modal.blade.php'));
+        $this->assertStringContainsString("email-placeholders-hint", $modal);
+        $this->assertStringContainsString('template-email-reset-defaults', $modal);
     }
 
     /**
@@ -6786,6 +6982,7 @@ JS;
         $toast = (string) file_get_contents($toastPath);
         $this->assertStringContainsString('window.showToast = function (message, type)', $toast);
         $this->assertStringContainsString('id="kidsMainToast"', $toast);
+        $this->assertStringContainsString('@once', $toast);
         $this->assertStringContainsString('z-index: 4050', $toast);
         $this->assertStringNotContainsString('z-index: 1090', $toast);
         $this->assertStringContainsString('document.body.appendChild(wrap)', $toast);
@@ -6860,11 +7057,13 @@ JS;
         );
 
         $leads = (string) file_get_contents($leadsPath);
-        $this->assertStringContainsString("window.showToast(message || 'Клиент создан.', 'success')", $leads);
-        $this->assertStringContainsString("showErrorModal('Создание клиента'", $leads);
+        $this->assertStringContainsString("showToast(text, isSuccess ? 'success' : 'error')", $leads);
+        $this->assertStringContainsString("showToast(message, 'error')", $leads);
+        $this->assertStringNotContainsString("showErrorModal('Создание клиента'", $leads);
+        $this->assertStringNotContainsString('id="editLeadError"', $leads);
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $leadsPath,
-            "window.showToast(message || 'Клиент создан.', 'success')",
+            "showToast(text, isSuccess ? 'success' : 'error')",
             'blade-js-leads-create-client-naming'
         );
 
@@ -7025,7 +7224,7 @@ JS;
             ],
             'lead-create-client' => [
                 'path' => resource_path('views/admin/school-leads/tabs/leads.blade.php'),
-                'toast' => "window.showToast(message || 'Клиент создан.', 'success')",
+                'toast' => "showToast(text, isSuccess ? 'success' : 'error')",
                 'absent' => "showSuccessModal('Создание клиента'",
             ],
             'custom-payment-create' => [

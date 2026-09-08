@@ -42,6 +42,51 @@ final class UsersSectionTabsFeatureTest extends CrmTestCase
             ->assertSee('href="' . route('admin.administrators.index') . '"', false);
     }
 
+    public function test_trainers_tab_does_not_load_users_sticky_header(): void
+    {
+        $this->asAdmin();
+        $this->grantStaffSectionAccess($this->user);
+        $this->grantTrainersView($this->user);
+
+        $html = $this->get(route('admin.trainers.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('bindUsersStickyHScroll', $html);
+        $this->assertStringNotContainsString('admin-users-table.css', $html);
+        $this->assertStringNotContainsString('id="users-table"', $html);
+    }
+
+    public function test_administrators_tab_does_not_load_users_sticky_header(): void
+    {
+        $this->asAdmin();
+        $this->grantStaffSectionAccess($this->user);
+
+        $html = $this->get(route('admin.administrators.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('bindUsersStickyHScroll', $html);
+        $this->assertStringNotContainsString('admin-users-table.css', $html);
+        $this->assertStringNotContainsString('id="users-table"', $html);
+    }
+
+    public function test_custom_role_tab_does_not_load_users_sticky_header(): void
+    {
+        $role = $this->createPartnerCustomRole('manager_tab', 'Менеджеры');
+
+        $this->asAdmin();
+        $this->grantStaffSectionAccess($this->user);
+
+        $html = $this->get(route('admin.roles.users.index', ['role' => $role->name]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('bindUsersStickyHScroll', $html);
+        $this->assertStringNotContainsString('admin-users-table.css', $html);
+        $this->assertStringNotContainsString('id="users-table"', $html);
+    }
+
     public function test_users_tab_hidden_without_users_role_update(): void
     {
         $actor = $this->createUserWithoutPermission('users.role.update', $this->partner);

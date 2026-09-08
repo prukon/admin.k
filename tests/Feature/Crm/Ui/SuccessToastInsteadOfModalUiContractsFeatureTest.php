@@ -280,7 +280,7 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
             ],
             'lead-create-client' => [
                 'path'  => resource_path('views/admin/school-leads/tabs/leads.blade.php'),
-                'toast' => "window.showToast(message || 'Клиент создан.', 'success')",
+                'toast' => "showToast(text, isSuccess ? 'success' : 'error')",
                 'absent'=> "showSuccessModal('Создание клиента'",
             ],
             'monthly-one-user' => [
@@ -373,22 +373,31 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
             ->getContent();
 
         $this->assertStringContainsString('id="kidsMainToast"', $html);
-        $this->assertStringContainsString('id="mainToast"', $html, 'Локальный toast заявок остаётся для других действий');
+        $this->assertStringNotContainsString('id="mainToast"', $html);
+        $this->assertStringNotContainsString('id="editLeadError"', $html);
+        $this->assertStringNotContainsString('id="editLeadSuccess"', $html);
+        $this->assertSame(1, substr_count($html, 'id="kidsMainToast"'));
+
+        $modalPath = resource_path('views/admin/school-leads/partials/edit-lead-modal.blade.php');
+        $modal = (string) file_get_contents($modalPath);
+        $this->assertStringContainsString("@include('partials.ui.main-toast')", $modal);
+        $modalClosePos = strrpos($modal, '</div>');
+        $includePos = strpos($modal, "@include('partials.ui.main-toast')");
+        $this->assertNotFalse($includePos);
+        $this->assertGreaterThan($modalClosePos, $includePos, 'Toast partial снаружи #editLeadModal, не внутри модалки');
 
         $js = (string) file_get_contents(resource_path('views/admin/school-leads/tabs/leads.blade.php'));
         $fnPos = strpos($js, 'function showCreateClientResultModal');
         $this->assertNotFalse($fnPos);
-        $chunk = substr($js, $fnPos, 900);
+        $chunk = substr($js, $fnPos, 500);
 
-        $this->assertStringContainsString("if (typeof window.showToast === 'function')", $chunk);
-        $this->assertStringContainsString("window.showToast(message || 'Клиент создан.', 'success')", $chunk);
-        $windowPos = strpos($chunk, 'window.showToast');
-        $localPos = strpos($chunk, "showToast(message || 'Клиент создан.', 'success')");
-        $this->assertNotFalse($windowPos);
-        $this->assertNotFalse($localPos);
-        $this->assertLessThan($localPos, $windowPos);
-        $this->assertStringContainsString('return;', substr($chunk, $windowPos, 220));
+        $this->assertStringContainsString("showToast(text, isSuccess ? 'success' : 'error')", $chunk);
+        $this->assertStringNotContainsString('showErrorModal', $chunk);
         $this->assertStringNotContainsString("showSuccessModal('Создание клиента'", $chunk);
+
+        $this->assertStringContainsString("if (typeof window.showToast === 'function')", $js);
+        $this->assertStringContainsString('window.showToast(message, type)', $js);
+        $this->assertStringContainsString("showToast(message, 'error')", $js);
     }
 
     public function test_actions_outside_the_list_still_use_success_modal(): void

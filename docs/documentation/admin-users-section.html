@@ -97,6 +97,7 @@
   <ul>
     <li>Заголовок страницы раздела: <code>Пользователи</code> (h4, сайдбар тот же). Вкладка учеников и toolbar <code>h1</code> на <code>/admin/users</code>: <code>Клиенты</code>. Модалки ученика: «Создание клиента» / «Редактирование клиента» / «Удаление клиента». JSON: <code>Клиент создан успешно</code>, <code>Клиент успешно обновлён</code>, <code>Клиент успешно удалён</code>. Toast create/edit на вкладке: закрытие модалки, <code>ajax.reload(null, false)</code>, <code>window.showToast</code> с <code>message</code> сервера (fallback «Клиент успешно создан.» / «Клиент успешно обновлён.»), не success-модалка и не F5 (<a href="/doc#users-create-edit-toast-index">анонс</a>). Toast удаления: <code>Клиент успешно удален.</code> (е). Лид → клиент — свой toast на заявках, не эта модалка. Тренеры и сотрудники этот копирайт не получают. Право <code>users.view</code> в матрице прав по-прежнему «Страница "Пользователи"»; группа прав — «Управление клиентами»; label роли <code>user</code> — «Клиент».</li>
     <li>На каждой вкладке — toolbar (добавить, фильтры, колонки), DataTables через <code>KidsCrmDataTable.create</code> — см. <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials</a>.</li>
+    <li>Закрепление <code>thead</code> и липкий горизонтальный скролл — только вкладка «Клиенты» (<code>#users-table</code>, <a href="/docs/documentation/admin-users#users-sticky-header">admin-users §2.0.1</a>, <a href="/doc#users-sticky-header-index">анонс</a>). «Тренеры», «Администраторы» и кастомные роли этот CSS/JS не грузят.</li>
     <li>На вкладке «Клиенты» (<code>/admin/users</code>) дополнительно — кнопка «Импорт» при праве <code>users.import</code>
       (см. <a href="/docs/documentation/admin-users#user-import">admin-users §8</a>,
       preview-diff — <a href="/docs/documentation/admin-users#user-import-preview-diff">§8.5</a>,
@@ -119,12 +120,14 @@
     <li><code>app/Http/Controllers/Admin/TrainerController.php</code> — тренеры</li>
     <li><code>app/Http/Controllers/Admin/RoleStaffUserController.php</code> — администраторы и кастомные роли</li>
     <li><code>resources/views/admin/role_staff/index.blade.php</code></li>
+    <li><code>resources/css/admin-users-table.css</code> — Vite-бандл sticky-шапки только на вкладке «Клиенты»</li>
   </ul>
 
   <h2>6) Автотесты (Feature)</h2>
   <div class="note">
     <ul>
-      <li><code>tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php</code> — вкладки, resolver, зарезервированные URL, фиксация роли в create</li>
+      <li><code>tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php</code> — вкладки, resolver, зарезервированные URL, фиксация роли в create; вкладки «Тренеры» / «Администраторы» / кастомная роль без sticky CSS вкладки «Клиенты»</li>
+      <li><code>tests/Unit/Documentation/UsersStickyHeaderDocumentationContractTest.php</code> — анонс <code>/doc#users-sticky-header-index</code> и Vite-доставка <code>resources/css/admin-users-table.css</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersSectionFeatureTest.php</code> — вкладки в HTML, доступ users/trainers, комбинированный smoke</li>
       <li><code>tests/Feature/Crm/Users/AdministratorsPageFullAccessFeatureTest.php</code> — <code>/admin/administrators</code>: 200 на все endpoint’ы, 403, изоляция</li>
       <li><code>tests/Feature/Crm/Users/CustomRoleUsersPageFullAccessFeatureTest.php</code> — <code>/admin/roles/{role}</code>: 200, 403, изоляция</li>

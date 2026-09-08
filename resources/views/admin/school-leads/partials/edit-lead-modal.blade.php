@@ -155,7 +155,10 @@
                                         <div class="col-12 col-md-6">
                                             <div class="mb-0">
                                                 <label for="leadTeam" class="form-label">Группа</label>
-                                                <select id="leadTeam" name="team_id" class="form-select js-lead-field">
+                                                <select id="leadTeam"
+                                                        name="team_id"
+                                                        class="form-select js-lead-field"
+                                                        data-placeholder="Без группы">
                                                     <option value="">Без группы</option>
                                                     @foreach ($modalTeams as $team)
                                                         <option value="{{ $team->id }}">{{ $team->title }}</option>
@@ -184,7 +187,10 @@
                                             <div class="col-12 col-md-6">
                                                 <div class="mb-0">
                                                     <label for="leadLocation" class="form-label">Объект</label>
-                                                    <select id="leadLocation" name="location_id" class="form-select js-lead-field">
+                                                    <select id="leadLocation"
+                                                            name="location_id"
+                                                            class="form-select js-lead-field"
+                                                            data-placeholder="— не выбран —">
                                                         <option value="">— не выбран —</option>
                                                         @foreach ($activeLocations as $location)
                                                             <option value="{{ $location->id }}">{{ $location->name }}</option>
@@ -310,9 +316,6 @@
                         @endif
                     </div>
                 </form>
-
-                <div class="alert alert-danger d-none mt-3" id="editLeadError"></div>
-                <div class="alert alert-success d-none mt-3" id="editLeadSuccess"></div>
             </div>
             <div class="modal-footer flex-wrap gap-2">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
@@ -339,6 +342,8 @@
         </div>
     </div>
 </div>
+
+@include('partials.ui.main-toast')
 
 @push('styles')
     <style>

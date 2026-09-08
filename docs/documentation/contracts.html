@@ -32,6 +32,7 @@
     · колокольчик при signed: <a href="/doc#contract-signed-in-app-index">анонс</a>
     · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">анонс</a>
     · памятка статусов: <a href="/doc#contract-status-memo-index">анонс</a>
+    · колонка «Обновлён»: <a href="/doc#contract-list-updated-at-index">анонс</a>
     · списание 70 ₽ в историю кошелька: <a href="/doc#partner-wallet-ledger-index">анонс</a></div>
 
   <h2>1) Назначение и доступ</h2>
@@ -56,7 +57,7 @@
       <tr><td>POST</td><td><code>/client-contracts/check-balance</code></td><td>Предпроверка баланса перед submit модалки создания</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/users-search</code></td><td>AJAX Select2: поиск учеников (в т.ч. <code>parent_full_name</code> для модалки)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
-      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)»</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)». Колонка «Обновлён» (<code>updated_at</code> в JSON) — <code>created_at</code> последнего события журнала этого договора (<code>contract_events</code>, максимальный <code>id</code>, как на карточке), формат <code>d.m.Y H:i:s</code>; не поле <code>contracts.updated_at</code>. При создании через UI всегда есть событие <code>created</code>. Без событий — пустая строка. Сортировка этой колонки — по дате события, без событий в конце</td></tr>
       <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/logs-data</code> (<code>logs.data.contract</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract</code>)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
@@ -99,6 +100,23 @@
     </tbody>
   </table>
 
+  <h3 id="contract-list-updated-at">1.3) Колонка «Обновлён» в списке</h3>
+  <div class="note">
+    Заголовок колонки — «Обновлён» (<code>&lt;th&gt;</code>, чекбокс <code>#colUpdatedAt</code>,
+    ключ настроек <code>updated_at</code>). Значение в <code>GET /client-contracts/data</code>
+    — не <code>contracts.updated_at</code>, а <code>created_at</code> последнего события
+    журнала этого договора: <code>contract_events</code> с тем же <code>contract_id</code>,
+    строка с максимальным <code>id</code> (как аккордеон «Журнал событий» на карточке:
+    <code>$contract->events()-&gt;orderBy('id', 'desc')</code>), формат <code>d.m.Y H:i:s</code>.
+    Автор события не фильтруется.
+    <br><br>
+    Штатное создание через UI всегда пишет событие <code>created</code> («Создан»)
+    в <code>ContractCreationService</code>. Без строк в <code>contract_events</code> —
+    пустая ячейка. Сортировка колонки (индекс 7 DataTables) — по этой дате,
+    без событий в конце. Timeline «(посмотреть)» эту колонку не использует.
+    Анонс: <a href="/doc#contract-list-updated-at-index">/doc</a>.
+  </div>
+
   <h2 id="contract-parent">2) Родитель и ученик на карточке договора</h2>
   <div class="note">
     Договор привязан к ученику (<code>contracts.user_id</code> → <code>users</code>). ФИО родителя в <b>именительном</b> на карточке и в модалке создания
@@ -131,6 +149,17 @@
   <div class="note">
     В <code>ContractsController@show</code> ученик загружается с <code>->with('parentProfile')</code> и pivot-группами (<code>teams</code>); для подписи «Группа» используется <code>TeamUserSyncService::teamTitlesLabel</code>.
     Legacy <code>ContractsController</code> (корневой, не в роутах) — устаревший.
+  </div>
+
+  <h3 id="contract-events-journal">2.3) Журнал событий на карточке</h3>
+  <div class="note">
+    Аккордеон «Журнал событий» (<code>#eventsAccordion</code>) на
+    <code>GET /client-contracts/{id}</code>: все строки <code>contract_events</code>
+    этого договора, <code>orderBy('id', 'desc')</code>. Колонки: №, Автор
+    (<code>author_fio</code>: сотрудник / клиент / «Система»), Событие (<code>type_ru</code>),
+    Дата (<code>created_at</code>, <code>d.m.Y H:i:s</code>).
+    Верхняя строка журнала — та же дата, что колонка «Обновлён» в списке (§<a href="#contract-list-updated-at">1.3</a>).
+    Это не аудит <code>my_logs</code> (§<a href="#contracts-audit">1.2</a>).
   </div>
 
   <h2>3) Предзаполнение подписанта (модалка «Отправка на подпись»)</h2>
@@ -478,7 +507,8 @@
       <li><code>PodpislonWebhookTest.php</code> — пустой POST проба 200 без <code>?token=</code> и с ним (токен игнорируется); события требуют <code>SIGNATURE</code> Подпислона</li>
       <li><code>PodpislonWebhookUrlCheckFeatureTest.php</code> — UX кабинета Подпислона: гость, без CSRF, без права CRM, URL без <code>?token=</code> даёт 200 JSON <code>probe</code> (не логин/419/403); токен в path — 404; query-токен не заменяет <code>SIGNATURE</code>; GET/PUT/PATCH/DELETE не 500</li>
       <li><code>ContractsSyncFeatureTest.php</code></li>
-      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code> — в data <code>status_label</code> для sent/opened = «Отправлено СМС» / «Открыто СМС»</li>
+      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code> — в data <code>status_label</code> для sent/opened = «Отправлено СМС» / «Открыто СМС»; колонка «Обновлён» = последнее <code>contract_events.created_at</code> (max <code>id</code>), не <code>contracts.updated_at</code>; совпадает с верхней строкой журнала на карточке; сортировка колонки; без событий — пустая строка</li>
+      <li><code>ContractListUpdatedAtDocumentationContractTest.php</code> — анонс /doc, §1.3 / §2.3, <code>ContractTableController</code>, заголовок в blade: «Обновлён» из журнала, не <code>contracts.updated_at</code></li>
       <li><code>ContractSchoolStatusLabelFeatureTest.php</code> — школьные подписи sent/opened в таблице, фильтре и на карточке; guest 302 / без права 403; чужой партнёр 403</li>
       <li><code>ContractSchoolStatusLabelTest.php</code> — <code>schoolStatusLabel</code> не меняет <code>$STATUS_RU</code></li>
       <li><code>ContractBillingWalletLedgerFeatureTest.php</code> — PDF/template: debit в кошельке текущей школы; отзыв awaiting_client_fill — credit, исходный debit succeeded; недостаток средств без строки; аннулирование sent/opened credit не пишет</li>
@@ -503,7 +533,7 @@
     </ul>
     <p><b>Раздел «Документы» (вкладки + шаблоны):</b></p>
     <ul>
-      <li><code>ContractsDocumentsSectionUiFeatureTest.php</code></li>
+      <li><code>ContractsDocumentsSectionUiFeatureTest.php</code> — вкладки, тулбар, колонка «Обновлён» (<code>&lt;th&gt;</code>, <code>#colUpdatedAt</code>)</li>
       <li><code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — вкладки, email API, маркеры <code>js-dt-nav-link</code>, поля <code>id</code>/<code>user_name</code> в data</li>
       <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное имя в списке договоров + show 200</li>
     </ul>

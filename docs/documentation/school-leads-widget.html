@@ -36,6 +36,7 @@
       <li><b>Страница заявки</b> (<code>/lead/{landingSlug}</code>) — брендированный лендинг с полной формой; slug задаёт партнёр в CRM; подробно в <a href="/docs/documentation/school-leads-landing">school-leads-landing.html</a>.</li>
     </ul>
     Заявки изолированы по <code>partner_id</code> и отображаются в кабинете школы (<code>/admin/school-leads</code>).<br>
+    Фильтры «Секция» и «Объект» — Select2 с чекбоксами, несколько значений = любой match — <a href="#school-leads-filter-select2">§5.1.7</a>, анонс <a href="/doc#school-leads-filter-select2-index">/doc</a>.<br>
     На вкладке «Заявки» шапка таблицы и горизонтальный скролл остаются в зоне видимости при длинном списке — <a href="#school-leads-sticky-header">§5.1.6</a>.<br>
     После создания клиента из лида статус заявки по-прежнему меняется (таблица и модалка) — <a href="#school-lead-linked-status">§5.5.4</a>;
     кнопка «Создать клиента» показывает в ховере все обязательные поля — <a href="#school-lead-create-client-button">§5.7</a>.
@@ -194,9 +195,9 @@
     <li><b>Фильтры</b> (collapse, паттерн как в отчёте <a href="/docs/documentation/reports-payments">«Платежи»</a>) — кнопки «Применить» / «Сброс». Фильтры <b>не</b> применяются при изменении полей: только после «Применить».
       <ul>
         <li><b>Статус</b> — filter multiselect (<code>status_ids[]</code>, §5.1.2); при открытии страницы предвыбраны статусы с <code>is_default_in_filter = true</code> (включая системный «Новый»).</li>
-        <li><b>Район</b> — при <code>districts.view</code>: «Все районы» / «Без района» / активные районы партнёра.</li>
-        <li><b>Объект</b> — при <code>locations.view</code>: «Все объекты» / «Без объекта» / активные объекты партнёра.</li>
-        <li><b>Секция</b> — «Все секции» / «Без секции» / активные группы партнёра (<code>team_id</code>).</li>
+        <li><b>Район</b> — при <code>districts.view</code>: нативный <code>&lt;select&gt;</code> «Все районы» / «Без района» / активные районы партнёра. Select2 нет.</li>
+        <li><b>Объект</b> — при <code>locations.view</code>: Select2 generic-multiselect как поле «Тренеры» в редактировании группы (§5.1.7): несколько объектов, чекбоксы, поиск; пусто — все; опция «Без объекта» (<code>none</code>); несколько id — лид при совпадении любого.</li>
+        <li><b>Секция</b> — тот же Select2 generic-multiselect: несколько групп, чекбоксы, поиск; пусто — все секции; опция «Без секции» (<code>none</code>); несколько id — лид при совпадении любого.</li>
         <li><b>Есть особые условия</b> — чекбокс (<code>has_special_conditions</code>): <code>is_individual_traits</code> или <code>is_on_medical_register</code> или <code>is_with_disability</code>.</li>
         <li><b>Сброс</b> — возвращает статусы по умолчанию (<code>is_default_in_filter</code>), очищает район, объект, секцию и чекбокс особых условий.</li>
       </ul>
@@ -208,7 +209,7 @@
   <p class="small">Ключи колонок в настройках: <code>name</code>, <code>status</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>phone</code>, <code>parent_email</code>, <code>child_full_name</code>, <code>child_birthday</code>, <code>district</code> (при <code>districts.view</code>), <code>location</code> (при <code>locations.view</code>), <code>team_title</code>, <code>child_flags</code>, <code>utm</code>, <code>page_url</code>, <code>comment</code>. Обзор иерархии — <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.</p>
 
   <h3 id="school-leads-filter-multiselect">5.1.2) Фильтр статусов (<code>KidsCrmFilterMultiselectSelect2</code>)</h3>
-  <p>Отдельный UI-компонент для панели фильтров — <b>не</b> Select2. В модалках (объекты, районы) по-прежнему используется chip-multiselect на Select2 (<code>generic-multiselect</code>, см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4</a>).</p>
+  <p>Фильтр <b>статусов</b> на панели — <b>не</b> Select2 (этот §). Это не относится к фильтрам «Секция» и «Объект»: они — chip-Select2 <code>generic-multiselect</code>, как «Тренеры» в группе (§5.1.7). В модалках справочников (объекты, районы) по-прежнему chip-multiselect на Select2 (см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4</a>).</p>
   <table>
     <thead>
       <tr><th>Аспект</th><th>Реализация</th></tr>
@@ -395,6 +396,66 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <code>SchoolLeadsStickyHeaderDocumentationContractTest</code>.
     Анонс — <a href="/doc#school-leads-sticky-header-index">/doc#school-leads-sticky-header-index</a>.</p>
 
+  <h3 id="school-leads-filter-select2">5.1.7) Фильтры «Секция» и «Объект» (Select2 generic-multiselect)</h3>
+  <p>
+    Как поле «Тренеры» в модалке редактирования группы на <code>/admin/teams</code>:
+    <code>KidsCrmGenericMultiselectSelect2</code>, чекбоксы в dropdown, chip-теги, поиск.
+    Partial уже подключается в <code>admin/school-leads/index.blade.php</code>
+    (<code>@include('partials.select2.generic-multiselect')</code>).
+    Стили доработки — Vite-бандл <code>resources/css/school-leads-table.css</code>
+    (<code>@import</code> <code>resources/css/generic-multiselect.css</code>
+    и правила Select2 <code>#editLeadModal</code>; после правки — <code>npm run build</code>).
+    CSS самого Select2 — статика layout <code>admin2</code>
+    (<code>css/select2/select2.min.css</code>, <code>select2-bootstrap-5-theme.min.css</code>).
+    Фильтр «Статус» по-прежнему <code>KidsCrmFilterMultiselectSelect2</code> без Select2 (§5.1.2).
+    Район — нативный <code>&lt;select&gt;</code>.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Поле</th><th>Разметка</th><th>API</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Секция</td>
+        <td><code>#sl-filter-team</code>, <code>name="team_ids[]"</code>, <code>js-generic-multiselect-select</code>, placeholder «Все секции», опция <code>none</code> «Без секции»</td>
+        <td><code>team_ids[]</code>; пусто — все. Legacy <code>team_id</code> (скаляр) принимается.</td>
+      </tr>
+      <tr>
+        <td>Объект</td>
+        <td>при <code>locations.view</code>: <code>#sl-filter-location</code>, <code>name="location_ids[]"</code>, тот же класс, placeholder «Все объекты», опция <code>none</code> «Без объекта»</td>
+        <td><code>location_ids[]</code>; пусто — все. Legacy <code>location_id</code> принимается.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Несколько id в одном фильтре — лид при совпадении <b>любого</b> выбранного значения
+    (<code>whereIn</code> / OR), не пересечение всех сразу. Между разными полями фильтра
+    (статус, секция, объект, район) — AND.
+    <code>none</code> вместе с id — заявки без значения <b>или</b> с выбранными id (OR).
+    Применить только по submit формы (не по change селекта). Сброс секции/объекта — пусто (все);
+    статусы возвращаются к <code>defaultStatusFilterIds</code>.
+    Init: <code>KidsCrmGenericMultiselectSelect2.init(..., { dropdownParent: $('#school-leads-filters'), allowClear: true })</code>.
+    Сброс: <code>KidsCrmGenericMultiselectSelect2.reset</code>.
+    Без <code>locations.view</code> блок объекта не рендерится, <code>location_ids</code> на data не применяется.
+  </p>
+  <p>
+    В модалке «Редактирование лида» поля <b>группа</b> (<code>#leadTeam</code>, один <code>team_id</code>)
+    и <b>объект</b> (<code>#leadLocation</code>, один <code>location_id</code>) — Select2 single
+    (theme bootstrap-5, поиск, <code>allowClear</code>, <code>dropdownParent</code> = <code>#editLeadModal .modal-content</code>,
+    язык <code>@include('partials.select2.ru')</code>, init <code>initLeadModalSingleSelect2</code>). Не multiple: у заявки одна группа и один объект.
+  </p>
+  <p class="small">Тесты: <code>SchoolLeadsFilterSelect2FeatureTest</code>,
+    <code>SchoolLeadsFilterSelect2AccessFeatureTest</code>,
+    <code>SchoolLeadsFilterSelect2FullAccessFeatureTest</code>,
+    <code>SchoolLeadsFilterSelect2AjaxContractFeatureTest</code>,
+    <code>SchoolLeadsFilterSelect2NonAjaxSafetyNetFeatureTest</code>,
+    <code>SchoolLeadsFilterSelect2UiContractsFeatureTest</code>,
+    <code>SchoolLeadsPageFeatureTest</code>,
+    <code>SchoolLeadLocationFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>SchoolLeadsFilterSelect2DocumentationContractTest</code>.
+    Анонс — <a href="/doc#school-leads-filter-select2-index">/doc#school-leads-filter-select2-index</a>.</p>
+
   <h3>5.2) Параметры <code>GET /admin/school-leads/data</code></h3>
   <table>
     <thead>
@@ -404,8 +465,8 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       <tr><td><code>draw</code>, <code>start</code>, <code>length</code></td><td>Стандарт DataTables</td></tr>
       <tr><td><code>status_ids[]</code></td><td>Массив id статусов (<code>school_lead_statuses.id</code>). Если ключ <b>не передан</b> или передан пустой массив — фильтр по статусу не накладывается. Значения <code>≤ 0</code> отбрасываются; если после фильтрации остались только несуществующие id — <code>recordsFiltered = 0</code></td></tr>
       <tr><td><code>district_id</code></td><td>Только при <code>districts.view</code>: пусто — все; <code>none</code> — без района; числовой id — заявки этого района партнёра</td></tr>
-      <tr><td><code>location_id</code></td><td>Только при <code>locations.view</code>: пусто — все объекты; <code>none</code> — без объекта; числовой id — заявки этого объекта партнёра</td></tr>
-      <tr><td><code>team_id</code></td><td>Пусто — все секции; <code>none</code> — без секции; числовой id — заявки с этой группой партнёра</td></tr>
+      <tr><td><code>location_ids[]</code></td><td>Только при <code>locations.view</code>: массив id объектов и/или <code>none</code> (без объекта). Пустой массив / ключ не передан — фильтр не накладывается. Без права ключ игнорируется. Несколько id — лид при совпадении любого (<code>whereIn</code> / OR); <code>none</code> вместе с id — OR с <code>location_id IS NULL</code>. Legacy <code>location_id</code> (скаляр) работает так же, как массив из одного значения</td></tr>
+      <tr><td><code>team_ids[]</code></td><td>Массив id групп и/или <code>none</code> (без секции). Пустой массив / ключ не передан — фильтр не накладывается. Несколько id — лид при совпадении любого (<code>whereIn</code> / OR); <code>none</code> вместе с id — OR с <code>team_id IS NULL</code>. Legacy <code>team_id</code> (скаляр) работает так же, как массив из одного значения</td></tr>
       <tr><td><code>has_special_conditions</code></td><td><code>1</code> / <code>true</code> — только заявки с особенностями (<code>is_individual_traits</code>, <code>is_on_medical_register</code> или <code>is_with_disability</code>)</td></tr>
       <tr><td><code>search[value]</code></td><td>Глобальный поиск: имя, телефон, комментарий, название статуса, UTM, URL, referrer, дата создания; при <code>districts.view</code> — имя района; при <code>locations.view</code> — имя объекта</td></tr>
       <tr><td><code>order</code>, <code>columns</code></td><td>Сортировка; при <code>districts.view</code> — <code>district_name</code>; при <code>locations.view</code> — <code>location_name</code></td></tr>
@@ -611,7 +672,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       </tr>
       <tr>
         <td>Аккордеон «Ученик»</td>
-        <td>ФИО ученика, дата рождения, <b>группа</b>, <b>район</b> (при <code>districts.view</code>), <b>объект</b> (при <code>locations.view</code>). Сведения об ученике (мед./особенности) — <b>чекбоксы</b> при <code>users.other.update</code> (partial <code>includes/modal/_student_health_fields</code>, <code>variant=checkbox</code>).</td>
+        <td>ФИО ученика, дата рождения, <b>группа</b> (Select2 single, <code>#leadTeam</code>, не multiple: у заявки один <code>team_id</code>, см. §5.1.7), <b>район</b> (при <code>districts.view</code>, нативный select), <b>объект</b> (при <code>locations.view</code>, Select2 single, <code>#leadLocation</code>, один <code>location_id</code>). Сведения об ученике (мед./особенности) — <b>чекбоксы</b> при <code>users.other.update</code> (partial <code>includes/modal/_student_health_fields</code>, <code>variant=checkbox</code>).</td>
       </tr>
       <tr>
         <td>Аккордеон «Родитель»</td>
@@ -645,6 +706,9 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     Отдельной модалки «Редактирование заявки» и отдельного <code>createUserModal</code> на странице заявок <b>нет</b>.
     Аккордеон «Заявка» (старый блок со статусом/комментарием/группой) удалён — эти поля перенесены согласно таблице выше.
     Ошибки валидации <code>PUT</code> и <code>POST /admin/users</code> выводятся под полями (<code>data-field-error</code>, <code>applyLeadFormErrors</code>).
+    Общая ошибка модалки (сохранение / создание клиента / <code>school_lead</code> без поля) — toast <code>window.showToast(message, 'error')</code>
+    (<code>@include('partials.ui.main-toast')</code> в <code>edit-lead-modal</code>, снаружи модалки; layout тоже include, partial с <code>@once</code>).
+    Не <code>#editLeadError</code>, не <code>showErrorModal</code>.
   </p>
 
   <h3 id="school-leads-actions-column">5.5.3) Колонки таблицы: порядок, редактирование, без удаления</h3>
@@ -773,17 +837,28 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li>«Верно» → режим справочника с найденным родителем (email/телефон из справочника, fallback на снимок заявки); «Неверно» → новый родитель из снимка заявки, Select2 снова доступен.</li>
     <li>Пока матч есть, карточка родителя существует и <code>confirmed = null</code>: «Создать клиента» disabled, в hover — «Выберите родителя» (<code>parent_match_needs_decision</code>). Если карточка soft-deleted — decision не требуется (<code>matched_parent = null</code>).</li>
     <li>При сохранении лида с матчем фронт шлёт <code>parent_*</code> из снимка заявки (не из полей справочника в форме), чтобы не затереть исходные данные лендинга.</li>
+    <li>«Создать клиента» (<code>collectCreateClientPayload</code>) берёт <code>parent_id</code> / <code>parent_*</code> (в т.ч. <code>parent_email</code>) <b>из текущих полей формы</b> — Select2 / «Новый родитель», не из снимка. Иначе после ошибки «почта занята» и переключения на справочник в <code>POST /admin/users</code> уходил бы прежний email.</li>
     <li>Виджет iframe автомат-матч <b>не</b> запускает (нет полного набора <code>parent_*</code> на submit).</li>
   </ul>
   <p class="small">
     DataTables / PUT JSON: <code>parent_id</code>, <code>parent_match_reason</code>, <code>parent_match_count</code>, <code>parent_match_confirmed</code>,
     <code>parent_match_banner</code>, <code>parent_match_needs_decision</code>, <code>matched_parent</code>.
     Тесты: <code>SchoolLeadParentMatcherFeatureTest</code>, <code>SchoolLeadLandingParentMatchFeatureTest</code>,
-    <code>SchoolLeadParentMatchUiContractFeatureTest</code>,
+    <code>SchoolLeadParentMatchUiContractFeatureTest</code>
+    (<code>test_create_client_payload_reads_parent_fields_from_form_not_lead_snapshot</code>),
+    <code>SchoolLeadCreateClientDirectorySwitchFeatureTest</code>
+    (занятый email «нового родителя» → 422 <code>errors.parent_email</code>; после переключения на справочник POST берёт email/<code>parent_id</code> формы, снимок заявки не затирается; stale snapshot+чужой <code>parent_id</code> по-прежнему 422),
+    <code>SchoolLeadCreateClientDirectorySwitchAjaxContractFeatureTest</code>,
+    <code>SchoolLeadCreateClientDirectorySwitchNonAjaxSafetyNetFeatureTest</code>,
+    <code>SchoolLeadCreateClientDirectorySwitchAccessFeatureTest</code>,
+    <code>SchoolLeadCreateClientDirectorySwitchFullAccessFeatureTest</code>,
+    <code>SchoolLeadCreateClientDirectorySwitchUiContractsFeatureTest</code>,
+    <code>SchoolLeadCreateClientDirectorySwitchWorkflowFeatureTest</code> [P2],
     <code>SchoolLeadParentMatchFullAccessFeatureTest</code>,
     <code>SchoolLeadParentMatchNonAjaxSafetyNetFeatureTest</code> [P1],
     <code>SchoolLeadParentMatchWorkflowFeatureTest</code> [P2],
-    <code>BladeInlineJsSyntaxTest::test_school_leads_parent_match_inline_script_is_valid_javascript</code>.
+    <code>BladeInlineJsSyntaxTest::test_school_leads_parent_match_inline_script_is_valid_javascript</code>,
+    <code>BladeInlineJsSyntaxTest::test_school_leads_create_client_directory_switch_and_error_toast_inline_script_is_valid_javascript</code>.
   </p>
 
   <h3 id="school-lead-contract-column">5.6) Колонка «Договор» и права на UI</h3>
@@ -838,8 +913,9 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   </div>
   <ul>
     <li id="school-lead-create-client-button">UI — кнопка <b>«Создать клиента»</b> в модалке §5.5.2 (не в колонке таблицы). Доступна при <code>users.view</code>; disabled, пока не заполнены <b>фамилия ученика</b>, <b>имя ученика</b> и <b>email родителя</b> (<code>syncCreateClientBtnState</code>). При неподтверждённом автомат-матче (§5.5.5, <code>parent_match_needs_decision</code>) кнопка также disabled; в hover добавляется «Выберите родителя». Обёртка <code>#createClientBtnWrap</code> с <code>data-kids-tooltip-hint</code>: ховер динамически перечисляет незаполненные поля (<code>buildCreateClientMissingHint</code> → <code>updateCreateClientBtnTooltip</code>; при активной кнопке подсказка снимается). Статический title по умолчанию: «Заполните фамилию ученика, имя ученика и email родителя».</li>
-    <li>Поток: сначала <code>PUT /admin/school-leads/{id}</code> (сохранение полей модалки, в т.ч. <code>parent_id</code> / <code>parent_match_confirmed</code>), затем <code>POST /admin/users</code> (<code>admin.user.store</code>, middleware <code>can:users.view</code>) с телом из <code>collectCreateClientPayload()</code>: ФИО ученика, дата рождения, <code>team_id</code> (группа из заявки), блок родителя (в т.ч. <code>parent_id</code> из Select2 / автомат-матча и <code>parent_email</code>), флаги особенностей, <code>custom</code>, скрытые <code>role_id</code> (роль <code>user</code>), <code>is_enabled=1</code>, <code>school_lead_id</code>. На сервере <code>UserController::store</code> при наличии <code>school_lead_id</code> и пустом <code>team_ids</code> подставляет <code>team_ids = [lead.team_id]</code> и синхронизирует pivot (legacy <code>users.team_id</code> не обновляется).</li>
-    <li>Успех: toast <code>window.showToast</code> с текстом ответа («Клиент создан.» / письмо); не <code>showSuccessModal</code> и не локальный toast «Изменения сохранены». Проверка <code>response.user.id</code> в JSON; таблица перезагружается без F5.</li>
+    <li>Поток: сначала <code>PUT /admin/school-leads/{id}</code> (сохранение полей модалки, в т.ч. <code>parent_id</code> / <code>parent_match_confirmed</code>; при матче <code>parent_*</code> заявки — из снимка, §5.5.5), затем <code>POST /admin/users</code> (<code>admin.user.store</code>, middleware <code>can:users.view</code>) с телом из <code>collectCreateClientPayload()</code>: ФИО ученика, дата рождения, <code>team_id</code> (группа из заявки), блок родителя из <b>полей формы</b> (<code>#lead-parent-id</code>, <code>#lead-parent-email</code> и остальные <code>parent_*</code> — не снимок заявки), флаги особенностей, <code>custom</code>, скрытые <code>role_id</code> (роль <code>user</code>), <code>is_enabled=1</code>, <code>school_lead_id</code>. На сервере <code>UserController::store</code> при наличии <code>school_lead_id</code> и пустом <code>team_ids</code> подставляет <code>team_ids = [lead.team_id]</code> и синхронизирует pivot (legacy <code>users.team_id</code> не обновляется).</li>
+    <li>После 422 «почта занята» модалка остаётся открытой (ошибка под <code>#lead-parent-email</code> и toast <code>error</code>). Можно переключить «Из справочника», выбрать карточку и нажать «Создать клиента» снова — в POST уйдут текущие поля формы. Если в POST всё же останется занятый email при другом <code>parent_id</code> — снова 422. Свободный email «нового родителя» справочник не требует. Без записей в <code>parents</code> переключателя «Из справочника» нет.</li>
+    <li>Успех: toast <code>window.showToast</code> с текстом ответа («Клиент создан.» / письмо); не <code>showSuccessModal</code> и не локальный <code>#mainToast</code>. Ошибка создания клиента — тот же toast с типом <code>error</code>, не <code>showErrorModal</code>. Проверка <code>response.user.id</code> в JSON; таблица перезагружается без F5.</li>
     <li>Район и объект заявки (<code>district_id</code>, <code>location_id</code>) в карточку ученика <b>не переносятся</b> (как и раньше). См. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a>.</li>
     <li>Валидация: <code>school_lead_id</code> в <code>App\Http\Requests\User\StoreRequest</code> — заявка того же партнёра, без <code>user_id</code>, не удалена; при конвертации <code>parent_email</code> обязателен (422 без него). Иначе 422.</li>
     <li>После успешного <code>store</code>: <code>school_leads.user_id = {новый user id}</code>; логин семьи через <code>FamilyStudentLoginResolver</code> (первый ребёнок: <code>parent_email</code> → <code>users.email</code> + credentials-письмо; второй с тем же <code>parent_id</code>: <code>users.email = null</code> + sibling-уведомление). См. §<a href="#school-lead-welcome-credentials">5.7.1</a> и <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>.</li>
@@ -862,10 +938,10 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <ul>
     <li>JSON-ответ <code>POST /admin/users</code> (AJAX): <code>message</code>, <code>user</code>, <code>welcome_email_sent</code> (boolean).</li>
     <li>Без email родителя создание клиента блокируется на UI (disabled-кнопка) и на сервере (422, поле <code>parent_email</code>).</li>
-    <li>Если <code>parent_email</code> занят учёткой не из этой семьи (другой <code>parent_id</code> / не ученик) — 422 на <code>parent_email</code>.</li>
+    <li>Если <code>parent_email</code> занят учёткой не из этой семьи (другой <code>parent_id</code> / не ученик) — 422 на <code>parent_email</code> (текст под полем и toast ошибки).</li>
     <li>Ошибка отправки письма не откатывает создание ученика: <code>welcome_email_sent: false</code>, в <code>message</code> — предупреждение.</li>
   </ul>
-    <p class="small">Тесты: <code>SchoolLeadClientWelcomeCredentialsFeatureTest.php</code>, <code>FamilyStudentLoginOnCreateFeatureTest.php</code>, <code>ClientWelcomeCredentialsFullAccessFeatureTest.php</code>, <code>ClientWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code>, <code>SystemMonitorsOpsWelcomeAccountingFeatureTest.php</code>; синтаксис JS — <code>BladeInlineJsSyntaxTest</code> (<code>leads.blade.php</code>).</p>
+    <p class="small">Тесты: <code>SchoolLeadClientWelcomeCredentialsFeatureTest.php</code>, <code>FamilyStudentLoginOnCreateFeatureTest.php</code>, <code>ClientWelcomeCredentialsFullAccessFeatureTest.php</code>, <code>ClientWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code>, <code>SystemMonitorsOpsWelcomeAccountingFeatureTest.php</code>, <code>SchoolLeadParentMatchUiContractFeatureTest</code> (create client payload из формы, не снимок); <code>SchoolLeadCreateClientDirectorySwitchFeatureTest</code> (UX: занятая почта → справочник, 422 <code>errors.parent_email</code>, sibling без нового логина); <code>SchoolLeadCreateClientDirectorySwitchAjaxContractFeatureTest</code> / <code>…NonAjaxSafetyNetFeatureTest</code> / <code>…AccessFeatureTest</code> / <code>…FullAccessFeatureTest</code> / <code>…UiContractsFeatureTest</code> / <code>…WorkflowFeatureTest</code> [P2]; синтаксис JS — <code>BladeInlineJsSyntaxTest</code> (<code>leads.blade.php</code>, <code>_parent_form.blade.php</code>, <code>test_school_leads_create_client_directory_switch_and_error_toast_inline_script_is_valid_javascript</code>).</p>
   <p class="small">Отдельного маршрута у заявок для создания клиента нет. Partial <code>includes/modal/createUser.blade.php</code> на странице заявок <b>не подключается</b> (используется только на <a href="/docs/documentation/admin-users">/admin/users</a>; успех «Добавить» там — toast вкладки клиентов, <a href="/doc#users-create-edit-toast-index">анонс</a>).</p>
 
   <h3 id="school-lead-contract-inline">5.8) Создание договора без ухода со страницы заявок</h3>
@@ -888,7 +964,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       <tr><td>Пользователь без <code>schoolLeads.view</code></td><td><b>403</b> на все маршруты §5</td></tr>
       <tr><td>С <code>schoolLeads.view</code></td><td><b>200</b>: страница, data, columns-settings, CRUD статусов (§5.4), update заявок (в пределах своего партнёра); удаления заявок нет</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>districts.view</code></td><td>Дополнительно: фильтр/столбец/поле «Район» в UI и API (<code>district_id</code>)</td></tr>
-      <tr><td>С <code>schoolLeads.view</code> + <code>locations.view</code></td><td>Дополнительно: фильтр/столбец/поле «Объект» в UI и API (<code>location_id</code>)</td></tr>
+      <tr><td>С <code>schoolLeads.view</code> + <code>locations.view</code></td><td>Дополнительно: фильтр <code>location_ids[]</code> (несколько — OR, §5.1.7), столбец и поле модалки <code>location_id</code>. Без права фильтр скрыт, <code>location_ids</code> на data игнорируется</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>users.view</code></td><td>Дополнительно: кнопка «Создать клиента» в модалке §5.5.2 (требует <code>parent_email</code>), <code>POST /admin/users</code> с <code>school_lead_id</code> → 200 + welcome-письмо (§<a href="#school-lead-welcome-credentials">5.7.1</a>)</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>contracts.view</code></td><td>Дополнительно: в data — <code>create_contract_url</code> / <code>latest_contract</code>; встроенная модалка договора на странице заявок; <code>GET …/users-search</code>, <code>…/user-group</code>, <code>POST …/check-balance</code> → 200</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>users.other.update</code></td><td>Чекбоксы сведений об ученике в модалке и сохранение флагов через <code>PUT</code></td></tr>
@@ -905,6 +981,13 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <code>SchoolLeadsAccessFeatureTest</code>, <code>SchoolLeadsFullAccessFeatureTest</code>
     (в т.ч. workflow admin: store пользователя + create договора → 200).
     Фильтр статусов и API: <code>SchoolLeadsFilterMultiselectFeatureTest</code>.
+    Фильтры секция/объект Select2 (§5.1.7): <code>SchoolLeadsFilterSelect2FeatureTest</code>,
+    <code>SchoolLeadsFilterSelect2AccessFeatureTest</code>,
+    <code>SchoolLeadsFilterSelect2FullAccessFeatureTest</code>,
+    <code>SchoolLeadsFilterSelect2AjaxContractFeatureTest</code>,
+    <code>SchoolLeadsFilterSelect2NonAjaxSafetyNetFeatureTest</code>,
+    <code>SchoolLeadsFilterSelect2UiContractsFeatureTest</code>,
+    <code>SchoolLeadsFilterSelect2DocumentationContractTest</code>.
     Inline UI и цветные бейджи: <code>SchoolLeadsInlineStatusUiFeatureTest</code>.
     Модалка договора: <code>SchoolLeadEditModalFeatureTest</code>, <code>SchoolLeadEditModalFullFeatureTest</code>, <code>SchoolLeadCreateClientFullFeatureTest</code>,
     <code>AdminUsersContractCreateUxFeatureTest</code> (оба JS-пути <code>lockUser: true</code> на заявках + тулбар /client-contracts без lock).
@@ -913,6 +996,13 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     Колонки таблицы (§5.5.3): <code>SchoolLeadsTableColumnsFeatureTest</code>, <code>SchoolLeadsTableColumnsFullAccessFeatureTest</code>, <code>SchoolLeadsTableColumnsAjaxContractFeatureTest</code>, <code>SchoolLeadsTableColumnsNonAjaxSafetyNetFeatureTest</code>; клик по ФИО / <code>user_id</code>: <code>SchoolLeadsActionsColumnFeatureTest</code>.
     Статусы (бизнес-логика): <code>SchoolLeadStatusesFeatureTest</code>.
     Бизнес-сценарии: <code>SchoolLeadCreateUserFeatureTest</code>, <code>SchoolLeadContractActionFeatureTest</code>, <code>SchoolLeadsLeadClientContractFeatureTest</code>.
+    «Создать клиента» после занятой почты и родителя из справочника: <code>SchoolLeadCreateClientDirectorySwitchFeatureTest</code>,
+    <code>SchoolLeadCreateClientDirectorySwitchAjaxContractFeatureTest</code>,
+    <code>SchoolLeadCreateClientDirectorySwitchNonAjaxSafetyNetFeatureTest</code>,
+    <code>SchoolLeadCreateClientDirectorySwitchAccessFeatureTest</code>,
+    <code>SchoolLeadCreateClientDirectorySwitchFullAccessFeatureTest</code>,
+    <code>SchoolLeadCreateClientDirectorySwitchUiContractsFeatureTest</code>,
+    <code>SchoolLeadCreateClientDirectorySwitchWorkflowFeatureTest</code> [P2].
     Виджет (<code>/admin/school-widget</code>) — право <code>schoolWidget.view</code>; лендинг CRM — <code>schoolLeadLanding.view</code> (§6).
   </p>
 
@@ -1019,11 +1109,19 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/SchoolLeadsPageLeng
     <li><code>SchoolLeadEditModalFeatureTest.php</code>, <code>SchoolLeadEditModalFullFeatureTest.php</code>, <code>SchoolLeadEditModalFullAccessFeatureTest.php</code> — объединённая модалка §5.5.2, inline-статус в модалке, чекбоксы здоровья, встроенное создание договора</li>
     <li><code>SchoolLeadLinkedStatusFeatureTest.php</code> — смена статуса у лида с <code>user_id</code> (AJAX JSON / 422), tooltip «Создать клиента»</li>
     <li><code>SchoolLeadParentMatcherFeatureTest.php</code>, <code>SchoolLeadParentMatchUiContractFeatureTest.php</code> — автосопоставление родителя §5.5.5 (матчер, UI, PUT confirmation)</li>
+    <li><code>SchoolLeadCreateClientDirectorySwitchFeatureTest.php</code> — UX: занятый email «нового родителя» → 422 <code>errors.parent_email</code>; после выбора из справочника клиент создаётся с email/<code>parent_id</code> формы, снимок заявки не затирается; без переключения свободный email создаёт клиента</li>
+    <li><code>SchoolLeadCreateClientDirectorySwitchAjaxContractFeatureTest.php</code> — AJAX JSON 200 <code>message</code>/<code>user.id</code>, 422 <code>errors.parent_email</code>, PUT не пустой 200, Select2 search <code>results</code></li>
+    <li><code>SchoolLeadCreateClientDirectorySwitchNonAjaxSafetyNetFeatureTest.php</code> — [P1] non-AJAX POST/PUT → 302, запись в БД / session errors, не пустой 200</li>
+    <li><code>SchoolLeadCreateClientDirectorySwitchAccessFeatureTest.php</code> — гость 302/401; без <code>users.view</code> нет кнопки и POST 403; без <code>schoolLeads.view</code> страница/PUT 403; со правами страница + toast + create</li>
+    <li><code>SchoolLeadCreateClientDirectorySwitchFullAccessFeatureTest.php</code> — guest/без прав не 500; admin 422→PUT→200 + DataTables <code>user_id</code>; чужие методы 404/405; чужой партнёр 422</li>
+    <li><code>SchoolLeadCreateClientDirectorySwitchUiContractsFeatureTest.php</code> — разметка модалки, payload из формы не снимок, оба JS-пути открытия/пересборки родителя, toast вне модалки, без справочника нет «Из справочника»</li>
+    <li><code>SchoolLeadCreateClientDirectorySwitchWorkflowFeatureTest.php</code> — [P2] страница → 422 → PUT → POST 200 → DataTables без F5</li>
     <li><code>SchoolLeadParentMatchFullAccessFeatureTest.php</code> — гость / 403 / viewer+admin 200 на page/data/PUT матча</li>
     <li><code>SchoolLeadParentMatchNonAjaxSafetyNetFeatureTest.php</code> — [P1] non-AJAX 302 + AJAX JSON / 422 для accept/reject</li>
     <li><code>SchoolLeadParentMatchWorkflowFeatureTest.php</code> — [P2] page → AJAX confirm → DataTables без F5</li>
     <li><code>tests/Feature/Public/SchoolLeadLandingParentMatchFeatureTest.php</code> — матч при submit лендинга (email/phone/ФИ)</li>
     <li><code>BladeInlineJsSyntaxTest::test_school_leads_parent_match_inline_script_is_valid_javascript</code> — node --check handlers матча</li>
+    <li><code>BladeInlineJsSyntaxTest::test_school_leads_create_client_directory_switch_and_error_toast_inline_script_is_valid_javascript</code> — node --check <code>collectCreateClientPayload</code> / toast / <code>_parent_form</code> directory-mode</li>
     <li><code>BladeInlineJsSyntaxTest::test_school_leads_column_order_inline_script_contract_and_valid_javascript</code> — порядок колонок, <code>when</code>, columns-settings по ключу, node --check</li>
     <li><code>BladeInlineJsSyntaxTest::test_school_leads_sticky_header_and_hscroll_inline_script_contract_and_valid_javascript</code> — FixedHeader до create, липкий клон полосы, node --check</li>
     <li><code>SchoolLeadsStickyHeaderDocumentationContractTest.php</code> — анонс /doc и §5.1.6 совпадают с Blade</li>
@@ -1033,7 +1131,7 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/SchoolLeadsPageLeng
     <li><code>SchoolLeadLinkedStatusWorkflowFeatureTest.php</code> — [P2] HTTP E2E: страница → AJAX статус → DataTables без F5</li>
     <li><code>BladeInlineJsSyntaxTest</code> — <code>test_school_leads_linked_status_and_create_client_tooltip_inline_script_is_valid_javascript</code> + provider <code>leads.blade.php</code></li>
     <li><code>SchoolLeadCreateClientFullFeatureTest.php</code> — создание клиента из модалки, перенос health-флагов</li>
-    <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — успех «Создать клиента»: <code>window.showToast</code> (общий), не <code>showSuccessModal</code> и не локальный <code>#mainToast</code></li>
+    <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — «Создать клиента» и ошибки модалки лида: <code>window.showToast</code> (<code>#kidsMainToast</code>), не <code>showSuccessModal</code> / <code>showErrorModal</code> / <code>#editLeadError</code> / локальный <code>#mainToast</code></li>
     <li><code>SchoolLeadCreateUserFeatureTest.php</code> — <code>POST /admin/users</code> + <code>school_lead_id</code>, <code>user_id</code> в data</li>
     <li><code>SchoolLeadClientWelcomeCredentialsFeatureTest.php</code> — welcome-письмо, <code>parent_email</code>, resend, лог исходящих писем</li>
     <li>Поведение родителя из справочника при создании клиента — те же контракты, что у <code>/admin/users</code>: <code>AdminUsersParentDirectoryFioFeatureTest</code>, <code>AdminUsersParentAjaxContractFeatureTest</code>, <code>AdminUsersParentNonAjaxSafetyNetFeatureTest</code> (см. <a href="/docs/documentation/admin-users#user-parent-directory-fio">admin-users §2.1.2</a>)</li>
@@ -1042,6 +1140,14 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/SchoolLeadsPageLeng
     <li><code>SchoolLeadsLeadClientContractFeatureTest.php</code> — сквозной сценарий лид → клиент → договор</li>
     <li><code>SchoolLeadsPageFeatureTest.php</code> — toolbar, stats, фильтры (район, объект, секция, особые условия), колонки, пагинация, закрепление шапки/скролла §5.1.6</li>
     <li><code>SchoolLeadsFilterMultiselectFeatureTest.php</code> — filter multiselect статусов: UI partial, дефолтные статусы, API <code>status_ids[]</code></li>
+    <li><code>SchoolLeadsFilterSelect2FeatureTest.php</code> — §5.1.7: generic-multiselect секция/объект, OR по нескольким id (в т.ч. <code>team_ids[]=</code> в query), AND между полями, <code>none</code>, legacy скаляры, без преселекта, район без Select2</li>
+    <li><code>SchoolLeadsFilterSelect2AccessFeatureTest.php</code> — гость / 403; без <code>locations.view</code> нет фильтра объекта, <code>location_ids</code> на data игнорируется</li>
+    <li><code>SchoolLeadsFilterSelect2FullAccessFeatureTest.php</code> — viewer+locations / admin: страница и data с <code>team_ids[]</code> / <code>location_ids[]</code> → 200</li>
+    <li><code>SchoolLeadsFilterSelect2AjaxContractFeatureTest.php</code> — JSON data OR; PUT <code>team_id</code> 200; 422 <code>errors.team_id</code> / <code>errors.location_id</code></li>
+    <li><code>SchoolLeadsFilterSelect2NonAjaxSafetyNetFeatureTest.php</code> — GET data без AJAX-заголовка — JSON 200; PUT без AJAX — 302 + БД</li>
+    <li><code>SchoolLeadsFilterSelect2UiContractsFeatureTest.php</code> — порядок полей, apply только submit, reset, populate <code>val('')</code>, ошибки на Select2</li>
+    <li><code>BladeInlineJsSyntaxTest::test_school_leads_filter_select2_inline_script_is_valid_javascript</code> — node --check init/reset/modal Select2</li>
+    <li><code>SchoolLeadsFilterSelect2DocumentationContractTest.php</code> — анонс /doc, §5.1.7, иерархия и оглавление не противоречат Blade</li>
     <li><code>SchoolLeadLocationFeatureTest.php</code> — объекты: UI, фильтр, сортировка, update, columns-settings</li>
     <li><code>SchoolLeadDistrictFeatureTest.php</code> — районы: UI, фильтр, сортировка, update, email/Telegram</li>
     <li><code>SchoolLeadsDistrictPageFullAccessFeatureTest.php</code> — full access заявок с районом и объектом → 200</li>
@@ -1051,6 +1157,29 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/SchoolLeadsPageLeng
     <li><code>SchoolLeadNotificationSettingsFeatureTest.php</code> — §5.1.5: toolbar «Статусы» / «Уведомления», HTML модалки (пустой select, галочка снята, не modal-xl), GET/PUT JSON, 422 под <code>emails</code>, галочка без email, non-AJAX 302, изоляция партнёра, legacy-рассылка / пустой сохранённый список без fallback, Telegram при выключенном email</li>
     <li><code>SchoolLeadNotificationSettingsFullAccessFeatureTest.php</code> — гость 302/401, без <code>schoolLeads.view</code> → 403, viewer сохраняет, admin 200, без организации → logout, чужой партнёр по сессии не читается, POST/PATCH/DELETE → 404/405, вкладки лендинг/виджет без модалки</li>
     <li><code>SchoolLeadNotificationSettingsNonAjaxSafetyNetFeatureTest.php</code> — PUT и native POST+_method=PUT → 302 + запись; 422 не затирает список; снятая галочка = уведомления включены; AJAX JSON 200</li>
+    <li><code>SchoolLeadNotificationSettingsAjaxContractFeatureTest.php</code> — JSON 200/422 <code>errors[emails]</code>, GET не сохраняет prefill, кастомный список не дополняется админами, 422/max 21 не пишут БД, disable сохраняет адреса</li>
+    <li><code>BladeInlineJsSyntaxTest.php</code> — <code>test_school_leads_notification_settings_modal_ajax_uses_select2_tags</code>: <code>node --check</code>, один submit, GET на каждое <code>shown.bs.modal</code>, payload <code>$select.val()</code> даже при галочке, hide только в <code>.done</code></li>
+    <li><code>SchoolLeadNotificationTest.php</code> — публичный виджет: кастомный список, skip email, Telegram не зависит от галочки</li>
+    <li><code>SchoolLeadLandingNotificationFeatureTest.php</code> — публичный лендинг submit: те же правила email/Telegram</li>
+    <li><code>SchoolLeadCrudFeatureTest.php</code>, <code>SchoolLeadManagementTest.php</code> — CRUD заявок, смена <code>school_lead_status_id</code>, anti-leak</li>
+    <li><code>SchoolWidgetAccessFeatureTest.php</code>, <code>SchoolWidgetTelegramAutoLinkTest.php</code> — вкладка виджета и Telegram</li>
+    <li><code>SchoolLeadLandingAdminAccessFeatureTest.php</code> — вкладка «Страница заявки»</li>
+    <li><code>SchoolLeadsTabsFeatureTest.php</code> — вкладки раздела «Заявки с сайта»</li>
+    <li><code>SchoolLeadsSidebarCounterFeatureTest.php</code> — §3.1: badge «Новых» у пункта «Лиды» в сайдбаре (показ при count &gt; 0, изоляция по партнёру)</li>
+  </ul>
+
+  <h2>11) Запланировано позже (не в текущей версии)</h2>
+  <ul>
+    <li>Кастомизация внешнего вида iframe-виджета (цвета, тексты) в CRM.</li>
+    <li>Кастомные цвета / логотип на странице заявки (<code>/lead/…</code>).</li>
+    <li>Allowlist доменов для embed виджета.</li>
+    <li>Отдельный документ «Согласие на обработку ПДн» для лендинга (виджет — ссылка на <code>/policy</code>).</li>
+    <li>Колонки расширенных полей лендинга в DataTables CRM.</li>
+  </ul>
+</div>
+</body>
+</html>
+ятая галочка = уведомления включены; AJAX JSON 200</li>
     <li><code>SchoolLeadNotificationSettingsAjaxContractFeatureTest.php</code> — JSON 200/422 <code>errors[emails]</code>, GET не сохраняет prefill, кастомный список не дополняется админами, 422/max 21 не пишут БД, disable сохраняет адреса</li>
     <li><code>BladeInlineJsSyntaxTest.php</code> — <code>test_school_leads_notification_settings_modal_ajax_uses_select2_tags</code>: <code>node --check</code>, один submit, GET на каждое <code>shown.bs.modal</code>, payload <code>$select.val()</code> даже при галочке, hide только в <code>.done</code></li>
     <li><code>SchoolLeadNotificationTest.php</code> — публичный виджет: кастомный список, skip email, Telegram не зависит от галочки</li>

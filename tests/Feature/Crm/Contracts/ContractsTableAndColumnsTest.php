@@ -3,9 +3,11 @@
 namespace Tests\Feature\Crm\Contracts;
 
 use App\Models\Contract;
+use App\Models\ContractEvent;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserTableSetting;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
@@ -55,6 +57,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $this->assertSame('Путь с готовым PDF', $resp->json('data.0.path_title'));
         $this->assertSame('active', $resp->json('data.0.path_steps.0.state'));
         $this->assertSame(Contract::STATUS_DRAFT, $resp->json('data.0.path_steps.0.key'));
+        $this->assertSame('', $resp->json('data.0.updated_at'));
     }
 
     /** @test */
@@ -115,6 +118,139 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $this->assertSame('Открыто СМС', $rows[$opened->id]['status_label']);
         $this->assertSame('Отправлено', Contract::$STATUS_RU[Contract::STATUS_SENT]);
         $this->assertSame('Открыто', Contract::$STATUS_RU[Contract::STATUS_OPENED]);
+    }
+
+    /** @test */
+    public function data_updated_at_is_last_contract_event_not_contract_row_updated_at(): void
+    {
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        $contract = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/events.pdf',
+            'source_sha256'   => str_repeat('e', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+
+        DB::table('contracts')->where('id', $contract->id)->update([
+            'updated_at' => '2026-01-01 10:00:00',
+        ]);
+
+        $this->createContractEvent($contract->id, 'created', '2026-02-01 12:00:00');
+        $this->createContractEvent($contract->id, 'sent', '2026-03-15 18:45:01');
+
+        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->assertSame($contract->id, $row['id']);
+        $this->assertSame('15.03.2026 18:45:01', $row['updated_at']);
+    }
+
+    /** @test */
+    public function data_updated_at_follows_journal_order_by_event_id_not_created_at(): void
+    {
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        $contract = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/id-order.pdf',
+            'source_sha256'   => str_repeat('f', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+
+        $this->createContractEvent($contract->id, 'created', '2026-04-01 10:00:00');
+        $this->createContractEvent($contract->id, 'email_sent', '2026-03-01 09:00:00');
+
+        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->assertSame('01.03.2026 09:00:00', $row['updated_at']);
+    }
+
+    /** @test */
+    public function data_updated_at_matches_top_journal_row_on_contract_card(): void
+    {
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        $contract = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/journal.pdf',
+            'source_sha256'   => str_repeat('7', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+
+        $this->createContractEvent($contract->id, 'created', '2026-01-02 08:00:00');
+        $this->createContractEvent($contract->id, 'sent', '2026-06-07 14:22:33');
+
+        $listAt = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0.updated_at');
+
+        $this->assertSame('07.06.2026 14:22:33', $listAt);
+
+        $this->get('/client-contracts/'.$contract->id)
+            ->assertOk()
+            ->assertSee('Журнал событий', false)
+            ->assertSee('07.06.2026 14:22:33', false)
+            ->assertSee('Отправлено СМС', false);
+    }
+
+    /** @test */
+    public function data_sorts_updated_at_column_by_last_event_with_missing_events_last(): void
+    {
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        $older = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/older.pdf',
+            'source_sha256'   => str_repeat('1', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+        $newer = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/newer.pdf',
+            'source_sha256'   => str_repeat('2', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+        $empty = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/empty.pdf',
+            'source_sha256'   => str_repeat('3', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+
+        $this->createContractEvent($older->id, 'created', '2026-01-10 08:00:00');
+        $this->createContractEvent($newer->id, 'created', '2026-05-20 11:30:00');
+
+        $descIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=7&order[0][dir]=desc')
+            ->assertOk()
+            ->json('data'))
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$newer->id, $older->id, $empty->id], $descIds);
+
+        $ascIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=7&order[0][dir]=asc')
+            ->assertOk()
+            ->json('data'))
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$older->id, $newer->id, $empty->id], $ascIds);
     }
 
     /** @test */
@@ -190,6 +326,18 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $this->getJson('/client-contracts/columns-settings')
             ->assertStatus(200)
             ->assertExactJson([]);
+    }
+
+    private function createContractEvent(int $contractId, string $type, string $createdAt): ContractEvent
+    {
+        return ContractEvent::create([
+            'contract_id'  => $contractId,
+            'author_id'    => $this->user->id,
+            'type'         => $type,
+            'payload_json' => null,
+            'created_at'   => Carbon::parse($createdAt),
+            'updated_at'   => Carbon::parse($createdAt),
+        ]);
     }
 }
 

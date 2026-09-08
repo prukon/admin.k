@@ -35,7 +35,10 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
             ->assertSee('id="contractStatusMemoModal"', false)
             ->assertSee('contract-memo-timeline', false)
             ->assertSee('js-contract-path-open', false)
-            ->assertSee('id="contractPathModal"', false);
+            ->assertSee('id="contractPathModal"', false)
+            ->assertSee('<th>Обновлён</th>', false)
+            ->assertSee('data-column-key="updated_at"', false)
+            ->assertSee('for="colUpdatedAt">Обновлён</label>', false);
     }
 
     /** @test */

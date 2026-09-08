@@ -66,8 +66,12 @@ class ContractTemplatesModalsUiFeatureTest extends ContractsFeatureTestCase
             ->assertSee('id="contractTemplateEmailForm"', false)
             ->assertSee('id="template-email-subject"', false)
             ->assertSee('id="template-email-body"', false)
+            ->assertSee('id="template-email-reset-defaults"', false)
             ->assertSee('js-contract-template-edit-email', false)
-            ->assertSee('data-email-show-url-template', false);
+            ->assertSee('data-email-show-url-template', false)
+            ->assertSee('preservePlaceholderLinkUrl', false)
+            ->assertSee('{{documents_url}}', false)
+            ->assertSee('/account-settings/documents?student=', false);
     }
 
     /** @test */

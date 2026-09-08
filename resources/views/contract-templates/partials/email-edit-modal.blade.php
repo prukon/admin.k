@@ -45,6 +45,7 @@
                                 'fieldId' => 'template-email-body',
                                 'value' => old('email_body_html'),
                             ])
+                            @include('contract-templates.partials.email-placeholders-hint')
                             <div class="invalid-feedback d-block" data-error-for="email_body_html"></div>
                         </div>
                     </div>

@@ -271,6 +271,16 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             ],
             [
                 'method' => 'GET',
+                'url'    => route('admin.school-leads.data', [
+                    'draw'         => 1,
+                    'start'        => 0,
+                    'length'       => 10,
+                    'team_ids'     => [$team->id, 'none'],
+                    'location_ids' => [$location->id],
+                ]),
+            ],
+            [
+                'method' => 'GET',
                 'url'    => route('admin.school-leads.columns-settings.get'),
             ],
             [

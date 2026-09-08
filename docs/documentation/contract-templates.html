@@ -119,15 +119,25 @@
     <li>Валидация: <code>ContractTemplateUpdateRequest</code>.</li>
   </ul>
 
-  <h3>5.3) Email (<code>#editTemplateEmailModal</code>)</h3>
+  <h3 id="53-email-edittemplateemailmodal">5.3) Email (<code>#editTemplateEmailModal</code>)</h3>
   <ul>
-    <li>Открывается кнопкой «Email» в таблице или <code>?email=</code> на index.</li>
-    <li>AJAX <code>GET …/email</code> → subject, body HTML, список плейсхолдеров, <code>update_url</code>.</li>
+    <li>Открывается кнопкой «Письмо» в таблице или <code>?email=</code> на index.</li>
+    <li>AJAX <code>GET …/email</code> → subject, body HTML, <code>update_url</code>.</li>
     <li>PUT <code>…/email</code> — <code>ContractTemplateUpdateEmailRequest</code>.</li>
-    <li>Дефолты при пустых полях версии: <code>ContractTemplateEmailDefaults</code>.</li>
+    <li>Дефолты при пустых полях версии и кнопка <b>«По умолчанию»</b>
+      (<code>#template-email-reset-defaults</code>): <code>ContractTemplateEmailDefaults</code>.
+      В <code>href</code> — один токен <code>{{documents_url}}</code>, не ручной
+      <code>?student=</code> / <code>?fill=</code> и не голый <code>/account-settings/documents</code>.</li>
+    <li>Summernote: <code>onCreateLink</code> (<code>preservePlaceholderLinkUrl</code>) не дописывает
+      <code>http://</code> к плейсхолдерам; при чтении HTML <code>restoreDocumentsUrlHrefs</code>
+      возвращает чистый <code>href="{{documents_url}}"</code>, если браузер развернул токен в абсолютный URL.
+      JS: <code>email-summernote-init.blade.php</code>.</li>
     <li>Плейсхолдеры письма: <code>{{child_full_name}}</code>, <code>{{partner_name}}</code>, <code>{{documents_url}}</code>, <code>{{fill_deadline}}</code>, <code>{{contract_id}}</code> — подстановка в <code>ContractInvitationEmailRenderer</code>.
-      В письме <code>{{documents_url}}</code> содержит <code>?student={user_id}&amp;fill={contract_id}</code>
-      (<a href="/doc#account-documents-family-link-index">анонс</a>, <a href="/docs/documentation/account-contract-fill#account-documents-family-link">account-contract-fill §1.2</a>).</li>
+      В письме <code>{{documents_url}}</code> = <code>/account-settings/documents?student={user_id}&amp;fill={contract_id}</code>
+      (<a href="/doc#account-documents-family-link-index">анонс семейной ссылки</a>,
+      <a href="/doc#contract-template-email-default-link-index">анонс «По умолчанию»</a>,
+      <a href="/docs/documentation/account-contract-fill#account-documents-family-link">account-contract-fill §1.2</a>).
+      <code>{{contract_id}}</code> — номер в тексте, не query.</li>
     <li>Отправка при создании договора: <code>ContractClientFillInvitationMail</code> (<code>ContractCreationService::notifyClientAboutFill</code>)
       на <code>users.email</code> и <code>parents.email</code>; совпавшие адреса — одно письмо, разные — два отдельных
       (<a href="/docs/documentation/account-contract-fill#invitation-email-recipients">account-contract-fill §6</a>,
@@ -331,6 +341,9 @@
       <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — <code>js-contract-template-edit-link</code> + edit JSON 200</li>
       <li><code>ContractTemplateEmailModalFeatureTest.php</code> — модалка email, update-email</li>
       <li><code>ContractTemplateEmailFeatureTest.php</code>, <code>ContractInvitationEmailFeatureTest.php</code> — содержимое письма; получатели <code>users.email</code> / <code>parents.email</code></li>
+      <li><code>ContractTemplateEmailDefaultsTest.php</code> — системный HTML «По умолчанию»: <code>href="{{documents_url}}"</code></li>
+      <li><code>BladeInlineJsSyntaxTest::test_contract_template_email_summernote_preserves_documents_url_placeholder</code> — Summernote не префиксит <code>http://</code></li>
+      <li><code>ContractTemplateEmailDefaultLinkDocumentationContractTest.php</code> — анонс <a href="/doc#contract-template-email-default-link-index">/doc</a></li>
       <li><code>ContractInvitationParentEmailDocumentationContractTest.php</code> — анонс приглашения на оба адреса</li>
       <li><code>ContractTemplateFillSortOrderFeatureTest.php</code> — право fillSortOrder, сохранение порядка</li>
       <li><code>ContractTemplatesDataTableFeatureTest.php</code>, <code>ContractTemplatesIndexFullAccessFeatureTest.php</code></li>

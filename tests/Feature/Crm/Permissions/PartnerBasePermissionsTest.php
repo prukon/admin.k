@@ -51,6 +51,15 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertContains('legal_entities.manage', $adminPerms);
         $this->assertContains('schoolLeads.view', $adminPerms);
         $this->assertContains('schoolLeadLanding.view', $adminPerms);
+        $this->assertContains('schedule.view', $adminPerms);
+        $this->assertContains('users.discount.manage', $adminPerms);
+
+        $userPerms = $this->permissionNamesForPartnerRole($partner->id, 'user');
+        $trainerPerms = $this->permissionNamesForPartnerRole($partner->id, 'trainer');
+        $this->assertNotContains('schedule.view', $userPerms);
+        $this->assertNotContains('schedule.view', $trainerPerms);
+        $this->assertNotContains('users.discount.manage', $userPerms);
+        $this->assertNotContains('users.discount.manage', $trainerPerms);
     }
 
     public function test_new_partner_does_not_assign_custom_payments_view_to_base_roles(): void
@@ -133,6 +142,9 @@ class PartnerBasePermissionsTest extends CrmTestCase
         }
 
         $this->assertContains('lessonPackages.view', $adminPerms);
+        $this->assertContains('schedule.view', $adminPerms);
+        $this->assertNotContains('schedule.view', $userPerms);
+        $this->assertNotContains('schedule.view', $trainerPerms);
     }
 
     public function test_new_partner_does_not_assign_cabinet_packages_type_permissions_to_base_roles(): void

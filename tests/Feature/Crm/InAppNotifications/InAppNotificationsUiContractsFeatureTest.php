@@ -280,8 +280,41 @@ final class InAppNotificationsUiContractsFeatureTest extends InAppNotificationsT
         $this->assertStringNotContainsString('js-in-app-bell-mark-read', $item);
 
         $bell = (string) file_get_contents(resource_path('views/includes/in_app_notifications/bell.blade.php'));
-        $this->assertStringContainsString('white-space: pre-line', $bell);
+        $css = (string) file_get_contents(resource_path('css/in-app-bell.css'));
+        $this->assertStringContainsString('id="inAppNotificationBell"', $bell);
+        $this->assertStringContainsString('white-space: pre-line', $css);
         $this->assertStringContainsString('bell-preview', $echo);
+        $this->assertStringContainsString('.bell-preview', $css);
+    }
+
+    public function test_bell_dropdown_css_fits_mobile_viewport(): void
+    {
+        $bell = (string) file_get_contents(resource_path('views/includes/in_app_notifications/bell.blade.php'));
+        $css = (string) file_get_contents(resource_path('css/in-app-bell.css'));
+        $style = (string) file_get_contents(resource_path('css/style.css'));
+        $layout = (string) file_get_contents(resource_path('views/layouts/admin2.blade.php'));
+
+        $this->assertStringContainsString('data-bs-display="static"', $bell);
+        $this->assertStringNotContainsString('<style>', $bell);
+        $this->assertStringContainsString("@import './in-app-bell.css'", $style);
+        $this->assertStringContainsString("'resources/css/style.css'", $layout);
+        $this->assertStringContainsString('min-width: min(420px, calc(100vw - 1rem))', $css);
+        $this->assertStringContainsString('width: min(460px, calc(100vw - 1rem))', $css);
+        $this->assertStringContainsString('@media (max-width: 575.98px)', $css);
+        $this->assertStringContainsString('position: static', $css);
+        $this->assertStringContainsString('left: 0.5rem !important', $css);
+        $this->assertStringContainsString('right: 0.5rem !important', $css);
+        $this->assertDoesNotMatchRegularExpression(
+            '/min-width:\s*420px;/',
+            $css,
+            'Голый min-width: 420px на мобилке побеждает max-width и выталкивает меню за край'
+        );
+
+        $docs = (string) file_get_contents(base_path('docs/documentation/in-app-notifications.html'));
+        $this->assertStringContainsString('data-bs-display="static"', $docs);
+        $this->assertStringContainsString('576px', $docs);
+        $this->assertStringContainsString('min-width: 420px', $docs);
+        $this->assertStringContainsString('resources/css/in-app-bell.css', $docs);
     }
 
     public function test_empty_inbox_shows_quiet_state_without_read_all(): void

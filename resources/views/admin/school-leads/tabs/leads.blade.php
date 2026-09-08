@@ -208,10 +208,13 @@
                 @endif
 
                 @if ($canViewLocations)
-                    <div class="col-12 col-md-3">
+                    <div class="col-12 col-md-3 generic-multiselect-field">
                         <label class="form-label" for="sl-filter-location">Объект</label>
-                        <select class="form-select" id="sl-filter-location" name="location_id">
-                            <option value="">Все объекты</option>
+                        <select class="form-select js-generic-multiselect-select"
+                                id="sl-filter-location"
+                                name="location_ids[]"
+                                multiple
+                                data-placeholder="Все объекты">
                             <option value="none">Без объекта</option>
                             @foreach ($activeLocations as $location)
                                 <option value="{{ $location->id }}">{{ $location->name }}</option>
@@ -220,10 +223,13 @@
                     </div>
                 @endif
 
-                <div class="col-12 col-md-3">
+                <div class="col-12 col-md-3 generic-multiselect-field">
                     <label class="form-label" for="sl-filter-team">Секция</label>
-                    <select class="form-select" id="sl-filter-team" name="team_id">
-                        <option value="">Все секции</option>
+                    <select class="form-select js-generic-multiselect-select"
+                            id="sl-filter-team"
+                            name="team_ids[]"
+                            multiple
+                            data-placeholder="Все секции">
                         <option value="none">Без секции</option>
                         @foreach ($filterTeams as $team)
                             <option value="{{ $team->id }}">{{ $team->title }}</option>
@@ -291,15 +297,6 @@
     ])
 @endif
 
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
-    <div id="mainToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="d-flex">
-            <div class="toast-body" id="mainToastBody"></div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-    </div>
-</div>
-
 @include('includes.logModal')
 
 @push('scripts')
@@ -339,10 +336,6 @@
                 }
             });
 
-            var toastEl = document.getElementById('mainToast');
-            var toastBodyEl = document.getElementById('mainToastBody');
-            var toastInstance = new bootstrap.Toast(toastEl, { delay: 2500 });
-
             var defaultStatusFilters = defaultStatusFilterIds.slice();
             var $statusFilter = $('#sl-filter-status');
             var $districtFilter = $('#sl-filter-district');
@@ -358,24 +351,40 @@
                 });
             }
 
+            if ($teamFilter.length && window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.init($teamFilter, {
+                    placeholder: $teamFilter.data('placeholder') || 'Все секции',
+                    allowClear: true,
+                    dropdownParent: $('#school-leads-filters')
+                });
+            }
+
+            if (canViewLocations && $locationFilter.length && window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.init($locationFilter, {
+                    placeholder: $locationFilter.data('placeholder') || 'Все объекты',
+                    allowClear: true,
+                    dropdownParent: $('#school-leads-filters')
+                });
+            }
+
             function readFiltersFromForm() {
                 var statusIds = $statusFilter.length ? ($statusFilter.val() || []) : [];
                 var districtId = '';
                 if (canViewDistricts && $districtFilter.length) {
                     districtId = $districtFilter.val() || '';
                 }
-                var locationId = '';
+                var locationIds = [];
                 if (canViewLocations && $locationFilter.length) {
-                    locationId = $locationFilter.val() || '';
+                    locationIds = $locationFilter.val() || [];
                 }
-                var teamId = $teamFilter.length ? ($teamFilter.val() || '') : '';
+                var teamIds = $teamFilter.length ? ($teamFilter.val() || []) : [];
                 var hasSpecialConditions = $specialConditionsFilter.length && $specialConditionsFilter.is(':checked');
 
                 return {
                     status_ids: statusIds,
                     district_id: districtId,
-                    location_id: locationId,
-                    team_id: teamId,
+                    location_ids: locationIds,
+                    team_ids: teamIds,
                     has_special_conditions: hasSpecialConditions ? 1 : 0
                 };
             }
@@ -418,10 +427,18 @@
                     $districtFilter.val('');
                 }
                 if (canViewLocations && $locationFilter.length) {
-                    $locationFilter.val('');
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.reset($locationFilter);
+                    } else {
+                        $locationFilter.val(null).trigger('change');
+                    }
                 }
                 if ($teamFilter.length) {
-                    $teamFilter.val('');
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.reset($teamFilter);
+                    } else {
+                        $teamFilter.val(null).trigger('change');
+                    }
                 }
                 if ($specialConditionsFilter.length) {
                     $specialConditionsFilter.prop('checked', false);
@@ -429,24 +446,8 @@
             }
 
             function showCreateClientResultModal(isSuccess, message) {
-                if (isSuccess) {
-                    if (typeof window.showToast === 'function') {
-                        window.showToast(message || 'Клиент создан.', 'success');
-                        return;
-                    }
-                    showToast(message || 'Клиент создан.', 'success');
-                    return;
-                }
-
-                if (typeof showErrorModal === 'function') {
-                    showErrorModal('Создание клиента', message || 'Не удалось создать клиента.');
-                    return;
-                }
-                if (typeof eroorRespone === 'function') {
-                    eroorRespone({ responseJSON: { message: message || 'Не удалось создать клиента.' } });
-                    return;
-                }
-                showToast(message || 'Не удалось создать клиента.', 'error');
+                var text = message || (isSuccess ? 'Клиент создан.' : 'Не удалось создать клиента.');
+                showToast(text, isSuccess ? 'success' : 'error');
             }
 
             function extractCreateClientErrorMessage(xhr, fallback) {
@@ -463,23 +464,9 @@
             }
 
             function showToast(message, type) {
-                var $toast = $('#mainToast');
-                $toast.removeClass('bg-success bg-danger bg-info bg-warning text-dark');
-                switch (type) {
-                    case 'error':
-                        $toast.addClass('bg-danger');
-                        break;
-                    case 'info':
-                        $toast.addClass('bg-info');
-                        break;
-                    case 'warning':
-                        $toast.addClass('bg-warning text-dark');
-                        break;
-                    default:
-                        $toast.addClass('bg-success');
+                if (typeof window.showToast === 'function') {
+                    window.showToast(message, type);
                 }
-                toastBodyEl.textContent = message;
-                toastInstance.show();
             }
 
             function getStatusBadgeStyle(statusId, row) {
@@ -877,9 +864,9 @@
                                 d.district_id = appliedFilters.district_id;
                             }
                             if (canViewLocations) {
-                                d.location_id = appliedFilters.location_id;
+                                d.location_ids = appliedFilters.location_ids;
                             }
-                            d.team_id = appliedFilters.team_id;
+                            d.team_ids = appliedFilters.team_ids;
                             if (appliedFilters.has_special_conditions) {
                                 d.has_special_conditions = appliedFilters.has_special_conditions;
                             }
@@ -1178,6 +1165,32 @@
             var editLeadModal = new bootstrap.Modal(editLeadModalEl);
             var $editLeadForm = $('#editLeadForm');
             var $editLeadModal = $('#editLeadModal');
+            var $leadTeamSelect = $('#leadTeam');
+            var $leadLocationSelect = $('#leadLocation');
+
+            function initLeadModalSingleSelect2($select) {
+                if (!$select.length || !$.fn.select2) {
+                    return;
+                }
+                if ($select.data('select2')) {
+                    $select.select2('destroy');
+                }
+                var $dropdownParent = $editLeadModal.find('.modal-content').first();
+                $select.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: $select.data('placeholder') || '',
+                    language: @include('partials.select2.ru'),
+                    allowClear: true,
+                    dropdownParent: $dropdownParent.length ? $dropdownParent : $editLeadModal
+                });
+            }
+
+            initLeadModalSingleSelect2($leadTeamSelect);
+            if (canViewLocations) {
+                initLeadModalSingleSelect2($leadLocationSelect);
+            }
+
             var leadModalReadOnly = false;
             var currentLeadModalRowData = null;
             var leadParentMatchUi = {
@@ -1350,8 +1363,8 @@
 
             function clearLeadFormErrors() {
                 $editLeadForm.find('.is-invalid').removeClass('is-invalid');
+                $editLeadForm.find('.select2-container .select2-selection').removeClass('is-invalid');
                 $editLeadForm.find('.invalid-feedback').text('');
-                $('#editLeadError, #editLeadSuccess').addClass('d-none').text('');
             }
 
             function applyLeadFormErrors(errors) {
@@ -1379,13 +1392,14 @@
 
                     if ($input.length) {
                         $input.addClass('is-invalid');
+                        $input.next('.select2-container').find('.select2-selection').addClass('is-invalid');
                         showEditLeadAccordionPanel($input);
                     }
                     if ($feedback.length) {
                         $feedback.text(message);
                         showEditLeadAccordionPanel($feedback);
                     } else if (field === 'school_lead') {
-                        $('#editLeadError').removeClass('d-none').text(message);
+                        showToast(message, 'error');
                     }
                 });
             }
@@ -1687,7 +1701,7 @@
                     rowData
                 );
                 $('#leadComment').val(rowData.comment || '');
-                $('#leadTeam').val(rowData.team_id ? String(rowData.team_id) : '');
+                $leadTeamSelect.val(rowData.team_id ? String(rowData.team_id) : '').trigger('change');
                 $('#leadChildLastname').val(rowData.child_lastname || '');
                 $('#leadChildFirstname').val(rowData.child_firstname || '');
                 $('#leadChildMiddlename').val(rowData.child_middlename || '');
@@ -1697,7 +1711,7 @@
                     $('#leadDistrict').val(rowData.district_id ? String(rowData.district_id) : '');
                 }
                 if (canViewLocations) {
-                    $('#leadLocation').val(rowData.location_id ? String(rowData.location_id) : '');
+                    $leadLocationSelect.val(rowData.location_id ? String(rowData.location_id) : '').trigger('change');
                 }
 
                 setLeadHealthFields({
@@ -1779,7 +1793,7 @@
                 var payload = {
                     school_lead_status_id: $('#leadStatus').val(),
                     comment: $('#leadComment').val(),
-                    team_id: $('#leadTeam').val(),
+                    team_id: $leadTeamSelect.val(),
                     parent_id: $('#lead-parent-id').val() || null,
                     parent_match_confirmed: $('#leadParentMatchConfirmed').val() || null,
                     parent_lastname: useSnapshotParentFields
@@ -1807,7 +1821,7 @@
                     payload.district_id = $('#leadDistrict').val();
                 }
                 if (canViewLocations) {
-                    payload.location_id = $('#leadLocation').val();
+                    payload.location_id = $leadLocationSelect.val();
                 }
 
                 if (canUpdateLeadHealth) {
@@ -1822,6 +1836,8 @@
             function collectCreateClientPayload() {
                 var payload = collectLeadPayload();
 
+                // parent_* всегда из формы (справочник / новый родитель), не из снимка заявки:
+                // иначе занятый email после переключения режима продолжал бы уходить в POST /admin/users.
                 return {
                     name: payload.child_firstname,
                     lastname: payload.child_lastname,
@@ -1831,14 +1847,14 @@
                     is_enabled: 1,
                     school_lead_id: $('#editLeadId').val(),
                     parent_id: $('#lead-parent-id').val() || null,
-                    parent_lastname: payload.parent_lastname,
-                    parent_firstname: payload.parent_firstname,
-                    parent_middlename: payload.parent_middlename,
+                    parent_lastname: $('#lead-parent-lastname').val(),
+                    parent_firstname: $('#lead-parent-firstname').val(),
+                    parent_middlename: $('#lead-parent-middlename').val(),
                     parent_passport: $('#lead-parent-passport').val(),
                     parent_passport_issued: $('#lead-parent-passport-issued').val(),
                     parent_address: $('#lead-parent-address').val(),
-                    parent_phone: payload.parent_phone,
-                    parent_email: payload.parent_email,
+                    parent_phone: $('#lead-parent-phone').val(),
+                    parent_email: $('#lead-parent-email').val(),
                     is_individual_traits: payload.is_individual_traits,
                     is_on_medical_register: payload.is_on_medical_register,
                     is_with_disability: payload.is_with_disability,
@@ -1898,7 +1914,6 @@
 
                 saveLeadAjax()
                     .done(function(response) {
-                        $('#editLeadSuccess').removeClass('d-none').text(response.message || 'Сохранено.');
                         dtApi.reload({ keepPage: true });
                         showToast(response.message || 'Изменения сохранены.', 'success');
                         setTimeout(function() { editLeadModal.hide(); }, 600);
@@ -1911,7 +1926,6 @@
                         if (xhr.responseJSON && xhr.responseJSON.errors) {
                             applyLeadFormErrors(xhr.responseJSON.errors);
                         }
-                        $('#editLeadError').removeClass('d-none').text(message);
                         showToast(message, 'error');
                     })
                     .always(function() {
@@ -1972,7 +1986,6 @@
                                 var failMessage = (response && response.message)
                                     ? response.message
                                     : 'Сервер не подтвердил создание клиента.';
-                                $('#editLeadError').removeClass('d-none').text(failMessage);
                                 showCreateClientResultModal(false, failMessage);
                                 return;
                             }
@@ -1986,7 +1999,6 @@
                             if (xhr.responseJSON && xhr.responseJSON.errors) {
                                 applyLeadFormErrors(xhr.responseJSON.errors);
                             }
-                            $('#editLeadError').removeClass('d-none').text(message);
                             showCreateClientResultModal(false, message);
                             syncCreateClientBtnState();
                         })

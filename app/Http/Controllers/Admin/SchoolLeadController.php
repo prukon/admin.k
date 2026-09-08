@@ -21,6 +21,7 @@ use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
 use App\Services\SchoolLeads\LatestUserContractLookup;
 use App\Support\BuildsLogTable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -193,23 +194,23 @@ class SchoolLeadController extends AdminBaseController
             }
         }
 
-        if ($canViewLocations && $request->filled('location_id')) {
-            $locationFilter = $request->input('location_id');
-            if ($locationFilter === 'none') {
-                $query->whereNull('school_leads.location_id');
-            } else {
-                $query->where('school_leads.location_id', $locationFilter);
-            }
+        if ($canViewLocations) {
+            $this->applyNullableIdListFilter(
+                $query,
+                $request,
+                'location_ids',
+                'location_id',
+                'school_leads.location_id'
+            );
         }
 
-        if ($request->filled('team_id')) {
-            $teamFilter = $request->input('team_id');
-            if ($teamFilter === 'none') {
-                $query->whereNull('school_leads.team_id');
-            } else {
-                $query->where('school_leads.team_id', $teamFilter);
-            }
-        }
+        $this->applyNullableIdListFilter(
+            $query,
+            $request,
+            'team_ids',
+            'team_id',
+            'school_leads.team_id'
+        );
 
         if ($request->boolean('has_special_conditions')) {
             $query->where(function ($q) {
@@ -760,5 +761,67 @@ class SchoolLeadController extends AdminBaseController
         $text = trim((string) ($value ?? ''));
 
         return $text !== '' ? $text : $emptyLabel;
+    }
+
+    /**
+     * Фильтр по списку id или legacy-скаляру. Пустой список — без фильтра.
+     * Значение none — записи с NULL в колонке; вместе с id — OR.
+     */
+    private function applyNullableIdListFilter(
+        Builder $query,
+        Request $request,
+        string $arrayKey,
+        string $scalarKey,
+        string $column,
+    ): void {
+        $raw = $request->input($arrayKey);
+        if ($raw === null && $request->filled($scalarKey)) {
+            $raw = [$request->input($scalarKey)];
+        }
+
+        if ($raw === null) {
+            return;
+        }
+
+        $values = [];
+        foreach ((array) $raw as $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $values[] = (string) $value;
+        }
+
+        if ($values === []) {
+            return;
+        }
+
+        $includeNone = in_array('none', $values, true);
+        $ids = [];
+        foreach ($values as $value) {
+            if ($value === 'none' || ! ctype_digit($value)) {
+                continue;
+            }
+            $id = (int) $value;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        if (! $includeNone && $ids === []) {
+            return;
+        }
+
+        $query->where(function (Builder $inner) use ($includeNone, $ids, $column): void {
+            if ($ids !== []) {
+                $inner->whereIn($column, $ids);
+                if ($includeNone) {
+                    $inner->orWhereNull($column);
+                }
+
+                return;
+            }
+
+            $inner->whereNull($column);
+        });
     }
 }

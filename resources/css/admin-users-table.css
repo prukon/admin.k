@@ -1,0 +1,45 @@
+/* Закреплённая шапка и липкий горизонтальный скролл таблицы клиентов (#users-table).
+   Только вкладка /admin/users. Не пресет KidsCrmDataTable. */
+
+#users-table thead th,
+table.fixedHeader-floating thead th,
+table.fixedHeader-locked thead th {
+    background-color: var(--bs-body-bg, #fff);
+}
+
+.dtfh-floatingparenthead {
+    z-index: 5 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden !important;
+    box-sizing: border-box;
+}
+
+#users-table_wrapper .kids-dt-sticky-hscroll {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    width: 100%;
+    max-width: 100%;
+    min-height: 14px;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+}
+
+#users-table_wrapper .kids-dt-sticky-hscroll[hidden] {
+    display: none !important;
+}
+
+#users-table_wrapper .kids-dt-sticky-hscroll-spacer {
+    height: 1px;
+    pointer-events: none;
+}
+
+#users-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar {
+    scrollbar-width: none;
+}
+
+#users-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar {
+    display: none;
+}

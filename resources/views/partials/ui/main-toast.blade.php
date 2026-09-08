@@ -1,5 +1,7 @@
 {{-- Общая Bootstrap-всплывайка админки (как в заявках / ценах).
-     z-index 4050: выше #confirmDeleteModal (1900) и #errorModal/#successModal (4010). --}}
+     z-index 4050: выше #confirmDeleteModal (1900) и #errorModal/#successModal (4010).
+     @once: можно include из вкладки заявок и из layout без второго #kidsMainToast. --}}
+@once
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 4050;">
     <div id="kidsMainToast" class="toast align-items-center text-white bg-success border-0" role="alert"
          aria-live="assertive" aria-atomic="true">
@@ -52,3 +54,4 @@
         bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2500, autohide: true }).show();
     };
 </script>
+@endonce

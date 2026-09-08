@@ -19,7 +19,13 @@ class ContractTemplateEmailFeatureTest extends ContractsFeatureTestCase
         $response->assertOk()
             ->assertJsonPath('id', $template->id)
             ->assertJsonPath('email_subject', ContractTemplateEmailDefaults::subject())
+            ->assertJsonPath('email_body_html', ContractTemplateEmailDefaults::bodyHtml())
             ->assertJsonPath('update_url', route('contract-templates.update-email', $template));
+
+        $this->assertStringContainsString(
+            'href="' . ContractTemplateEmailDefaults::PLACEHOLDER_DOCUMENTS_URL . '"',
+            (string) $response->json('email_body_html')
+        );
     }
 
     /** @test */

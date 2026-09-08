@@ -149,8 +149,8 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       </tr>
       <tr>
         <td><code>schoolLeads.view</code> + <code>locations.view</code></td>
-        <td>Колонка/фильтр «Объект» в заявках</td>
-        <td>Update: объект должен соответствовать району заявки.</td>
+        <td>Колонка и фильтр «Объект» в заявках (<code>location_ids[]</code>, несколько — OR; см. <a href="/docs/documentation/school-leads-widget#school-leads-filter-select2">§5.1.7</a>)</td>
+        <td>Update: объект должен соответствовать району заявки. Без права фильтр скрыт, <code>location_ids</code> на data игнорируется.</td>
       </tr>
     </tbody>
   </table>
@@ -276,7 +276,12 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <ul>
     <li>Виджет iframe (<code>source=widget</code>) — район и объект обычно <code>null</code>; назначают вручную в CRM.</li>
     <li>Лендинг (<code>source=landing</code>) — <code>district_id</code> и <code>location_id</code> из формы.</li>
-    <li><code>GET /admin/school-leads/data</code>: параметры <code>district_id</code>, <code>location_id</code> (значение <code>none</code> — без района/объекта); поиск по имени района/объекта при соответствующих правах.</li>
+    <li><code>GET /admin/school-leads/data</code>: <code>district_id</code> (скаляр; <code>none</code> — без района);
+      <code>location_ids[]</code> и <code>team_ids[]</code> (несколько id — OR / любой match; <code>none</code> — без объекта/секции; пусто — все).
+      Legacy-скаляры <code>location_id</code> / <code>team_id</code> ещё принимаются.
+      Без <code>locations.view</code> <code>location_ids</code> игнорируется.
+      Поиск по имени района/объекта — при соответствующих правах.
+      Подробно — <a href="/docs/documentation/school-leads-widget#school-leads-filter-select2">school-leads-widget §5.1.7</a> / §5.2.</li>
     <li><code>PUT /admin/school-leads/{id}</code> — <code>UpdateSchoolLeadRequest</code>: нельзя назначить отключённый район/объект; объект должен соответствовать району.</li>
     <li>Уведомления: email (<code>emails/new_school_lead.blade.php</code>) и Telegram — для лендинга включают район и объект.</li>
   </ul>
