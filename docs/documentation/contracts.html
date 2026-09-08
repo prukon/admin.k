@@ -56,7 +56,7 @@
       <tr><td>POST</td><td><code>/client-contracts/check-balance</code></td><td>Предпроверка баланса перед submit модалки создания</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/users-search</code></td><td>AJAX Select2: поиск учеников (в т.ч. <code>parent_full_name</code> для модалки)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
-      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)»</td></tr>
       <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/logs-data</code> (<code>logs.data.contract</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract</code>)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
@@ -193,36 +193,54 @@
     <code>#contractStatusMemoModal</code> — <code>modal-dialog</code> без <code>modal-lg</code>/<code>modal-xl</code>/fullscreen,
     шире стандартной (<code>max-width: min(1100px, 96vw)</code>).
     Partial: <code>resources/views/contracts/partials/status-memo-modal.blade.php</code>,
-    шаги — <code>status-memo-timeline.blade.php</code>.
+    шаги — <code>status-memo-timeline.blade.php</code>, стили —
+    <code>status-memo-timeline-styles.blade.php</code>.
     Визуал как timeline на карточке платежа T‑Bank
     (<code>tinkoff/payments/partials/timeline.blade.php</code>): номер, подпись, hint, стрелки,
     классы <code>contract-memo-timeline</code> / <code>__step--done|active|pending|failed</code>.
-    Подписи — <code>Contract::$STATUS_RU</code> (как бейдж на карточке).
-    Шаги строит <code>ContractPathTimelineBuilder</code>.
+    Памятка — схема шаблона (два блока). Схему PDF памятка не показывает:
+    для договора <code>creation_mode=pdf</code> цепочка PDF есть только в «(посмотреть)» (§4.2.1).
+    На вкладке «Шаблоны» и на карточке <code>/client-contracts/{id}</code> кнопки нет.
   </div>
   <table>
-    <thead><tr><th>Блок</th><th>Шаги</th></tr></thead>
+    <thead><tr><th>Блок</th><th>Шаги (заголовок в круге)</th></tr></thead>
     <tbody>
-      <tr><td>Путь с формой клиенту</td><td>Админ отправил договор родителю (списалось 70&nbsp;₽; письмо и договор в кабинете)
-        → Ожидает заполнения клиентом → Формируется PDF → Черновик → Отправлено → Открыто → Подписано</td></tr>
+      <tr><td>Путь с формой клиенту</td><td>Админ отправил договор родителю
+        → Ожидает заполнения клиентом → Формируется PDF → Черновик → Отправлено СМС → Открыто СМС → Подписано</td></tr>
       <tr><td>Другие статусы</td><td>Отозвано, Истёк срок, Ошибка (без стрелок, <code>showArrows: false</code>)</td></tr>
     </tbody>
   </table>
-  <p>Подсказки шаблона в <code>ContractPathTimelineBuilder</code>:
-    ожидает заполнения — родитель нажал «Сформировать договор», система собирает PDF;
-    черновик — родитель проверяет PDF и нажимает «Подписать договор», затем SMS;
-    открыто — «Родитель открыл договор, но ещё не подписал.»;
-    подписано — «Родитель подписал договор. Можно скачать подписанный PDF.»
-    Переносы строк в hint — <code>white-space: pre-line</code>.</p>
-  <p>Отдельного абзаца про 70&nbsp;₽ и возврат в модалке нет: сумма есть в подсказке первого шага.
-    На вкладке «Шаблоны» кнопки нет.</p>
+  <p>Заголовки <code>sent</code> / <code>opened</code> в timeline — «Отправлено СМС» / «Открыто СМС».
+    Остальные — <code>Contract::$STATUS_RU</code> (бейдж списка: «Отправлено» / «Открыто» / «Подписано» / «Отозвано»).
+    Фильтр списка короче: «Ожидает заполнения», «Подписан», «Отозван»; <code>generating_pdf</code> в фильтре нет.</p>
+  <table>
+    <thead><tr><th>Шаг</th><th>Подсказка в памятке (как в <code>ContractPathTimelineBuilder</code>)</th></tr></thead>
+    <tbody>
+      <tr><td>Админ отправил договор родителю</td><td>1. Списалось 70&nbsp;₽.<br>2. Родителю ушло письмо.<br>3. В кабинете у родителя появился договор на заполнение и подпись.</td></tr>
+      <tr><td>Ожидает заполнения клиентом</td><td>1. Родитель ещё не заполнил данные. Ждём заполнения.<br>2. После заполнения родитель должен нажать кнопку «Сформировать договор».</td></tr>
+      <tr><td>Формируется PDF</td><td>Система собирает PDF из шаблона. Обычно несколько секунд. (без <code>1.</code>)</td></tr>
+      <tr><td>Черновик</td><td>1. Заполненный договор готов, но ещё не подписан.<br>2. Родитель может прочитать и проверить заполненный договор.<br>3. Родитель должен нажать «Подписать договор».<br>4. После этого ему будет отправлена SMS на подпись.</td></tr>
+      <tr><td>Отправлено СМС</td><td>1. SMS отправлено на номер телефона родителя.<br>2. Клиент ещё не открыл ссылку.</td></tr>
+      <tr><td>Открыто СМС</td><td>1. Родитель перешёл по ссылке в СМС, но не подписал договор.<br>2. Родителю нужно перейти по ссылке из СМС и следовать инструкции, последним шагом ввести код из СМС.</td></tr>
+      <tr><td>Подписано</td><td>1. Родитель подписал договор.<br>2. Родитель и администратор могут скачать подписанный PDF в своих кабинетах.</td></tr>
+      <tr><td>Отозвано</td><td>Школа сняла договор. 70&nbsp;₽ вернутся только до заполнения формы.</td></tr>
+      <tr><td>Истёк срок</td><td>Ссылка Подпислона просрочена. Можно отправить на подпись снова.</td></tr>
+      <tr><td>Ошибка</td><td>Сбой отправки в Подпислон. Можно отправить снова.</td></tr>
+    </tbody>
+  </table>
+  <p>Переносы в hint — <code>white-space: pre-line</code>, <code>text-align: left</code>.
+    Отдельного абзаца про 70&nbsp;₽ и возврат в шапке модалки нет.</p>
   <h3>4.2.1) Ссылка «(посмотреть)» у статуса в списке</h3>
   <div class="note">
     В колонке «Статус» после бейджа — ссылка <code>js-contract-path-open</code> с текстом <code>(посмотреть)</code>.
     <code>GET /client-contracts/data</code> для каждой строки отдаёт <code>path_steps</code> и <code>path_title</code>
     (live-состояния текущего договора). Клик открывает <code>#contractPathModal</code>
-    (стандартный <code>modal-dialog</code>), JS <code>renderContractPathTimeline</code>
-    рисует ту же цепочку, что памятка, но с done/active/pending/failed этой строки.
+    (<code>modal-dialog</code> без <code>modal-lg</code>, шире стандартной:
+    <code>max-width: min(1100px, 96vw)</code>), JS <code>renderContractPathTimeline</code>
+    рисует цепочку этой строки (done / active / pending / failed).
+    <code>creation_mode=template</code> — заголовок «Путь с формой клиенту», 7 шагов как в памятке.
+    <code>creation_mode=pdf</code> — заголовок «Путь с готовым PDF», 4 шага:
+    Черновик (PDF загружен) → Отправлено СМС → Открыто СМС → Подписано.
   </div>
 
   <h2 id="contract-create-modal">5) Модалка «Создать договор»</h2>
@@ -437,8 +455,9 @@
   <div class="note">
     <p><b>Модалка создания и карточка:</b></p>
     <ul>
-      <li><code>ContractStatusMemoFeatureTest.php</code> — кнопка «Памятка», модалка <code>#contractStatusMemoModal</code>, все подписи <code>Contract::$STATUS_RU</code>, ссылка <code>(посмотреть)</code> / <code>#contractPathModal</code>, guest 302 / без права 403</li>
-      <li><code>ContractPathTimelineBuilderTest.php</code> — схема шаблона с «Админ отправил договор родителю», live-состояния awaiting / draft / signed / revoked</li>
+      <li><code>ContractStatusMemoFeatureTest.php</code> — кнопка «Памятка», модалка <code>#contractStatusMemoModal</code>, нумерованные подсказки, «Отправлено СМС» / «Открыто СМС», ссылка <code>(посмотреть)</code> / <code>#contractPathModal</code>, guest 302 / без права 403</li>
+      <li><code>ContractPathTimelineBuilderTest.php</code> — схема шаблона с «Админ отправил договор родителю», заголовки СМС, live-состояния awaiting / draft / signed / revoked</li>
+      <li><code>ContractStatusMemoDocumentationContractTest.php</code> — анонс /doc совпадает с blade и builder</li>
       <li><code>ContractsAuditLogsFeatureTest.php</code> — endpoint «История», created/revoke/email/send/resend audit, logs-data</li>
       <li><code>ContractsPageFullAccessFeatureTest.php</code> — гость/403 без права, 200 для всех endpoint'ов <code>/client-contracts</code> при <code>contracts.view</code></li>
       <li><code>ContractCreateModalFeatureTest.php</code> — модалка, redirect <code>/create</code>, store PDF, lockUser helpers</li>

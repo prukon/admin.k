@@ -26,28 +26,41 @@ final class ContractPathTimelineBuilderTest extends CrmTestCase
         $this->assertSame('admin_sent', $steps[0]['key']);
         $this->assertSame('Админ отправил договор родителю', $steps[0]['label']);
         $this->assertSame('done', $steps[0]['state']);
-        $this->assertStringContainsString('70', $steps[0]['hint']);
-        $this->assertStringContainsString('письмо', $steps[0]['hint']);
-        $this->assertStringContainsString('кабинете', $steps[0]['hint']);
+        $this->assertStringContainsString('1. Списалось 70', $steps[0]['hint']);
+        $this->assertStringContainsString('2. Родителю ушло письмо.', $steps[0]['hint']);
+        $this->assertStringContainsString('3. В кабинете у родителя', $steps[0]['hint']);
         $this->assertSame(Contract::STATUS_AWAITING_CLIENT_FILL, $steps[1]['key']);
         $this->assertSame('active', $steps[1]['state']);
-        $this->assertStringContainsString('Сформировать договор', $steps[1]['hint']);
-        $this->assertStringContainsString('Система собирает PDF из шаблона', $steps[1]['hint']);
-        $this->assertStringNotContainsString('заполняет форму в кабинете', $steps[1]['hint']);
+        $this->assertStringContainsString('1. Родитель ещё не заполнил данные. Ждём заполнения.', $steps[1]['hint']);
+        $this->assertStringContainsString('2. После заполнения родитель должен нажать кнопку', $steps[1]['hint']);
+        $this->assertStringNotContainsString('заполнил данные и нажал', $steps[1]['hint']);
+        $this->assertStringNotContainsString('Система собирает PDF из шаблона', $steps[1]['hint']);
 
         $draft = collect($steps)->firstWhere('key', Contract::STATUS_DRAFT);
         $this->assertNotNull($draft);
-        $this->assertStringContainsString('прочитать и проверить заполненный договор', $draft['hint']);
-        $this->assertStringContainsString('Подписать договор', $draft['hint']);
-        $this->assertStringContainsString('будет отправлена SMS на подпись', $draft['hint']);
+        $this->assertStringContainsString('1. Заполненный договор готов, но ещё не подписан.', $draft['hint']);
+        $this->assertStringContainsString('2. Родитель может прочитать и проверить заполненный договор.', $draft['hint']);
+        $this->assertStringContainsString('3. Родитель должен нажать "Подписать договор".', $draft['hint']);
+        $this->assertStringContainsString('4. После этого ему будет отправлена SMS на подпись.', $draft['hint']);
+        $this->assertStringNotContainsString('PDF готов.', $draft['hint']);
+
+        $sent = collect($steps)->firstWhere('key', Contract::STATUS_SENT);
+        $this->assertNotNull($sent);
+        $this->assertSame('Отправлено СМС', $sent['label']);
 
         $opened = collect($steps)->firstWhere('key', Contract::STATUS_OPENED);
         $this->assertNotNull($opened);
-        $this->assertSame('Родитель открыл договор, но ещё не подписал.', $opened['hint']);
+        $this->assertSame('Открыто СМС', $opened['label']);
+        $this->assertStringContainsString('1. Родитель перешёл по ссылке в СМС, но не подписал договор.', $opened['hint']);
+        $this->assertStringContainsString('последним шагом ввести код из СМС', $opened['hint']);
+        $this->assertStringNotContainsString('Ввести код из СМС для подписания договора', $opened['hint']);
+        $this->assertStringNotContainsString('Родитель открыл договор', $opened['hint']);
 
         $signed = collect($steps)->firstWhere('key', Contract::STATUS_SIGNED);
         $this->assertNotNull($signed);
-        $this->assertSame('Родитель подписал договор. Можно скачать подписанный PDF.', $signed['hint']);
+        $this->assertStringContainsString('1. Родитель подписал договор.', $signed['hint']);
+        $this->assertStringContainsString('2. Родитель и администратор могут скачать подписанный PDF в своих кабинетах.', $signed['hint']);
+        $this->assertStringNotContainsString('Можно скачать подписанный PDF.', $signed['hint']);
     }
 
     public function test_template_awaiting_marks_admin_sent_done_and_fill_active(): void

@@ -49,19 +49,19 @@ final class ContractPathTimelineBuilder
                 Contract::STATUS_REVOKED,
                 Contract::$STATUS_RU[Contract::STATUS_REVOKED],
                 'pending',
-                'Школа сняла договор. 70 ₽ вернутся только до заполнения формы.',
+                "Школа сняла договор.\n70 ₽ вернутся только до заполнения формы.",
             ),
             $this->step(
                 Contract::STATUS_EXPIRED,
                 Contract::$STATUS_RU[Contract::STATUS_EXPIRED],
                 'pending',
-                'Ссылка Подпислона просрочена. Можно отправить на подпись снова.',
+                "Ссылка Подпислона просрочена.\nМожно отправить на подпись снова.",
             ),
             $this->step(
                 Contract::STATUS_FAILED,
                 Contract::$STATUS_RU[Contract::STATUS_FAILED],
                 'failed',
-                'Сбой отправки в Подпислон. Можно отправить снова.',
+                "Сбой отправки в Подпислон.\nМожно отправить снова.",
             ),
         ];
     }
@@ -123,19 +123,19 @@ final class ContractPathTimelineBuilder
         return [
             Contract::STATUS_DRAFT => [
                 'label' => Contract::$STATUS_RU[Contract::STATUS_DRAFT],
-                'hint' => 'PDF загружен. Можно отправить SMS на подпись.',
+                'hint' => "PDF загружен.\nМожно отправить SMS на подпись.",
             ],
             Contract::STATUS_SENT => [
-                'label' => Contract::$STATUS_RU[Contract::STATUS_SENT],
-                'hint' => 'SMS ушло. Клиент ещё не открыл ссылку.',
+                'label' => 'Отправлено СМС',
+                'hint' => "1. SMS отправлено на номер телефона родителя.\n2. Клиент ещё не открыл ссылку.",
             ],
             Contract::STATUS_OPENED => [
-                'label' => Contract::$STATUS_RU[Contract::STATUS_OPENED],
-                'hint' => 'Родитель открыл договор, но ещё не подписал.',
+                'label' => 'Открыто СМС',
+                'hint' => "1. Родитель перешёл по ссылке в СМС, но не подписал договор.\n2. Родителю нужно перейти по ссылке из СМС и следовать инструкции, последним шагом ввести код из СМС.",
             ],
             Contract::STATUS_SIGNED => [
                 'label' => Contract::$STATUS_RU[Contract::STATUS_SIGNED],
-                'hint' => 'Родитель подписал договор. Можно скачать подписанный PDF.',
+                'hint' => "1. Родитель подписал договор.\n2. Родитель и администратор могут скачать подписанный PDF в своих кабинетах.",
             ],
         ];
     }
@@ -148,31 +148,31 @@ final class ContractPathTimelineBuilder
         return [
             'admin_sent' => [
                 'label' => 'Админ отправил договор родителю',
-                'hint' => 'Списалось 70 ₽. Родителю ушло письмо, в кабинете появился договор на заполнение и подпись.',
+                'hint' => "1. Списалось 70 ₽.\n2. Родителю ушло письмо.\n3. В кабинете у родителя появился договор на заполнение и подпись.",
             ],
             Contract::STATUS_AWAITING_CLIENT_FILL => [
                 'label' => Contract::$STATUS_RU[Contract::STATUS_AWAITING_CLIENT_FILL],
-                'hint' => "Родитель заполнил данные и нажал \"Сформировать договор\".\nСистема собирает PDF из шаблона. Обычно несколько секунд.",
+                'hint' => "1. Родитель ещё не заполнил данные. Ждём заполнения.\n2. После заполнения родитель должен нажать кнопку \"Сформировать договор\".",
             ],
             Contract::STATUS_GENERATING_PDF => [
                 'label' => Contract::$STATUS_RU[Contract::STATUS_GENERATING_PDF],
-                'hint' => 'Система собирает PDF из шаблона. Обычно несколько секунд.',
+                'hint' => "Система собирает PDF из шаблона.\nОбычно несколько секунд.",
             ],
             Contract::STATUS_DRAFT => [
                 'label' => Contract::$STATUS_RU[Contract::STATUS_DRAFT],
-                'hint' => "PDF готов. Родитель может прочитать и проверить заполненный договор.\nРодитель должен нажать \"Подписать договор\".\nПосле этого ему будет отправлена SMS на подпись.",
+                'hint' => "1. Заполненный договор готов, но ещё не подписан.\n2. Родитель может прочитать и проверить заполненный договор.\n3. Родитель должен нажать \"Подписать договор\".\n4. После этого ему будет отправлена SMS на подпись.",
             ],
             Contract::STATUS_SENT => [
-                'label' => Contract::$STATUS_RU[Contract::STATUS_SENT],
-                'hint' => 'SMS ушло. Клиент ещё не открыл ссылку.',
+                'label' => 'Отправлено СМС',
+                'hint' => "1. SMS отправлено на номер телефона родителя.\n2. Клиент ещё не открыл ссылку.",
             ],
             Contract::STATUS_OPENED => [
-                'label' => Contract::$STATUS_RU[Contract::STATUS_OPENED],
-                'hint' => 'Родитель открыл договор, но ещё не подписал.',
+                'label' => 'Открыто СМС',
+                'hint' => "1. Родитель перешёл по ссылке в СМС, но не подписал договор.\n2. Родителю нужно перейти по ссылке из СМС и следовать инструкции, последним шагом ввести код из СМС.",
             ],
             Contract::STATUS_SIGNED => [
                 'label' => Contract::$STATUS_RU[Contract::STATUS_SIGNED],
-                'hint' => 'Родитель подписал договор. Можно скачать подписанный PDF.',
+                'hint' => "1. Родитель подписал договор.\n2. Родитель и администратор могут скачать подписанный PDF в своих кабинетах.",
             ],
         ];
     }

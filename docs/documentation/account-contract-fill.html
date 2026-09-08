@@ -232,8 +232,10 @@
       <tr><td><code>revoked</code></td><td>Нет «Заполнить» / «Подписать» / «Изменить». Если позже пришёл signed PDF (старое SMS) — «Скачать подписанный» (и «Скачать PDF» оригинала, пока статус не <code>signed</code>). Бейдж статуса — «Отозвано», не «Подписано»</td></tr>
     </tbody>
   </table>
-  <div class="warn">
-    Срок заполнения: <code>fill_expires_at</code> (по умолчанию +7 дней от создания, <code>Contract::FILL_TTL_DAYS</code>).
+  <p class="small">Школьная схема тех же статусов (кнопка «Памятка» на <code>/client-contracts</code>):
+    <a href="/doc#contract-status-memo-index">анонс</a>,
+    <a href="/docs/documentation/contracts#contract-status-memo">contracts §4.2</a>.
+    Подписи «Отправлено СМС» / «Открыто СМС» — только в timeline школы; в кабинете и в бейдже списка по-прежнему <code>Contract::$STATUS_RU</code> («Отправлено» / «Открыто»).</p>
     После истечения в статусе <code>awaiting_client_fill</code> fill JSON возвращает 422: «Срок заполнения договора истёк…».
   </div>
 

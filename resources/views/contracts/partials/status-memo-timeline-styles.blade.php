@@ -66,8 +66,9 @@
         font-size: 0.7rem;
         margin-top: 0.25rem;
         opacity: 0.85;
-        line-height: 1.25;
+        line-height: 1.35;
         white-space: pre-line;
+        text-align: left;
     }
 
     .contract-memo-timeline__arrow {
@@ -90,7 +91,8 @@
         }
     }
 
-    #contractStatusMemoModal .modal-dialog {
+    #contractStatusMemoModal .modal-dialog,
+    #contractPathModal .modal-dialog {
         max-width: min(1100px, 96vw);
     }
 

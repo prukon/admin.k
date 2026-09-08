@@ -31,47 +31,60 @@
   <h2 id="contract-status-memo-index">Договоры: кнопка «Памятка» и путь статусов (2026‑09)</h2>
   <div class="note">
     На <code>GET /client-contracts</code> (вкладка «Договоры», право <code>contracts.view</code>)
-    в toolbar после «История» — кнопка <b>Памятка</b>
-    (иконка <code>fa-book-open</code>, <code>title</code> «Памятка по статусам договора»).
-    Открывает Bootstrap-модалку <code>#contractStatusMemoModal</code>
-    (<code>modal-dialog</code>, <b>не</b> modal-xl / не fullscreen / не <code>modal-lg</code>;
-    шире стандартной за счёт CSS <code>max-width: min(1100px, 96vw)</code>).
-    Схема статусов — кнопка «Памятка»; путь <b>конкретного</b> договора —
-    ссылка <code>(посмотреть)</code> в колонке «Статус».
+    два входа в один визуал (цепочка как на карточке платежа T‑Bank
+    <code>/admin/tinkoff/payments/{id}</code>, partial
+    <code>tinkoff/payments/partials/timeline.blade.php</code>):
+    номер в круге, заголовок шага, нумерованная подсказка, стрелки <code>→</code>,
+    состояния <code>done</code> / <code>active</code> / <code>pending</code> / <code>failed</code>,
+    классы <code>contract-memo-timeline</code> / <code>__step--{state}</code>.
+    Шаги считает <code>ContractPathTimelineBuilder</code>.
     <br><br>
-    1) <b>Визуал.</b> Горизонтальная цепочка шагов как на карточке платежа
-    <code>/admin/tinkoff/payments/{id}</code>
-    (partial <code>tinkoff/payments/partials/timeline.blade.php</code>):
-    номер в круге, подпись, подсказка, стрелки <code>→</code>,
-    состояния <code>done</code> / <code>active</code> / <code>pending</code> / <code>failed</code>.
-    CSS-классы <code>contract-memo-timeline</code> / <code>__step--{state}</code>
-    (копия стиля). Partial шагов:
-    <code>contracts/partials/status-memo-timeline.blade.php</code>.
-    Логика шагов — <code>ContractPathTimelineBuilder</code>.
-    Подписи статусов — из <code>Contract::$STATUS_RU</code>, не из фильтра списка
-    («Подписан» / «Отозван»). Первый шаг шаблона — «Админ отправил договор родителю».
+    1) <b>Памятка.</b> Кнопка в toolbar после «История»
+    (иконка <code>fa-book-open</code>, <code>title</code> «Памятка по статусам договора»)
+    открывает <code>#contractStatusMemoModal</code>.
+    Два блока, без схемы PDF и без абзаца про возврат 70&nbsp;₽:
+    «Путь с формой клиенту» (стрелки) и «Другие статусы» (без стрелок).
+    Цепочка шаблона: Админ отправил договор родителю
+    → Ожидает заполнения клиентом
+    → Формируется PDF
+    → Черновик
+    → Отправлено СМС
+    → Открыто СМС
+    → Подписано.
+    Другие: Отозвано, Истёк срок, Ошибка.
     <br>
-    2) <b>Памятка (два блока).</b>
-    «Путь с формой клиенту»: Админ отправил договор родителю (70&nbsp;₽, письмо, кабинет)
-    → Ожидает заполнения клиентом («Сформировать договор», сбор PDF)
-    → Формируется PDF → Черновик («Подписать договор», затем SMS)
-    → Отправлено → Открыто («Родитель открыл договор, но ещё не подписал.»)
-    → Подписано («Родитель подписал договор. Можно скачать подписанный PDF.»).
-    «Другие статусы» без стрелок: Отозвано, Истёк срок, Ошибка.
-    Отдельного абзаца про 70&nbsp;₽ и возврат в модалке нет.
+    2) <b>Заголовки и бейдж.</b> В timeline <code>sent</code> / <code>opened</code> —
+    «Отправлено СМС» / «Открыто СМС». Остальные заголовки шагов — из
+    <code>Contract::$STATUS_RU</code> плюс первый шаг «Админ отправил договор родителю».
+    Бейдж в таблице и фильтр списка <b>не</b> переименованы: «Отправлено» / «Открыто»;
+    фильтр короче словаря («Ожидает заполнения», «Подписан», «Отозван»),
+    пункта <code>generating_pdf</code> в фильтре нет.
+    На карточке договора <code>/client-contracts/{id}</code> кнопки «Памятка» и ссылки «(посмотреть)» нет.
     <br>
-    3) <b>Путь строки.</b>
-    Колонка <code>status_label</code> (type <code>badge</code>): бейдж + ссылка
-    <code>js-contract-path-open</code> «(посмотреть)».
+    3) <b>Подсказки.</b> Нумерованные строки <code>1.</code> <code>2.</code> … с переносами
+    (<code>white-space: pre-line</code>, <code>text-align: left</code>).
+    Админ отправил: 70&nbsp;₽; письмо; договор в кабинете родителя.
+    Ожидает заполнения: ещё не заполнил, ждём заполнения; затем кнопка «Сформировать договор».
+    Черновик: заполненный договор готов; проверить; «Подписать договор»; SMS на подпись.
+    Отправлено СМС: SMS на телефон родителя; ссылку ещё не открыли.
+    Открыто СМС: перешёл по ссылке в СМС, но не подписал; следовать инструкции, последним шагом ввести код из СМС.
+    Подписано: подписал; родитель и администратор скачивают PDF в своих кабинетах.
+    «Формируется PDF» и блок «Другие статусы» — без нумерации <code>1.</code>.
+    <br>
+    4) <b>«(посмотреть)».</b> В колонке «Статус» после бейджа (<code>type: badge</code>) —
+    ссылка <code>js-contract-path-open</code>.
     <code>GET /client-contracts/data</code> отдаёт <code>path_steps</code>, <code>path_title</code>,
     <code>status</code>, <code>creation_mode</code>.
-    Клик открывает <code>#contractPathModal</code> (тот же <code>modal-dialog</code>),
-    JS <code>renderContractPathTimeline</code> рисует шаги текущей строки
-    (done / active / pending / failed).
+    Клик открывает <code>#contractPathModal</code> (заголовок из <code>path_title</code>):
+    для шаблона — та же 7-шаговая цепочка с live done/active/pending/failed этой строки;
+    для PDF (<code>creation_mode=pdf</code>) — короткая цепочка Черновик → Отправлено СМС → Открыто СМС → Подписано
+    (схема PDF в памятке не показывается).
     <br>
-    4) <b>Где лежит.</b> View списка включает
-    <code>contracts/partials/status-memo-modal.blade.php</code>
-    и <code>status-path-modal.blade.php</code>.
+    5) <b>Модалки и файлы.</b> Обе — <code>modal-dialog</code>, <b>не</b> modal-xl / не fullscreen / не <code>modal-lg</code>
+    (в проекте <code>.modal-lg</code> = 90% экрана), шире стандартной:
+    CSS <code>max-width: min(1100px, 96vw)</code> на оба <code>.modal-dialog</code>.
+    View: <code>status-memo-modal.blade.php</code>, <code>status-path-modal.blade.php</code>,
+    <code>status-memo-timeline.blade.php</code>, стили в <code>status-memo-timeline-styles.blade.php</code>.
     На вкладке «Шаблоны» кнопок и ссылки нет. Отдельного URL пути нет.
     Гость → 302; без <code>contracts.view</code> → 403, разметки модалок нет.
     Подробно: <a href="/docs/documentation/contracts#contract-status-memo">contracts §4.2</a>.
