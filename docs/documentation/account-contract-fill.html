@@ -268,7 +268,10 @@
   <p class="small">Школьная схема тех же статусов (кнопка «Памятка» на <code>/client-contracts</code>):
     <a href="/doc#contract-status-memo-index">анонс</a>,
     <a href="/docs/documentation/contracts#contract-status-memo">contracts §4.2</a>.
-    Подписи «Отправлено СМС» / «Открыто СМС» — только в timeline школы; в кабинете и в бейдже списка по-прежнему <code>Contract::$STATUS_RU</code> («Отправлено» / «Открыто»).</p>
+    Подписи «Отправлено СМС» / «Открыто СМС» — в timeline, бейдже списка и на карточке школы
+    (<code>Contract::schoolStatusLabel</code>). В кабинете по-прежнему короткие подписи
+    («Отправлено» / «Открыт» в <code>AccountDocumentsController</code>).
+    Аудит и вебхуки остаются на <code>Contract::$STATUS_RU</code> («Отправлено» / «Открыто»).</p>
     После истечения в статусе <code>awaiting_client_fill</code> fill JSON возвращает 422: «Срок заполнения договора истёк…».
   </div>
 

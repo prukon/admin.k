@@ -126,11 +126,11 @@ final class ContractPathTimelineBuilder
                 'hint' => "PDF загружен.\nМожно отправить SMS на подпись.",
             ],
             Contract::STATUS_SENT => [
-                'label' => 'Отправлено СМС',
+                'label' => Contract::schoolStatusLabel(Contract::STATUS_SENT),
                 'hint' => "1. SMS отправлено на номер телефона родителя.\n2. Клиент ещё не открыл ссылку.",
             ],
             Contract::STATUS_OPENED => [
-                'label' => 'Открыто СМС',
+                'label' => Contract::schoolStatusLabel(Contract::STATUS_OPENED),
                 'hint' => "1. Родитель перешёл по ссылке в СМС, но не подписал договор.\n2. Родителю нужно перейти по ссылке из СМС и следовать инструкции, последним шагом ввести код из СМС.",
             ],
             Contract::STATUS_SIGNED => [
@@ -163,11 +163,11 @@ final class ContractPathTimelineBuilder
                 'hint' => "1. Заполненный договор готов, но ещё не подписан.\n2. Родитель может прочитать и проверить заполненный договор.\n3. Родитель должен нажать \"Подписать договор\".\n4. После этого ему будет отправлена SMS на подпись.",
             ],
             Contract::STATUS_SENT => [
-                'label' => 'Отправлено СМС',
+                'label' => Contract::schoolStatusLabel(Contract::STATUS_SENT),
                 'hint' => "1. SMS отправлено на номер телефона родителя.\n2. Клиент ещё не открыл ссылку.",
             ],
             Contract::STATUS_OPENED => [
-                'label' => 'Открыто СМС',
+                'label' => Contract::schoolStatusLabel(Contract::STATUS_OPENED),
                 'hint' => "1. Родитель перешёл по ссылке в СМС, но не подписал договор.\n2. Родителю нужно перейти по ссылке из СМС и следовать инструкции, последним шагом ввести код из СМС.",
             ],
             Contract::STATUS_SIGNED => [

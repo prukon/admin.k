@@ -484,7 +484,11 @@
 }</code></pre>
   <ul>
     <li><b>Последний договор</b> — максимальный <code>created_at</code>, затем <code>id</code> среди <code>contracts</code> с <code>school_id = current_partner</code>, <code>user_id</code> ученика и статусом <b>не</b> <code>revoked</code> (сервис <code>App\Services\SchoolLeads\LatestUserContractLookup</code>, тот же lookup, что в заявках). После аннулирования sent/opened ячейка снова «Создать договор», если других не-отозванных нет.</li>
-    <li><code>status_label</code> — из <code>Contract::$STATUS_RU</code> / аксессора <code>status_ru</code> (в UI подписанный статус отображается как «Подписано», константа <code>Contract::STATUS_SIGNED</code>).</li>
+    <li><code>status_label</code> — из <code>Contract::$STATUS_RU</code> / аксессора <code>status_ru</code>
+      (в UI подписанный статус отображается как «Подписано», константа <code>Contract::STATUS_SIGNED</code>).
+      Для <code>sent</code>/<code>opened</code> здесь остаются короткие «Отправлено» / «Открыто».
+      На <code>/client-contracts</code> те же статусы — «Отправлено СМС» / «Открыто СМС»
+      (<code>Contract::schoolStatusLabel</code>, <a href="/docs/documentation/contracts#contract-status-memo">contracts §4.2</a>).</li>
     <li>Договор другого партнёра (<code>school_id</code> ≠ текущий) в выборку не попадает — ячейка пустая.</li>
     <li>Поля <code>create_contract_url</code> в JSON списка пользователей <b>нет</b> (создание — встроенная модалка на странице, §<a href="#user-contract-create">2.3.9</a>; альтернатива — раздел «Договоры»).</li>
   </ul>

@@ -56,7 +56,7 @@
       <tr><td>POST</td><td><code>/client-contracts/check-balance</code></td><td>Предпроверка баланса перед submit модалки создания</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/users-search</code></td><td>AJAX Select2: поиск учеников (в т.ч. <code>parent_full_name</code> для модалки)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
-      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)»</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)»</td></tr>
       <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/logs-data</code> (<code>logs.data.contract</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract</code>)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
@@ -121,7 +121,7 @@
       <tr><td>Родитель</td><td><code>$student->parent_full_name</code> (из <code>parents</code> через <code>parentProfile</code>) или «—»</td></tr>
       <tr><td>Ученик</td><td><code>$student->full_name</code> (фамилия + имя ученика)</td></tr>
       <tr><td>Группа</td><td>На карточке — все текущие группы ученика через запятую (<code>TeamUserSyncService::teamTitlesLabel</code>, pivot). В списке договоров — снимок <code>contracts.group_id</code> → <code>teams.title</code>.</td></tr>
-      <tr><td>Статус</td><td><code>contracts.status</code> (бейдж)</td></tr>
+      <tr><td>Статус</td><td>бейдж <code>school_status_ru</code>: <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»; остальные — как <code>Contract::$STATUS_RU</code></td></tr>
       <tr><td>Телефон</td><td><code>users.phone</code> (контакт родителя)</td></tr>
       <tr><td>Почта</td><td><code>users.email</code></td></tr>
     </tbody>
@@ -182,7 +182,8 @@
     <li>Колонка «Имя» (<code>user_name</code>) — <code>type: 'link'</code>, класс <code>js-dt-nav-link</code>, атрибут <code>data-href="/client-contracts/{id}"</code>; клик открывает карточку договора (<code>GET /client-contracts/{id}</code>).</li>
     <li>После инициализации таблицы вызывается <code>KidsCrmDataTable.bindNavLinks(contractsTableEl)</code> (с inline fallback в blade).</li>
     <li>Колонка «Действия» — кнопка «Подробнее» с обычным <code>href</code> (дублирует переход).</li>
-    <li>Backend <code>GET /client-contracts/data</code> отдаёт поле <code>id</code> в каждой строке (нужно для <code>data-href</code>).</li>
+    <li>Backend <code>GET /client-contracts/data</code> отдаёт поле <code>id</code> в каждой строке (нужно для <code>data-href</code>)
+      и <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»).</li>
   </ul>
   <p class="small">Общий паттерн кликабельных названий — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</p>
 
@@ -210,9 +211,11 @@
       <tr><td>Другие статусы</td><td>Отозвано, Истёк срок, Ошибка (без стрелок, <code>showArrows: false</code>)</td></tr>
     </tbody>
   </table>
-  <p>Заголовки <code>sent</code> / <code>opened</code> в timeline — «Отправлено СМС» / «Открыто СМС».
-    Остальные — <code>Contract::$STATUS_RU</code> (бейдж списка: «Отправлено» / «Открыто» / «Подписано» / «Отозвано»).
-    Фильтр списка короче: «Ожидает заполнения», «Подписан», «Отозван»; <code>generating_pdf</code> в фильтре нет.</p>
+  <p>Заголовки <code>sent</code> / <code>opened</code> в timeline, бейдже списка, фильтре и на карточке —
+    «Отправлено СМС» / «Открыто СМС» (<code>Contract::schoolStatusLabel</code>, аксессор <code>school_status_ru</code>).
+    Словарь <code>Contract::$STATUS_RU</code> без изменений («Отправлено» / «Открыто» / «Подписано» / «Отозвано») —
+    аудит, вебхуки, кабинет, колонка на <code>/admin/users</code>.
+    Остальной фильтр списка короче: «Ожидает заполнения», «Подписан», «Отозван»; <code>generating_pdf</code> в фильтре нет.</p>
   <table>
     <thead><tr><th>Шаг</th><th>Подсказка в памятке (как в <code>ContractPathTimelineBuilder</code>)</th></tr></thead>
     <tbody>
@@ -475,7 +478,9 @@
       <li><code>PodpislonWebhookTest.php</code> — пустой POST проба 200 без <code>?token=</code> и с ним (токен игнорируется); события требуют <code>SIGNATURE</code> Подпислона</li>
       <li><code>PodpislonWebhookUrlCheckFeatureTest.php</code> — UX кабинета Подпислона: гость, без CSRF, без права CRM, URL без <code>?token=</code> даёт 200 JSON <code>probe</code> (не логин/419/403); токен в path — 404; query-токен не заменяет <code>SIGNATURE</code>; GET/PUT/PATCH/DELETE не 500</li>
       <li><code>ContractsSyncFeatureTest.php</code></li>
-      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code></li>
+      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code> — в data <code>status_label</code> для sent/opened = «Отправлено СМС» / «Открыто СМС»</li>
+      <li><code>ContractSchoolStatusLabelFeatureTest.php</code> — школьные подписи sent/opened в таблице, фильтре и на карточке; guest 302 / без права 403; чужой партнёр 403</li>
+      <li><code>ContractSchoolStatusLabelTest.php</code> — <code>schoolStatusLabel</code> не меняет <code>$STATUS_RU</code></li>
       <li><code>ContractBillingWalletLedgerFeatureTest.php</code> — PDF/template: debit в кошельке текущей школы; отзыв awaiting_client_fill — credit, исходный debit succeeded; недостаток средств без строки; аннулирование sent/opened credit не пишет</li>
       <li><code>ContractRevokeRefundTest.php</code> — revoke awaiting_client_fill + refund</li>
     </ul>

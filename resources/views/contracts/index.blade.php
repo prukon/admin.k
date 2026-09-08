@@ -197,8 +197,8 @@
                             <option value="">Все статусы</option>
                             <option value="draft">Черновик</option>
                             <option value="awaiting_client_fill">Ожидает заполнения</option>
-                            <option value="sent">Отправлено</option>
-                            <option value="opened">Открыто</option>
+                            <option value="sent">{{ \App\Models\Contract::schoolStatusLabel(\App\Models\Contract::STATUS_SENT) }}</option>
+                            <option value="opened">{{ \App\Models\Contract::schoolStatusLabel(\App\Models\Contract::STATUS_OPENED) }}</option>
                             <option value="signed">Подписан</option>
                             <option value="revoked">Отозван</option>
                             <option value="expired">Истёк срок</option>

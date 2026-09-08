@@ -51,6 +51,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $ids = collect($resp->json('data'))->pluck('id')->all();
         $this->assertSame([$c1->id], $ids);
         $this->assertSame(Contract::STATUS_DRAFT, $resp->json('data.0.status'));
+        $this->assertSame('Черновик', $resp->json('data.0.status_label'));
         $this->assertSame('Путь с готовым PDF', $resp->json('data.0.path_title'));
         $this->assertSame('active', $resp->json('data.0.path_steps.0.state'));
         $this->assertSame(Contract::STATUS_DRAFT, $resp->json('data.0.path_steps.0.key'));
@@ -81,6 +82,39 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $this->assertSame('active', $row['path_steps'][1]['state']);
         $this->assertStringContainsString('письмо', $row['path_steps'][0]['hint']);
         $this->assertStringContainsString('кабинете', $row['path_steps'][0]['hint']);
+    }
+
+    /** @test */
+    public function data_returns_school_sms_status_labels_for_sent_and_opened(): void
+    {
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        $sent = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/sent.pdf',
+            'source_sha256'   => str_repeat('c', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_SENT,
+        ]);
+        $opened = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/opened.pdf',
+            'source_sha256'   => str_repeat('d', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_OPENED,
+        ]);
+
+        $rows = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data'))
+            ->keyBy('id');
+
+        $this->assertSame('Отправлено СМС', $rows[$sent->id]['status_label']);
+        $this->assertSame('Открыто СМС', $rows[$opened->id]['status_label']);
+        $this->assertSame('Отправлено', Contract::$STATUS_RU[Contract::STATUS_SENT]);
+        $this->assertSame('Открыто', Contract::$STATUS_RU[Contract::STATUS_OPENED]);
     }
 
     /** @test */

@@ -53,7 +53,7 @@
 
                             <dt class="col-sm-4">Статус</dt>
                             <dd class="col-sm-8">
-                                <span class="badge {{ $contract->status_badge_class }}">{{ $contract->status_ru }}</span>
+                                <span class="badge {{ $contract->status_badge_class }}">{{ $contract->school_status_ru }}</span>
                             </dd>
 
                             <dt class="col-sm-4">Способ создания</dt>

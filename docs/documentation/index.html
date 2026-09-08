@@ -147,13 +147,16 @@
     → Подписано.
     Другие: Отозвано, Истёк срок, Ошибка.
     <br>
-    2) <b>Заголовки и бейдж.</b> В timeline <code>sent</code> / <code>opened</code> —
-    «Отправлено СМС» / «Открыто СМС». Остальные заголовки шагов — из
+    2) <b>Заголовки и бейдж.</b> В timeline, в бейдже таблицы, в фильтре <code>sent</code>/<code>opened</code>
+    и на карточке <code>/client-contracts/{id}</code> статусы <code>sent</code> / <code>opened</code> —
+    «Отправлено СМС» / «Открыто СМС» (<code>Contract::schoolStatusLabel</code> / аксессор
+    <code>school_status_ru</code>). Словарь <code>Contract::$STATUS_RU</code> не меняется
+    («Отправлено» / «Открыто»): его берут аудит, вебхуки, кабинет родителя и колонка
+    на <code>/admin/users</code>. Остальные заголовки шагов timeline — из
     <code>Contract::$STATUS_RU</code> плюс первый шаг «Админ отправил договор родителю».
-    Бейдж в таблице и фильтр списка <b>не</b> переименованы: «Отправлено» / «Открыто»;
-    фильтр короче словаря («Ожидает заполнения», «Подписан», «Отозван»),
+    Остальной фильтр короче словаря («Ожидает заполнения», «Подписан», «Отозван»),
     пункта <code>generating_pdf</code> в фильтре нет.
-    На карточке договора <code>/client-contracts/{id}</code> кнопки «Памятка» и ссылки «(посмотреть)» нет.
+    На карточке договора кнопки «Памятка» и ссылки «(посмотреть)» нет.
     <br>
     3) <b>Подсказки.</b> Нумерованные строки <code>1.</code> <code>2.</code> … с переносами
     (<code>white-space: pre-line</code>, <code>text-align: left</code>).
@@ -184,6 +187,8 @@
     Подробно: <a href="/docs/documentation/contracts#contract-status-memo">contracts §4.2</a>.
     Тесты: <code>ContractStatusMemoFeatureTest</code>,
     <code>ContractsTableAndColumnsTest</code>,
+    <code>ContractSchoolStatusLabelFeatureTest</code>,
+    <code>ContractSchoolStatusLabelTest</code>,
     <code>ContractPathTimelineBuilderTest</code>,
     <code>ContractsDocumentsSectionUiFeatureTest</code>,
     <code>ContractStatusMemoDocumentationContractTest</code>.

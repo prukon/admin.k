@@ -62,6 +62,19 @@ class Contract extends Model
         self::STATUS_FAILED  => 'bg-danger',
     ];
 
+    /**
+     * Подписи sent/opened для школьного UI (список, фильтр, карточка, памятка).
+     * Аудит, вебхуки, кабинет и колонка на /admin/users по-прежнему берут $STATUS_RU.
+     */
+    public static function schoolStatusLabel(?string $status): string
+    {
+        return match ($status) {
+            self::STATUS_SENT => 'Отправлено СМС',
+            self::STATUS_OPENED => 'Открыто СМС',
+            default => self::$STATUS_RU[$status] ?? ucfirst((string) $status),
+        };
+    }
+
     // ===== Связи =====
     public function signRequests(): HasMany
     {
@@ -225,6 +238,11 @@ class Contract extends Model
     public function getStatusRuAttribute(): string
     {
         return self::$STATUS_RU[$this->status] ?? ucfirst($this->status);
+    }
+
+    public function getSchoolStatusRuAttribute(): string
+    {
+        return self::schoolStatusLabel($this->status);
     }
 
     public function getStatusBadgeClassAttribute(): string

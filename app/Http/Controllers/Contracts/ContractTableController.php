@@ -139,7 +139,7 @@ class ContractTableController extends Controller
                 'team_title'         => $contract->team_title ?: '—',
                 'user_phone'         => $contract->user_phone ?: '—',
                 'user_email'         => $contract->user_email ?: '—',
-                'status_label'       => $contract->status_ru ?? '',
+                'status_label'       => $contract->school_status_ru ?? '',
                 'status_badge_class' => $contract->status_badge_class ?? '',
                 'status'             => $contract->status,
                 'creation_mode'      => $contract->creation_mode,

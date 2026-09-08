@@ -47,6 +47,11 @@ final class ContractStatusMemoDocumentationContractTest extends TestCase
         $this->assertStringContainsString('последним шагом ввести код из СМС', $chunk);
         $this->assertStringContainsString('generating_pdf', $chunk);
         $this->assertStringContainsString('бейдж', $chunk);
+        $this->assertStringContainsString('schoolStatusLabel', $chunk);
+        $this->assertStringContainsString('school_status_ru', $chunk);
+        $this->assertStringContainsString('Contract::$STATUS_RU', $chunk);
+        $this->assertStringContainsString('аудит', $chunk);
+        $this->assertStringContainsString('кабинет', $chunk);
         $this->assertStringContainsString('creation_mode', $chunk);
         $this->assertStringContainsString('/client-contracts/{id}', $chunk);
         $this->assertStringContainsString('js-contract-path-open', $chunk);
@@ -57,6 +62,8 @@ final class ContractStatusMemoDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Другие статусы', $chunk);
         $this->assertStringContainsString('contracts §4.2', $chunk);
         $this->assertStringContainsString('ContractStatusMemoFeatureTest', $chunk);
+        $this->assertStringContainsString('ContractSchoolStatusLabelFeatureTest', $chunk);
+        $this->assertStringContainsString('ContractSchoolStatusLabelTest', $chunk);
         $this->assertStringContainsString('ContractPathTimelineBuilderTest', $chunk);
         $this->assertStringContainsString('ContractStatusMemoDocumentationContractTest', $chunk);
         $this->assertStringContainsString('fa-book-open', $chunk);
@@ -85,6 +92,24 @@ final class ContractStatusMemoDocumentationContractTest extends TestCase
         $this->assertStringContainsString('(посмотреть)', $contracts);
         $this->assertStringContainsString('status-memo-modal.blade.php', $contracts);
         $this->assertStringContainsString('#contractPathModal', $contracts);
+        $this->assertStringContainsString('schoolStatusLabel', $contracts);
+        $this->assertStringContainsString('school_status_ru', $contracts);
+        $this->assertStringContainsString('ContractSchoolStatusLabelFeatureTest', $contracts);
+
+        $fill = $this->docFile('account-contract-fill.html');
+        $this->assertStringContainsString('schoolStatusLabel', $fill);
+        $this->assertStringContainsString('AccountDocumentsController', $fill);
+        $this->assertStringContainsString('Отправлено» / «Открыт', $fill);
+
+        $users = $this->docFile('admin-users.html');
+        $this->assertStringContainsString('Contract::$STATUS_RU', $users);
+        $this->assertStringContainsString('schoolStatusLabel', $users);
+        $this->assertStringContainsString('Отправлено» / «Открыто', $users);
+
+        $leads = $this->docFile('school-leads-widget.html');
+        $this->assertStringContainsString('Contract::$STATUS_RU', $leads);
+        $this->assertStringContainsString('schoolStatusLabel', $leads);
+        $this->assertStringContainsString('Отправлено СМС', $leads);
 
         $root = dirname(__DIR__, 3);
         $index = (string) file_get_contents($root.'/resources/views/contracts/index.blade.php');
@@ -94,6 +119,8 @@ final class ContractStatusMemoDocumentationContractTest extends TestCase
         $styles = (string) file_get_contents($root.'/resources/views/contracts/partials/status-memo-timeline-styles.blade.php');
         $builder = (string) file_get_contents($root.'/app/Services/Contracts/ContractPathTimelineBuilder.php');
         $table = (string) file_get_contents($root.'/app/Http/Controllers/Contracts/ContractTableController.php');
+        $contractModel = (string) file_get_contents($root.'/app/Models/Contract.php');
+        $show = (string) file_get_contents($root.'/resources/views/contracts/show.blade.php');
 
         $this->assertStringContainsString('data-bs-target="#contractStatusMemoModal"', $index);
         $this->assertStringContainsString('fa-book-open', $index);
@@ -103,6 +130,10 @@ final class ContractStatusMemoDocumentationContractTest extends TestCase
         $this->assertStringContainsString('(посмотреть)', $index);
         $this->assertStringContainsString('renderContractPathTimeline', $index);
         $this->assertStringNotContainsString('lockUser: true', $index);
+        $this->assertStringContainsString('Contract::schoolStatusLabel', $index);
+        $this->assertStringContainsString('value="signed">Подписан', $index);
+        $this->assertStringContainsString('value="revoked">Отозван', $index);
+        $this->assertStringContainsString('value="awaiting_client_fill">Ожидает заполнения', $index);
 
         $this->assertStringContainsString('id="contractStatusMemoModal"', $modal);
         $this->assertStringContainsString('class="modal-dialog"', $modal);
@@ -139,8 +170,8 @@ final class ContractStatusMemoDocumentationContractTest extends TestCase
         $this->assertStringContainsString('1. Родитель ещё не заполнил данные. Ждём заполнения.', $builder);
         $this->assertStringContainsString('1. Заполненный договор готов, но ещё не подписан.', $builder);
         $this->assertStringContainsString('4. После этого ему будет отправлена SMS на подпись.', $builder);
-        $this->assertStringContainsString('Отправлено СМС', $builder);
-        $this->assertStringContainsString('Открыто СМС', $builder);
+        $this->assertStringContainsString('Contract::schoolStatusLabel(Contract::STATUS_SENT)', $builder);
+        $this->assertStringContainsString('Contract::schoolStatusLabel(Contract::STATUS_OPENED)', $builder);
         $this->assertStringContainsString('последним шагом ввести код из СМС', $builder);
         $this->assertStringContainsString('в своих кабинетах', $builder);
         $this->assertStringNotContainsString('Можно скачать подписанный PDF.', $builder);
@@ -153,6 +184,17 @@ final class ContractStatusMemoDocumentationContractTest extends TestCase
 
         $this->assertStringContainsString('path_steps', $table);
         $this->assertStringContainsString('pathTimelineBuilder->build', $table);
+        $this->assertStringContainsString('school_status_ru', $table);
+        $this->assertStringContainsString('school_status_ru', $contracts);
+
+        $this->assertStringContainsString('function schoolStatusLabel', $contractModel);
+        $this->assertStringContainsString("'Отправлено СМС'", $contractModel);
+        $this->assertStringContainsString("'Открыто СМС'", $contractModel);
+        $this->assertStringContainsString("self::STATUS_SENT    => 'Отправлено'", $contractModel);
+        $this->assertStringContainsString("self::STATUS_OPENED  => 'Открыто'", $contractModel);
+
+        $this->assertStringContainsString('$contract->school_status_ru', $show);
+        $this->assertStringNotContainsString('$contract->status_ru }}', $show);
     }
 
     private function docFile(string $name): string
