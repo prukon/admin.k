@@ -28,6 +28,60 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="contract-status-memo-index">Договоры: кнопка «Памятка» и путь статусов (2026‑09)</h2>
+  <div class="note">
+    На <code>GET /client-contracts</code> (вкладка «Договоры», право <code>contracts.view</code>)
+    в toolbar после «История» — кнопка <b>Памятка</b>
+    (иконка <code>fa-book-open</code>, <code>title</code> «Памятка по статусам договора»).
+    Открывает Bootstrap-модалку <code>#contractStatusMemoModal</code>
+    (<code>modal-dialog</code>, <b>не</b> modal-xl / не fullscreen / не <code>modal-lg</code>;
+    шире стандартной за счёт CSS <code>max-width: min(1100px, 96vw)</code>).
+    Схема статусов — кнопка «Памятка»; путь <b>конкретного</b> договора —
+    ссылка <code>(посмотреть)</code> в колонке «Статус».
+    <br><br>
+    1) <b>Визуал.</b> Горизонтальная цепочка шагов как на карточке платежа
+    <code>/admin/tinkoff/payments/{id}</code>
+    (partial <code>tinkoff/payments/partials/timeline.blade.php</code>):
+    номер в круге, подпись, подсказка, стрелки <code>→</code>,
+    состояния <code>done</code> / <code>active</code> / <code>pending</code> / <code>failed</code>.
+    CSS-классы <code>contract-memo-timeline</code> / <code>__step--{state}</code>
+    (копия стиля). Partial шагов:
+    <code>contracts/partials/status-memo-timeline.blade.php</code>.
+    Логика шагов — <code>ContractPathTimelineBuilder</code>.
+    Подписи статусов — из <code>Contract::$STATUS_RU</code>, не из фильтра списка
+    («Подписан» / «Отозван»). Первый шаг шаблона — «Админ отправил договор родителю».
+    <br>
+    2) <b>Памятка (два блока).</b>
+    «Путь с формой клиенту»: Админ отправил договор родителю (70&nbsp;₽, письмо, кабинет)
+    → Ожидает заполнения клиентом («Сформировать договор», сбор PDF)
+    → Формируется PDF → Черновик («Подписать договор», затем SMS)
+    → Отправлено → Открыто («Родитель открыл договор, но ещё не подписал.»)
+    → Подписано («Родитель подписал договор. Можно скачать подписанный PDF.»).
+    «Другие статусы» без стрелок: Отозвано, Истёк срок, Ошибка.
+    Отдельного абзаца про 70&nbsp;₽ и возврат в модалке нет.
+    <br>
+    3) <b>Путь строки.</b>
+    Колонка <code>status_label</code> (type <code>badge</code>): бейдж + ссылка
+    <code>js-contract-path-open</code> «(посмотреть)».
+    <code>GET /client-contracts/data</code> отдаёт <code>path_steps</code>, <code>path_title</code>,
+    <code>status</code>, <code>creation_mode</code>.
+    Клик открывает <code>#contractPathModal</code> (тот же <code>modal-dialog</code>),
+    JS <code>renderContractPathTimeline</code> рисует шаги текущей строки
+    (done / active / pending / failed).
+    <br>
+    4) <b>Где лежит.</b> View списка включает
+    <code>contracts/partials/status-memo-modal.blade.php</code>
+    и <code>status-path-modal.blade.php</code>.
+    На вкладке «Шаблоны» кнопок и ссылки нет. Отдельного URL пути нет.
+    Гость → 302; без <code>contracts.view</code> → 403, разметки модалок нет.
+    Подробно: <a href="/docs/documentation/contracts#contract-status-memo">contracts §4.2</a>.
+    Тесты: <code>ContractStatusMemoFeatureTest</code>,
+    <code>ContractsTableAndColumnsTest</code>,
+    <code>ContractPathTimelineBuilderTest</code>,
+    <code>ContractsDocumentsSectionUiFeatureTest</code>,
+    <code>ContractStatusMemoDocumentationContractTest</code>.
+  </div>
+
   <h2 id="partner-oferta-pdf-permission-index">Партнёрская оферта: скачать PDF скрытым правом (2026‑09)</h2>
   <div class="note">
     Кнопка «Скачать PDF» на
@@ -7009,7 +7063,7 @@
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата)</a></li>
-    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на email ученика и родителя</b> (§6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>

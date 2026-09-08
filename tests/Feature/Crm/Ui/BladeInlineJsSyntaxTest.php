@@ -5645,6 +5645,13 @@ JS;
         $index = (string) file_get_contents($indexPath);
         $this->assertStringContainsString('data-bs-target="#createContractModal"', $index);
         $this->assertStringNotContainsString('lockUser: true', $index);
+        $this->assertStringContainsString('js-contract-path-open', $index);
+        $this->assertStringContainsString('renderContractPathTimeline', $index);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $indexPath,
+            'js-contract-path-open',
+            'blade-js-contract-path-open'
+        );
 
         $modalPath = resource_path('views/contracts/partials/create-modal.blade.php');
         $modal = (string) file_get_contents($modalPath);

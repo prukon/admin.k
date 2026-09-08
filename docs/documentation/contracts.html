@@ -31,6 +31,7 @@
     · ключ Подпислона на юрлице: <a href="/doc#legal-entities-podpislon-key-index">анонс</a>
     · колокольчик при signed: <a href="/doc#contract-signed-in-app-index">анонс</a>
     · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">анонс</a>
+    · памятка статусов: <a href="/doc#contract-status-memo-index">анонс</a>
     · списание 70 ₽ в историю кошелька: <a href="/doc#partner-wallet-ledger-index">анонс</a></div>
 
   <h2>1) Назначение и доступ</h2>
@@ -184,6 +185,45 @@
     <li>Backend <code>GET /client-contracts/data</code> отдаёт поле <code>id</code> в каждой строке (нужно для <code>data-href</code>).</li>
   </ul>
   <p class="small">Общий паттерн кликабельных названий — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</p>
+
+  <h2 id="contract-status-memo">4.2) Памятка по статусам</h2>
+  <div class="note">
+    Анонс: <a href="/doc#contract-status-memo-index">/doc</a>.
+    Кнопка «Памятка» в toolbar вкладки «Договоры» (<code>fa-book-open</code>) открывает
+    <code>#contractStatusMemoModal</code> — <code>modal-dialog</code> без <code>modal-lg</code>/<code>modal-xl</code>/fullscreen,
+    шире стандартной (<code>max-width: min(1100px, 96vw)</code>).
+    Partial: <code>resources/views/contracts/partials/status-memo-modal.blade.php</code>,
+    шаги — <code>status-memo-timeline.blade.php</code>.
+    Визуал как timeline на карточке платежа T‑Bank
+    (<code>tinkoff/payments/partials/timeline.blade.php</code>): номер, подпись, hint, стрелки,
+    классы <code>contract-memo-timeline</code> / <code>__step--done|active|pending|failed</code>.
+    Подписи — <code>Contract::$STATUS_RU</code> (как бейдж на карточке).
+    Шаги строит <code>ContractPathTimelineBuilder</code>.
+  </div>
+  <table>
+    <thead><tr><th>Блок</th><th>Шаги</th></tr></thead>
+    <tbody>
+      <tr><td>Путь с формой клиенту</td><td>Админ отправил договор родителю (списалось 70&nbsp;₽; письмо и договор в кабинете)
+        → Ожидает заполнения клиентом → Формируется PDF → Черновик → Отправлено → Открыто → Подписано</td></tr>
+      <tr><td>Другие статусы</td><td>Отозвано, Истёк срок, Ошибка (без стрелок, <code>showArrows: false</code>)</td></tr>
+    </tbody>
+  </table>
+  <p>Подсказки шаблона в <code>ContractPathTimelineBuilder</code>:
+    ожидает заполнения — родитель нажал «Сформировать договор», система собирает PDF;
+    черновик — родитель проверяет PDF и нажимает «Подписать договор», затем SMS;
+    открыто — «Родитель открыл договор, но ещё не подписал.»;
+    подписано — «Родитель подписал договор. Можно скачать подписанный PDF.»
+    Переносы строк в hint — <code>white-space: pre-line</code>.</p>
+  <p>Отдельного абзаца про 70&nbsp;₽ и возврат в модалке нет: сумма есть в подсказке первого шага.
+    На вкладке «Шаблоны» кнопки нет.</p>
+  <h3>4.2.1) Ссылка «(посмотреть)» у статуса в списке</h3>
+  <div class="note">
+    В колонке «Статус» после бейджа — ссылка <code>js-contract-path-open</code> с текстом <code>(посмотреть)</code>.
+    <code>GET /client-contracts/data</code> для каждой строки отдаёт <code>path_steps</code> и <code>path_title</code>
+    (live-состояния текущего договора). Клик открывает <code>#contractPathModal</code>
+    (стандартный <code>modal-dialog</code>), JS <code>renderContractPathTimeline</code>
+    рисует ту же цепочку, что памятка, но с done/active/pending/failed этой строки.
+  </div>
 
   <h2 id="contract-create-modal">5) Модалка «Создать договор»</h2>
   <div class="note">
@@ -397,6 +437,8 @@
   <div class="note">
     <p><b>Модалка создания и карточка:</b></p>
     <ul>
+      <li><code>ContractStatusMemoFeatureTest.php</code> — кнопка «Памятка», модалка <code>#contractStatusMemoModal</code>, все подписи <code>Contract::$STATUS_RU</code>, ссылка <code>(посмотреть)</code> / <code>#contractPathModal</code>, guest 302 / без права 403</li>
+      <li><code>ContractPathTimelineBuilderTest.php</code> — схема шаблона с «Админ отправил договор родителю», live-состояния awaiting / draft / signed / revoked</li>
       <li><code>ContractsAuditLogsFeatureTest.php</code> — endpoint «История», created/revoke/email/send/resend audit, logs-data</li>
       <li><code>ContractsPageFullAccessFeatureTest.php</code> — гость/403 без права, 200 для всех endpoint'ов <code>/client-contracts</code> при <code>contracts.view</code></li>
       <li><code>ContractCreateModalFeatureTest.php</code> — модалка, redirect <code>/create</code>, store PDF, lockUser helpers</li>

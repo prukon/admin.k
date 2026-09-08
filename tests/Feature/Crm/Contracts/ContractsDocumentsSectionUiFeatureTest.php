@@ -30,7 +30,12 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('js-dt-nav-link', false)
             ->assertSee('data-href="/client-contracts/', false)
-            ->assertSee('<th>№</th>', false);
+            ->assertSee('<th>№</th>', false)
+            ->assertSee('data-bs-target="#contractStatusMemoModal"', false)
+            ->assertSee('id="contractStatusMemoModal"', false)
+            ->assertSee('contract-memo-timeline', false)
+            ->assertSee('js-contract-path-open', false)
+            ->assertSee('id="contractPathModal"', false);
     }
 
     /** @test */

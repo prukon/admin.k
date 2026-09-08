@@ -44,12 +44,43 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
                 'draw',
                 'recordsTotal',
                 'recordsFiltered',
-                'data' => [['id', 'user_name', 'user_lastname', 'team_title', 'user_phone', 'user_email', 'status_label', 'status_badge_class', 'updated_at']],
+                'data' => [['id', 'user_name', 'user_lastname', 'team_title', 'user_phone', 'user_email', 'status_label', 'status_badge_class', 'status', 'creation_mode', 'path_title', 'path_steps', 'updated_at']],
             ]);
 
         $this->assertSame(1, (int)$resp->json('recordsTotal'));
         $ids = collect($resp->json('data'))->pluck('id')->all();
         $this->assertSame([$c1->id], $ids);
+        $this->assertSame(Contract::STATUS_DRAFT, $resp->json('data.0.status'));
+        $this->assertSame('Путь с готовым PDF', $resp->json('data.0.path_title'));
+        $this->assertSame('active', $resp->json('data.0.path_steps.0.state'));
+        $this->assertSame(Contract::STATUS_DRAFT, $resp->json('data.0.path_steps.0.key'));
+    }
+
+    /** @test */
+    public function data_returns_template_path_steps_starting_from_admin_sent(): void
+    {
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        Contract::create([
+            'school_id'      => $this->partner->id,
+            'user_id'        => $student->id,
+            'creation_mode'  => Contract::CREATION_MODE_TEMPLATE,
+            'status'         => Contract::STATUS_AWAITING_CLIENT_FILL,
+            'provider'       => 'podpislon',
+        ]);
+
+        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->assertSame(Contract::CREATION_MODE_TEMPLATE, $row['creation_mode']);
+        $this->assertSame('Путь с формой клиенту', $row['path_title']);
+        $this->assertSame('admin_sent', $row['path_steps'][0]['key']);
+        $this->assertSame('Админ отправил договор родителю', $row['path_steps'][0]['label']);
+        $this->assertSame('done', $row['path_steps'][0]['state']);
+        $this->assertSame('active', $row['path_steps'][1]['state']);
+        $this->assertStringContainsString('письмо', $row['path_steps'][0]['hint']);
+        $this->assertStringContainsString('кабинете', $row['path_steps'][0]['hint']);
     }
 
     /** @test */

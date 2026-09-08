@@ -46,6 +46,17 @@
                             <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
                         </button>
 
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#contractStatusMemoModal"
+                                title="Памятка по статусам договора">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-book-open payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Памятка</span>
+                        </button>
+
                         <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
                                 type="button"
                                 data-bs-toggle="collapse"
@@ -231,6 +242,8 @@
     </div>
 
     @include('contracts.partials.create-modal')
+    @include('contracts.partials.status-memo-modal')
+    @include('contracts.partials.status-path-modal')
 @endsection
 
 @section('scripts')
@@ -326,9 +339,20 @@
                                 return data || '';
                             }
 
-                            const badgeClass = row.status_badge_class || 'bg-secondary';
-                            const label = data || '';
-                            return '<span class="badge ' + badgeClass + '">' + label + '</span>';
+                            const escapeHtml = window.KidsCrmTooltip && typeof window.KidsCrmTooltip.escapeHtml === 'function'
+                                ? window.KidsCrmTooltip.escapeHtml
+                                : function (value) {
+                                    return String(value == null ? '' : value)
+                                        .replace(/&/g, '&amp;')
+                                        .replace(/</g, '&lt;')
+                                        .replace(/>/g, '&gt;')
+                                        .replace(/"/g, '&quot;');
+                                };
+                            const badgeClass = escapeHtml(row.status_badge_class || 'bg-secondary');
+                            const label = escapeHtml(data || '');
+                            const contractId = escapeHtml(row.id);
+                            return '<span class="badge ' + badgeClass + '">' + label + '</span>'
+                                + ' <a href="#" class="js-contract-path-open small text-nowrap" data-contract-id="' + contractId + '">(посмотреть)</a>';
                         },
                     },
                     { key: 'updated_at', type: 'text', data: 'updated_at', className: 'dt-col-text text-nowrap' },
@@ -401,6 +425,72 @@
                     'aria-expanded',
                     $('#contractsReportFiltersCollapse').hasClass('show') ? 'true' : 'false'
                 );
+            });
+
+            function escapeContractPathHtml(value) {
+                return String(value == null ? '' : value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function allowedContractPathState(state) {
+                if (state === 'done' || state === 'active' || state === 'failed' || state === 'pending') {
+                    return state;
+                }
+
+                return 'pending';
+            }
+
+            function renderContractPathTimeline(steps, ariaLabel) {
+                const list = Array.isArray(steps) ? steps : [];
+                let html = '<div class="contract-memo-timeline" role="list" aria-label="'
+                    + escapeContractPathHtml(ariaLabel || 'Путь договора') + '">';
+
+                list.forEach(function (step, index) {
+                    const state = allowedContractPathState(step && step.state);
+                    const label = escapeContractPathHtml(step && step.label);
+                    const hint = step && step.hint ? escapeContractPathHtml(step.hint) : '';
+                    const at = step && step.at ? escapeContractPathHtml(step.at) : '';
+
+                    html += '<div class="contract-memo-timeline__step contract-memo-timeline__step--'
+                        + state + '" role="listitem">';
+                    html += '<div class="contract-memo-timeline__num">' + (index + 1) + '</div>';
+                    html += '<div class="contract-memo-timeline__label">' + label + '</div>';
+                    if (at) {
+                        html += '<div class="contract-memo-timeline__time">' + at + '</div>';
+                    }
+                    if (hint) {
+                        html += '<div class="contract-memo-timeline__hint">' + hint + '</div>';
+                    }
+                    html += '</div>';
+
+                    if (index < list.length - 1) {
+                        html += '<div class="contract-memo-timeline__arrow" aria-hidden="true">→</div>';
+                    }
+                });
+
+                html += '</div>';
+                return html;
+            }
+
+            $('#contracts-table').on('click', '.js-contract-path-open', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const $row = $(this).closest('tr');
+                const rowData = dtApi.table.row($row).data() || {};
+                const title = rowData.path_title || 'Путь договора';
+                const steps = rowData.path_steps || [];
+
+                $('#contractPathModalLabel').text(title);
+                $('#contractPathModalBody').html(renderContractPathTimeline(steps, title));
+
+                const modalEl = document.getElementById('contractPathModal');
+                if (modalEl && window.bootstrap && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                }
             });
         });
     </script>

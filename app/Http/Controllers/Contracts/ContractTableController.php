@@ -8,10 +8,15 @@ use App\Http\Requests\Contracts\ContractsDataRequest;
 use App\Models\Contract;
 use App\Models\Team;
 use App\Models\UserTableSetting;
+use App\Services\Contracts\ContractPathTimelineBuilder;
 use Illuminate\Support\Facades\Auth;
 
 class ContractTableController extends Controller
 {
+    public function __construct(
+        private readonly ContractPathTimelineBuilder $pathTimelineBuilder,
+    ) {
+    }
     // единая точка входа
     private function partner(): \App\Models\Partner
     {
@@ -136,6 +141,10 @@ class ContractTableController extends Controller
                 'user_email'         => $contract->user_email ?: '—',
                 'status_label'       => $contract->status_ru ?? '',
                 'status_badge_class' => $contract->status_badge_class ?? '',
+                'status'             => $contract->status,
+                'creation_mode'      => $contract->creation_mode,
+                'path_title'         => $this->pathTimelineBuilder->title($contract),
+                'path_steps'         => $this->pathTimelineBuilder->build($contract),
                 'updated_at'         => $contract->updated_at
                     ? $contract->updated_at->format('d.m.Y H:i:s')
                     : '',
