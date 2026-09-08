@@ -11,7 +11,7 @@
     $filterTeams = $filterTeams ?? collect();
 @endphp
 
-@vite(['resources/css/admin-list-toolbar.css'])
+@vite(['resources/css/admin-list-toolbar.css', 'resources/css/school-leads-table.css'])
 
 <div class="main-content text-start">
 
@@ -303,6 +303,8 @@
 @include('includes.logModal')
 
 @push('scripts')
+    <link rel="stylesheet" href="{{ asset('plugins/datatables-fixedheader/css/fixedHeader.bootstrap4.min.css') }}">
+    <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script>
         $(document).ready(function() {
             showLogModal(@json(route('logs.data.school-lead')));
@@ -718,6 +720,126 @@
                     + '</span>';
             }
 
+            function schoolLeadsScrollHost() {
+                return $('#leads-table').closest('.kids-dt-scroll-x');
+            }
+
+            function matchSchoolLeadsFloatingHeaderWidths(cloneTable) {
+                var srcTable = document.getElementById('leads-table');
+                if (!srcTable || !cloneTable) {
+                    return;
+                }
+
+                var srcRow = srcTable.tBodies[0] && srcTable.tBodies[0].rows[0]
+                    ? srcTable.tBodies[0].rows[0]
+                    : (srcTable.tHead ? srcTable.tHead.rows[0] : null);
+                var cloneThs = cloneTable.tHead ? cloneTable.tHead.querySelectorAll('th') : [];
+                var srcCells = srcRow ? srcRow.cells : [];
+                var i;
+                var n = Math.min(srcCells.length, cloneThs.length);
+
+                cloneTable.style.tableLayout = 'fixed';
+                cloneTable.style.boxSizing = 'border-box';
+
+                for (i = 0; i < n; i++) {
+                    var widthPx = srcCells[i].offsetWidth + 'px';
+                    cloneThs[i].style.boxSizing = 'border-box';
+                    cloneThs[i].style.width = widthPx;
+                    cloneThs[i].style.minWidth = widthPx;
+                    cloneThs[i].style.maxWidth = widthPx;
+                }
+
+                cloneTable.style.marginLeft = '0px';
+                cloneTable.style.setProperty('width', srcTable.offsetWidth + 'px', 'important');
+            }
+
+            function syncSchoolLeadsHeaderHScroll() {
+                var $host = schoolLeadsScrollHost();
+                var parent = document.querySelector('.dtfh-floatingparenthead');
+                if (!$host.length || !parent) {
+                    return;
+                }
+
+                var hostEl = $host.get(0);
+                var hostRect = hostEl.getBoundingClientRect();
+                var style = parent.style;
+
+                style.setProperty('left', hostRect.left + 'px', 'important');
+                style.setProperty('width', hostRect.width + 'px', 'important');
+                style.setProperty('overflow', 'hidden', 'important');
+
+                matchSchoolLeadsFloatingHeaderWidths(parent.querySelector('table'));
+                parent.scrollLeft = hostEl.scrollLeft;
+            }
+
+            function updateSchoolLeadsStickyHScroll() {
+                var $host = schoolLeadsScrollHost();
+                var $wrapper = $('#leads-table').closest('.dataTables_wrapper');
+                var $bar = $wrapper.children('.kids-dt-sticky-hscroll');
+                if (!$host.length || !$bar.length) {
+                    return;
+                }
+
+                var hostEl = $host.get(0);
+                var tableWidth = hostEl.scrollWidth;
+                var hostWidth = hostEl.clientWidth;
+                var needsBar = tableWidth > hostWidth + 1;
+
+                $bar.children('.kids-dt-sticky-hscroll-spacer').css('width', tableWidth + 'px');
+                $host.toggleClass('kids-dt-scroll-x--has-sticky-bar', needsBar);
+                $bar.prop('hidden', !needsBar);
+
+                if (needsBar) {
+                    $bar.scrollLeft($host.scrollLeft());
+                }
+
+                syncSchoolLeadsHeaderHScroll();
+            }
+
+            function bindSchoolLeadsStickyHScroll() {
+                var $host = schoolLeadsScrollHost();
+                var $wrapper = $('#leads-table').closest('.dataTables_wrapper');
+                if (!$host.length || !$wrapper.length) {
+                    return;
+                }
+
+                var $bar = $wrapper.children('.kids-dt-sticky-hscroll');
+                if (!$bar.length) {
+                    $bar = $('<div class="kids-dt-sticky-hscroll" hidden aria-label="Горизонтальная прокрутка таблицы">'
+                        + '<div class="kids-dt-sticky-hscroll-spacer"></div>'
+                        + '</div>');
+                    $host.after($bar);
+
+                    var syncing = false;
+                    $host.on('scroll.schoolLeadsStickyH', function () {
+                        if (syncing) {
+                            return;
+                        }
+                        syncing = true;
+                        $bar.scrollLeft($host.scrollLeft());
+                        syncSchoolLeadsHeaderHScroll();
+                        syncing = false;
+                    });
+                    $bar.on('scroll.schoolLeadsStickyH', function () {
+                        if (syncing) {
+                            return;
+                        }
+                        syncing = true;
+                        $host.scrollLeft($bar.scrollLeft());
+                        syncSchoolLeadsHeaderHScroll();
+                        syncing = false;
+                    });
+                    $(window).on('resize.schoolLeadsStickyH', function () {
+                        updateSchoolLeadsStickyHScroll();
+                    });
+                    $(window).on('scroll.schoolLeadsStickyH', function () {
+                        syncSchoolLeadsHeaderHScroll();
+                    });
+                }
+
+                updateSchoolLeadsStickyHScroll();
+            }
+
             var dtApi = KidsCrmDataTable.create('#leads-table', {
                 columnsSettings: {
                     defaults: {
@@ -769,10 +891,14 @@
                     },
                     order: [[0, 'desc']],
                     language: @include('partials.datatables.ru'),
+                    fixedHeader: ($.fn.dataTable && $.fn.dataTable.FixedHeader)
+                        ? { header: true, footer: false }
+                        : false,
                     drawCallback: function () {
                         if (window.KidsCrmTooltip) {
                             window.KidsCrmTooltip.init(this.api().table().body(), { scopes: ['hint'] });
                         }
+                        bindSchoolLeadsStickyHScroll();
                     },
                 },
                 columns: [
@@ -1026,6 +1152,15 @@
             });
 
             var table = dtApi.table;
+            bindSchoolLeadsStickyHScroll();
+            table.on('column-visibility.dt.schoolLeadsSticky column-sizing.dt.schoolLeadsSticky', function () {
+                window.requestAnimationFrame(function () {
+                    bindSchoolLeadsStickyHScroll();
+                    if (table.fixedHeader && typeof table.fixedHeader.adjust === 'function') {
+                        table.fixedHeader.adjust();
+                    }
+                });
+            });
 
             $filtersForm.on('submit', function(e) {
                 e.preventDefault();

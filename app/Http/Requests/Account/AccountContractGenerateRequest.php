@@ -3,9 +3,11 @@
 namespace App\Http\Requests\Account;
 
 use App\Models\Contract;
+use App\Models\User;
 use App\Services\Contracts\ContractPdfGenerationService;
 use App\Services\Contracts\ContractTemplatePrefillSources;
 use App\Services\Contracts\ContractTemplateVariablePresets;
+use App\Services\Users\FamilyStudentContextService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AccountContractGenerateRequest extends FormRequest
@@ -13,9 +15,11 @@ class AccountContractGenerateRequest extends FormRequest
     public function authorize(): bool
     {
         $contract = $this->route('contract');
+        $actor = $this->user();
 
         return $contract instanceof Contract
-            && (int) $contract->user_id === (int) $this->user()?->id;
+            && $actor instanceof User
+            && app(FamilyStudentContextService::class)->canAccessContract($actor, $contract);
     }
 
     public function rules(): array

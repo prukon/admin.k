@@ -89,6 +89,24 @@ final class SchoolLeadsPageFeatureTest extends CrmTestCase
             ->assertSee('id="leads-table"', false);
     }
 
+    public function test_index_pins_thead_and_sticky_horizontal_scrollbar(): void
+    {
+        $html = $this->get(route('admin.school-leads'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('dataTables.fixedHeader.min.js', $html);
+        $this->assertStringContainsString('school-leads-table', $html);
+        $this->assertStringContainsString('kids-dt-sticky-hscroll', $html);
+        $this->assertStringContainsString('bindSchoolLeadsStickyHScroll', $html);
+        $this->assertStringContainsString('header: true', $html);
+        $this->assertStringContainsString('footer: false', $html);
+
+        $pluginPos = strpos($html, 'dataTables.fixedHeader.min.js');
+        $createPos = strpos($html, "KidsCrmDataTable.create('#leads-table'");
+        $this->assertNotFalse($pluginPos);
+        $this->assertNotFalse($createPos);
+        $this->assertLessThan($createPos, $pluginPos);
+    }
+
     public function test_datatable_stats_are_partner_wide_and_ignore_table_filters(): void
     {
         $loc = Location::factory()->create([

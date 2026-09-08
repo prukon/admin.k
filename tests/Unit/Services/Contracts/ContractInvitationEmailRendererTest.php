@@ -40,7 +40,10 @@ class ContractInvitationEmailRendererTest extends ContractsFeatureTestCase
 
         $this->assertStringContainsString('подготовлен договор', $body);
         $this->assertStringContainsString('Пожалуйста, заполните до', $body);
-        $this->assertStringContainsString('href="' . url('/account-settings/documents') . '"', $body);
+        $expectedDocumentsUrl = $this->renderer->documentsUrl($contract, $student);
+        $this->assertStringContainsString('student=' . $student->id, $expectedDocumentsUrl);
+        $this->assertStringContainsString('fill=' . $contract->id, $expectedDocumentsUrl);
+        $this->assertStringContainsString('href="' . e($expectedDocumentsUrl) . '"', $body);
         $this->assertStringContainsString('Номер договора в системе: ' . $contract->id, $body);
         $this->assertStringNotContainsString('{{partner_name}}', $body);
     }
@@ -58,7 +61,10 @@ class ContractInvitationEmailRendererTest extends ContractsFeatureTestCase
 
         $this->assertMatchesRegularExpression('/Для .+ до \d+ \w+ \d{4}/u', $subject);
         $this->assertStringContainsString((string) $this->partner->title, $body);
-        $this->assertStringContainsString(url('/account-settings/documents'), $body);
+        $expectedDocumentsUrl = $this->renderer->documentsUrl($contract, $student);
+        $this->assertStringContainsString(e($expectedDocumentsUrl), $body);
+        $this->assertStringContainsString('student=' . $student->id, $expectedDocumentsUrl);
+        $this->assertStringContainsString('fill=' . $contract->id, $expectedDocumentsUrl);
     }
 
     /** @test */

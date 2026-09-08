@@ -57,7 +57,7 @@ final class ContractInvitationEmailRenderer
     {
         $contract->loadMissing('templateVersion.template.partner');
 
-        $documentsUrl = url('/account-settings/documents');
+        $documentsUrl = $this->documentsUrl($contract, $student);
         $childFullName = trim((string) ($student->full_name ?? ''));
         if ($childFullName === '') {
             $childFullName = trim(($student->lastname ?? '') . ' ' . ($student->name ?? ''));
@@ -84,6 +84,14 @@ final class ContractInvitationEmailRenderer
         }
 
         return $escaped;
+    }
+
+    public function documentsUrl(Contract $contract, User $student): string
+    {
+        return route('account.documents.index', [
+            'student' => (int) $student->id,
+            'fill'    => (int) $contract->id,
+        ]);
     }
 
     private function formatFillDeadline(?CarbonInterface $expiresAt): string

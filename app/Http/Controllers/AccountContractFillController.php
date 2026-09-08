@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Account\AccountContractGenerateRequest;
 use App\Http\Requests\Contracts\ContractSendRequest;
 use App\Models\Contract;
+use App\Models\User;
 use App\Services\Contracts\ContractPdfGenerationService;
 use App\Services\Contracts\ContractPodpislonSendService;
 use App\Services\Contracts\ContractPrefillResolver;
 use App\Services\Contracts\ContractTemplateVariablePresets;
+use App\Services\Users\FamilyStudentContextService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,12 +24,13 @@ class AccountContractFillController extends Controller
         private readonly ContractPrefillResolver $prefillResolver,
         private readonly ContractPdfGenerationService $pdfGeneration,
         private readonly ContractPodpislonSendService $sendService,
+        private readonly FamilyStudentContextService $familyContext,
     ) {
     }
 
     public function show(Request $request, Contract $contract): JsonResponse|RedirectResponse
     {
-        abort_unless((int) $contract->user_id === (int) Auth::id(), 404);
+        $this->abortUnlessFamilyContract($contract);
 
         $fillMode = $request->string('mode')->toString() === 'edit' ? 'edit' : 'default';
 
@@ -142,7 +145,7 @@ class AccountContractFillController extends Controller
 
     public function sign(Contract $contract, ContractSendRequest $request): RedirectResponse
     {
-        abort_unless((int) $contract->user_id === (int) Auth::id(), 404);
+        $this->abortUnlessFamilyContract($contract);
 
         try {
             $this->sendService->assertCanClientSign($contract);
@@ -247,5 +250,12 @@ class AccountContractFillController extends Controller
         }
 
         return null;
+    }
+
+    private function abortUnlessFamilyContract(Contract $contract): void
+    {
+        $actor = Auth::user();
+        abort_unless($actor instanceof User, 404);
+        abort_unless($this->familyContext->canAccessContract($actor, $contract), 404);
     }
 }

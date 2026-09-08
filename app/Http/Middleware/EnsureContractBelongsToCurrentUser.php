@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\Contract;
+use App\Models\User;
+use App\Services\Users\FamilyStudentContextService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +20,14 @@ class EnsureContractBelongsToCurrentUser
         }
 
         abort_unless($contract instanceof Contract, 404, 'Договор не найден.');
-        abort_unless((int) $contract->user_id === (int) Auth::id(), 404, 'Договор не найден.');
+
+        $actor = Auth::user();
+        abort_unless($actor instanceof User, 404, 'Договор не найден.');
+        abort_unless(
+            app(FamilyStudentContextService::class)->canAccessContract($actor, $contract),
+            404,
+            'Договор не найден.'
+        );
 
         return $next($request);
     }

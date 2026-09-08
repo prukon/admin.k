@@ -125,7 +125,9 @@
     <li>AJAX <code>GET …/email</code> → subject, body HTML, список плейсхолдеров, <code>update_url</code>.</li>
     <li>PUT <code>…/email</code> — <code>ContractTemplateUpdateEmailRequest</code>.</li>
     <li>Дефолты при пустых полях версии: <code>ContractTemplateEmailDefaults</code>.</li>
-    <li>Плейсхолдеры письма: <code>{{child_full_name}}</code>, <code>{{partner_name}}</code>, <code>{{documents_url}}</code>, <code>{{fill_deadline}}</code>, <code>{{contract_id}}</code> — подстановка в <code>ContractInvitationEmailRenderer</code>.</li>
+    <li>Плейсхолдеры письма: <code>{{child_full_name}}</code>, <code>{{partner_name}}</code>, <code>{{documents_url}}</code>, <code>{{fill_deadline}}</code>, <code>{{contract_id}}</code> — подстановка в <code>ContractInvitationEmailRenderer</code>.
+      В письме <code>{{documents_url}}</code> содержит <code>?student={user_id}&amp;fill={contract_id}</code>
+      (<a href="/doc#account-documents-family-link-index">анонс</a>, <a href="/docs/documentation/account-contract-fill#account-documents-family-link">account-contract-fill §1.2</a>).</li>
     <li>Отправка при создании договора: <code>ContractClientFillInvitationMail</code> (<code>ContractCreationService::notifyClientAboutFill</code>)
       на <code>users.email</code> и <code>parents.email</code>; совпавшие адреса — одно письмо, разные — два отдельных
       (<a href="/docs/documentation/account-contract-fill#invitation-email-recipients">account-contract-fill §6</a>,
@@ -169,7 +171,7 @@
       <tr><td><code>child_address</code></td><td>текст; prefill из <code>users.address</code>; после generate — sync обратно в карточку ученика</td></tr>
       <tr><td><code>contract_date</code></td><td>не в форме (<code>fill_mode=system</code>); при generate — <code>now()->format('d.m.Y')</code></td></tr>
       <tr><td><code>contract_id</code></td><td>не в форме; ID договора</td></tr>
-      <tr><td><code>documents_url</code></td><td>не в форме; URL «Мои документы» (часто в email)</td></tr>
+      <tr><td><code>documents_url</code></td><td>не в форме; в письме — URL «Мои документы» с <code>student</code> и <code>fill</code>; в PDF — общий URL без query</td></tr>
       <tr><td><code>legal_entity_*</code></td><td>не в форме родителя (<code>fill_mode=system</code>); подстановка при generate</td></tr>
     </tbody>
   </table>
@@ -273,7 +275,9 @@
       <tr><td>POST</td><td><code>…/sign</code></td><td>SMS Подпислон из кабинета</td></tr>
     </tbody>
   </table>
-  <p class="small">Право: <code>account.documents.view</code>, middleware <code>contract.owner</code>.</p>
+  <p class="small">Право: <code>account.documents.view</code>, middleware <code>contract.owner</code>
+    (владелец договора или sibling семьи, <code>canAccessContract</code>;
+    <a href="/doc#account-documents-family-link-index">анонс</a>).</p>
   <p class="small">
     Конвертер PDF: <code>CONTRACT_PDF_CONVERTER=auto</code> (LibreOffice при <code>proc_open</code>, иначе PhpWord+Dompdf).
     Явно: <code>phpword</code> | <code>libreoffice</code> | <code>fake</code> (тесты).

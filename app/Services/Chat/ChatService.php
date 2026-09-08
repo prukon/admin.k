@@ -14,6 +14,7 @@ use App\Models\ChatMessageReaction;
 use App\Models\ChatParticipant;
 use App\Models\ChatThread;
 use App\Models\Partner;
+use App\Models\Team;
 use App\Models\User;
 use App\Support\UserTeamQuery;
 use Illuminate\Support\Facades\DB;
@@ -265,7 +266,7 @@ class ChatService
     /**
      * @return array<string, mixed>
      */
-    public function groupMembersPage(ChatThread $thread, User $viewer, ?int $afterUserId = null, int $limit = self::MEMBERS_PAGE_SIZE, int $partnerId = 0): array
+    public function groupMembersPage(ChatThread $thread, User $viewer, ?int $afterUserId = null, int $limit = self::MEMBERS_PAGE_SIZE): array
     {
         $limit = max(1, min(50, $limit));
         $hasRoleId = Schema::hasColumn('users', 'role_id');
@@ -338,8 +339,6 @@ class ChatService
 
         $membersTotal = $this->visibleGroupMembersCount($thread);
 
-        $resolvedPartnerId = $partnerId > 0 ? $partnerId : (int) ($viewer->partner_id ?? 0);
-
         return [
             'thread' => [
                 'id' => (int) $thread->id,
@@ -348,7 +347,7 @@ class ChatService
                 'is_group' => true,
                 'members_total' => $membersTotal,
                 'header_subtitle' => $this->membersCountLabel($membersTotal),
-                'partner_name' => $this->partnerTitle($resolvedPartnerId),
+                'partner_name' => $this->partnerTitle($this->threadPartnerId($thread)),
             ],
             'can_manage' => $this->userCanManageGroupMembers($viewer),
             'members' => $members,
@@ -860,7 +859,7 @@ class ChatService
      *
      * @return array<string, mixed>
      */
-    public function userCard(User $peer, int $partnerId): array
+    public function userCard(User $peer): array
     {
         if ($this->support->isSupportUser($peer)) {
             $isOnline = $peer->isOnline();
@@ -889,12 +888,16 @@ class ChatService
         }
 
         $peer->loadMissing('parentProfile');
+        $peerPartnerId = (int) ($peer->partner_id ?? 0);
 
-        $teamTitle = (string) (User::query()
-            ->from('users')
-            ->where('users.id', (int) $peer->id)
-            ->selectRaw(UserTeamQuery::sqlStudentTeamTitlesSubquery($partnerId).' as team_title')
-            ->value('team_title') ?? '');
+        $teamTitle = '';
+        if ($peerPartnerId > 0) {
+            $teamTitle = (string) (User::query()
+                ->from('users')
+                ->where('users.id', (int) $peer->id)
+                ->selectRaw(UserTeamQuery::sqlStudentTeamTitlesSubquery($peerPartnerId).' as team_title')
+                ->value('team_title') ?? '');
+        }
 
         $fullName = trim((string) $peer->full_name);
         if ($fullName === '') {
@@ -922,7 +925,7 @@ class ChatService
             'last_seen_at' => $peer->last_seen_at?->toDateTimeString(),
             'last_seen_label' => $lastSeenLabel,
             'team_title' => $teamTitle,
-            'partner_name' => $this->partnerTitle($partnerId),
+            'partner_name' => $this->partnerTitle($peerPartnerId),
         ];
     }
 
@@ -1475,6 +1478,46 @@ class ChatService
         }
 
         return (int) $thread->team_id;
+    }
+
+    /**
+     * Партнёр модалки «Группа»: школа учебной группы, иначе единственный partner_id участников.
+     */
+    private function threadPartnerId(ChatThread $thread): int
+    {
+        $teamId = $this->threadTeamId($thread);
+        if ($teamId !== null && $teamId > 0) {
+            $fromTeam = (int) (Team::query()->whereKey($teamId)->value('partner_id') ?? 0);
+            if ($fromTeam > 0) {
+                return $fromTeam;
+            }
+        }
+
+        $query = User::query()
+            ->from('users')
+            ->join('participants', function ($join) use ($thread) {
+                $join->on('participants.user_id', '=', 'users.id')
+                    ->where('participants.thread_id', (int) $thread->id)
+                    ->whereNull('participants.deleted_at');
+            })
+            ->where('users.partner_id', '>', 0);
+
+        $this->support->constrainExcludeSupportRole($query);
+
+        $ids = $query
+            ->select('users.partner_id')
+            ->distinct()
+            ->pluck('partner_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($ids->count() === 1) {
+            return (int) $ids->first();
+        }
+
+        return 0;
     }
 
     private function hasIsGroupColumn(): bool

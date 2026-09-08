@@ -2,6 +2,7 @@
 
 namespace App\Services\Users;
 
+use App\Models\Contract;
 use App\Models\ParentProfile;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -118,6 +119,16 @@ class FamilyStudentContextService
     public function canAccessStudent(User $actor, int $studentUserId): bool
     {
         return $this->accessibleStudents($actor)->contains('id', $studentUserId);
+    }
+
+    public function canAccessContract(User $actor, Contract $contract): bool
+    {
+        $ownerId = (int) $contract->user_id;
+        if ($ownerId === (int) $actor->id) {
+            return true;
+        }
+
+        return $this->canAccessStudent($actor, $ownerId);
     }
 
     public function setActiveStudent(User $actor, int $studentUserId): void

@@ -36,6 +36,7 @@
       <li><b>Страница заявки</b> (<code>/lead/{landingSlug}</code>) — брендированный лендинг с полной формой; slug задаёт партнёр в CRM; подробно в <a href="/docs/documentation/school-leads-landing">school-leads-landing.html</a>.</li>
     </ul>
     Заявки изолированы по <code>partner_id</code> и отображаются в кабинете школы (<code>/admin/school-leads</code>).<br>
+    На вкладке «Заявки» шапка таблицы и горизонтальный скролл остаются в зоне видимости при длинном списке — <a href="#school-leads-sticky-header">§5.1.6</a>.<br>
     После создания клиента из лида статус заявки по-прежнему меняется (таблица и модалка) — <a href="#school-lead-linked-status">§5.5.4</a>;
     кнопка «Создать клиента» показывает в ховере все обязательные поля — <a href="#school-lead-create-client-button">§5.7</a>.
     Автосопоставление родителя из справочника при заявке с лендинга — <a href="#school-lead-parent-match">§5.5.5</a>.<br>
@@ -181,7 +182,7 @@
     См. <a href="/docs/documentation/partner-context">партнёр-контекст</a>.
   </div>
   <h3>5.1) Интерфейс страницы списка</h3>
-  <p class="small">View списка заявок: <code>resources/views/admin/school-leads/index.blade.php</code> (вкладка «Заявки» → <code>tabs/leads.blade.php</code>), стили toolbar — <code>resources/css/admin-list-toolbar.css</code> (см. <a href="/docs/documentation/reusable-ui-partials">переиспользуемые UI-блоки</a> и отчёт <a href="/docs/documentation/reports-payments">«Платежи»</a>).</p>
+  <p class="small">View списка заявок: <code>resources/views/admin/school-leads/index.blade.php</code> (вкладка «Заявки» → <code>tabs/leads.blade.php</code>), стили toolbar — <code>resources/css/admin-list-toolbar.css</code>, закрепление шапки — <code>resources/css/school-leads-table.css</code> (см. <a href="/docs/documentation/reusable-ui-partials">переиспользуемые UI-блоки</a> и отчёт <a href="/docs/documentation/reports-payments">«Платежи»</a>).</p>
   <ul>
     <li><b>Toolbar</b> — заголовок «Заявки», счётчики по всему партнёру (не зависят от фильтров таблицы), кнопки «Статусы» (модалка статусов, §5.4), «Уведомления» (модалка email, §5.1.5) и «История»:
       <ul>
@@ -201,7 +202,7 @@
       </ul>
     </li>
     <li><b>Колонки</b> (dropdown) — видимость колонок таблицы; настройки сохраняются на пользователя через API columns-settings (<code>user_table_settings.school_leads_index</code>, объект ключ → bool, не индексы). Порядок по умолчанию: № → ФИО ребенка → ФИО родителя → Статус → Объект → Секция → Телефон родителя → далее остальные (§5.5.3). Колонки «Действия» нет. Число <code>&lt;th&gt;</code> всегда совпадает с активными DataTable <code>columns</code> (условные «Объект»/«Договор»/«Район» выпадают и из thead, и через <code>when</code>).</li>
-    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; «Показать N» запоминается на пользователя с <code>schoolLeads.view</code> (§5.1.4); редактирование — по клику на ФИО родителя (§5.5.2); удаление заявок из UI/API <b>недоступно</b> (скрывать из вида — статусом с выключенным «Отображать» / снятием из фильтра); договор — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>type: 'inline-select'</code> с кастомным рендером <code>renderLeadStatusInlineSelect</code> (§5.5.1): цветные бейджи и выпадающее меню выбора статуса без нативного <code>&lt;select&gt;</code>. В <code>/admin/partner-leads</code> — другой <code>inline-select</code> с фиксированным enum (не путать).</li>
+    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; «Показать N» запоминается на пользователя с <code>schoolLeads.view</code> (§5.1.4); при длинном списке шапка и горизонтальная полоса остаются в зоне видимости (§5.1.6); редактирование — по клику на ФИО родителя (§5.5.2); удаление заявок из UI/API <b>недоступно</b> (скрывать из вида — статусом с выключенным «Отображать» / снятием из фильтра); договор — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>type: 'inline-select'</code> с кастомным рендером <code>renderLeadStatusInlineSelect</code> (§5.5.1): цветные бейджи и выпадающее меню выбора статуса без нативного <code>&lt;select&gt;</code>. В <code>/admin/partner-leads</code> — другой <code>inline-select</code> с фиксированным enum (не путать).</li>
     <li><b>Колонка «Имя»</b> (ФИО родителя из заявки) — <code>type: 'link'</code>, класс <code>edit-lead</code>; клик открывает модалку «Редактирование лида» (§5.5.2): без клиента — полное редактирование; с клиентом — поля read-only, <b>кроме статуса</b> (§5.5.4). См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
   <p class="small">Ключи колонок в настройках: <code>name</code>, <code>status</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>phone</code>, <code>parent_email</code>, <code>child_full_name</code>, <code>child_birthday</code>, <code>district</code> (при <code>districts.view</code>), <code>location</code> (при <code>locations.view</code>), <code>team_title</code>, <code>child_flags</code>, <code>utm</code>, <code>page_url</code>, <code>comment</code>. Обзор иерархии — <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.</p>
@@ -356,6 +357,43 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <code>SchoolLeadLandingNotificationFeatureTest</code> (лендинг submit — те же правила).
     Browser/E2E (P2) нет: в проекте нет Dusk для этой страницы.
     Анонс — <a href="/doc#school-leads-email-notifications-index">/doc#school-leads-email-notifications-index</a>.</p>
+
+  <h3 id="school-leads-sticky-header">5.1.6) Закрепление шапки и горизонтального скролла</h3>
+  <p>Только вкладка «Заявки» (<code>/admin/school-leads</code>, таблица <code>#leads-table</code>).
+    Лендинг и виджет без этого. В пресет <code>KidsCrmDataTable</code> не выносилось.
+    CSS — Vite-бандл <code>resources/css/school-leads-table.css</code>
+    (подключается вместе с toolbar, не inline <code>&lt;style&gt;</code> в blade).</p>
+  <ul>
+    <li><b>Шапка.</b> Плагин DataTables FixedHeader
+      (<code>public/plugins/datatables-fixedheader/</code>) подключается <b>до</b>
+      <code>KidsCrmDataTable.create</code>. Опция
+      <code>fixedHeader: { header: true, footer: false }</code>
+      (нет плагина → <code>false</code>, thead остаётся на месте).
+      Горизонтальный скролл <code>.kids-dt-scroll-x</code> сдвигает клон шапки
+      тем же <code>scrollLeft</code>, что и тело таблицы
+      (<code>.dtfh-floatingparenthead.scrollLeft</code>), не <code>margin-left</code>:
+      FixedHeader и так пишет <code>scrollLeft</code>,
+      второй сдвиг рассинхронизирует заголовки со столбцами.
+      Клон на <code>body</code> обрезается по видимой ширине обёртки:
+      <code>left</code>/<code>width</code> из <code>getBoundingClientRect()</code> хоста,
+      <code>overflow: hidden</code> — иначе широкая шапка вылезает за карточку.
+      Ширины <code>th</code> клона копируются с ячеек строки (<code>offsetWidth</code>,
+      <code>box-sizing: border-box</code>, <code>max-width</code>), иначе
+      <code>table-layout: fixed</code> раздувает колонки на padding и шапка едет быстрее столбцов.
+      Пересчёт после вертикального скролла страницы (FixedHeader сам переписывает геометрию).</li>
+    <li><b>Полоса скролла.</b> Не <code>scrollX</code>/<code>scrollY</code> DataTables
+      (страница скроллится как раньше). После обёртки
+      <code>.kids-dt-scroll-x</code> — клон <code>.kids-dt-sticky-hscroll</code>
+      (<code>position: sticky; bottom: 0</code>), ширина спейсера = <code>scrollWidth</code> таблицы.
+      Пока таблица шире карточки, нативная полоса у обёртки скрыта, виден клон у нижнего края окна.
+      Узкая таблица — клон <code>hidden</code>. <code>scrollLeft</code> синхронизируется в обе стороны;
+      после смены колонок / resize — <code>bindSchoolLeadsStickyHScroll</code>.</li>
+  </ul>
+  <p class="small">Тесты: <code>SchoolLeadsPageFeatureTest::test_index_pins_thead_and_sticky_horizontal_scrollbar</code>,
+    <code>SchoolLeadsTabsFeatureTest</code> (лендинг/виджет без плагина и без клона),
+    <code>BladeInlineJsSyntaxTest::test_school_leads_sticky_header_and_hscroll_inline_script_contract_and_valid_javascript</code>,
+    <code>SchoolLeadsStickyHeaderDocumentationContractTest</code>.
+    Анонс — <a href="/doc#school-leads-sticky-header-index">/doc#school-leads-sticky-header-index</a>.</p>
 
   <h3>5.2) Параметры <code>GET /admin/school-leads/data</code></h3>
   <table>
@@ -943,7 +981,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>SchoolLeadLandingController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolLeadStatusController</code>, <code>Admin\SchoolLeadNotificationSettingsController</code>, <code>Admin\SchoolLeadColumnsSettingsController</code>, <code>Admin\SchoolWidgetController</code>, <code>Admin\SchoolLeadLandingController</code>, <code>Admin\UserController</code> (привязка <code>user_id</code> к лиду), <code>Contracts\ContractsController</code> (<code>create</code> с <code>user_id</code>), <code>TelegramSchoolLeadWebhookController</code></li>
     <li>Request: <code>SubmitSchoolLeadRequest</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code>, <code>StoreSchoolLeadStatusRequest</code>, <code>UpdateSchoolLeadStatusRequest</code>, <code>UpdateSchoolLeadNotificationSettingsRequest</code>, <code>SchoolLeadColumnsSettingsSaveRequest</code>, <code>User\StoreRequest</code> (<code>school_lead_id</code>)</li>
     <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>2026_09_03_010000_add_school_leads_notification_settings_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code>, <code>170000_add_user_id_to_school_leads_table.php</code>, <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>, <code>2026_05_30_120000_add_landing_slug_to_partner_widgets_table.php</code>, <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>, <code>2026_06_16_140000_create_school_lead_statuses_and_migrate_school_leads.php</code>, <code>2026_06_17_120000_update_system_school_lead_new_status_color.php</code>, <code>2026_08_16_003000_add_page_length_to_user_table_settings_table.php</code></li>
-    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ <code>tabs/leads.blade.php</code>, <code>partials/edit-lead-modal.blade.php</code>, <code>partials/status-settings.blade.php</code>, <code>partials/notification-settings.blade.php</code>), <code>admin/users/_parent_form.blade.php</code>, <code>includes/modal/_student_health_fields.blade.php</code>, <code>contracts/partials/create-modal.blade.php</code> (встроен на странице заявок при <code>contracts.view</code>); сайдбар — <code>resources/views/includes/sidebar.blade.php</code> (§3.1); View composer — <code>App\Providers\AppServiceProvider</code>; стили inline-статуса — <code>resources/css/datatables-columns.css</code></li>
+    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ <code>tabs/leads.blade.php</code>, <code>partials/edit-lead-modal.blade.php</code>, <code>partials/status-settings.blade.php</code>, <code>partials/notification-settings.blade.php</code>), <code>admin/users/_parent_form.blade.php</code>, <code>includes/modal/_student_health_fields.blade.php</code>, <code>contracts/partials/create-modal.blade.php</code> (встроен на странице заявок при <code>contracts.view</code>); сайдбар — <code>resources/views/includes/sidebar.blade.php</code> (§3.1); View composer — <code>App\Providers\AppServiceProvider</code>; стили inline-статуса — <code>resources/css/datatables-columns.css</code>; закрепление шапки — <code>resources/css/school-leads-table.css</code> + <code>public/plugins/datatables-fixedheader/</code> (§5.1.6)</li>
   </ul>
 
   <h2>10) Автотесты</h2>
@@ -986,6 +1024,8 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/SchoolLeadsPageLeng
     <li><code>tests/Feature/Public/SchoolLeadLandingParentMatchFeatureTest.php</code> — матч при submit лендинга (email/phone/ФИ)</li>
     <li><code>BladeInlineJsSyntaxTest::test_school_leads_parent_match_inline_script_is_valid_javascript</code> — node --check handlers матча</li>
     <li><code>BladeInlineJsSyntaxTest::test_school_leads_column_order_inline_script_contract_and_valid_javascript</code> — порядок колонок, <code>when</code>, columns-settings по ключу, node --check</li>
+    <li><code>BladeInlineJsSyntaxTest::test_school_leads_sticky_header_and_hscroll_inline_script_contract_and_valid_javascript</code> — FixedHeader до create, липкий клон полосы, node --check</li>
+    <li><code>SchoolLeadsStickyHeaderDocumentationContractTest.php</code> — анонс /doc и §5.1.6 совпадают с Blade</li>
     <li><code>BladeInlineJsSyntaxTest::test_kids_datatable_applies_column_visibility_by_key_not_index</code> — KidsCrmDataTable applyVisibleColumns по ключу</li>
     <li><code>SchoolLeadLinkedStatusFullAccessFeatureTest.php</code> — гость / 403 / viewer+admin 200 на linked-status workflow</li>
     <li><code>SchoolLeadUpdateAndStatusesNonAjaxSafetyNetFeatureTest.php</code> — [P1] non-AJAX 302 + AJAX JSON для PUT лида и CRUD статусов</li>
@@ -999,7 +1039,7 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/SchoolLeadsPageLeng
     <li><code>ClientWelcomeCredentialsFullAccessFeatureTest.php</code>, <code>ClientWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — доступ и AJAX/non-AJAX (см. <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>)</li>
     <li><code>SchoolLeadContractActionFeatureTest.php</code> — <code>create_contract_url</code>, <code>latest_contract</code>, prefill на create, lookup</li>
     <li><code>SchoolLeadsLeadClientContractFeatureTest.php</code> — сквозной сценарий лид → клиент → договор</li>
-    <li><code>SchoolLeadsPageFeatureTest.php</code> — toolbar, stats, фильтры (район, объект, секция, особые условия), колонки, пагинация</li>
+    <li><code>SchoolLeadsPageFeatureTest.php</code> — toolbar, stats, фильтры (район, объект, секция, особые условия), колонки, пагинация, закрепление шапки/скролла §5.1.6</li>
     <li><code>SchoolLeadsFilterMultiselectFeatureTest.php</code> — filter multiselect статусов: UI partial, дефолтные статусы, API <code>status_ids[]</code></li>
     <li><code>SchoolLeadLocationFeatureTest.php</code> — объекты: UI, фильтр, сортировка, update, columns-settings</li>
     <li><code>SchoolLeadDistrictFeatureTest.php</code> — районы: UI, фильтр, сортировка, update, email/Telegram</li>

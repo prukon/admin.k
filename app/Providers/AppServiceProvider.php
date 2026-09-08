@@ -283,7 +283,7 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Договоры текущего пользователя, активные к действию
+     * Договоры активного ребёнка семейного кабинета, активные к действию
      * (ожидают заполнения / отправлены / открыты / формируется PDF).
      */
     private function unsignedContractsCountForCurrentUser(): int
@@ -293,8 +293,10 @@ class AppServiceProvider extends ServiceProvider
             return 0;
         }
 
+        $student = app(FamilyStudentContextService::class)->activeStudent($user);
+
         return (int) Contract::query()
-            ->where('user_id', $user->id)
+            ->where('user_id', $student->id)
             ->whereIn('status', [
                 Contract::STATUS_AWAITING_CLIENT_FILL,
                 Contract::STATUS_SENT,

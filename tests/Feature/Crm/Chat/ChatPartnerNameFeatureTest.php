@@ -8,6 +8,7 @@ use App\Models\ChatParticipant;
 use App\Models\ChatThread;
 use App\Models\Team;
 use App\Services\Chat\ChatSupportIdentity;
+use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -147,24 +148,47 @@ final class ChatPartnerNameFeatureTest extends ChatTestCase
         );
     }
 
-    public function test_superadmin_sees_session_partner_title_on_card_and_group(): void
+    public function test_superadmin_sees_peer_school_title_and_teams_not_session(): void
     {
-        $this->foreignPartner->forceFill(['title' => 'ЧужаяШколаЧат'])->save();
+        $this->partner->forceFill(['title' => 'ШколаКарточкиЧат'])->save();
+        $this->foreignPartner->forceFill(['title' => 'ШколаСессииЧат'])->save();
+
+        $peer = $this->makePeer('PnHomePeer_', [
+            'lastname' => 'ДомашневPn',
+            'name' => 'Иван',
+        ]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'ГруппаКарточкиЧат',
+        ]);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($peer, [(int) $team->id]);
+
         $this->asSuperadmin();
         $this->withSession([
             'current_partner' => (int) $this->foreignPartner->id,
             '2fa:passed' => true,
         ]);
+        $this->createThreadForUsers([(int) $this->user->id, (int) $peer->id], 'PnCrossCard');
 
-        $this->getJson(route('chat.api.users.show', $this->foreignUser))
+        $this->getJson(route('chat.api.users.show', $peer))
             ->assertOk()
-            ->assertJsonPath('partner_name', 'ЧужаяШколаЧат');
+            ->assertJsonPath('partner_name', 'ШколаКарточкиЧат')
+            ->assertJsonPath('team_title', 'ГруппаКарточкиЧат');
 
-        $peer = $this->makePeer('PnSaGroup_', ['partner_id' => $this->foreignPartner->id]);
-        $thread = $this->createGroupThreadForUsers([(int) $this->user->id, (int) $this->foreignUser->id, $peer->id], 'PnSa');
-
-        $this->getJson(route('chat.api.threads.participants.index', $thread))
+        $adHoc = $this->createGroupThreadForUsers([(int) $this->user->id, (int) $peer->id], 'PnCrossAdHoc');
+        $this->getJson(route('chat.api.threads.participants.index', $adHoc))
             ->assertOk()
-            ->assertJsonPath('thread.partner_name', 'ЧужаяШколаЧат');
+            ->assertJsonPath('thread.partner_name', 'ШколаКарточкиЧат');
+
+        $teamThread = ChatThread::query()->where('team_id', $team->id)->first();
+        $this->assertNotNull($teamThread);
+        ChatParticipant::query()->firstOrCreate([
+            'thread_id' => $teamThread->id,
+            'user_id' => (int) $this->user->id,
+        ]);
+
+        $this->getJson(route('chat.api.threads.participants.index', $teamThread))
+            ->assertOk()
+            ->assertJsonPath('thread.partner_name', 'ШколаКарточкиЧат');
     }
 }

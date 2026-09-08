@@ -44,11 +44,17 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
         $this->asAdmin();
         $this->grantPermission($this->user, 'schoolLeadLanding.view');
 
-        $this->get(route('admin.school-leads.landing'))
+        $html = $this->get(route('admin.school-leads.landing'))
             ->assertOk()
             ->assertViewIs('admin.school-leads.index')
             ->assertViewHas('activeTab', 'landing')
-            ->assertViewHas(['landingUrl', 'partner']);
+            ->assertViewHas(['landingUrl', 'partner'])
+            ->getContent();
+
+        $this->assertStringNotContainsString('dataTables.fixedHeader.min.js', $html);
+        $this->assertStringNotContainsString('kids-dt-sticky-hscroll', $html);
+        $this->assertStringNotContainsString('school-leads-table', $html);
+        $this->assertStringNotContainsString('id="leads-table"', $html);
     }
 
     public function test_widget_tab_renders_index_with_active_tab_widget(): void
@@ -86,6 +92,9 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
         $this->assertStringContainsString('payments-report-title', $html);
         $this->assertStringContainsString('Заявки', $html);
         $this->assertStringContainsString('id="leads-table"', $html);
+        $this->assertStringContainsString('dataTables.fixedHeader.min.js', $html);
+        $this->assertStringContainsString('school-leads-table', $html);
+        $this->assertStringContainsString('kids-dt-sticky-hscroll', $html);
         $this->assertStringNotContainsString('id="iframeCode"', $html);
     }
 
@@ -111,6 +120,9 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('Email отправляется всем пользователям с ролью', $html);
         $this->assertStringNotContainsString('id="leads-table"', $html);
         $this->assertStringNotContainsString('id="schoolLeadsReportToolbar"', $html);
+        $this->assertStringNotContainsString('dataTables.fixedHeader.min.js', $html);
+        $this->assertStringNotContainsString('kids-dt-sticky-hscroll', $html);
+        $this->assertStringNotContainsString('school-leads-table', $html);
     }
 
     public function test_user_without_school_lead_landing_view_does_not_see_landing_tab(): void

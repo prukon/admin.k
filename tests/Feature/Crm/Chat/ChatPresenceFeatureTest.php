@@ -433,7 +433,7 @@ final class ChatPresenceFeatureTest extends ChatTestCase
         $this->getJson(route('chat.api.users.show', $this->foreignUser))
             ->assertOk()
             ->assertJsonPath('id', (int) $this->foreignUser->id)
-            ->assertJsonPath('partner_name', $this->partner->title);
+            ->assertJsonPath('partner_name', $this->foreignPartner->title);
     }
 
     public function test_superadmin_can_open_foreign_peer_card_from_shared_group_thread(): void

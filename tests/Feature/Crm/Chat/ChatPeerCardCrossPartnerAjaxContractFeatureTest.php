@@ -68,7 +68,7 @@ final class ChatPeerCardCrossPartnerAjaxContractFeatureTest extends ChatTestCase
             ->assertOk()
             ->assertJsonPath('id', (int) $homePeer->id)
             ->assertJsonPath('full_name', $homePeer->full_name)
-            ->assertJsonPath('partner_name', $this->foreignPartner->title)
+            ->assertJsonPath('partner_name', $this->partner->title)
             ->assertJsonMissingPath('errors.user')
             ->assertJsonStructure([
                 'id',

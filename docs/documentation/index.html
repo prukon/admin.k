@@ -28,6 +28,100 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="school-leads-sticky-header-index">Заявки: шапка и горизонтальный скролл остаются на экране (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/school-leads</code> (вкладка «Заявки») при длинном списке
+    («Показать 50/100») горизонтальная полоса больше не прячется внизу таблицы,
+    а шапка не уезжает вверх. Страница скроллится как раньше — это не
+    <code>scrollY</code> DataTables.
+    <br><br>
+    1) <b>Шапка.</b> Плагин FixedHeader
+    (<code>public/plugins/datatables-fixedheader/</code>) грузится
+    <b>до</b> <code>KidsCrmDataTable.create('#leads-table')</code>.
+    Опция <code>fixedHeader: { header: true, footer: false }</code>.
+    Нет плагина → <code>false</code>. Клон thead обрезается по видимой ширине
+    <code>.kids-dt-scroll-x</code> (<code>getBoundingClientRect</code>,
+    <code>overflow: hidden</code>) и сдвигается тем же
+    <code>scrollLeft</code>, что и столбцы — не через
+    <code>margin-left</code> (иначе шапка едет с другой скоростью).
+    <br>
+    2) <b>Полоса.</b> Клон <code>.kids-dt-sticky-hscroll</code>
+    (<code>position: sticky; bottom: 0</code>) после обёртки таблицы.
+    Пока таблица шире карточки — нативная полоса скрыта, виден клон;
+    узкая таблица — клон <code>hidden</code>. Не пресет
+    <code>KidsCrmDataTable</code>: лендинг и виджет без этого.
+    Стили — Vite <code>resources/css/school-leads-table.css</code>
+    (не inline в blade).
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/school-leads-widget#school-leads-sticky-header">school-leads-widget §5.1.6</a>.
+    Тесты: <code>SchoolLeadsPageFeatureTest</code>,
+    <code>SchoolLeadsTabsFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_school_leads_sticky_header_and_hscroll_inline_script_contract_and_valid_javascript</code>,
+    <code>SchoolLeadsStickyHeaderDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="account-documents-family-link-index">Договоры: ссылка из письма на нужного ребёнка (2026‑09)</h2>
+  <div class="note">
+    Если у родителя 2+ детей в одном кабинете (общий <code>parent_id</code>),
+    общая ссылка <code>/account-settings/documents</code> открывала документы
+    учётки входа или ранее выбранного ребёнка — не того, кому выставили договор.
+    Теперь список, каунтер и письмо завязаны на семейный контекст.
+    <br><br>
+    1) <b>Список и каунтер.</b> «Мои документы» и badge считают договоры
+    <code>FamilyStudentContextService::activeStudent()</code>, не учётки входа.
+    Только активный ребёнок, не сумма по семье.
+    Состав статусов каунтера не менялся (<code>awaiting_client_fill</code>,
+    <code>sent</code>, <code>opened</code>, <code>generating_pdf</code>) —
+    <a href="/doc#account-documents-action-counter-index">анонс каунтера</a>.
+    <br>
+    2) <b>Доступ.</b> Fill / generate / sign / download / requests: договор свой
+    (<code>contracts.user_id === Auth::id()</code>) или sibling из
+    <code>accessibleStudents</code> (<code>canAccessContract</code>).
+    Отключённый брат/сестра в список семьи не входит — как у переключателя сайдбара.
+    Чужой — <b>404</b>. Права (<code>account.documents.view</code>) остаются у учётки входа.
+    <code>AccountContractGenerateRequest::authorize</code> тоже через
+    <code>canAccessContract</code>: иначе sibling открыл бы модалку, а generate получил бы 403.
+    <br>
+    3) <b>Письмо.</b> <code>{{documents_url}}</code> =
+    <code>/account-settings/documents?student={user_id}&amp;fill={contract_id}</code>
+    (<code>ContractInvitationEmailRenderer::documentsUrl</code>).
+    Query <code>student</code> ставит <code>session.active_student_user_id</code> только для своего sibling;
+    чужой и отключённый id молча игнорируются.
+    Query <code>fill</code> открывает модалку (<code>loadContractFill</code>), как и раньше.
+    Без <code>student</code> (вкладка «Мои документы», закладка, PDF) ребёнок <b>не</b> переключается,
+    даже если в URL есть <code>fill</code>.
+    Гость по ссылке → <b>302</b> на login, в <code>url.intended</code> остаются оба query.
+    Без права → <b>403</b>. JSON гостя на fill/generate → <b>401</b>.
+    Получатели письма (ученик и родитель) — как в
+    <a href="/doc#contract-invitation-parent-email-index">анонсе приглашения</a>.
+    <br>
+    4) <b>PDF.</b> Тот же ключ <code>documents_url</code> в DOCX
+    (<code>ContractTemplateSystemPlaceholders</code>) остаётся общим
+    <code>/account-settings/documents</code> без query.
+    <br>
+    5) <b>AJAX / non-AJAX generate</b> договора sibling: JSON <b>200</b>
+    <code>{ message, poll }</code> или <b>422</b> <code>errors['fields.*']</code> под полями;
+    без <code>X-Requested-With</code> — <b>302</b> на документы, запись в БД, не пустой 200.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/account-contract-fill#account-documents-family-link">account-contract-fill §1.2</a>,
+    семейный кабинет —
+    <a href="/docs/documentation/parents-and-family-cabinet#family-cabinet">parents-and-family-cabinet §5</a>,
+    плейсхолдер в шаблоне —
+    <a href="/docs/documentation/contract-templates#53-email-edittemplateemailmodal">contract-templates §5.3</a>.
+    Тесты: <code>AccountDocumentsFamilyContextFeatureTest</code>,
+    <code>AccountDocumentsFamilyContextAccessFeatureTest</code>,
+    <code>AccountDocumentsFamilyContextAjaxContractFeatureTest</code>,
+    <code>AccountDocumentsFamilyContextNonAjaxSafetyNetFeatureTest</code>,
+    <code>AccountDocumentsFamilyContextMarkupFeatureTest</code>,
+    <code>ContractInvitationEmailFeatureTest</code>,
+    <code>ContractInvitationEmailRendererTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_account_documents_contract_fill_ajax_handlers_contract_is_valid_javascript</code>,
+    <code>AccountDocumentsFamilyLinkDocumentationContractTest</code>.
+    Анонс: <a href="/doc#account-documents-family-link-index">/doc#account-documents-family-link-index</a>.
+  </div>
+
   <h2 id="contract-status-memo-index">Договоры: кнопка «Памятка» и путь статусов (2026‑09)</h2>
   <div class="note">
     На <code>GET /client-contracts</code> (вкладка «Договоры», право <code>contracts.view</code>)
@@ -321,8 +415,12 @@
     Есть только один адрес — одно письмо. Оба пустые — договор создаётся, писем нет.
     Сбой SMTP на одном адресе не отменяет отправку на второй.
     <br>
-    2) <b>Что не менялось.</b> Режим PDF приглашение не шлёт. Текст и плейсхолдеры —
-    версия шаблона или <code>ContractTemplateEmailDefaults</code>, как раньше.
+    2) <b>Что не менялось.</b> Режим PDF приглашение не шлёт. Имена плейсхолдеров и дефолтный текст —
+    версия шаблона или <code>ContractTemplateEmailDefaults</code>.
+    Значение <code>{{documents_url}}</code> в письме с 2026‑09 содержит
+    <code>?student=</code> и <code>?fill=</code> —
+    <a href="/doc#account-documents-family-link-index">анонс ссылки на ребёнка</a>;
+    в PDF тот же ключ без query.
     Модалка fill по-прежнему подставляет <code>parent_email</code> из родителя
     (или fallback ученика) — это другое письмо и другое поле.
     <br><br>
@@ -414,9 +512,11 @@
     POST/PATCH/PUT/DELETE → 405.
     <br>
     3) <b>Название школы на карточке.</b> Успешный 200 несёт
-    <code>partner_name</code> = <code>partners.title</code> <b>текущей</b> школы
-    в сессии, не школы собеседника. Superadmin смотрит школу Б и открывает
-    человека школы А — под ФИО title школы Б.
+    <code>partner_name</code> = <code>partners.title</code> школы <b>карточки</b>
+    (<code>users.partner_id</code>), не <code>current_partner</code> сессии.
+    Superadmin смотрит школу Б и открывает
+    человека школы А — под ФИО title школы А, группы — <code>team_user</code>
+    той же школы А.
     <br><br>
     Подробно — <a href="/docs/documentation/chat#peer-card-cross-partner">chat §карточка чужой школы</a>,
     чат — <a href="/doc#chat-index">анонс чата</a>.
@@ -2162,8 +2262,8 @@
   <h2 id="chat-partner-name-index">Чат: название партнёра в модалках «Контакт» и «Группа» (2026‑09)</h2>
   <div class="note">
     В <code>/chat</code> под именем в модалке <b>«Контакт»</b> и под названием в модалке
-    <b>«Группа»</b> показывается <code>partners.title</code> текущей школы
-    (JSON <code>partner_name</code>). Это не шапка открытого диалога
+    <b>«Группа»</b> показывается <code>partners.title</code> школы карточки / чата
+    (JSON <code>partner_name</code>), не <code>current_partner</code> сессии. Это не шапка открытого диалога
     (<code>#threadSubtitle</code> — участники / «онлайн» /
     <a href="/doc#chat-header-subtitle-index">анонс подзаголовка</a>)
     и не вкладка «Аккаунт».
@@ -2172,13 +2272,19 @@
     <br><br>
     1) <b>Контакт.</b> <code>#peerCardModal</code>, сразу под ФИО:
     <code>.peer-card-partner</code>. Пустое не рисуем и не ставим «-».
-    <code>GET /chat/api/users/{id}</code>. Служба поддержки — пустая строка.
+    <code>GET /chat/api/users/{id}</code>: <code>partner_name</code> =
+    <code>partners.title</code> по <code>users.partner_id</code> человека,
+    <code>team_title</code> — учебные группы в <b>том же</b> партнёре
+    (<code>UserTeamQuery</code> / <code>team_user.partner_id</code>).
+    Служба поддержки — пустая строка.
     Чужой партнёр — 403.
     <br>
     2) <b>Группа.</b> <code>#groupCardModal</code>, <code>#groupCardPartner</code>
     под названием, над «N участников».
-    <code>GET /chat/api/threads/{id}/participants</code> → <code>thread.partner_name</code>.
-    Пустое — <code>display:none</code>.
+    <code>GET /chat/api/threads/{id}/participants</code> → <code>thread.partner_name</code>:
+    учебный чат — <code>teams.partner_id</code> (<code>threads.team_id</code>);
+    ручная группа — единственный <code>users.partner_id</code> живых участников
+    без роли поддержки; смешанные школы — пусто.
     <br>
     3) <b>Не здесь.</b> Inbox, show шапки, список контактов, вкладка «Аккаунт»
     (<code>#accountCardBody</code>) — строку партнёра не показываем
@@ -4083,7 +4189,8 @@
     (там открывается диалог). Пока диалог не выбран, шапка <code>is-idle</code> —
     клик карточку не открывает. Модалка стандартной ширины Bootstrap:
     аватар, ФИО (<code>lastname</code>+<code>name</code>), под ФИО название партнёра
-    (<code>.peer-card-partner</code>, JSON <code>partner_name</code> = <code>partners.title</code>;
+    (<code>.peer-card-partner</code>, JSON <code>partner_name</code> = <code>partners.title</code>
+    школы карточки, <code>users.partner_id</code>, не сессия;
     пустое не рисуем), телефон ученика (<code>tel:</code>),
     ФИО и телефон родителя, последний онлайн («онлайн» / дата-время / «-»), группы.
     Пустые поля карточки — «-». Вкладка «Аккаунт» и шапка диалога партнёра не показывают.
@@ -5903,7 +6010,9 @@
   <div class="note">
     В личном кабинете у пункта сайдбара <b>«Учетная запись»</b> и на вкладке <b>«Мои документы»</b>
     (<code>/account-settings/documents</code>) показывается badge с числом договоров
-    <b>текущего пользователя</b>, по которым ещё нужно действие.
+    <b>активного ребёнка</b> (<code>FamilyStudentContextService::activeStudent()</code>),
+    по которым ещё нужно действие. Это не учётка входа и не сумма по семье
+    (<a href="/doc#account-documents-family-link-index">анонс семейной ссылки</a>).
     <br><br>
     1) <b>Какие статусы считаются:</b>
     <code>awaiting_client_fill</code>, <code>sent</code>, <code>opened</code>, <code>generating_pdf</code>.
@@ -5917,7 +6026,8 @@
     При нуле badge <b>не рисуется</b>.
     <br>
     4) <b>Права и область:</b>
-    только при <code>account.documents.view</code>; только свои договоры (<code>contracts.user_id = Auth::id()</code>).
+    только при <code>account.documents.view</code>; договоры активного ребёнка
+    (<code>contracts.user_id = FamilyStudentContextService::activeStudent()</code>), не сумма по всей семье.
     Пункт меню «Учетная запись» по-прежнему под <code>account.user.view</code> и ведёт на
     <code>/account-settings/user/edit</code> (не на список документов).
     <br>
@@ -5931,6 +6041,8 @@
     договоры в CRM —
     <a href="/docs/documentation/contracts">contracts</a>.
     Тесты: <code>AccountDocumentsActionCounterFeatureTest</code>,
+    семейный каунтер активного ребёнка — <code>AccountDocumentsFamilyContextFeatureTest</code> /
+    <code>AccountDocumentsFamilyContextMarkupFeatureTest</code>,
     markup в <code>BladeInlineJsSyntaxTest</code>.
   </div>
 
@@ -7074,15 +7186,15 @@
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, <b>create/edit/delete без «OK» и без F5</b> (<a href="/doc#teams-create-edit-toast-index">анонс</a>, §1.2, toast <code>#kidsMainToast</code>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: сайдбар/h4 «Пользователи»; вкладка <b>«Клиенты»</b> (<code>/admin/users</code>, роль <code>user</code>, label «Клиент»); <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок — <a href="/doc#users-client-naming-index">анонс нейминга</a></a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
-    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
+    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>«Мои документы» активного ребёнка</b> и ссылка из письма <code>?student=&amp;fill=</code> (<a href="/doc#account-documents-family-link-index">анонс</a>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата)</a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
-    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на email ученика и родителя</b> (§6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>семейная ссылка из письма на нужного ребёнка</b> (<a href="/doc#account-documents-family-link-index">анонс</a>, §1.2), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на email ученика и родителя</b> (§6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
     <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>create/edit без «OK» и без F5</b> (<a href="/doc#users-create-edit-toast-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
-    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>кнопка «Уведомления»</b> — список email о новых заявках, галочка «не получать», Telegram на вкладке виджета — <a href="/doc#school-leads-email-notifications-index">анонс</a>, §5.1.5 / §7, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы (<code>lockUser</code>, на клиентах — <a href="/doc#users-contract-create-index">анонс</a>), <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
+    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>шапка и горизонтальный скролл на экране</b> §5.1.6 — <a href="/doc#school-leads-sticky-header-index">анонс</a>, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>кнопка «Уведомления»</b> — список email о новых заявках, галочка «не получать», Telegram на вкладке виджета — <a href="/doc#school-leads-email-notifications-index">анонс</a>, §5.1.5 / §7, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы (<code>lockUser</code>, на клиентах — <a href="/doc#users-contract-create-index">анонс</a>), <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, <b>инструкция для родителей</b> <code>/instruction</code> и PDF <code>/instruction.pdf</code> (телефон только из query, не из <code>partners.phone</code>), CRM-кнопка открывает <b>модалку телефона</b> → <code>POST /admin/school-leads/instruction-preview</code> (<a href="/doc#landing-parents-instruction-index">анонс</a>, §4.2 / §8), каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), блок «Об услуге» — адрес / вид спорта / стоимость / период без расписания (<a href="/doc#landing-team-info-rows-index">анонс</a>, §5.4.2), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
     <li><a href="/docs/documentation/partner-self-registration"><strong>Саморегистрация школы с лендинга</strong>: кнопка «Регистрация» (школа, не ученик), <code>/partner/register</code>, native POST → 302 <code>/cabinet</code>, флаг <code>PARTNER_SELF_REGISTRATION_ENABLED</code>, заглушка при закрытии — <a href="/doc#partner-self-registration-index">анонс</a></a></li>

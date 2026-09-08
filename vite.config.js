@@ -18,6 +18,7 @@ export default defineConfig({
                 'resources/css/blog.css',
                 'resources/css/user.css',
                 'resources/css/admin-list-toolbar.css',
+                'resources/css/school-leads-table.css',
                 'resources/css/datatables-columns.css',
                 'resources/css/kids-tooltip.css',
                 'resources/css/chat.css',

@@ -134,6 +134,33 @@ class ContractInvitationEmailFeatureTest extends ContractsFeatureTestCase
         $this->assertNull($payload['email']);
     }
 
+    /** @test */
+    public function invitation_email_documents_link_contains_student_and_fill_query(): void
+    {
+        Mail::fake();
+
+        $student = $this->makeStudent(['email' => 'family-link@example.com']);
+        $template = $this->makeTemplateWithNullEmailFields();
+
+        $this->postContractFromTemplate($student, $template)->assertStatus(302);
+
+        $contract = Contract::query()->where('user_id', $student->id)->latest('id')->firstOrFail();
+        $expected = app(\App\Services\Contracts\ContractInvitationEmailRenderer::class)
+            ->documentsUrl($contract, $student);
+
+        Mail::assertSent(ContractClientFillInvitationMail::class, function (ContractClientFillInvitationMail $mail) use ($expected) {
+            $body = app(\App\Services\Contracts\ContractInvitationEmailRenderer::class)
+                ->renderBodyHtml($mail->contract, $mail->student);
+
+            $this->assertStringContainsString('student=', $expected);
+            $this->assertStringContainsString('fill=', $expected);
+            $this->assertStringContainsString(e($expected), $body);
+            $this->assertStringNotContainsString('href="' . url('/account-settings/documents') . '"', $body);
+
+            return true;
+        });
+    }
+
     /**
      * @param array<string, mixed> $attrs
      */

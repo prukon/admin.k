@@ -70,7 +70,7 @@ final class ChatPeerCardCrossPartnerNonAjaxSafetyNetFeatureTest extends ChatTest
         $response
             ->assertOk()
             ->assertJsonPath('id', (int) $homePeer->id)
-            ->assertJsonPath('partner_name', $this->foreignPartner->title);
+            ->assertJsonPath('partner_name', $this->partner->title);
         $this->assertStringContainsString(
             'application/json',
             (string) $response->headers->get('content-type')

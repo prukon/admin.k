@@ -168,7 +168,7 @@ users (role=user) — ученик, вход в CRM
       <tr><td><code>ParentProfile</code></td><td><code>app/Models/ParentProfile.php</code></td><td><code>students()</code>, <code>full_name</code>, route binding по <code>partner_id</code></td></tr>
       <tr><td><code>User</code></td><td><code>app/Models/User.php</code></td><td><code>parentProfile()</code>, <code>parentFormFields()</code>, <code>accountParentFormFields()</code>, аксессор <code>parent_full_name</code></td></tr>
       <tr><td><code>StudentParentSyncService</code></td><td><code>app/Services/Users/StudentParentSyncService.php</code></td><td>Создание/обновление родителя из админки и личного кабинета</td></tr>
-      <tr><td><code>FamilyStudentContextService</code></td><td><code>app/Services/Users/FamilyStudentContextService.php</code></td><td><code>accessibleStudents()</code>, <code>activeStudent()</code>, <code>sidebarPanelIdentity()</code>, switch; кэш списка на request</td></tr>
+      <tr><td><code>FamilyStudentContextService</code></td><td><code>app/Services/Users/FamilyStudentContextService.php</code></td><td><code>accessibleStudents()</code>, <code>activeStudent()</code>, <code>sidebarPanelIdentity()</code>, <code>canAccessContract</code>, switch; кэш списка на request</td></tr>
       <tr><td>Валидация</td><td><code>app/Http/Requests/User/Concerns/ValidatesStudentParent.php</code></td><td>Trait для Store/Update/AccountUpdate Request</td></tr>
     </tbody>
   </table>
@@ -380,6 +380,7 @@ users (role=user) — ученик, вход в CRM
       <tr><td><code>POST /cabinet/teams/attach</code></td><td><code>account.user.team.update</code></td><td><code>activeStudent()</code> (только роль <code>user</code>)</td></tr>
       <tr><td><code>GET /reports/payments</code>, <code>GET /getUserPayments</code></td><td><code>myPayments.view</code></td><td><code>activeStudent()</code></td></tr>
       <tr><td><code>GET /account-settings/user/edit</code></td><td><code>account.user.view</code></td><td>залогиненный <code>auth()->user()</code> (свой пароль, телефон)</td></tr>
+      <tr><td><code>GET /account-settings/documents</code></td><td><code>account.documents.view</code></td><td><code>activeStudent()</code>; query <code>?student=</code> из письма переключает доступного sibling (чужой/отключённый id игнорируется); fill/generate/sign/download — владелец или sibling (<code>canAccessContract</code>)</td></tr>
       <tr><td><code>POST /cabinet/active-student</code></td><td>достаточно <code>auth</code> + 2fa (отдельного permission нет)</td><td>проверка sibling через <code>parent_id</code></td></tr>
     </tbody>
   </table>
@@ -394,7 +395,8 @@ users (role=user) — ученик, вход в CRM
       <tr><td><code>DashboardController::index</code></td><td>Расписание, назначенные абонементы (<code>fee_amount_cents &gt; 0</code> и <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>), поля, сезоны (при <code>setPrices.cabinetSeasons.view</code> или <code>setPrices.cabinetPackages.postpay.view</code>) — данные выбранного ребёнка, шапки учебных лет те же, что у обычной консоли (<a href="/docs/documentation/dashboard-cabinet#cabinet-season-years">dashboard-cabinet §6.1</a>, <a href="/doc#cabinet-season-years-index">анонс</a>); при 2+ группах — селект «Выбор группы», если есть сезоны/постоплата <em>или</em> видимые абонементы (§<a href="#cabinet-team-switcher">5.6</a>)</td></tr>
       <tr><td><code>FamilyPaymentPayerResolver</code> → витрина / Init</td><td>Месячный взнос, доп. платёж, абонемент: сумма, группа, строка «Плательщик», hidden <code>userName</code>/<code>userId</code>, <code>payables.user_id</code>, <code>payment_intents.user_id</code>, <code>Shp_userId</code>, T‑Bank <code>DATA.user_id</code> — выбранный ребёнок. Права и контакты входа — actor. В <code>intent.meta.actor_user_id</code> кто нажал «Оплатить». Клубный взнос пока без семейного контекста.</td></tr>
       <tr><td><code>ReportController</code> («Мои платежи»)</td><td>Платежи выбранного ребёнка</td></tr>
-      <tr><td><code>AppServiceProvider</code> (view composers)</td><td><code>layouts.admin2</code>: <code>familyStudents</code>, <code>activeStudent</code>, переключатель, <code>sidebarPanelIdentity</code>, при праве — <code>cabinetTeamAttach</code>; дополнительно <code>dashboard</code> и <code>account.index</code> — <code>cabinetTeamAttach</code> для карандаша в content</td></tr>
+      <tr><td><code>AccountDocumentsController</code> / fill / generate</td><td>Список и каунтер — <code>activeStudent()</code>; ссылка из письма <code>?student=&amp;fill=</code> переключает контекст (без <code>student</code> — нет); договор sibling доступен через <code>canAccessContract</code>, в т.ч. <code>AccountContractGenerateRequest</code>. PDF <code>documents_url</code> без query. <a href="/docs/documentation/account-contract-fill#account-documents-family-link">account-contract-fill §1.2</a>, <a href="/doc#account-documents-family-link-index">анонс</a></td></tr>
+      <tr><td><code>AppServiceProvider</code> (view composers)</td><td><code>layouts.admin2</code>: <code>familyStudents</code>, <code>activeStudent</code>, переключатель, <code>sidebarPanelIdentity</code>, при праве — <code>cabinetTeamAttach</code>; дополнительно <code>dashboard</code> и <code>account.index</code> — <code>cabinetTeamAttach</code> для карандаша в content; каунтер договоров — активный ребёнок</td></tr>
     </tbody>
   </table>
   <div class="warn">
@@ -425,7 +427,7 @@ users (role=user) — ученик, вход в CRM
       <tr><td><code>accessibleStudents(User $actor)</code></td><td>Список учеников семьи; результат кэшируется на один HTTP-request</td></tr>
       <tr><td><code>activeStudent(?User $actor)</code></td><td>Ученик для данных: session или сам <code>$actor</code></td></tr>
       <tr><td><code>sidebarPanelIdentity(User $actor)</code></td><td>Имя и почта для сайдбара (родитель при семейном режиме)</td></tr>
-      <tr><td><code>setActiveStudent</code> / <code>canAccessStudent</code></td><td>Switch и проверка доступа</td></tr>
+      <tr><td><code>setActiveStudent</code> / <code>canAccessStudent</code> / <code>canAccessContract</code></td><td>Switch, проверка sibling и доступ к договору семьи (свой <code>user_id</code> или accessible student)</td></tr>
     </tbody>
   </table>
 
@@ -488,6 +490,12 @@ users (role=user) — ученик, вход в CRM
       <li><code>tests/Feature/Crm/Account/AccountParentFullAccessFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Account/AccountParentFullNameGenitiveFeatureTest.php</code> — родительный падеж в ЛК</li>
       <li><code>tests/Feature/Crm/Account/AccountParentNonAjaxSafetyNetFeatureTest.php</code> — ЛК: JSON-контракт правки общей карточки</li>
+      <li><code>tests/Feature/Crm/Account/AccountDocumentsFamilyContextFeatureTest.php</code> — документы и ссылка из письма на нужного ребёнка</li>
+      <li><code>tests/Feature/Crm/Account/AccountDocumentsFamilyContextAccessFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Account/AccountDocumentsFamilyContextAjaxContractFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Account/AccountDocumentsFamilyContextNonAjaxSafetyNetFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Account/AccountDocumentsFamilyContextMarkupFeatureTest.php</code></li>
+      <li><code>tests/Unit/Documentation/AccountDocumentsFamilyLinkDocumentationContractTest.php</code> — анонс <a href="/doc#account-documents-family-link-index">/doc</a> совпадает с кодом</li>
       <li><code>tests/Feature/Crm/Contracts/ContractsParentAndAccessTest.php</code></li>
       <li><code>tests/Feature/Crm/Contracts/ContractParentFullNameGenitivePrefillFeatureTest.php</code> — DOCX prefill</li>
       <li><code>tests/Feature/Public/SchoolLeadLandingParentMatchFeatureTest.php</code> — автосопоставление <code>parents</code> к лиду с лендинга</li>
@@ -506,7 +514,8 @@ users (role=user) — ученик, вход в CRM
       Аналогично для ученика — <code>users.full_name_genitive</code>
       (<a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>), это не часть справочника <code>parents</code>.</li>
     <li>Отдельный CRUD-раздел <code>/admin/parents</code> (карточка правится из модалки ученика / заявки / ЛК).</li>
-    <li>Семейный контекст на страницах договоров у роли <code>user</code> (договоры — право <code>contracts.view</code>, админка).</li>
+    <li>Семейный контекст на <b>админских</b> страницах договоров (<code>/client-contracts</code>, право <code>contracts.view</code>).
+      В ЛК «Мои документы» контекст активного ребёнка есть — <a href="/docs/documentation/account-contract-fill#account-documents-family-link">account-contract-fill §1.2</a>.</li>
   </ul>
 
   <h2>10) Связанные файлы</h2>
@@ -517,6 +526,8 @@ users (role=user) — ученик, вход в CRM
     <li><code>app/Http/Requests/User/AccountUpdatePasswordRequest.php</code> — смена своего пароля в ЛК</li>
     <li><code>resources/views/account/users.blade.php</code> — пол в кабинете, смена пароля</li>
     <li><code>app/Http/Controllers/User/FamilyStudentContextController.php</code></li>
+    <li><code>app/Http/Controllers/AccountDocumentsController.php</code> — список документов активного ребёнка, query <code>student</code></li>
+    <li><code>app/Services/Users/FamilyStudentContextService.php</code> — <code>canAccessContract</code></li>
     <li><code>resources/views/admin/users/_parent_form.blade.php</code></li>
     <li><code>database/factories/ParentProfileFactory.php</code></li>
   </ul>

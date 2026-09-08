@@ -447,6 +447,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
   <ul>
     <li>У <code>.dataTables_wrapper</code> — <code>overflow-x: visible</code>.</li>
     <li>Скролл только у области таблицы: обёртка <code>.kids-dt-scroll-x</code> (добавляется в <code>init.dt</code> через <code>KidsCrmDataTable.ensureTableScrollHost</code>) или встроенный <code>.dataTables_scroll</code> при <code>scrollX</code> / <code>fixedColumns</code>.</li>
+    <li>На <code>/admin/school-leads</code> дополнительно: FixedHeader для <code>thead</code> и липкий клон полосы <code>.kids-dt-sticky-hscroll</code> (не пресет; CSS — <code>resources/css/school-leads-table.css</code>, см. <a href="/docs/documentation/school-leads-widget#school-leads-sticky-header">school-leads-widget §5.1.6</a>).</li>
   </ul>
 
   <h3>API возвращаемого объекта</h3>

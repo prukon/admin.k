@@ -223,7 +223,7 @@ class ChatApiController extends AdminBaseController
     public function showUser(ChatUserShowRequest $request, User $user): JsonResponse
     {
         return response()->json(
-            $this->chat->userCard($user, $this->requirePartnerId())
+            $this->chat->userCard($user)
         );
     }
 
@@ -237,8 +237,7 @@ class ChatApiController extends AdminBaseController
                 $thread,
                 $this->currentUser(),
                 $request->afterUserId(),
-                ChatService::MEMBERS_PAGE_SIZE,
-                $this->requirePartnerId()
+                ChatService::MEMBERS_PAGE_SIZE
             )
         );
     }

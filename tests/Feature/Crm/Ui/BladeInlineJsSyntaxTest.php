@@ -5245,6 +5245,59 @@ JS;
     }
 
     /**
+     * P1: закрепление thead (FixedHeader) и липкий горизонтальный скролл только на вкладке заявок.
+     */
+    public function test_school_leads_sticky_header_and_hscroll_inline_script_contract_and_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/school-leads/tabs/leads.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("@vite(['resources/css/admin-list-toolbar.css', 'resources/css/school-leads-table.css'])", $content);
+        $this->assertStringNotContainsString('<style>', $content);
+
+        $vite = (string) file_get_contents(base_path('vite.config.js'));
+        $this->assertStringContainsString("'resources/css/school-leads-table.css'", $vite);
+
+        $css = (string) file_get_contents(resource_path('css/school-leads-table.css'));
+        $this->assertStringContainsString('.dtfh-floatingparenthead', $css);
+        $this->assertStringContainsString('.kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('kids-dt-scroll-x--has-sticky-bar', $css);
+
+        $this->assertStringContainsString('dataTables.fixedHeader.min.js', $content);
+        $this->assertStringContainsString('fixedHeader.bootstrap4.min.css', $content);
+        $this->assertStringContainsString('kids-dt-sticky-hscroll', $content);
+        $this->assertStringContainsString('bindSchoolLeadsStickyHScroll', $content);
+        $this->assertStringContainsString('dtfh-floatingparenthead', $content);
+        $this->assertStringContainsString('header: true', $content);
+        $this->assertStringContainsString('footer: false', $content);
+        $this->assertStringContainsString('getBoundingClientRect()', $content);
+        $this->assertStringContainsString("setProperty('overflow'", $content);
+        $this->assertStringContainsString('parent.scrollLeft', $content);
+        $this->assertStringContainsString('matchSchoolLeadsFloatingHeaderWidths', $content);
+        $this->assertStringContainsString('boxSizing', $content);
+        $this->assertStringContainsString('maxWidth', $content);
+        $this->assertStringContainsString('scroll.schoolLeadsStickyH', $content);
+        $this->assertStringNotContainsString("margin-left', (-", $content);
+
+        $pluginPos = strpos($content, 'dataTables.fixedHeader.min.js');
+        $createPos = strpos($content, "KidsCrmDataTable.create('#leads-table'");
+        $this->assertNotFalse($pluginPos);
+        $this->assertNotFalse($createPos);
+        $this->assertLessThan(
+            $createPos,
+            $pluginPos,
+            'FixedHeader должен загружаться до KidsCrmDataTable.create, иначе шапка не закрепится'
+        );
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'bindSchoolLeadsStickyHScroll',
+            'blade-js-school-leads-sticky-hscroll'
+        );
+    }
+
+    /**
      * P1: inline JS лидов — смена статуса у лида с клиентом + динамический tooltip «Создать клиента».
      */
     public function test_school_leads_linked_status_and_create_client_tooltip_inline_script_is_valid_javascript(): void
@@ -6185,6 +6238,10 @@ JS;
         $this->assertStringContainsString('resp.poll', $content);
         $this->assertStringContainsString("click', '.js-open-contract-fill'", $content);
         $this->assertStringContainsString("click', '.js-open-contract-fill-edit'", $content);
+        $this->assertStringContainsString('@if(!empty($openFillContractId))', $content);
+        $this->assertStringContainsString('loadContractFill(@json((int) $openFillContractId), false, @json($openFillMode ?? null));', $content);
+        $this->assertStringContainsString("/account-settings/documents/contracts/' + contractId + '/fill", $content);
+        $this->assertStringContainsString("/account-settings/documents/contracts/' + id + '/requests", $content);
 
         preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
         $this->assertNotEmpty($matches[1]);

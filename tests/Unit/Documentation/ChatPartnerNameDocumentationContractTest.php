@@ -8,7 +8,8 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Анонс /doc#chat-partner-name-index и chat.html §partner-name совпадают с кодом:
- * partners.title в модалках «Контакт» и «Группа», не вкладка «Аккаунт», не шапка.
+ * partners.title в модалках «Контакт» и «Группа» — школа карточки / чата
+ * (users.partner_id / teams.partner_id), не current_partner сессии и не вкладка «Аккаунт».
  */
 final class ChatPartnerNameDocumentationContractTest extends TestCase
 {
@@ -33,6 +34,10 @@ final class ChatPartnerNameDocumentationContractTest extends TestCase
         $this->assertStringContainsString('accountCardBody', $chunk);
         $this->assertStringContainsString('#threadSubtitle', $chunk);
         $this->assertStringContainsString('Служба поддержки', $chunk);
+        $this->assertStringContainsString('users.partner_id', $chunk);
+        $this->assertStringContainsString('current_partner', $chunk);
+        $this->assertStringContainsString('team_title', $chunk);
+        $this->assertStringContainsString('teams.partner_id', $chunk);
         $this->assertStringContainsString('ChatPartnerNameFeatureTest', $chunk);
         $this->assertStringContainsString('ChatPartnerNameUxFeatureTest', $chunk);
         $this->assertStringContainsString('/docs/documentation/chat#partner-name', $chunk);
@@ -66,6 +71,10 @@ final class ChatPartnerNameDocumentationContractTest extends TestCase
         $this->assertStringContainsString('ChatPartnerNameFeatureTest', $chunk);
         $this->assertStringContainsString('ChatPartnerNameUxFeatureTest', $chunk);
         $this->assertStringContainsString('ChatPartnerNameDocumentationContractTest', $chunk);
+        $this->assertStringContainsString('users.partner_id', $chunk);
+        $this->assertStringContainsString('current_partner', $chunk);
+        $this->assertStringContainsString('team_title', $chunk);
+        $this->assertStringContainsString('teams.partner_id', $chunk);
         $this->assertStringNotContainsString('вкладка «Аккаунт» показывает партнёра', $chunk);
     }
 
@@ -99,7 +108,12 @@ final class ChatPartnerNameDocumentationContractTest extends TestCase
         $this->assertStringContainsString('.group-card-partner {', $css);
         $this->assertStringContainsString('function partnerTitle(', $service);
         $this->assertStringContainsString("'partner_name'", $service);
+        $this->assertStringContainsString('function threadPartnerId(', $service);
+        $this->assertStringContainsString('sqlStudentTeamTitlesSubquery($peerPartnerId)', $service);
+        $this->assertStringContainsString('$peer->partner_id', $service);
+        $this->assertStringContainsString('userCard($user)', $controller);
         $this->assertStringContainsString('requirePartnerId()', $controller);
+        $this->assertStringNotContainsString('userCard($user, $this->requirePartnerId())', $controller);
 
         $inboxStart = strpos($service, 'private function serializeThread(');
         $headerStart = strpos($service, 'private function serializeThreadHeader(');

@@ -37,6 +37,7 @@
     · <a href="#invitation-email-recipients">§6 приглашение на email ученика и родителя</a>
     · анонс <a href="/doc#account-contract-fill-modal-ux-index">/doc</a>
     · приглашение: <a href="/doc#contract-invitation-parent-email-index">/doc</a>
+    · семейная ссылка на документы: <a href="/doc#account-documents-family-link-index">/doc</a>
     · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">/doc</a>
     · ключ Подпислона: <a href="/doc#legal-entities-podpislon-key-index">/doc</a>
   </div>
@@ -55,13 +56,19 @@
     статус в <code>signed</code> не поднимает и колокольчик не шлёт
     (<a href="/doc#contract-annul-after-send-index">анонс аннулирования</a>).<br><br>
     Право на раздел: <code>account.documents.view</code> (<code>Gate::define('account.documents.view')</code>).<br>
-    Маршруты fill / generate / sign дополнительно защищены middleware <code>contract.owner</code> — только владелец договора (<code>contracts.user_id === Auth::id()</code>); чужой пользователь получает <b>404</b> (anti-enumeration).<br>
+    Список и каунтер — договоры <b>активного ребёнка</b> (<code>FamilyStudentContextService::activeStudent()</code>), не учётки входа.
+    Маршруты fill / generate / sign защищены middleware <code>contract.owner</code>: договор доступен владельцу
+    (<code>contracts.user_id === Auth::id()</code>) или sibling из <code>accessibleStudents</code>; чужой пользователь получает <b>404</b> (anti-enumeration).<br>
+    Ссылка в письме-приглашении: <code>/account-settings/documents?student={user_id}&amp;fill={contract_id}</code>
+    переключает контекст на ребёнка договора (только свой sibling) и открывает модалку.
+    Без <code>student</code> (меню, PDF) ребёнок не переключается.
+    (<a href="/doc#account-documents-family-link-index">анонс</a>).<br>
     Гость → <b>302</b> на login; без права → <b>403</b>.
   </div>
 
   <h3 id="account-documents-action-counter">1.0) Каунтер «активных к действию» договоров</h3>
   <p>На пункте левого меню <b>«Учетная запись»</b> и на вкладке <b>«Мои документы»</b> показывается badge с числом договоров
-    <b>текущего пользователя</b> (<code>contracts.user_id = Auth::id()</code>), у которых статус из набора «активных к действию»:</p>
+    <b>активного ребёнка</b> (<code>contracts.user_id = FamilyStudentContextService::activeStudent()</code>), у которых статус из набора «активных к действию»:</p>
   <ul>
     <li><code>awaiting_client_fill</code> — ожидает заполнения клиентом</li>
     <li><code>sent</code> — отправлено на подпись</li>
@@ -96,7 +103,10 @@
     Обновление — только при полной отрисовке страницы (как счётчик «Новых» у лидов), не после AJAX fill/generate/sign без reload.
   </div>
   <p class="small">Разметка: <code>resources/views/includes/sidebar.blade.php</code>, <code>resources/views/account/index.blade.php</code>.
-    Тесты: <code>AccountDocumentsActionCounterFeatureTest</code>, markup-контракты в <code>BladeInlineJsSyntaxTest</code>.
+    Тесты: <code>AccountDocumentsActionCounterFeatureTest</code> (статусы, скрытие при 0 / без права),
+    семейный каунтер активного ребёнка — <code>AccountDocumentsFamilyContextFeatureTest</code> /
+    <code>AccountDocumentsFamilyContextMarkupFeatureTest</code>,
+    markup-контракты в <code>BladeInlineJsSyntaxTest</code>.
     Краткая сводка: <a href="/docs/documentation#account-documents-action-counter-index">главная документация</a>
     · оглавление <code>/doc</code> → «Заполнение договора родителем…».</p>
 
@@ -104,7 +114,7 @@
   <table>
     <thead><tr><th>Метод</th><th>URL</th><th>Назначение</th></tr></thead>
     <tbody>
-      <tr><td>GET</td><td><code>/account-settings/documents</code></td><td>Список договоров ученика; query <code>?fill={contract_id}</code> автоматически открывает модалку</td></tr>
+      <tr><td>GET</td><td><code>/account-settings/documents</code></td><td>Список договоров активного ребёнка; query <code>?fill={contract_id}</code> открывает модалку; <code>?student={user_id}</code> из письма переключает семейный контекст (только sibling), без этого параметра ребёнок не меняется</td></tr>
       <tr><td>GET</td><td><code>…/contracts/{contract}/fill</code></td><td>AJAX JSON: HTML формы (<code>title</code>, <code>html</code>, <code>poll</code>); без AJAX — redirect на index с <code>?fill=</code></td></tr>
       <tr><td>POST</td><td><code>…/contracts/{contract}/generate</code></td><td>Отправка полей → очередь/синхронная генерация PDF (<code>ContractPdfGenerationService</code>)</td></tr>
       <tr><td>POST</td><td><code>…/contracts/{contract}/sign</code></td><td>Подписание SMS (<code>ContractPodpislonSendService</code>, <code>ContractSendRequest</code>)</td></tr>
@@ -115,6 +125,29 @@
   </table>
   <p class="small">Контроллеры: <code>AccountDocumentsController</code>, <code>AccountContractFillController</code>.
   View: <code>resources/views/account/documents.blade.php</code>, partials <code>contract-fill-modal.blade.php</code>, <code>contract-fill-content.blade.php</code>, <code>contract-fill-field.blade.php</code>.</p>
+
+  <h3 id="account-documents-family-link">1.2) Семейный кабинет и ссылка из письма</h3>
+  <div class="note">
+    При 2+ детях с одним <code>parent_id</code> список «Мои документы» и каунтер показывают договоры
+    <code>activeStudent()</code> (как консоль и платежи), не учётки входа.
+    Fill / generate / sign / download / requests доступны, если <code>contracts.user_id</code> —
+    сам <code>Auth::id()</code> или sibling из <code>accessibleStudents</code> (<code>FamilyStudentContextService::canAccessContract</code>).
+    Права остаются у учётки входа.
+    <br><br>
+    Письмо-приглашение подставляет <code>{{documents_url}}</code> как
+    <code>/account-settings/documents?student={user_id}&amp;fill={contract_id}</code>
+    (<code>ContractInvitationEmailRenderer::documentsUrl</code>).
+    Query <code>student</code> вызывает <code>setActiveStudent</code> только если ученик из
+    <code>accessibleStudents</code> (активный sibling; отключённый брат/сестра в список не входит).
+    Чужой и отключённый id <b>молча игнорируются</b> (не 403) — в отличие от
+    <code>POST /cabinet/active-student</code>, где недоступный ученик даёт 403.
+    Query <code>fill</code> без <code>student</code> ребёнка <b>не</b> переключает
+    (меню, закладка, PDF). В PDF ключ <code>documents_url</code> без query.
+    Гость по ссылке → 302 на login, в <code>url.intended</code> остаются оба query.
+    Generate в модалке (<code>AccountContractGenerateRequest::authorize</code>) тоже через
+    <code>canAccessContract</code>, иначе sibling открыл бы форму, но submit получил бы 403.
+    Анонс: <a href="/doc#account-documents-family-link-index">/doc#account-documents-family-link-index</a>.
+  </div>
 
   <h2>2) Модалка заполнения (<code>#contractFillModal</code>)</h2>
   <ul>
@@ -271,7 +304,8 @@
     <li>AJAX generate → JSON <code>{ message, poll }</code>; 422 не перезагружает форму: <code>errors['fields.{key}']</code>
       мапятся в <code>[data-error-for]</code> под полями; <code>errors.contract</code> — alert сверху.</li>
     <li>Non-AJAX POST → 302 на index с <code>?fill={id}</code>, flash success; PDF на диске, статус <code>draft</code>.</li>
-    <li>Guest → login; без <code>account.documents.view</code> → 403; чужой договор → 404 (<code>contract.owner</code>).</li>
+    <li>Guest → login; без <code>account.documents.view</code> → 403;
+      договор sibling семьи → как свой; чужой (не владелец и не sibling) → 404 (<code>contract.owner</code> / <code>canAccessContract</code>).</li>
   </ul>
 
   <h2>5) Скрытое право «показывать ключи полей»</h2>
@@ -287,7 +321,11 @@
   Текст берётся из версии шаблона (<code>email_subject</code>, <code>email_body_html</code>)
   или системных дефолтов (<code>ContractTemplateEmailDefaults</code>); плейсхолдеры подставляет <code>ContractInvitationEmailRenderer</code>
   (<code>{{child_full_name}}</code>, <code>{{partner_name}}</code>, <code>{{documents_url}}</code>, <code>{{fill_deadline}}</code>, <code>{{contract_id}}</code>).
-  Режим PDF приглашение не шлёт. Анонс: <a href="/doc#contract-invitation-parent-email-index">/doc#contract-invitation-parent-email-index</a>.</p>
+  В письме <code>{{documents_url}}</code> = <code>/account-settings/documents?student={contract.user_id}&amp;fill={contract.id}</code>
+  (ребёнок договора + автооткрытие модалки). В PDF тот же ключ остаётся общим
+  <code>/account-settings/documents</code> без query (<code>ContractTemplateSystemPlaceholders</code>).
+  Режим PDF приглашение не шлёт. Анонс: <a href="/doc#contract-invitation-parent-email-index">/doc#contract-invitation-parent-email-index</a>,
+  семейная ссылка: <a href="/doc#account-documents-family-link-index">/doc#account-documents-family-link-index</a>.</p>
 
   <h2>7) Feature-тесты</h2>
   <div class="note">
@@ -317,6 +355,12 @@
       <li><code>ContractAnnulAfterSendDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>AccountDocumentsActionCounterFeatureTest.php</code> — каунтер активных договоров (§1.0): сайдбар + вкладка,
         только actionable-статусы, изоляция по <code>user_id</code>, скрытие при 0 / без права, guest/403</li>
+      <li><code>AccountDocumentsFamilyContextFeatureTest.php</code> — UX: ссылка из письма при выбранном другом ребёнке, intended URL гостя, без <code>student</code> не переключает, PDF-URL не переключает, disabled sibling игнорируется</li>
+      <li><code>AccountDocumentsFamilyContextAccessFeatureTest.php</code> — гость 302/401, без права 403, sibling 200, чужой партнёр 404, чужие HTTP-методы не 500</li>
+      <li><code>AccountDocumentsFamilyContextAjaxContractFeatureTest.php</code> — AJAX generate sibling 200 JSON / 422 <code>errors['fields.*']</code>, 403, гость</li>
+      <li><code>AccountDocumentsFamilyContextNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX generate sibling 302 + запись / 302 + session errors по полям</li>
+      <li><code>AccountDocumentsFamilyContextMarkupFeatureTest.php</code> — selected переключателя, badge каунтера, вкладка без <code>?student=</code>, скрытие без права</li>
+      <li><code>AccountDocumentsFamilyLinkDocumentationContractTest</code> — анонс <a href="/doc#account-documents-family-link-index">/doc</a> совпадает с кодом</li>
       <li><code>ContractInvitationEmailFeatureTest.php</code> — приглашение: текст по умолчанию; два отдельных письма на <code>users.email</code> и <code>parents.email</code>, одно при совпадении, только родитель, оба пустые</li>
       <li><code>ContractInvitationParentEmailDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>ContractTemplateToParentWorkflowFeatureTest.php</code> — admin → email → fill → PDF (CRM + кабинет)</li>

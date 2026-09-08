@@ -190,7 +190,7 @@ final class ChatPeerCardCrossPartnerFullAccessFeatureTest extends ChatTestCase
         $this->getJson(route('chat.api.users.show', $homePeer), $this->ajaxHeaders())
             ->assertOk()
             ->assertJsonPath('id', (int) $homePeer->id)
-            ->assertJsonPath('partner_name', $this->foreignPartner->title);
+            ->assertJsonPath('partner_name', $this->partner->title);
     }
 
     public function test_superadmin_opens_foreign_group_member_card_when_they_share_a_live_group(): void
@@ -209,7 +209,7 @@ final class ChatPeerCardCrossPartnerFullAccessFeatureTest extends ChatTestCase
         $this->getJson(route('chat.api.users.show', $this->foreignUser), $this->ajaxHeaders())
             ->assertOk()
             ->assertJsonPath('id', (int) $this->foreignUser->id)
-            ->assertJsonPath('partner_name', $this->partner->title);
+            ->assertJsonPath('partner_name', $this->foreignPartner->title);
     }
 
     public function test_superadmin_cannot_open_foreign_card_after_thread_is_trashed(): void
