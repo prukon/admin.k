@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Dashboard;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Tests\Feature\Crm\StudentTeams\StudentTeamPivotTestCase;
 
@@ -67,6 +68,12 @@ final class DashboardCabinetDiagnosticsFeatureTest extends StudentTeamPivotTestC
 
     public function test_get_user_details_never_includes_cabinet_diagnostics_payload(): void
     {
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->studentRoleId(),
+            'is_enabled' => 1,
+        ]);
+
         $this->asSuperadmin();
         $this->user->forceFill(['system_monitors' => true])->save();
         $this->withSession([
@@ -74,7 +81,7 @@ final class DashboardCabinetDiagnosticsFeatureTest extends StudentTeamPivotTestC
             '2fa:passed' => true,
         ]);
 
-        $with = $this->getJson(route('getUserDetails', ['userId' => $this->user->id]))
+        $with = $this->getJson(route('getUserDetails', ['userId' => $student->id]))
             ->assertOk()
             ->assertJsonPath('success', true)
             ->json();
@@ -85,7 +92,7 @@ final class DashboardCabinetDiagnosticsFeatureTest extends StudentTeamPivotTestC
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
-        $without = $this->getJson(route('getUserDetails', ['userId' => $this->user->id]))
+        $without = $this->getJson(route('getUserDetails', ['userId' => $student->id]))
             ->assertOk()
             ->assertJsonPath('success', true)
             ->json();

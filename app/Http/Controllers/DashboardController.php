@@ -45,9 +45,10 @@ class DashboardController extends Controller
         $data = $request->validated();
         $title = isset($data['title']) ? trim((string)$data['title']) : null;
 
-        $allUsersSelect = User::where('is_enabled', true)
-            ->where('partner_id', $partnerId)
-            ->orderBy('lastname', 'asc')->get();
+        $allUsersSelect = $this->cabinetSelectStudentsQuery($partnerId)
+            ->orderBy('lastname')
+            ->orderBy('name')
+            ->get();
 
         $teamsQuery = Team::where('is_enabled', true)
             ->where('partner_id', $partnerId)
@@ -177,8 +178,8 @@ class DashboardController extends Controller
             ]);
         }
 
-        $user = User::where('id', $userId)
-            ->where('partner_id', $partnerId)
+        $user = $this->cabinetSelectStudentsQuery($partnerId)
+            ->whereKey($userId)
             ->first();
 
         if (!$user) {
@@ -291,14 +292,14 @@ class DashboardController extends Controller
         $usersTeam = collect();
 
         if ($teamName === 'all') {
-            $usersTeam = User::where('is_enabled', 1)
-                ->where('partner_id', $partnerId)
-                ->orderBy('name', 'asc')
+            $usersTeam = $this->cabinetSelectStudentsQuery($partnerId)
+                ->orderBy('lastname')
+                ->orderBy('name')
                 ->get();
         } elseif ($teamName === 'withoutTeam') {
             $usersTeam = $this->studentsWithoutTeamsQuery($partnerId)
-                ->where('is_enabled', 1)
-                ->orderBy('lastname', 'asc')
+                ->orderBy('lastname')
+                ->orderBy('name')
                 ->get();
         } else {
             if (!$teamId) {
@@ -317,10 +318,13 @@ class DashboardController extends Controller
                 ]);
             }
 
-            $usersTeam = $team->students()
-                ->where('users.partner_id', $partnerId)
-                ->where('is_enabled', 1)
-                ->orderBy('lastname', 'asc')
+            $usersTeam = $this->cabinetSelectStudentsQuery($partnerId)
+                ->whereHas(
+                    'teams',
+                    fn ($q) => $q->where('teams.id', $team->id)->where('teams.partner_id', $partnerId)
+                )
+                ->orderBy('lastname')
+                ->orderBy('name')
                 ->get();
 
             foreach ($team->weekdays as $teamWeekDay) {
@@ -420,12 +424,23 @@ class DashboardController extends Controller
     }
 
     /**
+     * Кандидаты селекта «ФИО» на /cabinet и цель getUserDetails:
+     * активные ученики текущего партнёра с системной ролью user.
+     */
+    private function cabinetSelectStudentsQuery(int $partnerId)
+    {
+        return User::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->withSystemRoleUser();
+    }
+
+    /**
      * Ученики партнёра без групп в pivot team_user.
      */
     private function studentsWithoutTeamsQuery(int $partnerId)
     {
-        return User::query()
-            ->where('partner_id', $partnerId)
+        return $this->cabinetSelectStudentsQuery($partnerId)
             ->whereDoesntHave('teams', fn ($q) => $q->where('teams.partner_id', $partnerId));
     }
 

@@ -28,6 +28,135 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="cabinet-fio-select-index">Консоль: селект «ФИО» только активные ученики (2026‑09)</h2>
+  <div class="note">
+    На <code>/cabinet</code> у сотрудника с <code>users.view</code> блок «Выбор ученика»
+    (Select2 «Группа» + «ФИО», <code>#single-select-user</code>) больше не показывает
+    админов, тренеров, кастомные роли и отключённых.
+    В списке только активные ученики текущего партнёра:
+    системная роль <code>roles.name = user</code> и <code>is_sistem = true</code>
+    (<code>User::withSystemRoleUser()</code>), <code>users.is_enabled = 1</code>.
+    Это тот же фильтр, что у Select2 доп. платежей, не селект «Выбор группы»
+    (<code>#dashboard-active-team</code>, без <code>users.view</code>)
+    и не семейный переключатель ребёнка.
+    Анонс: <a href="/doc#cabinet-fio-select-index">/doc#cabinet-fio-select-index</a>.
+    <br><br>
+    1) <b>Кто видит блок.</b>
+    Разметка за <code>@can('users.view')</code>. Без права (роль <code>user</code>,
+    тренер без выдачи) селектов «Группа» / «ФИО» нет — только свои или семейные данные.
+    Тренеру с выданным <code>users.view</code> список тоже только из учеников.
+    Superadmin видит блок через <code>Gate::before</code>, состав тот же.
+    Страница и AJAX по-прежнему требуют <code>dashboard.view</code> (гость → login / не 200;
+    без права → 403). Ховер матрицы <code>dashboard.view</code> про состав селекта не пишет
+    (только меню, <code>/cabinet</code>, <code>/get-user-details</code> и <code>/get-team-details</code>).
+    Ховер <code>users.view</code> — «просмотр чужого ученика (режим сотрудника)», без фильтра состава.
+    <br>
+    2) <b>Откуда список.</b>
+    Первый кадр: <code>$allUsersSelect</code> =
+    <code>DashboardController::cabinetSelectStudentsQuery</code>
+    (партнёр + <code>is_enabled</code> + <code>withSystemRoleUser</code>, сортировка
+    <code>lastname</code>, <code>name</code>).
+    Смена «Группа» — <code>GET /get-team-details</code>:
+    <code>teamName=all</code> / <code>withoutTeam</code> / конкретная группа (pivot
+    <code>team_user</code>) — тот же query.
+    «Без группы» и <code>userWithoutTeam</code> тоже только ученики: иначе JS
+    <code>userWithoutTeam.concat(usersTeam)</code> подмешивал бы сотрудников без группы
+    в «ФИО» при выборе конкретной группы. Клиент роль <b>не</b> фильтрует.
+    <br>
+    3) <b>Запрос по id.</b>
+    Смена ФИО шлёт <code>GET /get-user-details?userId=</code> из
+    <code>data-user-id</code> (не из <code>value</code> option).
+    Цель — только активный ученик своего партнёра с системной ролью <code>user</code>.
+    Админ / тренер / кастом / <code>is_enabled=0</code> / чужой партнёр / без id →
+    JSON 200 <code>{ success: false }</code>, не 422 и не 500.
+    Ручка закрыта <code>dashboard.view</code>, не <code>users.view</code>: ученик
+    с консолью технически может запросить другого ученика школы, но не сотрудника.
+    <br>
+    4) <b>Не путать.</b>
+    «Выбор группы» (<code>#dashboard-active-team</code>) — у пользователя
+    <b>без</b> <code>users.view</code> при 2+ группах, фильтр сезонов и абонементов
+    на клиенте (<a href="/doc#cabinet-ulp-team-filter">анонс</a>).
+    Семейный <code>activeStudent</code> — <a href="/docs/documentation/parents-and-family-cabinet">parents-and-family-cabinet</a>.
+    Вкладка «Клиенты» <code>/admin/users</code> уже была только <code>role=user</code>.
+    <br><br>
+    Подробно — <a href="/docs/documentation/dashboard-cabinet#fio-select-students">dashboard-cabinet §4</a>,
+    доп. платежи —
+    <a href="/docs/documentation/setting-prices-custom-payments#endpoints">setting-prices-custom-payments</a>.
+    Тесты: <code>DashboardCabinetFioSelectAccessFeatureTest</code>,
+    <code>DashboardCabinetFioSelectAjaxContractFeatureTest</code>,
+    <code>DashboardCabinetFioSelectNonAjaxSafetyNetFeatureTest</code>,
+    <code>DashboardCabinetFioSelectFullAccessFeatureTest</code>,
+    <code>DashboardCabinetFioSelectUxFeatureTest</code>,
+    <code>DashboardAjaxDetailsTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (пересборка options),
+    <code>CabinetFioSelectDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="contract-podpislon-signing-url-index">Договоры: ссылка Подпислона из SMS на карточке и в кабинете (2026‑09)</h2>
+  <div class="note">
+    Ссылка, которую Подпислон кладёт в SMS
+    (<code>https://podpislon.ru/sign/pack/{id}/{hash}</code>), сохраняется в
+    <code>contracts.provider_signing_url</code> и показывается на карточке CRM
+    <code>/client-contracts/{id}</code> и в кабинете родителя
+    <code>/account-settings/documents</code>.
+    SMS по-прежнему отправляет Подпислон: <code>no_sms</code> в
+    <code>PUT /add-document</code> <b>не</b> передаём.
+    Это <b>не</b> колонка списка <code>/client-contracts</code>
+    (DataTable ссылку не отдаёт) и <b>не</b> колонка «Договор» на
+    <code>/admin/users</code>.
+    Анонс: <a href="/doc#contract-podpislon-signing-url-index">/doc#contract-podpislon-signing-url-index</a>.
+    <br><br>
+    1) <b>Сохранение.</b> OpenAPI: <code>contacts[].link</code> в списке документов
+    (пример <code>https://podpislon.ru/sign/pack/861221/58abc612882</code>).
+    Пишет <code>PodpislonSigningUrl::capture()</code> только URL вида
+    <code>https://podpislon.ru/sign/pack/{digits}/{hex}</code>.
+    Источники: ответ <code>/add-document</code> (если есть <code>links</code>),
+    документ после poll/list, <code>GET /client-contracts/{id}/status</code>
+    (даже если статус уже <code>sent</code>, <code>synced: false</code>),
+    ресенд: POST <code>/send</code> при уже существующем <code>provider_doc_id</code>
+    и POST <code>/resend</code>.
+    Вебхук ссылку не присылает и колонку не трогает.
+    Отзыв / аннулирование <code>provider_signing_url</code> <b>не</b> стирают
+    (старое SMS у Подпислона может остаться живым —
+    <a href="/doc#contract-annul-after-send-index">анонс аннулирования</a>).
+    Для старых договоров без URL — кнопка «Синхронизировать с Подпислон».
+    <br>
+    2) <b>CRM.</b> Строка «Ссылка на подпись» после «Статус», только если
+    <code>Contract::providerSigningUrl()</code> не пуст
+    (любой статус, в т.ч. <code>signed</code> / <code>revoked</code>).
+    <code>&lt;a id="contract-provider-signing-url" target="_blank" rel="noopener noreferrer"&gt;</code>.
+    Пустое поле и чужой хост в БД строку не рисуют.
+    Строка не за <code>@can('contracts.sync')</code>: без sync ссылка видна, кнопки sync нет.
+    Гость → логин (JSON send/status → 401); без <code>contracts.view</code> / тренер / чужая школа → 403, URL в HTML нет.
+    Модалка: <code>#openSendModal</code> и <code>#openResendModal</code> открывают один <code>#sendModal</code>;
+    submit — POST <code>/send</code> (не <code>/resend</code>), успех <code>showSuccessModal(..., 1)</code> — reload после OK.
+    Sync — <code>location.reload()</code>. Native POST <code>/send</code> тоже пишет URL (JSON 200, не пустой ответ).
+    422: <code>errors.signer_lastname</code> / <code>errors.signer_phone</code> /
+    <code>errors.podpislon_api_key</code> — URL не пишется.
+    <br>
+    3) <b>Кабинет.</b> На карточке договора кнопка <b>«Открыть ссылку из SMS»</b>
+    и сам URL (тот же <code>target</code>/<code>rel</code>) — обычный <code>&lt;a&gt;</code>, не AJAX;
+    fill-AJAX кнопку не пересобирает. Критерий тот же: непустой whitelist, без фильтра по статусу.
+    Native POST <code>account.documents.sign</code> → 302 на документы + URL в БД.
+    Sibling видит ссылку только активного ребёнка.
+    Гость → login (JSON sign → 401); без <code>account.documents.view</code> / тренер → 403;
+    чужая школа URL не видит. Подробно —
+    <a href="/docs/documentation/contracts#contract-podpislon-signing-url">contracts §3.1.1</a>,
+    <a href="/docs/documentation/account-contract-fill#account-documents-podpislon-signing-url">account-contract-fill §1.3</a>.
+    Тесты: <code>PodpislonSigningUrlTest</code>,
+    <code>ContractPodpislonSigningUrlFeatureTest</code>,
+    <code>ContractPodpislonSigningUrlAccessFeatureTest</code>,
+    <code>ContractPodpislonSigningUrlFullAccessFeatureTest</code>,
+    <code>ContractPodpislonSigningUrlAjaxContractFeatureTest</code>,
+    <code>ContractPodpislonSigningUrlNonAjaxSafetyNetFeatureTest</code>,
+    <code>ContractPodpislonSigningUrlUxFeatureTest</code>,
+    <code>AccountDocumentsPodpislonSigningUrlAccessFeatureTest</code>,
+    <code>AccountDocumentsPodpislonSigningUrlUxFeatureTest</code>,
+    <code>AccountDocumentsPodpislonSigningUrlNonAjaxSafetyNetFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (send/resend openers + cabinet <code>&lt;a&gt;</code>),
+    <code>ContractPodpislonSigningUrlDocumentationContractTest</code>.
+  </div>
+
   <h2 id="school-lead-create-client-choice-index">Заявки: «Создать клиента» с договором или без (2026‑09)</h2>
   <div class="note">
     На вкладке «Заявки» (<code>/admin/school-leads</code>) кнопка <b>«Создать клиента»</b>
@@ -1392,7 +1521,10 @@
     <code>refunded: true</code>, «Возврат 70 ₽: Да».
     <br>
     3) <b>Старое SMS.</b>
-    Подпислон не отзывается. Если клиент всё же подпишет:
+    Подпислон не отзывается, <code>provider_signing_url</code> не очищается:
+    если URL уже в БД, строка на карточке CRM и кнопка «Открыть ссылку из SMS»
+    в кабинете остаются (<a href="/doc#contract-podpislon-signing-url-index">анонс ссылки</a>).
+    Если клиент всё же подпишет:
     вебхук <code>DOCUMENT_SIGNED</code> / ручной
     <code>GET …/status</code> пишет <code>signed_at</code> (если пусто),
     качает signed PDF, событие <code>signed_after_revoke</code>,
@@ -7775,10 +7907,10 @@
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: сайдбар/h4 «Пользователи»; вкладка <b>«Клиенты»</b> (<code>/admin/users</code>, роль <code>user</code>, label «Клиент»); <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок — <a href="/doc#users-client-naming-index">анонс нейминга</a></a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>«Мои документы» активного ребёнка</b> и ссылка из письма <code>?student=&amp;fill=</code> (<a href="/doc#account-documents-family-link-index">анонс</a>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
-    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата)</a></li>
-    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>колонка «Договор»</b> — иконка PDF при <code>signed_pdf_path</code>, скачать в новой вкладке (<a href="/doc#contract-list-signed-file-index">анонс</a>), <b>колонка «Обновлён»</b> — последнее событие журнала (<a href="/doc#contract-list-updated-at-index">анонс</a>), <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «ФИО» (<code>users.view</code>) — только активные ученики <code>role=user</code> (<a href="/doc#cabinet-fio-select-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата)</a></li>
+    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>колонка «Договор»</b> — иконка PDF при <code>signed_pdf_path</code>, скачать в новой вкладке (<a href="/doc#contract-list-signed-file-index">анонс</a>), <b>колонка «Обновлён»</b> — последнее событие журнала (<a href="/doc#contract-list-updated-at-index">анонс</a>), <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<code>provider_signing_url</code>, <a href="/doc#contract-podpislon-signing-url-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <b>«По умолчанию» → <code>{{documents_url}}</code></b> (<a href="/doc#contract-template-email-default-link-index">анонс</a>), <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
-    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>семейная ссылка из письма на нужного ребёнка</b> (<a href="/doc#account-documents-family-link-index">анонс</a>, §1.2), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на email ученика и родителя</b> (§6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<a href="/doc#contract-podpislon-signing-url-index">анонс</a>, §1.3), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>семейная ссылка из письма на нужного ребёнка</b> (<a href="/doc#account-documents-family-link-index">анонс</a>, §1.2), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на email ученика и родителя</b> (§6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
     <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>create/edit без «OK» и без F5</b> (<a href="/doc#users-create-edit-toast-index">анонс</a>), <b>шапка и горизонтальный скролл на экране</b> (§2.0.1, <a href="/doc#users-sticky-header-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>

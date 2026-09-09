@@ -74,6 +74,21 @@
                                         <div class="fw-semibold">{{ $c->group_title }}</div>
                                     </div>
 
+                                    @if($c->providerSigningUrl())
+                                        <div class="mt-2">
+                                            <div class="text-muted small">Ссылка на подпись</div>
+                                            <a class="btn btn-sm btn-outline-success mt-1"
+                                               href="{{ $c->providerSigningUrl() }}"
+                                               target="_blank"
+                                               rel="noopener noreferrer">Открыть ссылку из SMS</a>
+                                            <div class="small text-break mt-1">
+                                                <a href="{{ $c->providerSigningUrl() }}"
+                                                   target="_blank"
+                                                   rel="noopener noreferrer">{{ $c->providerSigningUrl() }}</a>
+                                            </div>
+                                        </div>
+                                    @endif
+
                                     {{-- Кнопки действий --}}
                                     <div class="mt-3 d-flex flex-wrap gap-2">
 

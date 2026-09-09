@@ -1,10 +1,14 @@
 <?php
 
 namespace Tests\Feature\Crm\Dashboard;
+
 use App\Models\Partner;
+use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\Weekday;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\Feature\Crm\CrmTestCase;
 
 class DashboardAjaxDetailsTest extends CrmTestCase
@@ -204,11 +208,11 @@ class DashboardAjaxDetailsTest extends CrmTestCase
      * P1.5 — teamName = all — все юзеры текущего партнёра
      */
     /**
-     * P1.5 — teamName = all — все включённые юзеры текущего партнёра.
+     * P1.5 — teamName = all — все включённые ученики текущего партнёра (роль user).
      *
      * Проверяем:
-     * 1) Наши созданные юзеры партнёра присутствуют в usersTeam.
-     * 2) Все usersTeam принадлежат текущему партнёру и имеют is_enabled = 1.
+     * 1) Наши созданные ученики партнёра присутствуют в usersTeam.
+     * 2) Все usersTeam принадлежат текущему партнёру, is_enabled = 1, role_id роли user.
      */
     public function test_get_team_details_with_all_returns_all_enabled_users_of_current_partner(): void
     {
@@ -260,8 +264,10 @@ class DashboardAjaxDetailsTest extends CrmTestCase
             );
         }
 
-        // 2) Все usersTeam должны принадлежать текущему партнёру и быть включёнными
-        $returnedUsers->each(function (array $user) {
+        $studentRoleId = $this->roleId('user');
+
+        // 2) Все usersTeam должны принадлежать текущему партнёру, быть включёнными учениками
+        $returnedUsers->each(function (array $user) use ($studentRoleId) {
             $this->assertEquals(
                 $this->partner->id,
                 $user['partner_id'],
@@ -271,6 +277,11 @@ class DashboardAjaxDetailsTest extends CrmTestCase
                 1,
                 $user['is_enabled'],
                 'Все usersTeam при teamName=all должны быть включёнными (is_enabled = 1)'
+            );
+            $this->assertEquals(
+                $studentRoleId,
+                $user['role_id'],
+                'Все usersTeam при teamName=all должны иметь системную роль user'
             );
         });
     }
@@ -404,5 +415,183 @@ class DashboardAjaxDetailsTest extends CrmTestCase
             ->assertJson([
                 'success' => false,
             ]);
+    }
+
+    public function test_cabinet_fio_select_lists_only_enabled_system_role_users(): void
+    {
+        $this->withoutVite();
+        config(['broadcasting.default' => 'null']);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->roleId('user'),
+            'is_enabled' => 1,
+            'lastname'   => 'Кабинетселектов',
+            'name'       => 'Иван',
+        ]);
+        $disabled = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->roleId('user'),
+            'is_enabled' => 0,
+            'lastname'   => 'Отключеннов',
+            'name'       => 'Пётр',
+        ]);
+        $admin = $this->createUserWithRole('admin', $this->partner, [
+            'is_enabled' => 1,
+            'lastname'   => 'Админов',
+            'name'       => 'Сергей',
+        ]);
+        $trainer = $this->createUserWithRole('trainer', $this->partner, [
+            'is_enabled' => 1,
+            'lastname'   => 'Тренеров',
+            'name'       => 'Олег',
+        ]);
+        $custom = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->makeCustomRole()->id,
+            'is_enabled' => 1,
+            'lastname'   => 'Кастомов',
+            'name'       => 'Игорь',
+        ]);
+
+        $this->asAdmin();
+
+        $html = (string) $this->get(route('dashboard'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('id="single-select-user"', $html);
+        $this->assertStringContainsString('data-user-id="'.$student->id.'"', $html);
+        $this->assertStringNotContainsString('data-user-id="'.$disabled->id.'"', $html);
+        $this->assertStringNotContainsString('data-user-id="'.$admin->id.'"', $html);
+        $this->assertStringNotContainsString('data-user-id="'.$trainer->id.'"', $html);
+        $this->assertStringNotContainsString('data-user-id="'.$custom->id.'"', $html);
+        $this->assertStringNotContainsString('data-user-id="'.$this->user->id.'"', $html);
+    }
+
+    public function test_get_user_details_returns_success_false_for_non_students_and_disabled(): void
+    {
+        $admin = $this->createUserWithRole('admin', $this->partner, ['is_enabled' => 1]);
+        $trainer = $this->createUserWithRole('trainer', $this->partner, ['is_enabled' => 1]);
+        $disabled = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->roleId('user'),
+            'is_enabled' => 0,
+        ]);
+        $custom = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->makeCustomRole()->id,
+            'is_enabled' => 1,
+        ]);
+
+        foreach ([$admin, $trainer, $disabled, $custom] as $target) {
+            $this->getJson(route('getUserDetails', ['userId' => $target->id]))
+                ->assertOk()
+                ->assertJson(['success' => false]);
+        }
+    }
+
+    public function test_get_team_details_all_excludes_staff_disabled_and_custom_roles(): void
+    {
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->roleId('user'),
+            'is_enabled' => 1,
+        ]);
+        $disabled = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->roleId('user'),
+            'is_enabled' => 0,
+        ]);
+        $admin = $this->createUserWithRole('admin', $this->partner, ['is_enabled' => 1]);
+        $trainer = $this->createUserWithRole('trainer', $this->partner, ['is_enabled' => 1]);
+        $custom = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->makeCustomRole()->id,
+            'is_enabled' => 1,
+        ]);
+
+        $ids = collect($this->getJson(route('getTeamDetails', ['teamName' => 'all']))
+            ->assertOk()
+            ->assertJson(['success' => true])
+            ->json('usersTeam'))->pluck('id')->all();
+
+        $this->assertContains($student->id, $ids);
+        $this->assertNotContains($disabled->id, $ids);
+        $this->assertNotContains($admin->id, $ids);
+        $this->assertNotContains($trainer->id, $ids);
+        $this->assertNotContains($custom->id, $ids);
+    }
+
+    public function test_get_team_details_without_team_excludes_staff_without_groups(): void
+    {
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'team_id'    => null,
+            'role_id'    => $this->roleId('user'),
+            'is_enabled' => 1,
+        ]);
+        $admin = $this->createUserWithRole('admin', $this->partner, [
+            'team_id'    => null,
+            'is_enabled' => 1,
+        ]);
+        $trainer = $this->createUserWithRole('trainer', $this->partner, [
+            'team_id'    => null,
+            'is_enabled' => 1,
+        ]);
+
+        $ids = collect($this->getJson(route('getTeamDetails', ['teamName' => 'withoutTeam']))
+            ->assertOk()
+            ->assertJson(['success' => true])
+            ->json('usersTeam'))->pluck('id')->all();
+
+        $this->assertContains($student->id, $ids);
+        $this->assertNotContains($admin->id, $ids);
+        $this->assertNotContains($trainer->id, $ids);
+    }
+
+    public function test_get_team_details_specific_team_excludes_non_student_in_pivot(): void
+    {
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
+            'role_id'    => $this->roleId('user'),
+            'is_enabled' => 1,
+        ]);
+        $trainer = $this->createUserWithRole('trainer', $this->partner, [
+            'is_enabled' => 1,
+        ]);
+        DB::table('team_user')->insert([
+            'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
+            'user_id'    => $trainer->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $ids = collect($this->getJson(route('getTeamDetails', [
+            'teamId'   => $team->id,
+            'teamName' => $team->title,
+        ]))
+            ->assertOk()
+            ->assertJson(['success' => true])
+            ->json('usersTeam'))->pluck('id')->all();
+
+        $this->assertContains($student->id, $ids);
+        $this->assertNotContains($trainer->id, $ids);
+    }
+
+    private function makeCustomRole(): Role
+    {
+        $role = Role::query()->create([
+            'name'       => 'cabinet_staff_'.Str::lower(Str::random(8)),
+            'label'      => 'Сотрудник кабинета',
+            'is_sistem'  => 0,
+            'is_visible' => 1,
+            'order_by'   => 80,
+        ]);
+
+        return $role;
     }
 }

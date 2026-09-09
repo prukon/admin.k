@@ -9,6 +9,7 @@ use App\Enums\AuditEvent;
 use App\Services\Audit\ContractAudit;
 use App\Services\Signatures\PodpislonCredentialsException;
 use App\Services\Signatures\PodpislonCredentialsResolver;
+use App\Services\Signatures\PodpislonSigningUrl;
 use App\Services\Signatures\Providers\PodpislonProvider;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Support\Facades\Auth;
@@ -79,6 +80,7 @@ class ContractPodpislonSendService
         try {
             $res = $this->provider->send($contract, $sr);
             $doc = $this->pollForSent($contract);
+            $this->captureSigningUrl($contract, $doc);
 
             if ($doc) {
                 $sr->status = 'sent';
@@ -216,6 +218,7 @@ class ContractPodpislonSendService
             $pod = app(PodpislonProvider::class);
             $res = $pod->resendForContract($contract, null);
             $doc = $this->pollForSent($contract);
+            $this->captureSigningUrl($contract, $doc);
 
             if ($doc) {
                 $sr->status = 'sent';
@@ -313,5 +316,15 @@ class ContractPodpislonSendService
         } catch (\Throwable) {
             return [];
         }
+    }
+
+    private function captureSigningUrl(Contract $contract, ?array $doc): void
+    {
+        $fallback = [];
+        if (! filled($contract->provider_signing_url) && PodpislonSigningUrl::fromDocument($doc) === null) {
+            $fallback = $this->signingLinks($contract);
+        }
+
+        PodpislonSigningUrl::capture($contract, $doc, $fallback);
     }
 }

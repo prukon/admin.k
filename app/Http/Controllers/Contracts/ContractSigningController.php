@@ -17,6 +17,7 @@ use App\Services\Contracts\ContractBillingService;
 use App\Services\Contracts\ContractPodpislonSendService;
 use App\Services\Contracts\ContractSmsCooldown;
 use App\Services\Signatures\PodpislonCredentialsException;
+use App\Services\Signatures\PodpislonSigningUrl;
 use App\Services\Signatures\Providers\PodpislonProvider;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Support\Facades\Auth;
@@ -103,6 +104,7 @@ class ContractSigningController extends Controller
             $res = $pod->resendForContract($contract, $sid);
 
             $doc = $this->pollForSent($contract);
+            $this->captureProviderSigningUrl($contract, $doc, $pod);
 
             if ($doc) {
                 $changes = [];
@@ -376,6 +378,7 @@ class ContractSigningController extends Controller
             }
 
             $data = $provider->getStatus($contract);
+            $this->captureProviderSigningUrl($contract, $data, $provider);
             $mapped = PodpislonProvider::mapDocumentStatusToContract(
                 $data['status'] ?? null,
                 isset($data['status_text']) ? (string) $data['status_text'] : null
@@ -737,6 +740,27 @@ class ContractSigningController extends Controller
         } catch (\Throwable $e) {
             return [];
         }
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $doc
+     */
+    private function captureProviderSigningUrl(Contract $contract, ?array $doc, SignatureProvider $provider): void
+    {
+        $fallback = [];
+        if (
+            ! filled($contract->provider_signing_url)
+            && PodpislonSigningUrl::fromDocument($doc) === null
+            && $provider instanceof PodpislonProvider
+        ) {
+            try {
+                $fallback = $provider->getSigningLinks($contract);
+            } catch (\Throwable) {
+                $fallback = [];
+            }
+        }
+
+        PodpislonSigningUrl::capture($contract, $doc, $fallback);
     }
 }
 

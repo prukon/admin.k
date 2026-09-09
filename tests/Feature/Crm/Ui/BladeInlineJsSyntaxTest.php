@@ -421,6 +421,66 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: селект «ФИО» на /cabinet — смена группы пересобирает options из JSON
+     * usersTeam + userWithoutTeam (без клиентского фильтра роли), userId из data-user-id.
+     */
+    public function test_dashboard_fio_select_rebuilds_from_team_ajax_and_is_valid_javascript(): void
+    {
+        $path = resource_path('views/dashboard.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertBladeCanWraps(
+            $content,
+            "@can('users.view')",
+            'id="single-select-user"',
+            'Селект ФИО должен быть внутри @can(users.view)'
+        );
+        $this->assertStringContainsString('id="single-select-user"', $content);
+        $this->assertStringContainsString('$allUsersSelect', $content);
+        $this->assertStringContainsString('data-user-id="{{ $user->id }}"', $content);
+        $this->assertStringContainsString("url: '/get-user-details'", $content);
+        $this->assertStringContainsString("url: '/get-team-details'", $content);
+        $this->assertStringContainsString('$(\'#single-select-user\').change', $content);
+        $this->assertStringContainsString('$(\'#single-select-team\').change', $content);
+        $this->assertStringContainsString('userWithoutTeam.concat(usersTeam)', $content);
+        $this->assertStringContainsString('function newUpdateSelectUsers()', $content);
+        $this->assertStringContainsString('$(\'#single-select-user\').empty()', $content);
+        $this->assertStringContainsString('.attr(\'data-user-id\', user.id)', $content);
+        $this->assertStringContainsString('selectedOption.getAttribute(\'data-user-id\')', $content);
+        $this->assertStringContainsString('userId: userId', $content);
+        $this->assertStringContainsString('teamName: teamName', $content);
+        $this->assertStringContainsString('teamId: teamId', $content);
+        $this->assertStringNotContainsString('role_id', $this->dashboardFioSelectScript($content));
+        $this->assertStringNotContainsString('withSystemRoleUser', $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            '/get-team-details',
+            'blade-js-dashboard-fio-team'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            '/get-user-details',
+            'blade-js-dashboard-fio-user'
+        );
+    }
+
+    private function dashboardFioSelectScript(string $content): string
+    {
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $chunks = [];
+        foreach ($matches[1] as $rawScript) {
+            if (str_contains($rawScript, '/get-team-details') || str_contains($rawScript, '/get-user-details')) {
+                $chunks[] = $rawScript;
+            }
+        }
+        $this->assertNotEmpty($chunks, 'Нет inline script с get-team-details / get-user-details');
+
+        return implode("\n", $chunks);
+    }
+
+    /**
      * P1: консоль — createSeasons берёт год из data-season HTML, не из хардкода.
      * Регрессия: шапки обрывались на 2025–2026, ячейки «Сентябрь 2026» не создавались.
      * Триггеры пересборки цен (applyDashboardTeamContext, AJAX ФИО) не вызывают createSeasons повторно.
@@ -8130,6 +8190,108 @@ JS;
             $path,
             'syncStatusBtn',
             'blade-js-contract-show-sync'
+        );
+    }
+
+    /**
+     * UX: «Отправить СМС» и «Повторно отправить» открывают один #sendModal;
+     * submit всегда POST /send (не /resend). Успех — showSuccessModal(..., 1),
+     * чтобы после OK страница перезагрузилась и показала ссылку из SMS.
+     * Sync по-прежнему location.reload().
+     */
+    public function test_contract_show_send_and_resend_openers_share_send_ajax_and_reload_after_ok(): void
+    {
+        $path = resource_path('views/contracts/show.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="openSendModal"', $content);
+        $this->assertStringContainsString('id="openResendModal"', $content);
+        $this->assertStringContainsString('id="sendModal"', $content);
+        $this->assertStringContainsString('id="sendSubmit"', $content);
+        $this->assertStringContainsString('id="contract-provider-signing-url"', $content);
+
+        $openSendStart = strpos($content, "document.getElementById('openSendModal')");
+        $this->assertNotFalse($openSendStart);
+        $openResendStart = strpos($content, "document.getElementById('openResendModal')");
+        $this->assertNotFalse($openResendStart);
+        $sendSubmitStart = strpos($content, "$('#sendSubmit').on('click'");
+        $this->assertNotFalse($sendSubmitStart);
+        $emailStart = strpos($content, "$('#emailSendSubmit').on('click'");
+        $this->assertNotFalse($emailStart);
+
+        $openSendChunk = substr($content, $openSendStart, $openResendStart - $openSendStart);
+        $this->assertStringContainsString('resetSendModalAlerts()', $openSendChunk);
+        $this->assertStringContainsString('bsSendModal.show()', $openSendChunk);
+        $this->assertStringNotContainsString('$.ajax', $openSendChunk);
+        $this->assertStringNotContainsString('/send', $openSendChunk);
+        $this->assertStringNotContainsString('/resend', $openSendChunk);
+
+        $openResendChunk = substr($content, $openResendStart, $sendSubmitStart - $openResendStart);
+        $this->assertStringContainsString('resetSendModalAlerts()', $openResendChunk);
+        $this->assertStringContainsString('bsSendModal.show()', $openResendChunk);
+        $this->assertStringNotContainsString('$.ajax', $openResendChunk);
+        $this->assertStringNotContainsString('/send', $openResendChunk);
+        $this->assertStringNotContainsString('/resend', $openResendChunk);
+
+        $sendChunk = substr($content, $sendSubmitStart, $emailStart - $sendSubmitStart);
+        $this->assertStringContainsString("url: '/client-contracts/' + contractId + '/send'", $sendChunk);
+        $this->assertStringContainsString("headers: {'Accept': 'application/json'}", $sendChunk);
+        $this->assertStringContainsString('signer_lastname', $sendChunk);
+        $this->assertStringContainsString('signer_phone', $sendChunk);
+        $this->assertStringContainsString(
+            'showSuccessModal("Отправка сообщения", "СМС сообщение успешно отправлено.", 1)',
+            $sendChunk
+        );
+        $this->assertStringNotContainsString('/resend', $sendChunk);
+        $this->assertStringNotContainsString('location.reload()', $sendChunk);
+
+        $syncStart = strpos($content, "$('#syncStatusBtn').on('click'");
+        $this->assertNotFalse($syncStart);
+        $syncChunk = substr($content, $syncStart, 700);
+        $this->assertStringContainsString("/client-contracts/' + contractId + '/status'", $syncChunk);
+        $this->assertStringContainsString('location.reload()', $syncChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            '$(\'#sendSubmit\').on(\'click\'',
+            'blade-js-contract-show-send'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'openResendModal',
+            'blade-js-contract-show-resend-opener'
+        );
+    }
+
+    /**
+     * «Открыть ссылку из SMS» — обычный <a href> в разметке карточки,
+     * fill-AJAX его не пересобирает и не должен сбрасывать.
+     */
+    public function test_account_documents_sms_link_is_plain_anchor_not_ajax(): void
+    {
+        $path = resource_path('views/account/documents.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $parts = preg_split("/@push\\('scripts'\\)/", $content, 2);
+        $this->assertIsArray($parts);
+        $this->assertCount(2, $parts);
+        $markup = $parts[0];
+        $scripts = $parts[1];
+
+        $this->assertStringContainsString('providerSigningUrl()', $markup);
+        $this->assertStringContainsString('Открыть ссылку из SMS', $markup);
+        $this->assertStringContainsString('target="_blank"', $markup);
+        $this->assertStringContainsString('rel="noopener noreferrer"', $markup);
+        $this->assertStringNotContainsString('Открыть ссылку из SMS', $scripts);
+        $this->assertStringNotContainsString('providerSigningUrl', $scripts);
+        $this->assertStringNotContainsString('provider_signing_url', $scripts);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'loadContractFill',
+            'blade-js-account-docs-sms-link'
         );
     }
 

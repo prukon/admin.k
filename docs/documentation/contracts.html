@@ -34,6 +34,7 @@
     · памятка статусов: <a href="/doc#contract-status-memo-index">анонс</a>
     · колонка «Обновлён»: <a href="/doc#contract-list-updated-at-index">анонс</a>
     · иконка подписанного PDF в списке: <a href="/doc#contract-list-signed-file-index">анонс</a>
+    · ссылка Подпислона из SMS: <a href="/doc#contract-podpislon-signing-url-index">анонс</a>
     · списание 70 ₽ в историю кошелька: <a href="/doc#partner-wallet-ledger-index">анонс</a></div>
 
   <h2>1) Назначение и доступ</h2>
@@ -62,13 +63,13 @@
       <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/logs-data</code> (<code>logs.data.contract</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract</code>)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
-      <tr><td>POST</td><td><code>/client-contracts/{contract}/send</code></td><td>Первая отправка на подпись (SMS)</td></tr>
-      <tr><td>POST</td><td><code>/client-contracts/{contract}/resend</code></td><td>Повторная отправка</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/send</code></td><td>Отправка на подпись (SMS): первая или повтор при уже существующем <code>provider_doc_id</code>. Модалка карточки (<code>#sendSubmit</code>) всегда бьёт сюда, не на <code>/resend</code>. Пишет <code>provider_signing_url</code>, если Подпислон вернул <code>contacts[].link</code></td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/resend</code></td><td>Легаси-повтор без ФИО/телефона (нужен последний <code>contract_sign_requests</code>). Тоже пишет <code>provider_signing_url</code></td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/send-email</code></td><td>Отправка PDF на email</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/download-original</code></td><td>Скачивание неподписанного PDF</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/download-signed</code></td><td>Скачивание подписанного PDF</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code></td><td>Отзыв до заполнения (<code>awaiting_client_fill</code>, возврат 70&nbsp;₽) или аннулирование после отправки в Подпислон (<code>sent</code> / <code>opened</code>, без возврата)</td></tr>
-      <tr><td>GET</td><td><code>/client-contracts/{contract}/status</code></td><td>Ручная синхронизация с Подпислоном (<code>contracts.sync</code>). Первый переход в <code>signed</code> создаёт колокольчик админам школы. Для <code>revoked</code> статус не поднимается; если Подпислон уже подписал — докачивается PDF</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/{contract}/status</code></td><td>Ручная синхронизация с Подпислоном (<code>contracts.sync</code>). Пишет <code>provider_signing_url</code> из <code>contacts[].link</code> даже если статус уже <code>sent</code> (<code>synced: false</code>). Первый переход в <code>signed</code> создаёт колокольчик админам школы. Для <code>revoked</code> статус не поднимается; если Подпислон уже подписал — докачивается PDF</td></tr>
     </tbody>
   </table>
   <p class="small">Контроллеры: <code>App\Http\Controllers\Contracts\ContractsController</code>, <code>ContractSigningController</code>, <code>ContractTableController</code>, <code>ContractLookupsController</code>. View карточки: <code>resources/views/contracts/show.blade.php</code>.</p>
@@ -141,6 +142,7 @@
       <tr><td>Ученик</td><td><code>$student->full_name</code> (фамилия + имя ученика)</td></tr>
       <tr><td>Группа</td><td>На карточке — все текущие группы ученика через запятую (<code>TeamUserSyncService::teamTitlesLabel</code>, pivot). В списке договоров — снимок <code>contracts.group_id</code> → <code>teams.title</code>.</td></tr>
       <tr><td>Статус</td><td>бейдж <code>school_status_ru</code>: <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»; остальные — как <code>Contract::$STATUS_RU</code></td></tr>
+      <tr><td>Ссылка на подпись</td><td>только если <code>Contract::providerSigningUrl()</code> не пуст: <code>contracts.provider_signing_url</code> после whitelist <code>https://podpislon.ru/sign/pack/{id}/{hex}</code>. <code>&lt;a id="contract-provider-signing-url" target="_blank" rel="noopener noreferrer"&gt;</code>. Без URL строки нет. Анонс: <a href="/doc#contract-podpislon-signing-url-index">/doc</a>, §<a href="#contract-podpislon-signing-url">3.1.1</a></td></tr>
       <tr><td>Телефон</td><td><code>users.phone</code> (контакт родителя)</td></tr>
       <tr><td>Почта</td><td><code>users.email</code></td></tr>
     </tbody>
@@ -193,6 +195,31 @@
     и не заменяет <code>SIGNATURE</code>. Гость и сотрудник без <code>contracts.view</code> получают тот же 200 на пробу
     (не логин и не 403). CSRF не требуется. GET/PUT/PATCH/DELETE — 404/405, не 500.
     Path <code>/webhooks/podpislon/{token}</code> не существует (404/405, не 200).
+  </div>
+
+  <h3 id="contract-podpislon-signing-url">3.1.1) Ссылка на подпись из SMS</h3>
+  <div class="note">
+    Анонс: <a href="/doc#contract-podpislon-signing-url-index">/doc</a>.
+    В OpenAPI Подпислона у контакта поле <code>contacts[].link</code>
+    (пример <code>https://podpislon.ru/sign/pack/861221/58abc612882</code>) — та же ссылка, что в SMS.
+    SMS по-прежнему шлёт Подпислон: параметр <code>no_sms</code> при <code>PUT /add-document</code> <b>не</b> передаём.<br>
+    Колонка <code>contracts.provider_signing_url</code> (nullable string). Пишет
+    <code>PodpislonSigningUrl::capture()</code> только URL вида
+    <code>https://podpislon.ru/sign/pack/{digits}/{hex}</code>: после первой отправки
+    (<code>ContractPodpislonSendService</code> / ответ <code>/add-document</code>),
+    при ресенде и при <code>GET /client-contracts/{id}/status</code> — <b>даже если статус уже
+    <code>sent</code></b> (<code>synced: false</code>). Чужой хост не сохраняется.
+    Вебхук ссылку не присылает и колонку не трогает — для старых договоров достаточно «Синхронизировать с Подпислон».
+    Отзыв / аннулирование колонку <b>не</b> очищают: строка на карточке остаётся, пока URL проходит whitelist.
+    Список <code>/client-contracts</code> ссылку не показывает (нет поля в data).
+    Карточка: строка не за <code>@can('contracts.sync')</code> (<code>#contract-provider-signing-url</code>). Обе кнопки SMS открывают
+    <code>#sendModal</code>; <code>#sendSubmit</code> всегда POST <code>/client-contracts/{id}/send</code>
+    (даже повторно). Успех: <code>showSuccessModal(..., 1)</code> — reload после OK, чтобы появилась ссылка.
+    Sync — <code>location.reload()</code>. Native POST <code>/send</code> без <code>X-Requested-With</code>
+    тоже пишет URL (JSON 200). 422: <code>errors.signer_lastname</code> / <code>errors.signer_phone</code> /
+    <code>errors.podpislon_api_key</code> — URL не пишется.
+    Карточка CRM — §2.1. Кабинет родителя — кнопка «Открыть ссылку из SMS»
+    (<a href="/docs/documentation/account-contract-fill#account-documents-podpislon-signing-url">account-contract-fill</a>).
   </div>
 
   <h2 id="contracts-pdf-download">4) Скачивание PDF в интерфейсе</h2>
@@ -457,7 +484,8 @@
       <tr>
         <td>Чего нет</td>
         <td>Возврата 70&nbsp;₽ и credit в <code>partner_wallet_transactions</code>.
-          Вызова API Подпислона. Колокольчика при поздней подписи старого SMS.</td>
+          Вызова API Подпислона. Колокольчика при поздней подписи старого SMS.
+          Очистки <code>provider_signing_url</code> (строка «Ссылка на подпись» и кнопка в кабинете остаются, если URL валиден — <a href="#contract-podpislon-signing-url">§3.1.1</a>).</td>
       </tr>
       <tr>
         <td>JSON 200</td>
@@ -540,6 +568,18 @@
       <li><code>ContractsIndexAccessFeatureTest.php</code>, <code>ContractsAccessTest.php</code></li>
       <li><code>ContractsParentAndAccessTest.php</code> — родитель на show, подписант</li>
       <li><code>ContractsSigningTest.php</code>, <code>PodpislonCredentialsHttpFeatureTest.php</code>, <code>PodpislonCredentialsResolverTest.php</code> — ключ юрлица, 422 без ключа / без юрлица, <code>X-Api-Key</code> не из <code>.env</code></li>
+      <li><code>PodpislonSigningUrlTest.php</code> — whitelist <code>https://podpislon.ru/sign/pack/…</code>, <code>contacts[].link</code> / <code>links</code>, чужой хост</li>
+      <li><code>ContractPodpislonSigningUrlFeatureTest.php</code> — send пишет URL и карточка после reload его показывает; sync при уже <code>sent</code> (UX-баг старых договоров); POST <code>/send</code> при уже существующем пакете и POST <code>/resend</code>; чужой хост и ответ без <code>contacts[].link</code> не пишут URL</li>
+      <li><code>ContractPodpislonSigningUrlAccessFeatureTest.php</code> — гость 302 / JSON 401; без <code>contracts.view</code> / тренер / чужая школа → 403; viewer без sync видит ссылку, GET status 403 и URL не пишет</li>
+      <li><code>ContractPodpislonSigningUrlFullAccessFeatureTest.php</code> — admin/superadmin 200; GET/PUT/PATCH/DELETE на send/status/resend → 404/405, URL не пишется</li>
+      <li><code>ContractPodpislonSigningUrlAjaxContractFeatureTest.php</code> — AJAX send 200 JSON; 422 <code>errors.signer_lastname</code> / <code>errors.signer_phone</code> / <code>errors.podpislon_api_key</code>; status без <code>provider_doc_id</code> 422; resend без sign request 422</li>
+      <li><code>ContractPodpislonSigningUrlNonAjaxSafetyNetFeatureTest.php</code> — native POST send пишет URL; native GET status при уже sent; native GET карточки; 422 без фамилии; гость native POST не пишет</li>
+      <li><code>ContractPodpislonSigningUrlUxFeatureTest.php</code> — строка после «Статус», <code>target="_blank"</code> <code>noopener noreferrer</code>; пустое и junk не рисуют href даже при праве sync; signed с URL виден; awaiting_client_fill без URL без строки; draft → <code>#openSendModal</code>, sent → <code>#openResendModal</code>, один <code>#sendModal</code></li>
+      <li><code>AccountDocumentsPodpislonSigningUrlAccessFeatureTest.php</code> — кабинет: JSON sign гостя 401; тренер 403; sibling видит URL активного ребёнка, не видит чужого; чужие HTTP-методы не 500</li>
+      <li><code>AccountDocumentsPodpislonSigningUrlUxFeatureTest.php</code> — кабинет: «Открыть ссылку из SMS», гость/403/чужая школа; junk; signed с URL</li>
+      <li><code>AccountDocumentsPodpislonSigningUrlNonAjaxSafetyNetFeatureTest.php</code> — native POST sign 302 + URL на карточке; 422 <code>errors.signer_lastname</code>; гость не пишет</li>
+      <li><code>BladeInlineJsSyntaxTest.php</code> — оба opener'а только <code>bsSendModal.show()</code>; sendSubmit POST <code>/send</code> + <code>showSuccessModal(..., 1)</code> без немедленного reload; sync <code>location.reload()</code>; кабинет SMS — <code>&lt;a&gt;</code> вне fill-AJAX; <code>node --check</code></li>
+      <li><code>ContractPodpislonSigningUrlDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>PodpislonWebhookTest.php</code> — пустой POST проба 200 без <code>?token=</code> и с ним (токен игнорируется); события требуют <code>SIGNATURE</code> Подпислона</li>
       <li><code>PodpislonWebhookUrlCheckFeatureTest.php</code> — UX кабинета Подпислона: гость, без CSRF, без права CRM, URL без <code>?token=</code> даёт 200 JSON <code>probe</code> (не логин/419/403); токен в path — 404; query-токен не заменяет <code>SIGNATURE</code>; GET/PUT/PATCH/DELETE не 500</li>
       <li><code>ContractsSyncFeatureTest.php</code></li>

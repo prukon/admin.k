@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use LogicException;
 use App\Models\User;
 use App\Services\Signatures\PodpislonCredentialsResolver;
+use App\Services\Signatures\PodpislonSigningUrl;
 use Illuminate\Support\Facades\Auth; // ← добавили
 
 
@@ -210,6 +211,7 @@ class PodpislonProvider implements SignatureProvider
                     Log::warning('PODPISLON: add-document ok, но id не распознан', ['result'=>$result,'json'=>$data]);
                 }
                 $contract->save();
+                PodpislonSigningUrl::capture($contract, is_array($result) ? $result : $data);
 
                 $request->provider_request_id = (string) ($contract->provider_doc_id ?: Str::uuid());
                 $request->status = 'sent';
@@ -298,6 +300,7 @@ class PodpislonProvider implements SignatureProvider
             Log::warning('PODPISLON: add-document ok, но id не распознан (json)', ['result'=>$result2,'json'=>$data2]);
         }
         $contract->save();
+        PodpislonSigningUrl::capture($contract, is_array($result2) ? $result2 : $data2);
 
         $request->provider_request_id = (string) ($contract->provider_doc_id ?: Str::uuid());
         $request->status = 'sent';

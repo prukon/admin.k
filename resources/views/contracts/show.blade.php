@@ -56,6 +56,17 @@
                                 <span class="badge {{ $contract->status_badge_class }}">{{ $contract->school_status_ru }}</span>
                             </dd>
 
+                            @if($contract->providerSigningUrl())
+                                <dt class="col-sm-4">Ссылка на подпись</dt>
+                                <dd class="col-sm-8">
+                                    <a id="contract-provider-signing-url"
+                                       href="{{ $contract->providerSigningUrl() }}"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       class="text-break">{{ $contract->providerSigningUrl() }}</a>
+                                </dd>
+                            @endif
+
                             <dt class="col-sm-4">Способ создания</dt>
                             <dd class="col-sm-8">
                                 @if($contract->isTemplateMode())

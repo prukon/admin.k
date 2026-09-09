@@ -40,6 +40,7 @@
     · семейная ссылка на документы: <a href="/doc#account-documents-family-link-index">/doc</a>
     · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">/doc</a>
     · ключ Подпислона: <a href="/doc#legal-entities-podpislon-key-index">/doc</a>
+    · ссылка Подпислона из SMS: <a href="/doc#contract-podpislon-signing-url-index">/doc</a>
   </div>
 
   <h2>1) Назначение и доступ</h2>
@@ -154,6 +155,26 @@
     Анонс: <a href="/doc#account-documents-family-link-index">/doc#account-documents-family-link-index</a>.
   </div>
 
+  <h3 id="account-documents-podpislon-signing-url">1.3) Ссылка на подпись из SMS</h3>
+  <div class="note">
+    Анонс: <a href="/doc#contract-podpislon-signing-url-index">/doc</a>.
+    На карточке <code>/account-settings/documents</code> при непустом
+    <code>Contract::providerSigningUrl()</code> — подпись «Ссылка на подпись»,
+    кнопка <b>«Открыть ссылку из SMS»</b> и сам URL.
+    Оба <code>&lt;a href&gt;</code>: <code>target="_blank"</code>,
+    <code>rel="noopener noreferrer"</code>.
+    Значение — <code>contracts.provider_signing_url</code> (та же ссылка, что в SMS Подпислона).
+    Без URL кнопки нет. Чужой хост в БД на экран не попадает
+    (<code>PodpislonSigningUrl::normalize</code>).
+    Фильтра по статусу нет: <code>signed</code> и <code>revoked</code> с валидным URL тоже показывают кнопку
+    (аннулирование URL не стирает; старое SMS у Подпислона может остаться живым).
+    Кнопка — обычный <code>&lt;a href&gt;</code> в разметке карточки, fill-AJAX её не пересобирает.
+    Native POST <code>account.documents.sign</code> без <code>X-Requested-With</code> → 302 на
+    <code>account.documents.index</code> и URL в БД; 422 <code>errors.signer_lastname</code> URL не пишет.
+    Sibling видит ссылку только при активном ребёнке-владельце договора.
+    CRM: <a href="/docs/documentation/contracts#contract-podpislon-signing-url">contracts §3.1.1</a>.
+  </div>
+
   <h2>2) Модалка заполнения (<code>#contractFillModal</code>)</h2>
   <ul>
     <li>Ширина: класс <code>contract-fill-modal-dialog</code> (max-width 720px).</li>
@@ -266,8 +287,8 @@
       <tr><td><code>awaiting_client_fill</code></td><td>Форма «Сформировать договор»; доступен fill JSON</td></tr>
       <tr><td><code>generating_pdf</code></td><td>Спиннер, <code>poll: true</code> в JSON — автообновление модалки</td></tr>
       <tr><td><code>draft</code> + PDF</td><td>Блок подписания SMS + «Скачать PDF»</td></tr>
-      <tr><td><code>sent</code> / <code>opened</code></td><td>Fill JSON → 422 «Договор недоступен для заполнения»; подсказка про SMS на странице при других сценариях. Школа может <b>аннулировать</b> договор на карточке CRM («Аннулировать», <a href="/doc#contract-annul-after-send-index">анонс</a>): статус <code>revoked</code>, 70&nbsp;₽ не возвращаются. Кнопка «Изменить» в кабинете не появляется. В каунтере сайдбара sent/opened ещё считаются, revoked — нет</td></tr>
-      <tr><td><code>revoked</code></td><td>Нет «Заполнить» / «Подписать» / «Изменить». Если позже пришёл signed PDF (старое SMS) — «Скачать подписанный» (и «Скачать PDF» оригинала, пока статус не <code>signed</code>). Бейдж статуса — «Отозвано», не «Подписано»</td></tr>
+      <tr><td><code>sent</code> / <code>opened</code></td><td>Fill JSON → 422 «Договор недоступен для заполнения»; подсказка про SMS на странице при других сценариях. Если в БД есть <code>provider_signing_url</code> — на карточке договора кнопка <b>«Открыть ссылку из SMS»</b> и сам URL (<code>target="_blank"</code>, <code>noopener noreferrer</code>; §<a href="#account-documents-podpislon-signing-url">1.3</a>). Школа может <b>аннулировать</b> договор на карточке CRM («Аннулировать», <a href="/doc#contract-annul-after-send-index">анонс</a>): статус <code>revoked</code>, 70&nbsp;₽ не возвращаются. Кнопка «Изменить» в кабинете не появляется. В каунтере сайдбара sent/opened ещё считаются, revoked — нет</td></tr>
+      <tr><td><code>revoked</code></td><td>Нет «Заполнить» / «Подписать» / «Изменить». Если позже пришёл signed PDF (старое SMS) — «Скачать подписанный» (и «Скачать PDF» оригинала, пока статус не <code>signed</code>). Если в БД остался валидный <code>provider_signing_url</code> — кнопка «Открыть ссылку из SMS» всё ещё на карточке (§<a href="#account-documents-podpislon-signing-url">1.3</a>). Бейдж статуса — «Отозвано», не «Подписано»</td></tr>
     </tbody>
   </table>
   <p class="small">Школьная схема тех же статусов (кнопка «Памятка» на <code>/client-contracts</code>):
@@ -358,6 +379,11 @@
       <li><code>AccountContractFillFlowUiFeatureTest.php</code> — панели, sign-block, poll, ошибка генерации</li>
       <li><code>AccountDocumentsFullAccessFeatureTest.php</code> — index, fill JSON, download</li>
       <li><code>AccountDocumentsTest.php</code> — download signed при статусе <code>revoked</code>, если файл уже есть</li>
+      <li><code>AccountDocumentsPodpislonSigningUrlUxFeatureTest.php</code> — кнопка «Открыть ссылку из SMS», гость/403/чужая школа, junk, signed</li>
+      <li><code>AccountDocumentsPodpislonSigningUrlAccessFeatureTest.php</code> — JSON sign гостя 401, тренер 403, sibling, чужие HTTP-методы</li>
+      <li><code>AccountDocumentsPodpislonSigningUrlNonAjaxSafetyNetFeatureTest.php</code> — native sign 302 + URL, 422 по полям, гость</li>
+      <li><code>BladeInlineJsSyntaxTest.php</code> — кабинет SMS-ссылка не в fill-AJAX; CRM send/resend — один POST <code>/send</code></li>
+      <li><code>ContractPodpislonSigningUrlDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>AccountContractEditFilledDataFeatureTest.php</code> — «Изменить» у draft; нет кнопки и fill JSON 422 при opened/revoked</li>
       <li><code>ContractAnnulAfterSend*FeatureTest.php</code> / <code>ContractAnnulRevokedSignedWebhookFeatureTest.php</code> — аннулирование sent/opened; signed-вебхук не поднимает revoked в signed</li>
       <li><code>ContractAnnulAfterSendDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>

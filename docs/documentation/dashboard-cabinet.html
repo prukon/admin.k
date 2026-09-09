@@ -33,7 +33,9 @@
     <b>Кратко.</b> Страница «Консоль» — личный кабинет ученика (или семейный просмотр данных ребёнка): профиль, календарь посещений, блоки оплат (доп. платежи, назначенные абонементы, сезоны месячных начислений).
     Шапка сезона считается от текущего учебного года (сентябрь–август) вниз до 2021–2022 — §<a href="#cabinet-season-years">6.1</a>, не хардкод «2025 - 2026».
     Доступ к странице — <code>dashboard.view</code>; видимость отдельных блоков оплат — отдельные permissions (§<a href="#cabinet-payment-blocks">2</a>).
-    Для роли с правом <code>users.view</code> (админ CRM) доступны селекты «Группа» / «ФИО» и AJAX-подгрузка данных другого ученика.
+    Для роли с правом <code>users.view</code> (админ CRM, тренер с выдачей, superadmin через <code>Gate::before</code>) доступны селекты «Группа» / «ФИО» и AJAX-подгрузка данных другого ученика.
+    Селект «ФИО» — только активные ученики текущего партнёра с системной ролью <code>user</code> (<code>is_enabled=1</code>, <code>User::withSystemRoleUser()</code>).
+    Анонс — <a href="/doc#cabinet-fio-select-index">/doc#cabinet-fio-select-index</a>.
     При <b>2+ группах</b> у активного ученика в <b>пользовательском</b> режиме селект <b>«Выбор группы»</b>
     показывается, если есть <code>setPrices.cabinetSeasons.view</code> <em>или</em>
     <code>setPrices.cabinetPackages.postpay.view</code> <em>или</em>
@@ -67,8 +69,8 @@
     <thead><tr><th>Метод</th><th>URL</th><th>Имя</th><th>Permission</th><th>Назначение</th></tr></thead>
     <tbody>
       <tr><td>GET, POST</td><td><code>/cabinet</code></td><td><code>dashboard</code></td><td><code>dashboard.view</code></td><td>Страница консоли (<code>DashboardController@index</code>)</td></tr>
-      <tr><td>GET</td><td><code>/get-user-details</code></td><td><code>getUserDetails</code></td><td><code>dashboard.view</code></td><td>JSON: данные ученика для админского селекта (все <code>userPrice</code> без фильтра по группе)</td></tr>
-      <tr><td>GET</td><td><code>/get-team-details</code></td><td><code>getTeamDetails</code></td><td><code>dashboard.view</code></td><td>JSON: ученики группы (pivot <code>team_user</code>)</td></tr>
+      <tr><td>GET</td><td><code>/get-user-details</code></td><td><code>getUserDetails</code></td><td><code>dashboard.view</code></td><td>JSON: данные ученика для админского селекта (все <code>userPrice</code> без фильтра по группе). Цель — активный ученик текущего партнёра с системной ролью <code>user</code> (<code>User::withSystemRoleUser()</code>, <code>is_enabled=1</code>). Иначе <code>success=false</code> (как чужой партнёр)</td></tr>
+      <tr><td>GET</td><td><code>/get-team-details</code></td><td><code>getTeamDetails</code></td><td><code>dashboard.view</code></td><td>JSON: ученики группы (pivot <code>team_user</code>). Только активные ученики системной роли <code>user</code>; <code>teamName=all</code> / <code>withoutTeam</code> — тот же фильтр</td></tr>
       <tr><td>POST</td><td><code>/cabinet/active-student</code></td><td><code>cabinet.active-student.switch</code></td><td><code>auth</code> + <code>2fa</code></td><td>Семейный переключатель ребёнка (session). См. <a href="/docs/documentation/parents-and-family-cabinet#family-cabinet">parents-and-family-cabinet §5</a></td></tr>
       <tr><td>POST</td><td><code>/cabinet/system-monitors</code></td><td><code>cabinet.system-monitors.update</code></td><td><code>settings.systemMonitors.view</code></td><td>Персональный флаг системных мониторов. См. <a href="#system-monitors">§ мониторы</a></td></tr>
       <tr><td>GET</td><td><code>/cabinet/system-monitors/ops</code></td><td><code>cabinet.system-monitors.ops</code></td><td><code>settings.systemMonitors.view</code></td><td>JSON-снимок пульта (в т.ч. <code>day</code> / <code>yesterday</code>). См. <a href="#system-monitors">§ мониторы</a>, <a href="/doc#ops-day-kpi-index">анонс Сегодня/Вчера</a></td></tr>
@@ -211,10 +213,19 @@
   <table>
     <thead><tr><th>Условие</th><th>Что видит пользователь</th></tr></thead>
     <tbody>
-      <tr><td>Есть <code>users.view</code> (админ CRM)</td><td>Блок «Выбор ученика»: Select2 «Группа» + «ФИО», AJAX <code>getUserDetails</code> / <code>getTeamDetails</code>. Селект «Выбор группы» для ученика <b>не показывается</b>.</td></tr>
-      <tr><td>Нет <code>users.view</code> (роль <code>user</code>)</td><td>Только свои (или семейные) данные активного ученика; при 2+ группах и (сезоны / postpay <em>или</em> видимые абонементы) — селект «Выбор группы» (§<a href="#team-switcher">5</a>).</td></tr>
+      <tr><td>Есть <code>users.view</code> (админ CRM, тренер с выдачей)</td><td>Блок «Выбор ученика»: Select2 «Группа» + «ФИО», AJAX <code>getUserDetails</code> / <code>getTeamDetails</code>. Селект «ФИО» (<code>#single-select-user</code>) — только активные ученики текущего партнёра с системной ролью <code>user</code> (<code>User::withSystemRoleUser()</code>, <code>is_enabled=1</code>); админы, тренеры, кастомные роли и отключённые не попадают. JSON-ручки закрыты <code>dashboard.view</code>, не <code>users.view</code>. Селект «Выбор группы» для ученика <b>не показывается</b>.</td></tr>
+      <tr><td>Нет <code>users.view</code> (роль <code>user</code>, тренер без выдачи)</td><td>Только свои (или семейные) данные активного ученика; при 2+ группах и (сезоны / postpay <em>или</em> видимые абонементы) — селект «Выбор группы» (§<a href="#team-switcher">5</a>).</td></tr>
     </tbody>
   </table>
+  <p id="fio-select-students">Селект «ФИО» на первом кадре — <code>$allUsersSelect</code> (<code>DashboardController::cabinetSelectStudentsQuery</code>).
+    Смена «Группа» запрашивает <code>GET /get-team-details</code> и на клиенте пересобирает options:
+    <code>userWithoutTeam.concat(usersTeam)</code> при выбранной группе, иначе <code>usersTeam</code>
+    (<code>#single-select-team</code> change, <code>newUpdateSelectUsers</code>).
+    Клиент роль не фильтрует: в JSON уже только активные ученики. Выбор ФИО шлёт
+    <code>userId</code> из <code>data-user-id</code> в <code>GET /get-user-details</code>
+    (после пересборки JS <code>.val(user.name)</code>, не id).
+    Id админа/тренера/кастомной роли/отключённого дают <code>success=false</code>.
+    Анонс — <a href="/doc#cabinet-fio-select-index">/doc#cabinet-fio-select-index</a>.</p>
 
   <h2 id="team-switcher">5) Селект «Выбор группы» (2+ группы)</h2>
   <div class="ok">
@@ -540,6 +551,7 @@
       <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetSeasonYearsFeatureTest.php</code> — UX-баг: начисление <code>2026-09-01</code> в payload и ячейка JS (<code>data-season</code> → <code>createSeasons</code>); семейный switch; postpay-only; негатив до 1 сентября и «будущий» 2028; POST /cabinet</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetSeasonYearsFullAccessFeatureTest.php</code> — HTTP-матрица: гость / 403 / 200 GET+POST, FilterRequest <code>errors.title</code> 302/422, PATCH/DELETE, без партнёра, изоляция чужого <code>userPrice</code></li>
       <li><code>tests/Unit/Documentation/CabinetSeasonYearsDocumentationContractTest.php</code> — анонс /doc и §6.1 совпадают с циклом в blade</li>
+      <li><code>tests/Unit/Documentation/CabinetFioSelectDocumentationContractTest.php</code> — анонс <code>/doc#cabinet-fio-select-index</code> совпадает с <code>cabinetSelectStudentsQuery</code>, <code>withSystemRoleUser</code>, blade и ховерами прав</li>
       <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>createSeasons</code> из <code>data-season</code> (не хардкод года), <code>node --check</code>, маппинг 2027 → 2026-09-01; пересборки <code>apendPrice</code> без повторного <code>createSeasons</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardLessonPackagesFeatureTest.php</code> — блок «Назначенные абонементы», суммы, <code>refreshPrice()</code>, дата разового занятия, селект группы без сезонов, <code>data-ulp-team-id</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardLessonPackagesTeamFilterFeatureTest.php</code> — фильтр абонементов селектом группы: 200/403/гость, две группы в DOM, карточка без <code>team_id</code> для JS-hide, нулевая стоимость не включает селект, админ без селекта, <code>getUserDetails</code> не отдаёт ULP, JS-порядок <code>filterLessonPackagesByTeam</code> до выхода по сезонам, P2 smoke</li>
@@ -553,6 +565,12 @@
       <li><code>tests/Feature/Crm/Payments/FamilyStudentPaymentFullAccessFeatureTest.php</code> — HTTP-матрица семейной оплаты</li>
       <li><code>tests/Feature/Crm/Payments/FamilyStudentPaymentMarkupFeatureTest.php</code> — selected переключателя, payload сезонов, @can «Оплатить», витрина «Плательщик»</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardAuthorizationTest.php</code> — middleware, доступ к <code>/cabinet</code></li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardAjaxDetailsTest.php</code> — изоляция партнёра, селект «ФИО» и AJAX <code>getUserDetails</code> / <code>getTeamDetails</code>: только активные ученики <code>role=user</code></li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetFioSelectAccessFeatureTest.php</code> — гость / 403 без <code>dashboard.view</code> / 200; селект «ФИО» только при <code>users.view</code> (админ, тренер с выданным правом); ученик и тренер без права селект не видят</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetFioSelectAjaxContractFeatureTest.php</code> — JSON 200 <code>success</code>+ученик; staff/отключённый/кастом/чужой/без id → <code>success=false</code>; <code>usersTeam</code>/<code>userWithoutTeam</code> только <code>role=user</code>; 403 JSON; POST <code>/cabinet</code> 422 <code>errors.title</code></li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetFioSelectNonAjaxSafetyNetFeatureTest.php</code> — native GET JSON не HTML; native POST <code>/cabinet</code> селект отфильтрован; невалидный <code>title</code> 302 <code>errors.title</code>; POST/PATCH/PUT/DELETE ручек деталей не пустой 200</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetFioSelectFullAccessFeatureTest.php</code> — HTTP-матрица GET/POST, PATCH/DELETE, без партнёра, изоляция чужого ученика/группы, superadmin видит селект без сотрудников</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetFioSelectUxFeatureTest.php</code> — первый кадр порядок шапки/селектов; XSS в option; первый кадр и <code>teamName=all</code> одинаково без staff; смена группы JS <code>userWithoutTeam.concat(usersTeam)</code> не подмешивает админов без группы; «Без группы» без staff; POST с фильтром <code>title</code> не сбрасывает фильтр роли</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamPivotFeatureTest.php</code> — pivot в AJAX</li>
       <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachInAppNotification*FeatureTest.php</code> — колокольчик после attach: доступ, AJAX, native POST, UX ленты/колокольчика</li>
       <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachFeatureTest.php</code> — attach / валидация / семейный контекст</li>
@@ -560,7 +578,7 @@
       <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + pivot</li>
       <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachMarkupFeatureTest.php</code> — разметка модалки, сайдбар, карандаш на <code>/cabinet</code>, фильтр select, UX семейного ФИО</li>
       <li><code>tests/Feature/Crm/Account/AccountUserEditPageFeatureTest.php</code> — «Группы» readonly, lock-текст / карандаш при <code>account.user.team.update</code></li>
-      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис + AJAX-контракт модалки attach; фильтр абонементов селектом группы (<code>filterLessonPackagesByTeam</code>); контракт <code>cabinetPackages.*</code> (<code>dashboardSeasonsEnabled</code> + postpay, без <code>packageAssignments.view</code>)</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис + AJAX-контракт модалки attach; фильтр абонементов селектом группы (<code>filterLessonPackagesByTeam</code>); контракт <code>cabinetPackages.*</code> (<code>dashboardSeasonsEnabled</code> + postpay, без <code>packageAssignments.view</code>); селект «ФИО»: <code>get-team-details</code> / <code>get-user-details</code>, <code>userWithoutTeam.concat(usersTeam)</code>, <code>data-user-id</code>, <code>@can('users.view')</code></li>
       <li><code>tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — группа <code>setPrices</code> (9 прав, включая <code>cabinetPackages.*</code>)</li>
       <li><code>tests/Feature/Crm/Permissions/SystemMonitorsPermissionCatalogFeatureTest.php</code> — <code>settings.systemMonitors.view</code> скрытое, не в базовых ролях; <code>settings.reverbOverlay.manage</code> нет</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsToggleFeatureTest.php</code> — переключатель в шапке, персональный флаг, 422 под полем, кнопка на «Общие» снята</li>
@@ -593,6 +611,13 @@
       <li><code>tests/Feature/Crm/Chat/ChatReverbOverlayFeatureTest.php</code> — бейдж Reverb в <code>admin2</code> (dashboard / чат / настройки) только у superadmin при включённом флаге</li>
     </ul>
     <pre><code>php artisan test --env=testing tests/Feature/Crm/Cabinet/
+php artisan test --env=testing tests/Feature/Crm/Dashboard/DashboardCabinetFioSelectAccessFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Dashboard/DashboardCabinetFioSelectAjaxContractFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Dashboard/DashboardCabinetFioSelectNonAjaxSafetyNetFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Dashboard/DashboardCabinetFioSelectFullAccessFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Dashboard/DashboardCabinetFioSelectUxFeatureTest.php
+php artisan test --env=testing tests/Unit/Documentation/CabinetFioSelectDocumentationContractTest.php
+php artisan test --env=testing tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php --filter=dashboard_fio_select
 php artisan test --env=testing --filter=cabinet_attach_team_modal</code></pre>
   </div>
 

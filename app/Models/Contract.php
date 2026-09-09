@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Services\Signatures\PodpislonSigningUrl;
 
 class Contract extends Model
 {
@@ -138,6 +139,16 @@ class Contract extends Model
     public function canAnnulAfterSend(): bool
     {
         return in_array($this->status, [self::STATUS_SENT, self::STATUS_OPENED], true);
+    }
+
+    /**
+     * Ссылка Подпислона из SMS ({@see \App\Services\Signatures\PodpislonSigningUrl}), или null.
+     */
+    public function providerSigningUrl(): ?string
+    {
+        return PodpislonSigningUrl::normalize(
+            is_string($this->provider_signing_url) ? $this->provider_signing_url : null
+        );
     }
 
     public function isRevoked(): bool
