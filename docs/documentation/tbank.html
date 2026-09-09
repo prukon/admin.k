@@ -310,7 +310,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>7.1 Типовой сценарий (витрина оплаты)</h3>
   <ol>
-    <li>Страницы <code>/payment</code> и <code>/payment/club-fee</code>: при доступном СБП показывается форма «T‑Bank СБП (QR)».</li>
+    <li>Страницы <code>/payment</code> и <code>/payment/club-fee</code>: при доступном СБП карточка «Оплата через СБП» с бейджем «Способ оплаты». Заголовок «Другие способы оплаты» — только если доступны карта и/или Робокасса. См. <a href="/docs/documentation/payments#vitrina-payment">payments §3.1.1</a>, <a href="/docs/documentation/payments#club-fee-page">§3.2.1</a>, <a href="/doc#payment-vitrina-sbp-only-index">анонс</a>.</li>
     <li><code>POST /payments/tinkoff/sbp</code> (имя маршрута <code>payment.tinkoff.sbp</code>) → <code>TinkoffPaymentController::createSbp</code>:
       создаются <code>payables</code> и <code>payment_intents</code> (как у карточной оплаты), вызывается <code>TinkoffPaymentsService::initPayment</code> с методом <code>sbp</code> и объектом <code>DATA</code> (<code>payment_intent_id</code>, <code>payable_id</code>, <code>user_id</code>, при необходимости <code>month</code>, <code>team_id</code> для <code>monthly_fee</code>).</li>
     <li>Редирект на <code>GET /tinkoff/qr/{PaymentId}</code> (маршрут <code>tinkoff.qr</code>), шаблон <code>resources/views/tinkoff/qr.blade.php</code>.</li>

@@ -28,6 +28,29 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="payment-vitrina-sbp-only-index">Витрина оплаты: только СБП без «других способов» (2026‑09)</h2>
+  <div class="note">
+    На <code>POST /payment</code> и <code>GET/POST /payment/club-fee</code>
+    заголовок «Другие способы оплаты» и правая колонка не показываются,
+    если нет карты и Робокассы (<code>$tbankAvailable</code> /
+    <code>$canTbankCard</code> и <code>$robokassaAvailable</code> ложны —
+    в том числе без прав <code>payment.method.tbankCard</code> /
+    <code>payment.method.robokassa</code>). Layout тогда
+    <code>payment-layout--sbp-only</code>.
+    Бейдж СБП: «Способ оплаты», не «Рекомендуемый способ».
+    Строки summary «Способ оплаты / Выберите ниже» на витрине ученика нет.
+    На клубном взносе при 2+ группах колонка «других» скрыта, пока карта
+    не видима (если Робокассы нет) — JS
+    <code>updateClubFeeOtherMethodsVisibility()</code>.
+    Канон: <a href="/docs/documentation/payments#vitrina-payment">payments §3.1.1</a>,
+    <a href="/docs/documentation/payments#club-fee-page">§3.2.1</a>.
+    Тесты: <code>PaymentCheckoutMethodsUxFeatureTest</code>,
+    <code>PaymentCheckoutMethodsNonAjaxSafetyNetFeatureTest</code>,
+    <code>PaymentCheckoutMethodsDocumentationContractTest</code>,
+    inline JS — <code>BladeInlineJsSyntaxTest::test_club_fee_other_methods_visibility_js_contract</code>.
+    Анонс: <a href="/doc#payment-vitrina-sbp-only-index">/doc#payment-vitrina-sbp-only-index</a>.
+  </div>
+
   <h2 id="cabinet-fio-select-index">Консоль: селект «ФИО» только активные ученики (2026‑09)</h2>
   <div class="note">
     На <code>/cabinet</code> у сотрудника с <code>users.view</code> блок «Выбор ученика»
@@ -7859,7 +7882,7 @@
   <h2>Разделы</h2>
   <ul>
     <li><a href="/docs/documentation/dev-seed-data"><strong>Dev-фикстуры (SEED_DEV_DATA)</strong>: цепочка Dev*-сидеров, юр. лица/справочники/T‑Bank/history, GuardsDevSeedData, ограничения prod</a></li>
-    <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), публичная СБП месяца из писем уведомлений (<code>/pm/{code}</code>, <a href="/doc#payment-notifications-sbp-link-index">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
+    <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank; только СБП — без «Других способов» и без «Выберите ниже», <a href="/doc#payment-vitrina-sbp-only-index">анонс</a>), публичная СБП месяца из писем уведомлений (<code>/pm/{code}</code>, <a href="/doc#payment-notifications-sbp-link-index">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>), <b>абонемент и сумма из карточки при ручной оплате</b> (<a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>), <b>плашка группы только вместе со списком учеников</b> (<a href="/doc#setting-prices-monthly-team-select-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), JSON store/update/delete</a></li>

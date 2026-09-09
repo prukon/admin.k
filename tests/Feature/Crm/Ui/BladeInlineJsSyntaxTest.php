@@ -5001,6 +5001,50 @@ JS;
     }
 
     /**
+     * Клубный взнос: колонка «других способов» и layout --sbp-only переключаются JS.
+     */
+    public function test_club_fee_other_methods_visibility_js_contract(): void
+    {
+        $path = resource_path('views/payment/clubFee.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="clubFeeOtherMethodsColumn"', $content);
+        $this->assertStringContainsString('function updateClubFeeOtherMethodsVisibility()', $content);
+        $this->assertStringContainsString('data-other-method="robokassa"', $content);
+        $this->assertStringContainsString("getElementById('clubFeeOtherMethodsColumn')", $content);
+        $this->assertStringContainsString("classList.remove('payment-layout--sbp-only')", $content);
+        $this->assertStringContainsString("classList.add('payment-layout--sbp-only')", $content);
+        $this->assertGreaterThanOrEqual(
+            2,
+            substr_count($content, 'updateClubFeeOtherMethodsVisibility();'),
+            'Ожидались вызовы из обеих веток updateClubFeeTbankVisibility'
+        );
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+        $found = false;
+        foreach ($matches[1] as $rawScript) {
+            if (! str_contains($rawScript, 'function updateClubFeeOtherMethodsVisibility()')) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $tempFile = sys_get_temp_dir().'/blade-js-club-fee-other-methods-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(0, $exitCode, implode("\n", $output));
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+        $this->assertTrue($found, 'Не найден script с updateClubFeeOtherMethodsVisibility');
+    }
+
+    /**
      * Страница месяца и абонемента шарят ulp-public-pay.blade.php.
      * Без инъекции qrJsonUrl JS падает на /pay/ulp/ — для /pm/{code} QR будет 404.
      */

@@ -293,6 +293,9 @@
     <li><code>PartnerLegacyLegalFieldsResolverFeatureTest</code> — resolver без fallback на <code>partners</code></li>
     <li><code>MultiEntityTbankGuardAccessFeatureTest</code> — multi-entity guard: доступы, Init, клубный взнос, non-AJAX групп</li>
     <li><code>PaymentCheckoutServiceProviderFeatureTest</code> — блок «Поставщик услуг» на витрине: presenter, доступы <code>POST /payment</code> / <code>clubFee</code>, multi-entity, custom/lesson package, §<a href="#payment-checkout-service-provider">3.1.2</a></li>
+    <li><code>PaymentCheckoutMethodsUxFeatureTest</code> — витрина и клубный взнос: без «Выберите ниже», бейдж СБП «Способ оплаты», «Другие способы оплаты» только при карте/Робокассе, 2+ групп club-fee скрывает колонку до выбора группы, §<a href="#vitrina-payment">3.1.1</a> / §<a href="#club-fee-page">3.2.1</a></li>
+    <li><code>PaymentCheckoutMethodsNonAjaxSafetyNetFeatureTest</code> — GET/POST без AJAX: 200 HTML (не JSON), guest не 500, только СБП без «Других способов»</li>
+    <li><code>PaymentCheckoutMethodsDocumentationContractTest</code> — анонс <a href="/doc#payment-vitrina-sbp-only-index">/doc#payment-vitrina-sbp-only-index</a> и тексты §3.1.1 / §3.2.1 совпадают с blade</li>
     <li><code>FamilyStudentMonthlyPaymentFeatureTest</code> — семейный кабинет: витрина/Init/webhook после switch, в т.ч. оба ребёнка в одной группе; UX консоль→POST /payment; 422 по полям</li>
     <li><code>FamilyStudentPaymentFullAccessFeatureTest</code> — HTTP-матрица guest/403/200, non-AJAX switch</li>
     <li><code>FamilyStudentPaymentMarkupFeatureTest</code> — selected переключателя, payload сезонов активного ученика, кнопка «Оплатить», витрина «Плательщик» после switch / без switch</li>
@@ -361,6 +364,15 @@
     <li><b>Строка «Плательщик»</b> на витрине: имя активного ученика (<code>$payerStudent->name</code>), не учётки входа. Без семейного переключателя это тот же человек, что и <code>auth()->user()</code>.</li>
     <li><b>Строка «Группа»</b> на витрине (<code>paymentUser.blade.php</code>): при месячном абонементе и известной группе выводится <code>$monthlyTeamTitle</code>; в формах Робокассы и T‑Bank уходит hidden <code>team_id</code> (<code>$monthlyTeamId</code>).</li>
     <li><b>«Поставщик услуг»</b> — блок в summary при доступном T‑Bank; см. §<a href="#payment-checkout-service-provider">3.1.2</a>.</li>
+    <li><b>Способы оплаты на витрине</b> (шаблон <code>paymentUser.blade.php</code>):
+      <ul>
+        <li>в summary <b>нет</b> строки «Способ оплаты / Выберите ниже»;</li>
+        <li>бейдж карточки СБП — «Способ оплаты» (не «Рекомендуемый способ»);</li>
+        <li>заголовок «Другие способы оплаты» и правая колонка рендерятся только если <code>$tbankAvailable</code> и/или <code>$robokassaAvailable</code> (права <code>payment.method.tbankCard</code> / <code>payment.method.robokassa</code> плюс настройки ПС и ShopCode);</li>
+        <li>если других способов нет (в т.ч. только СБП) — класс <code>payment-layout--sbp-only</code>, пустую колонку не оставляем.</li>
+      </ul>
+      Анонс: <a href="/doc#payment-vitrina-sbp-only-index">/doc#payment-vitrina-sbp-only-index</a>.
+    </li>
     <li><b>Согласованность с Init</b>: те же правила суммы и периода применяются при старте оплаты — <code>TransactionController::pay</code> (Робокасса), <code>TinkoffPaymentController::create</code> / <code>createSbp</code> (T‑Bank): при наличии месячного периода сумма снова читается из <code>users_prices</code>, а не из пользовательского <code>outSum</code>; в <code>payables.meta</code> и meta intent сохраняется <code>team_id</code>.</li>
   </ul>
   <div class="ok">
@@ -506,7 +518,7 @@
   <ul>
     <li>В view передаётся <code>teamTbankCheckout</code> — map <code>team_id → { card: bool, sbp: bool, serviceProviderLabel: string|null }</code>;</li>
     <li>элемент <code>#clubFeeServiceProviderRow</code> изначально <code>display:none</code> до выбора группы;</li>
-    <li>при смене группы — <code>updateClubFeeServiceProvider()</code> (вместе с <code>updateClubFeeTbankVisibility()</code>);</li>
+    <li>при смене группы — <code>updateClubFeeServiceProvider()</code> и <code>updateClubFeeOtherMethodsVisibility()</code> (вместе с <code>updateClubFeeTbankVisibility()</code>);</li>
     <li>legacy-ключ <code>teamTbankCardAvailable</code> сохранён для совместимости тестов (<code>card</code> из map).</li>
   </ul>
 
@@ -533,7 +545,7 @@
   <p class="small">Init оплаты (<code>POST /payment/pay</code>, <code>POST /payments/tinkoff/create</code>, <code>POST /payments/tinkoff/sbp</code>) — без изменений: redirect 302, проверка <code>tbankAvailabilityError</code> на Init. См. §<a href="#payments-multi-entity-guard">2.3.5</a>, <code>MultiEntityTbankGuardAccessFeatureTest</code>.</p>
 
   <h4>Feature-тесты</h4>
-  <p><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code> — presenter, доступы, все типы витрины, club-fee map, multi-entity. Inline JS клубного взноса — <code>BladeInlineJsSyntaxTest</code> (<code>payment/clubFee.blade.php</code>). Публичная СБП-страница абонемента — <code>LessonPackagePublicPayCheckoutFeatureTest</code>, inline JS — <code>payment/ulp-public-pay.blade.php</code> (§<a href="#ulp-public-pay">3.4.1</a>).</p>
+  <p><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code> — presenter, доступы, все типы витрины, club-fee map, multi-entity. <code>PaymentCheckoutMethodsUxFeatureTest</code> / <code>PaymentCheckoutMethodsNonAjaxSafetyNetFeatureTest</code> — подписи и скрытие «Других способов» на <code>POST /payment</code> и <code>clubFee</code> (в т.ч. native POST). Inline JS клубного взноса — <code>BladeInlineJsSyntaxTest</code> (<code>payment/clubFee.blade.php</code>, <code>test_club_fee_other_methods_visibility_js_contract</code>). Публичная СБП-страница абонемента — <code>LessonPackagePublicPayCheckoutFeatureTest</code>, inline JS — <code>payment/ulp-public-pay.blade.php</code> (§<a href="#ulp-public-pay">3.4.1</a>).</p>
 
   <h3>3.2 Разовая оплата (<code>club_fee</code>/<code>uniform</code>/<code>camp</code>)</h3>
   <ol>
@@ -749,14 +761,16 @@
         <li><b>T‑Bank (карта)</b> — <code>$tbankAvailable</code> / <code>$canTbankCard</code>; при 2+ группах на первом рендере <code>tbankAvailable=false</code>, видимость по JS</li>
         <li><b>T‑Bank СБП</b> — <code>$tbankSbpAvailable</code> / <code>$canTbankSbp</code>; дополнительно сумма ≥ 10 ₽ (проверка в JS и на Init)</li>
         <li><b>«Поставщик услуг»</b> — <code>$showTbankLegalEntityBlock</code>, <code>$serviceProviderLabel</code>; см. §<a href="#payment-checkout-service-provider">3.1.2</a></li>
+        <li><b>Разметка способов</b>: бейдж СБП — «Способ оплаты»; заголовок «Другие способы оплаты» и колонка <code>#clubFeeOtherMethodsColumn</code> — только если <code>$renderTbankCard</code> и/или <code>$robokassaAvailable</code>; иначе <code>payment-layout--sbp-only</code>. При 2+ группах без Робокассы колонка изначально скрыта, JS <code>updateClubFeeOtherMethodsVisibility()</code> показывает её, когда карта видима для выбранной группы.</li>
       </ul>
+      Анонс: <a href="/doc#payment-vitrina-sbp-only-index">/doc#payment-vitrina-sbp-only-index</a>.
     </li>
     <li><b>Динамический T‑Bank и «Поставщик услуг» при выборе группы</b> (2+ группы):
       <ul>
         <li>в view передаётся <code>teamTbankCheckout</code> — map <code>team_id → { card, sbp, serviceProviderLabel }</code> (<code>PaymentCheckoutContextResolver::clubFeeTeamCheckoutMap</code>);</li>
         <li>legacy <code>teamTbankCardAvailable</code> — map <code>team_id → bool</code> (поле <code>card</code>);</li>
         <li>блоки <code>#clubFeeTbankCardBlock</code>, <code>#clubFeeTbankSbpBlock</code>, <code>#clubFeeServiceProviderRow</code> изначально <code>display:none</code> (пока группа не выбрана);</li>
-        <li>при смене группы и вводе суммы — <code>updateClubFeeTbankVisibility()</code>, <code>updateClubFeeServiceProvider()</code> (inline JS, проверка синтаксиса — <code>BladeInlineJsSyntaxTest</code>).</li>
+        <li>при смене группы и вводе суммы — <code>updateClubFeeTbankVisibility()</code>, <code>updateClubFeeServiceProvider()</code>, <code>updateClubFeeOtherMethodsVisibility()</code> (inline JS, проверка синтаксиса — <code>BladeInlineJsSyntaxTest</code>).</li>
       </ul>
     </li>
     <li><b>Ошибка Init</b> при группе без юр. лица в multi-entity: «Для выбранной группы не настроено юр. лицо» (<code>tbankAvailabilityError</code>).</li>

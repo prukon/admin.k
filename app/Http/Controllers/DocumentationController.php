@@ -14,7 +14,7 @@ class DocumentationController extends Controller
      */
     private const PAGE_TITLES = [
         'money'                       => 'Деньги: канон копеек (BIGINT *_cents), App\\Support\\Money, округление, скидки % вариант А, персональная скидка ученика',
-        'payments'                    => 'Оплаты: payables/intents/payments/users_prices, снимок payments.team_id, multi-team витрина, семейная оплата activeStudent (FamilyPaymentPayerResolver), публичная СБП-ссылка месяца /pm/{code}',
+        'payments'                    => 'Оплаты: payables/intents/payments/users_prices, снимок payments.team_id, multi-team витрина (бейдж СБП «Способ оплаты», без «Выберите ниже», «Другие способы» только при карте/Робокассе), семейная оплата activeStudent (FamilyPaymentPayerResolver), публичная СБП-ссылка месяца /pm/{code}',
         'partner-scope-guide'         => 'Как работать с partner_id: обычный админ и страницы superadmin',
         'partner-context'             => 'Партнёр‑контекст и SetPartner (current_partner/anti‑leak/блокировки)',
         'partner-wallet'              => 'Кошелёк партнёра: /partner-wallet, изоляция STRICT_CURRENT, история договоров/SMS, ЮKassa и T‑Bank СБП, CloudKassir, @error native POST, wallet_balance_cents, partnerWallet.view',

@@ -207,6 +207,8 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
     </li>
     <li>Inline JS клубного взноса — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (<code>payment/clubFee.blade.php</code>, <code>payment/ulp-public-pay.blade.php</code>).</li>
     <li><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code> — блок «Поставщик услуг»: <code>PaymentCheckoutLegalEntityPresenter</code>, <code>PaymentCheckoutContextResolver</code>, доступы <code>POST /payment</code> / <code>clubFee</code>, multi-entity, custom/lesson package (<a href="/docs/documentation/payments#payment-checkout-service-provider">payments §3.1.2</a>).</li>
+    <li><code>tests/Feature/Crm/Payments/PaymentCheckoutMethodsUxFeatureTest.php</code> — витрина и клубный взнос: без «Выберите ниже», бейдж СБП «Способ оплаты», «Другие способы оплаты» только при карте/Робокассе, 2+ групп club-fee (<a href="/docs/documentation/payments#vitrina-payment">payments §3.1.1</a>, <a href="/docs/documentation/payments#club-fee-page">§3.2.1</a>).</li>
+    <li><code>tests/Feature/Crm/Payments/PaymentCheckoutMethodsNonAjaxSafetyNetFeatureTest.php</code> — native GET/POST без AJAX: 200 HTML, guest не 500, только СБП без «Других способов».</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — публичная СБП-страница абонемента: группа, поставщик, сумма через <code>Money::formatRub</code> (целые без копеек; <code>,xx</code> только если копейки ≠ 0), короткий <code>/p/{code}</code> и совместимый <code>/pay/ulp/*</code>, <code>public-pay-link</code> (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>).</li>
     <li><code>tests/Feature/Crm/Money/*</code> — канон копеек: round-trip, access/AJAX, HTTP-smoke (<a href="/docs/documentation/money">money</a>).</li>
   </ul>
@@ -225,7 +227,7 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
       <code>TbankCommissionsColumnsSettingsFullAccessFeatureTest.php</code> —
       «Колонки» / persist N на <code>/admin/settings/tbank-commissions</code>
       (<a href="/docs/documentation/tbank#commissions-ui">tbank §4.3</a>)</li>
-    <li><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code>, <code>PaymentCheckoutMethodsUxFeatureTest.php</code>, <code>PaymentCheckoutMethodsNonAjaxSafetyNetFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/UserClassPaymentFlowTest.php</code>, <code>MultiTeamMonthlyPaymentAccessFeatureTest.php</code>, <code>MultiTeamMonthlyPaymentFlowTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/PayableTeamPaymentInitFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/CloudKassirReceiptBuilderAgentTest.php</code>, <code>SendCloudKassirReceiptJobTest.php</code></li>

@@ -72,6 +72,9 @@
             gap: 16px;
             align-items: start;
         }
+        .payment-layout--sbp-only {
+            grid-template-columns: minmax(0, 1fr);
+        }
         .payment-right-column {
             width: 100%;
         }
@@ -239,20 +242,19 @@
                     <div class="summary-item-value">{{ $monthlyTeamTitle }}</div>
                 </div>
                 @endif
-                <div>
-                    <div class="summary-item-label">Способ оплаты</div>
-                    <div class="summary-item-value">Выберите ниже</div>
-                </div>
             </div>
             <div class="summary-total">Итого к оплате: <span class="value">{{ number_format((int) round((float) str_replace(',', '.', (string) $outSum)), 0, ',', ' ') }} руб.</span></div>
             @include('payment.partials.service-provider')
             <div class="payment-trust">Оплата защищена банковскими протоколами безопасности.</div>
         </div>
 
-        <div class="payment-layout">
+        @php
+            $showOtherPaymentMethods = !empty($tbankAvailable) || !empty($robokassaAvailable);
+        @endphp
+        <div class="payment-layout{{ $showOtherPaymentMethods ? '' : ' payment-layout--sbp-only' }}">
             @if(!empty($tbankSbpAvailable))
                 <div class="sbp-priority-card">
-                    <div class="recommend-badge">Рекомендуемый способ</div>
+                    <div class="recommend-badge">Способ оплаты</div>
                     <div class="sbp-title-row">
                         <div class="sbp-title">Оплата через СБП</div>
                         <svg class="sbp-security-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -285,6 +287,7 @@
                 </div>
             @endif
 
+            @if($showOtherPaymentMethods)
             <div class="payment-right-column">
                 <div class="other-methods-title">Другие способы оплаты</div>
                 <div class="other-methods-grid">
@@ -335,6 +338,7 @@
                     @endif
                 </div>
             </div>
+            @endif
         </div>
     </div>
 

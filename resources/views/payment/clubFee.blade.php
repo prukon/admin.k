@@ -85,6 +85,12 @@
             gap: 16px;
             align-items: start;
         }
+        .payment-layout--sbp-only {
+            grid-template-columns: minmax(0, 1fr);
+        }
+        .payment-right-column {
+            width: 100%;
+        }
         .sbp-priority-card {
             border: 1px solid #f4c67f;
             border-radius: 20px;
@@ -289,7 +295,6 @@
             <div class="payment-trust">Оплата защищена банковскими протоколами безопасности.</div>
         </div>
 
-        <div class="payment-layout">
             @php
                 $renderTbankSbp = !empty($clubFeeRequiresTeamChoice)
                     ? !empty($canTbankSbp)
@@ -297,10 +302,13 @@
                 $renderTbankCard = !empty($clubFeeRequiresTeamChoice)
                     ? !empty($canTbankCard)
                     : !empty($tbankAvailable);
+                $showOtherPaymentMethods = $renderTbankCard || !empty($robokassaAvailable);
+                $otherMethodsInitiallyHidden = !empty($clubFeeRequiresTeamChoice) && empty($robokassaAvailable);
             @endphp
+            <div class="payment-layout{{ ($showOtherPaymentMethods && ! $otherMethodsInitiallyHidden) ? '' : ' payment-layout--sbp-only' }}">
             @if($renderTbankSbp)
                 <div id="clubFeeTbankSbpBlock" class="sbp-priority-card"@if(!empty($clubFeeRequiresTeamChoice)) style="display:none"@endif>
-                    <div class="recommend-badge">Рекомендуемый способ</div>
+                    <div class="recommend-badge">Способ оплаты</div>
                     <div class="sbp-title-row">
                         <div class="sbp-title">Оплата через СБП</div>
                         <svg class="sbp-security-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -326,7 +334,8 @@
                 </div>
             @endif
 
-            <div>
+            @if($showOtherPaymentMethods)
+            <div id="clubFeeOtherMethodsColumn" class="payment-right-column"@if($otherMethodsInitiallyHidden) style="display:none"@endif>
                 <div class="other-methods-title">Другие способы оплаты</div>
                 <div class="other-methods-grid">
                     @if($renderTbankCard)
@@ -346,7 +355,7 @@
                     @endif
 
                     @if(!empty($robokassaAvailable))
-                        <div class="pay-card">
+                        <div class="pay-card" data-other-method="robokassa">
                             <div class="pay-card-name">Робокасса</div>
                             <img class="img-fluid d-block" src="{{ asset('/img/partners/robokassa.png') }}" alt="Робокасса">
                             <form class="payment-form" action="{{ route('payment.pay') }}" method="POST" onsubmit="return validateAndSetAmount(this);">
@@ -362,6 +371,7 @@
                     @endif
                 </div>
             </div>
+            @endif
         </div>
         @endif
     </div>
@@ -462,9 +472,33 @@
             row.style.display = '';
         }
 
+        function updateClubFeeOtherMethodsVisibility() {
+            var layout = document.querySelector('.payment-layout');
+            var column = document.getElementById('clubFeeOtherMethodsColumn');
+            if (!layout) {
+                return;
+            }
+
+            var cardBlock = document.getElementById('clubFeeTbankCardBlock');
+            var robokassaCard = column ? column.querySelector('[data-other-method="robokassa"]') : null;
+            var cardVisible = !!(cardBlock && cardBlock.style.display !== 'none');
+            var showOther = cardVisible || !!robokassaCard;
+
+            if (column) {
+                column.style.display = showOther ? '' : 'none';
+            }
+
+            if (showOther) {
+                layout.classList.remove('payment-layout--sbp-only');
+            } else {
+                layout.classList.add('payment-layout--sbp-only');
+            }
+        }
+
         function updateClubFeeTbankVisibility() {
             if (!clubFeeRequiresTeamChoice) {
                 updateClubFeeServiceProvider();
+                updateClubFeeOtherMethodsVisibility();
                 return;
             }
 
@@ -482,6 +516,7 @@
             }
 
             updateClubFeeServiceProvider();
+            updateClubFeeOtherMethodsVisibility();
         }
 
         document.addEventListener('DOMContentLoaded', function () {
