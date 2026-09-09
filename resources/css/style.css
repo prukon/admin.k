@@ -1668,7 +1668,7 @@ html {
     margin-right: 0;
 }
 
-#left_bar .setting-prices-team-row:hover:not(.wrap-team--active) {
+#left_bar .setting-prices-team-row:hover:not(.wrap-team--active):not(.wrap-team--loading) {
     background-color: rgba(0, 0, 0, 0.035);
 }
 
@@ -1800,6 +1800,43 @@ html {
     max-width: 100%;
     box-sizing: border-box;
     padding: 0.4rem 0.75rem;
+}
+
+/* Ожидание get-team-price: плашку ещё не ставим */
+#left_bar .wrap-team.wrap-team--loading {
+    background-color: rgba(243, 161, 43, 0.06);
+    animation: setting-prices-team-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes setting-prices-team-pulse {
+    0%, 100% {
+        background-color: rgba(243, 161, 43, 0.04);
+    }
+    50% {
+        background-color: rgba(243, 161, 43, 0.16);
+    }
+}
+
+#right_bar .wrap-users.is-loading,
+#right_bar .wrap-users .setting-prices-users-placeholder {
+    min-height: 3rem;
+}
+
+#right_bar .wrap-users .setting-prices-users-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.1rem 0.25rem;
+    color: #6c757d;
+    font-size: 13px;
+}
+
+#right_bar .wrap-users .setting-prices-users-placeholder .spinner-border {
+    color: #f3a12b;
+}
+
+#right_bar .wrap-users .setting-prices-users-placeholder--error {
+    color: #dc3545;
 }
 
 #scheduleTable .schedule-cell i {

@@ -7,11 +7,14 @@ use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
 use App\Http\Requests\Admin\Report\TbankPaymentsReportFilterRequest;
 use App\Models\Partner;
+use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use App\Models\UserTableSetting;
 use App\Services\PartnerContext;
+use App\Services\Tinkoff\TinkoffPaymentFiscalReceiptResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Yajra\DataTables\DataTables;
 
@@ -19,8 +22,10 @@ class TbankPaymentReportController extends AdminBaseController
 {
     public const TABLE_KEY = 'reports_tbank_payments';
 
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly TinkoffPaymentFiscalReceiptResolver $fiscalReceiptResolver,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -83,6 +88,13 @@ class TbankPaymentReportController extends AdminBaseController
             $query->orderByDesc('id');
         }
 
+        $commissionRules = TinkoffCommissionRule::query()
+            ->where('is_enabled', true)
+            ->orderByRaw('partner_id is null, method is null')
+            ->get();
+
+        $receiptCache = [];
+
         return DataTables::of($query)
             ->filter(function ($query) use ($request) {
                 $this->applyDataTableSearch($query, $request);
@@ -95,12 +107,22 @@ class TbankPaymentReportController extends AdminBaseController
 
                 return '#'.$payment->partner_id;
             })
+            ->addColumn('method_label', function (TinkoffPayment $payment) {
+                return TinkoffPayment::methodLabel($payment->method);
+            })
+            ->orderColumn('method', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderBy('tinkoff_payments.method', $dir);
+            })
             ->addColumn('amount', function (TinkoffPayment $payment) {
                 return round(((int) $payment->amount) / 100, 2);
             })
             ->orderColumn('amount', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $query->orderBy('tinkoff_payments.amount', $dir);
+            })
+            ->addColumn('platform_commission', function (TinkoffPayment $payment) use ($commissionRules) {
+                return $this->platformCommissionRub($payment, $commissionRules);
             })
             ->addColumn('payout_amount', function (TinkoffPayment $payment) {
                 $cents = $payment->getAttribute('payout_amount_cents');
@@ -119,6 +141,27 @@ class TbankPaymentReportController extends AdminBaseController
             })
             ->addColumn('show_url', function (TinkoffPayment $payment) {
                 return url('/admin/tinkoff/payments/'.$payment->id);
+            })
+            ->addColumn('receipt_url', function (TinkoffPayment $payment) use (&$receiptCache) {
+                return $this->receiptFields($payment, $receiptCache)['receipt_url'];
+            })
+            ->addColumn('has_receipt', function (TinkoffPayment $payment) use (&$receiptCache) {
+                return $this->receiptFields($payment, $receiptCache)['has_receipt'];
+            })
+            ->addColumn('receipt_hint', function (TinkoffPayment $payment) use (&$receiptCache) {
+                return $this->receiptFields($payment, $receiptCache)['receipt_hint'];
+            })
+            ->addColumn('return_receipt_url', function (TinkoffPayment $payment) use (&$receiptCache) {
+                return $this->receiptFields($payment, $receiptCache)['return_receipt_url'];
+            })
+            ->addColumn('has_return_receipt', function (TinkoffPayment $payment) use (&$receiptCache) {
+                return $this->receiptFields($payment, $receiptCache)['has_return_receipt'];
+            })
+            ->addColumn('return_receipt_hint', function (TinkoffPayment $payment) use (&$receiptCache) {
+                return $this->receiptFields($payment, $receiptCache)['return_receipt_hint'];
+            })
+            ->addColumn('return_receipt_status', function (TinkoffPayment $payment) use (&$receiptCache) {
+                return $this->receiptFields($payment, $receiptCache)['return_receipt_status'];
             })
             ->editColumn('created_at', function (TinkoffPayment $payment) {
                 return self::formatReportDateTime($payment->created_at);
@@ -209,6 +252,10 @@ class TbankPaymentReportController extends AdminBaseController
             $query->where('status', $filters['status']);
         }
 
+        if ($filters['method'] !== null) {
+            $query->where('tinkoff_payments.method', $filters['method']);
+        }
+
         if ($filters['created_from'] !== null) {
             $query->whereDate('created_at', '>=', $filters['created_from']);
         }
@@ -257,7 +304,7 @@ class TbankPaymentReportController extends AdminBaseController
      */
     private function hasActiveFilters(array $filters, bool $canFilterPartner): bool
     {
-        $keys = ['status', 'created_from', 'created_to'];
+        $keys = ['status', 'method', 'created_from', 'created_to'];
         if ($canFilterPartner) {
             $keys[] = 'partner_id';
         }
@@ -295,5 +342,62 @@ class TbankPaymentReportController extends AdminBaseController
             'id' => $p->id,
             'text' => (string) ($p->title ?? ''),
         ];
+    }
+
+    /**
+     * @param  Collection<int, TinkoffCommissionRule>  $rules
+     */
+    private function platformCommissionRub(TinkoffPayment $payment, Collection $rules): float
+    {
+        $partnerId = (int) $payment->partner_id;
+        $method = $payment->method !== null && $payment->method !== '' ? (string) $payment->method : null;
+
+        /** @var TinkoffCommissionRule|null $chosen */
+        $chosen = $rules->first(function (TinkoffCommissionRule $rule) use ($partnerId, $method) {
+            $partnerOk = ($rule->partner_id === null) || ((int) $rule->partner_id === $partnerId);
+            $methodOk = ($rule->method === null) || ((string) $rule->method === (string) $method);
+
+            return $partnerOk && $methodOk;
+        });
+
+        $rule = $chosen ?: new TinkoffCommissionRule([
+            'platform_percent' => 0.00,
+            'platform_min_fixed' => 0.00,
+        ]);
+
+        $grossCents = (int) $payment->amount;
+        $percent = (float) ($rule->platform_percent ?? 0.00);
+        $minFixedRub = (float) ($rule->platform_min_fixed ?? 0.00);
+        $fee = (int) round($grossCents * ($percent / 100));
+        $min = (int) round($minFixedRub * 100);
+        $feeCents = max($fee, $min);
+
+        return round($feeCents / 100, 2);
+    }
+
+    /**
+     * @param  array<int, array{receipt_url: ?string, has_receipt: bool, receipt_hint: string, return_receipt_url: ?string, has_return_receipt: bool, return_receipt_hint: string, return_receipt_status: string}>  $cache
+     * @return array{receipt_url: ?string, has_receipt: bool, receipt_hint: string, return_receipt_url: ?string, has_return_receipt: bool, return_receipt_hint: string, return_receipt_status: string}
+     */
+    private function receiptFields(TinkoffPayment $payment, array &$cache): array
+    {
+        $id = (int) $payment->id;
+        if (! isset($cache[$id])) {
+            $resolved = $this->fiscalReceiptResolver->resolve($payment);
+            $income = $resolved['income'];
+            $return = $resolved['return'];
+
+            $cache[$id] = [
+                'receipt_url' => $income['url'],
+                'has_receipt' => (bool) $income['has_url'],
+                'receipt_hint' => (string) $income['hint'],
+                'return_receipt_url' => $return['url'],
+                'has_return_receipt' => (bool) $return['has_url'],
+                'return_receipt_hint' => (string) $return['hint'],
+                'return_receipt_status' => (string) ($return['status'] ?? ''),
+            ];
+        }
+
+        return $cache[$id];
     }
 }

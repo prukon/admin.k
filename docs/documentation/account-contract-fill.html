@@ -124,7 +124,12 @@
     </tbody>
   </table>
   <p class="small">Контроллеры: <code>AccountDocumentsController</code>, <code>AccountContractFillController</code>.
-  View: <code>resources/views/account/documents.blade.php</code>, partials <code>contract-fill-modal.blade.php</code>, <code>contract-fill-content.blade.php</code>, <code>contract-fill-field.blade.php</code>.</p>
+  View: <code>resources/views/account/documents.blade.php</code>, partials <code>contract-fill-modal.blade.php</code>, <code>contract-fill-content.blade.php</code>, <code>contract-fill-field.blade.php</code>.
+  Кнопки скачивания на карточке списка: «Скачать подписанный» — если заполнен <code>signed_pdf_path</code>
+  (любой статус); «Скачать PDF» оригинала — если статус не <code>signed</code> и есть <code>source_pdf_path</code>.
+  Это не критерий кнопок на карточке CRM (там смотрят <code>status</code>) и совпадает с иконкой в списке школы
+  (<a href="/docs/documentation/contracts#contracts-pdf-download">contracts §4</a>,
+  <a href="/doc#contract-list-signed-file-index">анонс колонки</a>).</p>
 
   <h3 id="account-documents-family-link">1.2) Семейный кабинет и ссылка из письма</h3>
   <div class="note">

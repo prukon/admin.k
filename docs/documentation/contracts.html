@@ -33,6 +33,7 @@
     · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">анонс</a>
     · памятка статусов: <a href="/doc#contract-status-memo-index">анонс</a>
     · колонка «Обновлён»: <a href="/doc#contract-list-updated-at-index">анонс</a>
+    · иконка подписанного PDF в списке: <a href="/doc#contract-list-signed-file-index">анонс</a>
     · списание 70 ₽ в историю кошелька: <a href="/doc#partner-wallet-ledger-index">анонс</a></div>
 
   <h2>1) Назначение и доступ</h2>
@@ -57,7 +58,7 @@
       <tr><td>POST</td><td><code>/client-contracts/check-balance</code></td><td>Предпроверка баланса перед submit модалки создания</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/users-search</code></td><td>AJAX Select2: поиск учеников (в т.ч. <code>parent_full_name</code> для модалки)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
-      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)». Колонка «Обновлён» (<code>updated_at</code> в JSON) — <code>created_at</code> последнего события журнала этого договора (<code>contract_events</code>, максимальный <code>id</code>, как на карточке), формат <code>d.m.Y H:i:s</code>; не поле <code>contracts.updated_at</code>. При создании через UI всегда есть событие <code>created</code>. Без событий — пустая строка. Сортировка этой колонки — по дате события, без событий в конце</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)», <code>download_signed_url</code> — URL <code>GET …/download-signed</code> или <code>null</code>, если <code>signed_pdf_path</code> пуст. Колонка «Обновлён» (<code>updated_at</code> в JSON) — <code>created_at</code> последнего события журнала этого договора (<code>contract_events</code>, максимальный <code>id</code>, как на карточке), формат <code>d.m.Y H:i:s</code>; не поле <code>contracts.updated_at</code>. При создании через UI всегда есть событие <code>created</code>. Без событий — пустая строка. Сортировка этой колонки — по дате события, без событий в конце</td></tr>
       <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/logs-data</code> (<code>logs.data.contract</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract</code>)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
@@ -112,7 +113,7 @@
     <br><br>
     Штатное создание через UI всегда пишет событие <code>created</code> («Создан»)
     в <code>ContractCreationService</code>. Без строк в <code>contract_events</code> —
-    пустая ячейка. Сортировка колонки (индекс 7 DataTables) — по этой дате,
+    пустая ячейка. Сортировка колонки (индекс 8 DataTables) — по этой дате,
     без событий в конце. Timeline «(посмотреть)» эту колонку не использует.
     Анонс: <a href="/doc#contract-list-updated-at-index">/doc</a>.
   </div>
@@ -194,14 +195,23 @@
     Path <code>/webhooks/podpislon/{token}</code> не существует (404/405, не 200).
   </div>
 
-  <h2>4) Скачивание PDF в интерфейсе</h2>
+  <h2 id="contracts-pdf-download">4) Скачивание PDF в интерфейсе</h2>
   <div class="note">
-    Правило единое для карточки договора в CRM и для вкладки «Мои документы» в кабинете ученика.
+    Три места, критерии разные. Не смешивать список, карточку CRM и кабинет.
   </div>
   <ul>
-    <li>Статус <code>signed</code> (<code>Contract::STATUS_SIGNED</code>) — кнопка «Скачать подписанный» (<code>signed_pdf_path</code>).</li>
-    <li>Любой другой статус — «Скачать оригинал» (<code>source_pdf_path</code>). Если при статусе <code>revoked</code> уже есть <code>signed_pdf_path</code> (клиент подписал старое SMS после аннулирования) — показываются оба файла.</li>
-    <li>Критерий кнопки — поле <code>contracts.status</code>, а не только наличие пути к файлу.</li>
+    <li><b>Карточка CRM</b> <code>/client-contracts/{id}</code>, блок «Файлы»: критерий кнопок — поле
+      <code>contracts.status</code>. Статус <code>signed</code> (<code>Contract::STATUS_SIGNED</code>) —
+      только «Скачать подписанный» (<code>route('contracts.downloadSigned')</code>), даже если путь пуст
+      (тогда 302 <code>errors.file</code>). Любой другой статус — «Скачать оригинал»
+      (<code>source_pdf_path</code>); если уже есть <code>signed_pdf_path</code>
+      (клиент подписал старое SMS после аннулирования) — показываются оба файла.</li>
+    <li><b>Кабинет</b> «Мои документы»: «Скачать подписанный» — если заполнен <code>signed_pdf_path</code>
+      (любой статус, в т.ч. <code>revoked</code>). «Скачать PDF» оригинала — если статус
+      <b>не</b> <code>signed</code> и есть <code>source_pdf_path</code>.</li>
+    <li><b>Список CRM</b> <code>/client-contracts</code>: иконка PDF — только
+      <code>filled(signed_pdf_path)</code>, статус не смотрит (§<a href="#contract-list-signed-file">4.1.1</a>).
+      Это не колонка «Договор» на <code>/admin/users</code> (там PDF открывает карточку при <code>signed</code>).</li>
     <li>Файлы: диск <code>local</code>, <code>storage/app/</code> + относительный путь из БД.</li>
   </ul>
 
@@ -210,11 +220,37 @@
   <ul>
     <li>Колонка «Имя» (<code>user_name</code>) — <code>type: 'link'</code>, класс <code>js-dt-nav-link</code>, атрибут <code>data-href="/client-contracts/{id}"</code>; клик открывает карточку договора (<code>GET /client-contracts/{id}</code>).</li>
     <li>После инициализации таблицы вызывается <code>KidsCrmDataTable.bindNavLinks(contractsTableEl)</code> (с inline fallback в blade).</li>
+    <li>Колонка «Статус» — бейдж и ссылка «(посмотреть)».</li>
+    <li>Колонка «Договор» — иконка подписанного PDF, см. §<a href="#contract-list-signed-file">4.1.1</a>.</li>
     <li>Колонка «Действия» — кнопка «Подробнее» с обычным <code>href</code> (дублирует переход).</li>
     <li>Backend <code>GET /client-contracts/data</code> отдаёт поле <code>id</code> в каждой строке (нужно для <code>data-href</code>)
-      и <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»).</li>
+      и <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»),
+      <code>download_signed_url</code> при заполненном <code>signed_pdf_path</code>.</li>
   </ul>
   <p class="small">Общий паттерн кликабельных названий — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</p>
+
+  <h3 id="contract-list-signed-file">4.1.1) Колонка «Договор» (иконка PDF)</h3>
+  <div class="note">
+    Анонс: <a href="/doc#contract-list-signed-file-index">/doc</a>.
+    Ключ колонок <code>signed_file</code>, тип <code>icon</code>, сразу после «Статус»,
+    <code>orderable: false</code>. Чекбокс <code>#colSignedFile</code>, заголовок «Договор».
+    <code>GET /client-contracts/data</code> отдаёт <code>download_signed_url</code>
+    (<code>route('contracts.downloadSigned')</code>) только если <code>signed_pdf_path</code> заполнен
+    (<code>filled()</code>); иначе <code>null</code>. Критерий — наличие пути к файлу, не статус
+    <code>signed</code>: <code>signed</code> без файла — пустая ячейка; у <code>revoked</code> /
+    <code>draft</code> с файлом иконка есть. Сам путь файла на фронт не отдаётся.
+    JS <code>renderSignedContractFileCell</code> рисует синюю <code>fa-solid fa-file-pdf</code>
+    (<code>#0d6efd</code>) через <code>KidsCrmDataTable.renderIcon</code>: клик открывает
+    <code>GET /client-contracts/{id}/download-signed</code> в новой вкладке
+    (<code>target="_blank"</code>, <code>rel="noopener noreferrer"</code>).
+    Без URL — пустая ячейка. Класс <code>js-dt-nav-link</code> у иконки <b>нет</b>
+    (навигация на карточку — колонка «Имя»).
+    Это не колонка «Договор» на <code>/admin/users</code>
+    (<a href="/docs/documentation/admin-users#user-contract-column">admin-users §2.3</a>:
+    PDF при статусе <code>signed</code> открывает карточку в той же вкладке).
+    Без файла на диске download-signed → 302 <code>errors.file</code>.
+    Сортировка «Обновлён» из‑за этой колонки — индекс 8 DataTables (не 7).
+  </div>
 
   <h2 id="contract-status-memo">4.2) Памятка по статусам</h2>
   <div class="note">
@@ -507,8 +543,15 @@
       <li><code>PodpislonWebhookTest.php</code> — пустой POST проба 200 без <code>?token=</code> и с ним (токен игнорируется); события требуют <code>SIGNATURE</code> Подпислона</li>
       <li><code>PodpislonWebhookUrlCheckFeatureTest.php</code> — UX кабинета Подпислона: гость, без CSRF, без права CRM, URL без <code>?token=</code> даёт 200 JSON <code>probe</code> (не логин/419/403); токен в path — 404; query-токен не заменяет <code>SIGNATURE</code>; GET/PUT/PATCH/DELETE не 500</li>
       <li><code>ContractsSyncFeatureTest.php</code></li>
-      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code> — в data <code>status_label</code> для sent/opened = «Отправлено СМС» / «Открыто СМС»; колонка «Обновлён» = последнее <code>contract_events.created_at</code> (max <code>id</code>), не <code>contracts.updated_at</code>; совпадает с верхней строкой журнала на карточке; сортировка колонки; без событий — пустая строка</li>
+      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code> — в data <code>status_label</code> для sent/opened = «Отправлено СМС» / «Открыто СМС»; <code>download_signed_url</code> только при заполненном <code>signed_pdf_path</code> (в т.ч. revoked); колонка «Обновлён» = последнее <code>contract_events.created_at</code> (max <code>id</code>), не <code>contracts.updated_at</code>; совпадает с верхней строкой журнала на карточке; сортировка колонки (индекс 8); без событий — пустая строка</li>
       <li><code>ContractListUpdatedAtDocumentationContractTest.php</code> — анонс /doc, §1.3 / §2.3, <code>ContractTableController</code>, заголовок в blade: «Обновлён» из журнала, не <code>contracts.updated_at</code></li>
+      <li><code>ContractListSignedFileIconDocumentationContractTest.php</code> — анонс /doc, §4.1.1, иконка PDF в списке, <code>download_signed_url</code>, <code>renderSignedContractFileCell</code></li>
+      <li><code>ContractListSignedFileIconAccessFeatureTest.php</code> — гость 302/401, без <code>contracts.view</code> / тренер 403, чужая школа не видит URL и не скачивает, viewer 200 + файл</li>
+      <li><code>ContractListSignedFileIconFullAccessFeatureTest.php</code> — admin/superadmin 200; POST/PUT/PATCH/DELETE на data и download-signed → 404/405, не 500</li>
+      <li><code>ContractListSignedFileIconAjaxContractFeatureTest.php</code> — JSON <code>download_signed_url</code> только при заполненном <code>signed_pdf_path</code> (signed без файла / пустой путь — <code>null</code>; revoked и draft с файлом — URL); путь файла не утекает; 422 <code>errors.length</code> / <code>errors.columns</code>; скрытие колонки сохраняется</li>
+      <li><code>ContractListSignedFileIconNonAjaxSafetyNetFeatureTest.php</code> — native GET data/download без X-Requested-With: файл 200, без пути 302 <code>errors.file</code>, не пустой 200</li>
+      <li><code>ContractListSignedFileIconUxFeatureTest.php</code> — колонка после «Статус», пустая ячейка без URL, не <code>js-dt-nav-link</code>, сортировка «Обновлён» индекс 8 (не 7), имя по-прежнему на карточку</li>
+      <li><code>BladeInlineJsSyntaxTest.php</code> — <code>renderSignedContractFileCell</code>: fallback <code>return ''</code>, <code>renderIcon</code>, не переход в той же вкладке</li>
       <li><code>ContractSchoolStatusLabelFeatureTest.php</code> — школьные подписи sent/opened в таблице, фильтре и на карточке; guest 302 / без права 403; чужой партнёр 403</li>
       <li><code>ContractSchoolStatusLabelTest.php</code> — <code>schoolStatusLabel</code> не меняет <code>$STATUS_RU</code></li>
       <li><code>ContractBillingWalletLedgerFeatureTest.php</code> — PDF/template: debit в кошельке текущей школы; отзыв awaiting_client_fill — credit, исходный debit succeeded; недостаток средств без строки; аннулирование sent/opened credit не пишет</li>
@@ -533,7 +576,7 @@
     </ul>
     <p><b>Раздел «Документы» (вкладки + шаблоны):</b></p>
     <ul>
-      <li><code>ContractsDocumentsSectionUiFeatureTest.php</code> — вкладки, тулбар, колонка «Обновлён» (<code>&lt;th&gt;</code>, <code>#colUpdatedAt</code>)</li>
+      <li><code>ContractsDocumentsSectionUiFeatureTest.php</code> — вкладки, тулбар, колонка «Обновлён» (<code>&lt;th&gt;</code>, <code>#colUpdatedAt</code>), колонка «Договор» (<code>#colSignedFile</code>, <code>type: 'icon'</code>)</li>
       <li><code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — вкладки, email API, маркеры <code>js-dt-nav-link</code>, поля <code>id</code>/<code>user_name</code> в data</li>
       <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное имя в списке договоров + show 200</li>
     </ul>

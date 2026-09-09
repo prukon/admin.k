@@ -36,6 +36,15 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Выплата', $chunk);
         $this->assertStringContainsString('REJECTED', $chunk);
         $this->assertStringContainsString('status=all', $chunk);
+        $this->assertStringContainsString('method=all', $chunk);
+        $this->assertStringContainsString('Способ', $chunk);
+        $this->assertStringContainsString('Чек', $chunk);
+        $this->assertStringContainsString('Комиссия платформы', $chunk);
+        $this->assertStringContainsString('TinkoffPaymentFiscalReceiptResolver', $chunk);
+        $this->assertStringContainsString('tinkoff_commission_rules', $chunk);
+        $this->assertStringContainsString('platform_percent', $chunk);
+        $this->assertStringContainsString('TbankPaymentsReceiptAndCommissionFeatureTest', $chunk);
+        $this->assertStringContainsString('dtApi.reload()', $chunk);
         $this->assertStringContainsString('dtApi.reload()', $chunk);
         $this->assertStringContainsString('tp-toolbar-commissions', $chunk);
         $this->assertStringContainsString('settings.commission', $chunk);
@@ -52,6 +61,7 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('tbank#payment-show-card', $chunk);
         $this->assertStringContainsString('/doc#tbank-commissions-columns-index', $chunk);
         $this->assertStringContainsString('/doc#reports-tbank-payments-index', $chunk);
+        $this->assertStringContainsString('/doc#reports-tbank-payments-receipt-commission-index', $chunk);
 
         $this->assertStringNotContainsString('tbank_commissions_index', $chunk);
         $this->assertStringNotContainsString('редирект на /admin/reports/tbank-payments', $chunk);
@@ -68,12 +78,24 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#reports-tbank-payments-index', $reports);
         $this->assertStringContainsString('reports.tbank.payments.view', $reports);
         $this->assertStringContainsString('ReportsTbankPaymentsDocumentationContractTest', $reports);
+        $this->assertStringContainsString('TbankPaymentsReceiptAndCommissionFeatureTest', $reports);
+        $this->assertStringContainsString('/doc#reports-tbank-payments-receipt-commission-index', $reports);
         $this->assertStringContainsString('payout_amount', $reports);
         $this->assertStringContainsString('Выплата', $reports);
+        $this->assertStringContainsString('method_label', $reports);
+        $this->assertStringContainsString('Способ', $reports);
+        $this->assertStringContainsString('Чек', $reports);
+        $this->assertStringContainsString('Комиссия платформы', $reports);
+        $this->assertStringContainsString('TinkoffPaymentFiscalReceiptResolver', $reports);
+        $this->assertStringContainsString('platform_commission', $reports);
 
         $this->assertStringContainsString('/doc#reports-tbank-payments-index', $tbank);
         $this->assertStringContainsString('reports.tbank.payments.view', $tbank);
         $this->assertStringContainsString('tp-toolbar-commissions', $tbank);
+        $this->assertStringContainsString('Чек', $tbank);
+        $this->assertStringContainsString('Комиссия платформы', $tbank);
+        $this->assertStringContainsString('TbankPaymentsReceiptAndCommissionFeatureTest', $tbank);
+        $this->assertStringContainsString('/doc#reports-tbank-payments-receipt-commission-index', $tbank);
 
         $this->assertStringContainsString('/doc#reports-tbank-payments-index', $groups);
         $this->assertStringContainsString('2026_09_07_073200_add_reports_tbank_payments_view_permission.php', $groups);
@@ -94,6 +116,7 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $blade = (string) file_get_contents($root.'/resources/views/admin/report/tbank_payments.blade.php');
         $tabs = (string) file_get_contents($root.'/resources/views/admin/report/index.blade.php');
         $request = (string) file_get_contents($root.'/app/Http/Requests/Admin/Report/TbankPaymentsReportFilterRequest.php');
+        $model = (string) file_get_contents($root.'/app/Models/TinkoffPayment.php');
         $migration = (string) file_get_contents($root.'/database/migrations/2026_09_07_073200_add_reports_tbank_payments_view_permission.php');
         $seeder = (string) file_get_contents($root.'/database/seeders/PermissionSeeder.php');
         $hints = (string) file_get_contents($root.'/config/permission_capability_hints.php');
@@ -111,6 +134,13 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString("public const TABLE_KEY = 'reports_tbank_payments'", $controller);
         $this->assertStringContainsString('$request->filters()', $controller);
         $this->assertStringContainsString("tbankPaymentsPageLength", $controller);
+        $this->assertStringContainsString("addColumn('method_label'", $controller);
+        $this->assertStringContainsString("TinkoffPayment::methodLabel", $controller);
+        $this->assertStringContainsString("addColumn('platform_commission'", $controller);
+        $this->assertStringContainsString('platformCommissionRub', $controller);
+        $this->assertStringContainsString('TinkoffPaymentFiscalReceiptResolver', $controller);
+        $this->assertStringContainsString("addColumn('has_receipt'", $controller);
+        $this->assertStringNotContainsString('reports.additional.value.view', $controller);
 
         $this->assertStringContainsString("Gate::allows('reports.tbank.payments.view')", $show);
         $this->assertStringContainsString("Gate::allows('manage.payment.method.tbank')", $show);
@@ -124,15 +154,36 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString("key: 'payout_amount'", $blade);
         $this->assertStringContainsString('data-column-key="payout_amount"', $blade);
         $this->assertStringContainsString('payout_amount: true', $blade);
+        $this->assertStringContainsString("key: 'method'", $blade);
+        $this->assertStringContainsString('data-column-key="method"', $blade);
+        $this->assertStringContainsString('method: true', $blade);
+        $this->assertStringContainsString("key: 'platform_commission'", $blade);
+        $this->assertStringContainsString('data-column-key="platform_commission"', $blade);
+        $this->assertStringContainsString('platform_commission: true', $blade);
+        $this->assertStringContainsString("key: 'receipt'", $blade);
+        $this->assertStringContainsString('data-column-key="receipt"', $blade);
+        $this->assertStringContainsString('receipt: true', $blade);
+        $this->assertStringContainsString('renderTbankReceiptCell', $blade);
+        $this->assertStringContainsString('id="tp-filter-method"', $blade);
+        $this->assertStringContainsString("data: 'method_label'", $blade);
         $this->assertStringContainsString('@can(\'settings.commission\')', $blade);
         $this->assertStringContainsString('id="tp-toolbar-commissions"', $blade);
         $this->assertStringContainsString("route('admin.setting.tbankCommissions')", $blade);
         $this->assertStringContainsString('e.preventDefault()', $blade);
         $this->assertStringContainsString('dtApi.reload();', $blade);
         $this->assertStringContainsString('<option value="" {{ $tpStatus === \'\' ? \'selected\' : \'\' }}>Все статусы</option>', $blade);
+        $this->assertStringContainsString('<option value="" {{ $tpMethod === \'\' ? \'selected\' : \'\' }}>Все способы</option>', $blade);
 
         $this->assertStringContainsString("public const STATUSES = ['NEW', 'FORM', 'CONFIRMED', 'REJECTED', 'CANCELED']", $request);
+        $this->assertStringContainsString("public const METHODS = TinkoffPayment::METHODS", $request);
         $this->assertStringContainsString("\$status === 'all'", $request);
+        $this->assertStringContainsString("\$method === 'all'", $request);
+
+        $this->assertStringContainsString("public const METHODS = ['card', 'sbp', 'tpay']", $model);
+        $this->assertStringContainsString("'card' => 'Карта'", $model);
+        $this->assertStringContainsString("'sbp' => 'СБП'", $model);
+        $this->assertStringContainsString("'tpay' => 'T‑Pay'", $model);
+        $this->assertStringContainsString('public static function methodLabel', $model);
 
         $this->assertStringContainsString("'is_visible' => 0", $migration);
         $this->assertStringNotContainsString('permission_role', explode('function down', $migration)[0]);

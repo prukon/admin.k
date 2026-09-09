@@ -288,6 +288,10 @@
 
 @include('admin.school-leads.partials.edit-lead-modal')
 
+@if ($canCreateUserFromLead && $canViewContracts)
+    @include('admin.school-leads.partials.create-client-choice-modal')
+@endif
+
 @if ($canViewContracts)
     @include('contracts.partials.create-modal', [
         'partner' => $contractCreatePartner ?? app('current_partner'),
@@ -311,6 +315,7 @@
             var canViewDistricts = @json($canViewDistricts);
             var canCreateUserFromLead = @json($canCreateUserFromLead);
             var canViewContracts = @json($canViewContracts);
+            var hasLeadContractTemplates = @json(($contractTemplates ?? collect())->isNotEmpty());
             var canShowLeadClientColumn = @json($canShowLeadClientColumn);
             var schoolLeadStatuses = @json($schoolLeadStatuses->map(fn ($status) => $status->toFrontendArray())->values());
             var defaultStatusFilterIds = @json($defaultStatusFilterIds);
@@ -466,6 +471,12 @@
             function showToast(message, type) {
                 if (typeof window.showToast === 'function') {
                     window.showToast(message, type);
+                }
+            }
+
+            function hideToast() {
+                if (typeof window.hideToast === 'function') {
+                    window.hideToast();
                 }
             }
 
@@ -1162,7 +1173,7 @@
             });
 
             var editLeadModalEl = document.getElementById('editLeadModal');
-            var editLeadModal = new bootstrap.Modal(editLeadModalEl);
+            var editLeadModal = new bootstrap.Modal(editLeadModalEl, { backdrop: 'static' });
             var $editLeadForm = $('#editLeadForm');
             var $editLeadModal = $('#editLeadModal');
             var $leadTeamSelect = $('#leadTeam');
@@ -1193,6 +1204,7 @@
 
             var leadModalReadOnly = false;
             var currentLeadModalRowData = null;
+            var suppressLeadModalResetOnHide = false;
             var leadParentMatchUi = {
                 hasMatch: false,
                 needsDecision: false,
@@ -1234,6 +1246,7 @@
                 };
                 $('#leadParentMatchConfirmed').val('');
                 $('#leadMatchedParentId').val('');
+                $editLeadModal.children('.modal-dialog').removeClass('modal-xl');
                 $('#leadParentMatchBanner').addClass('d-none').text('');
                 $('#leadParentMatchActions').addClass('d-none');
                 $('#leadParentSnapshotCol').addClass('d-none');
@@ -1290,6 +1303,8 @@
             function applyLeadParentMatchLayout() {
                 var $banner = $('#leadParentMatchBanner');
                 var showCompare = !!leadParentMatchUi.hasMatch;
+
+                $editLeadModal.children('.modal-dialog').toggleClass('modal-xl', showCompare);
 
                 if (leadParentMatchUi.banner) {
                     $banner.removeClass('d-none').text(leadParentMatchUi.banner);
@@ -1947,19 +1962,85 @@
                     });
                 });
 
-                $('#createClientBtn').on('click', function() {
-                    if (leadModalReadOnly || $(this).prop('disabled')) {
+                function isLeadContractPrecheckError(errors) {
+                    if (!errors) {
+                        return false;
+                    }
+                    return !!(errors.wallet || errors.send_contract || errors.contract_template_id);
+                }
+
+                function clearLeadCreateClientChoiceErrors() {
+                    var $modal = $('#createLeadClientChoiceModal');
+                    $modal.find('.is-invalid').removeClass('is-invalid');
+                    $modal.find('[data-field-error="contract_template_id"]').text('');
+                    $modal.find('[data-field-error="send_contract"]').text('').addClass('d-none');
+                }
+
+                function applyLeadCreateClientChoiceErrors(errors) {
+                    if (!errors) {
                         return;
                     }
+                    var $modal = $('#createLeadClientChoiceModal');
+                    if (errors.contract_template_id && errors.contract_template_id.length) {
+                        $('#leadCreateClientTemplateId').addClass('is-invalid');
+                        $modal.find('[data-field-error="contract_template_id"]').text(errors.contract_template_id[0]);
+                    }
+                    if (errors.send_contract && errors.send_contract.length) {
+                        $modal.find('[data-field-error="send_contract"]')
+                            .removeClass('d-none')
+                            .text(errors.send_contract[0]);
+                    }
+                }
 
-                    var $btn = $(this);
-                    var $saveBtn = $('#saveLeadBtn');
-                    clearLeadFormErrors();
-                    $btn.prop('disabled', true);
-                    $saveBtn.prop('disabled', true);
+                function isLeadCreateClientWithContract() {
+                    return $('#leadCreateClientModeWithContract').is(':checked');
+                }
 
-                    var clientPayload = collectCreateClientPayload();
+                function syncLeadCreateClientChoiceUi() {
+                    var withContract = isLeadCreateClientWithContract();
+                    $('#leadCreateClientContractFields').toggle(withContract);
+                    $('#createLeadClientChoiceOkBtn').prop('disabled', withContract && !hasLeadContractTemplates);
+                }
 
+                function openCreateLeadClientChoiceModal() {
+                    clearLeadCreateClientChoiceErrors();
+                    hideToast();
+                    $('#leadCreateClientModeWithContract').prop('checked', true);
+                    $('#leadCreateClientModeWithoutContract').prop('checked', false);
+                    syncLeadCreateClientChoiceUi();
+                    if (typeof showModalQueued === 'function' && editLeadModalEl.classList.contains('show')) {
+                        suppressLeadModalResetOnHide = true;
+                        showModalQueued('createLeadClientChoiceModal', { backdrop: 'static', keyboard: false });
+                    } else {
+                        var choiceEl = document.getElementById('createLeadClientChoiceModal');
+                        if (choiceEl) {
+                            bootstrap.Modal.getOrCreateInstance(choiceEl, { backdrop: 'static', keyboard: false }).show();
+                        }
+                    }
+                }
+
+                function closeCreateLeadClientChoiceModal(returnToLead) {
+                    var modalEl = document.getElementById('createLeadClientChoiceModal');
+                    if (!modalEl) {
+                        return;
+                    }
+                    if (!returnToLead) {
+                        $(modalEl).off('hidden.bs.modal.return');
+                    }
+                    var inst = bootstrap.Modal.getInstance(modalEl);
+                    if (inst) {
+                        inst.hide();
+                    }
+                    if (!returnToLead) {
+                        if (editLeadModalEl.classList.contains('show')) {
+                            editLeadModal.hide();
+                        } else {
+                            resetLeadModalTransientState();
+                        }
+                    }
+                }
+
+                function appendLeadCustomFieldsToCreateClientPayload(clientPayload) {
                     $editLeadForm.find('.js-lead-custom-field').each(function() {
                         var $field = $(this);
                         var name = $field.attr('name') || '';
@@ -1967,6 +2048,86 @@
                         if (match && !$field.prop('disabled')) {
                             clientPayload.custom[match[1]] = $field.val();
                         }
+                    });
+                }
+
+                function buildCreateClientFromLeadPayload(options) {
+                    options = options || {};
+                    var clientPayload = collectCreateClientPayload();
+                    appendLeadCustomFieldsToCreateClientPayload(clientPayload);
+                    clientPayload.send_contract = options.sendContract ? 1 : 0;
+                    if (options.sendContract) {
+                        clientPayload.contract_template_id = options.templateId || '';
+                    }
+                    return clientPayload;
+                }
+
+                function precheckCreateClientFromLeadThenOpenChoice() {
+                    var $btn = $('#createClientBtn');
+                    var $saveBtn = $('#saveLeadBtn');
+
+                    clearLeadFormErrors();
+                    hideToast();
+                    $btn.prop('disabled', true);
+                    $saveBtn.prop('disabled', true);
+
+                    var clientPayload = buildCreateClientFromLeadPayload({ sendContract: false });
+                    clientPayload.validate_only = 1;
+
+                    $.ajax({
+                        url: userStoreUrl,
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                        },
+                        data: clientPayload,
+                    })
+                        .done(function(response) {
+                            if (!response || !response.ok) {
+                                var failMessage = (response && response.message)
+                                    ? response.message
+                                    : 'Не удалось проверить данные клиента.';
+                                showCreateClientResultModal(false, failMessage);
+                                return;
+                            }
+                            openCreateLeadClientChoiceModal();
+                        })
+                        .fail(function(xhr) {
+                            var errors = xhr.responseJSON && xhr.responseJSON.errors;
+                            var message = extractCreateClientErrorMessage(xhr, 'Ошибка создания клиента.');
+                            if (errors) {
+                                applyLeadFormErrors(errors);
+                            }
+                            showCreateClientResultModal(false, message);
+                            syncCreateClientBtnState();
+                        })
+                        .always(function() {
+                            $saveBtn.prop('disabled', false);
+                            syncCreateClientBtnState();
+                        });
+                }
+
+                function submitCreateClientFromLead(options) {
+                    options = options || {};
+                    var fromChoiceModal = !!options.fromChoiceModal;
+                    var sendContract = !!options.sendContract;
+                    var $btn = $('#createClientBtn');
+                    var $okBtn = $('#createLeadClientChoiceOkBtn');
+                    var $saveBtn = $('#saveLeadBtn');
+
+                    clearLeadFormErrors();
+                    if (fromChoiceModal) {
+                        clearLeadCreateClientChoiceErrors();
+                    }
+
+                    $btn.prop('disabled', true);
+                    $saveBtn.prop('disabled', true);
+                    $okBtn.prop('disabled', true);
+
+                    var clientPayload = buildCreateClientFromLeadPayload({
+                        sendContract: sendContract,
+                        templateId: options.templateId
                     });
 
                     saveLeadAjax()
@@ -1990,26 +2151,92 @@
                                 return;
                             }
 
-                            editLeadModal.hide();
+                            if (fromChoiceModal) {
+                                closeCreateLeadClientChoiceModal(false);
+                            } else {
+                                editLeadModal.hide();
+                            }
                             dtApi.reload({ keepPage: true });
                             showCreateClientResultModal(true, response.message || 'Клиент создан.');
                         })
                         .fail(function(xhr) {
+                            var errors = xhr.responseJSON && xhr.responseJSON.errors;
                             var message = extractCreateClientErrorMessage(xhr, 'Ошибка создания клиента.');
-                            if (xhr.responseJSON && xhr.responseJSON.errors) {
-                                applyLeadFormErrors(xhr.responseJSON.errors);
+                            if (fromChoiceModal && isLeadContractPrecheckError(errors)) {
+                                applyLeadCreateClientChoiceErrors(errors);
+                                showCreateClientResultModal(false, message);
+                            } else {
+                                if (fromChoiceModal) {
+                                    closeCreateLeadClientChoiceModal(true);
+                                }
+                                if (errors) {
+                                    applyLeadFormErrors(errors);
+                                }
+                                showCreateClientResultModal(false, message);
                             }
-                            showCreateClientResultModal(false, message);
                             syncCreateClientBtnState();
                         })
                         .always(function() {
                             $saveBtn.prop('disabled', false);
                             syncCreateClientBtnState();
+                            syncLeadCreateClientChoiceUi();
                         });
+                }
+
+                $('#createClientBtn').on('click', function() {
+                    if (leadModalReadOnly || $(this).prop('disabled')) {
+                        return;
+                    }
+
+                    if (canViewContracts && document.getElementById('createLeadClientChoiceModal')) {
+                        precheckCreateClientFromLeadThenOpenChoice();
+                        return;
+                    }
+
+                    submitCreateClientFromLead({ sendContract: false });
+                });
+
+                $('#createLeadClientChoiceOkBtn').on('click', function() {
+                    if ($(this).prop('disabled')) {
+                        return;
+                    }
+
+                    var withContract = isLeadCreateClientWithContract();
+                    if (withContract) {
+                        var templateId = $('#leadCreateClientTemplateId').val();
+                        if (!hasLeadContractTemplates) {
+                            return;
+                        }
+                        if (!templateId) {
+                            applyLeadCreateClientChoiceErrors({
+                                contract_template_id: ['Выберите шаблон договора.']
+                            });
+                            return;
+                        }
+                        submitCreateClientFromLead({
+                            fromChoiceModal: true,
+                            sendContract: true,
+                            templateId: templateId
+                        });
+                        return;
+                    }
+
+                    hideToast();
+                    clearLeadCreateClientChoiceErrors();
+                    submitCreateClientFromLead({
+                        fromChoiceModal: true,
+                        sendContract: false
+                    });
+                });
+
+                $(document).on('change', 'input[name="lead_create_client_mode"]', function() {
+                    hideToast();
+                    clearLeadCreateClientChoiceErrors();
+                    syncLeadCreateClientChoiceUi();
                 });
             }
 
-            editLeadModalEl.addEventListener('hidden.bs.modal', function() {
+            function resetLeadModalTransientState() {
                 clearLeadFormErrors();
                 closeAllLeadStatusMenus();
                 setLeadModalReadOnly(false);
@@ -2019,6 +2246,14 @@
                 if (typeof window.resetStudentParentForm === 'function') {
                     window.resetStudentParentForm('lead');
                 }
+            }
+
+            editLeadModalEl.addEventListener('hidden.bs.modal', function() {
+                if (suppressLeadModalResetOnHide) {
+                    suppressLeadModalResetOnHide = false;
+                    return;
+                }
+                resetLeadModalTransientState();
             });
 
             $('#editLeadModal').on('click', '#leadCreateContractBtn', function(event) {

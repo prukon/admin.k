@@ -22,7 +22,10 @@
     }
 @endphp
 
-@vite(['resources/css/admin-list-toolbar.css'])
+@push('styles')
+    @vite(['resources/css/admin-list-toolbar.css', 'resources/css/admin-reports-tables.css', 'resources/js/admin-reports-tables-sticky.js'])
+    <link rel="stylesheet" href="{{ asset('plugins/datatables-fixedheader/css/fixedHeader.bootstrap4.min.css') }}">
+@endpush
 
 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
     <div class="card-body px-3 py-3">
@@ -221,6 +224,7 @@
 </table>
 
 @section('scripts')
+    <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script type="text/javascript">
         $(function() {
 
@@ -607,7 +611,15 @@
                         }
                     },
                     order: [[3, 'desc']],
-                    language: @include('partials.datatables.ru')
+                    language: @include('partials.datatables.ru'),
+                    fixedHeader: ($.fn.dataTable && $.fn.dataTable.FixedHeader)
+                        ? { header: true, footer: false }
+                        : false,
+                    drawCallback: function () {
+                        if (window.KidsCrmReportTableSticky) {
+                            window.KidsCrmReportTableSticky.bind('#ltv-table');
+                        }
+                    }
                 },
                 columns: [
                     {

@@ -124,6 +124,25 @@ final class TbankPaymentsNonAjaxSafetyNetFeatureTest extends CrmTestCase
             ->assertSessionHasErrors(['status']);
     }
 
+    public function test_invalid_method_on_index_redirects_back_with_method_field_error(): void
+    {
+        $this->from(route('reports.tbank-payments.index'))
+            ->get(route('reports.tbank-payments.index', ['method' => 'cash']))
+            ->assertStatus(302)
+            ->assertSessionHasErrors(['method']);
+    }
+
+    public function test_invalid_method_ajax_returns_422_json(): void
+    {
+        $this->getJson(route('reports.tbank-payments.total', ['method' => 'cash']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['method']);
+
+        $this->getJson(route('reports.tbank-payments.data', ['draw' => 1, 'method' => 'cash']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['method']);
+    }
+
     public function test_invalid_dates_return_field_errors_on_ajax_and_non_ajax(): void
     {
         $this->from(route('reports.tbank-payments.index'))

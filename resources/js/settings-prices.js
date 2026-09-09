@@ -205,20 +205,150 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.disabled = !hasAny;
     }
 
-    function loadTeamUsersRightColumn(teamId) {
+    let teamUsersRequestSeq = 0;
+    /** @type {JQuery.jqXHR|null} */
+    let teamUsersRequestXhr = null;
+    /** @type {string|null} */
+    let teamUsersInFlightId = null;
+
+    function ajaxErrorMessage(xhr, fallback) {
+        let msg = fallback;
+        if (!xhr || !xhr.responseJSON) {
+            return msg;
+        }
+        if (xhr.responseJSON.message) {
+            msg = String(xhr.responseJSON.message);
+        }
+        const errs = xhr.responseJSON.errors;
+        if (errs) {
+            const firstKey = Object.keys(errs)[0];
+            if (firstKey && errs[firstKey] && errs[firstKey][0]) {
+                msg = errs[firstKey][0];
+            }
+        }
+        return msg;
+    }
+
+    function setRightApplyDisabled(isDisabled) {
+        const applyBtn = document.querySelector('#right_bar .btn-setting-prices');
+        if (!applyBtn) {
+            return;
+        }
+        if (isDisabled) {
+            applyBtn.setAttribute('disabled', 'disabled');
+        } else {
+            applyBtn.removeAttribute('disabled');
+        }
+    }
+
+    function clearTeamRowLoading() {
+        document.querySelectorAll('#left_bar .wrap-team').forEach(function (el) {
+            el.classList.remove('wrap-team--loading');
+            el.removeAttribute('aria-busy');
+        });
+    }
+
+    function setTeamRowLoading(rowEl) {
+        clearTeamRowLoading();
+        if (!rowEl) {
+            return;
+        }
+        rowEl.classList.add('wrap-team--loading');
+        rowEl.setAttribute('aria-busy', 'true');
+    }
+
+    function disposeRightColumnTooltips() {
+        const rightBarEl = document.querySelector('#right_bar .wrap-users');
+        if (rightBarEl && window.KidsCrmTooltip) {
+            window.KidsCrmTooltip.dispose(rightBarEl, { scopes: ['text', 'manualPaid', 'hint'] });
+        }
+    }
+
+    function showRightColumnPlaceholder(kind, message) {
+        const rightBar = $('.wrap-users');
+        disposeRightColumnTooltips();
+        rightBar.empty();
+        rightBar.removeAttr('data-users-team-json');
+        rightBar.removeClass('is-loading');
+
+        if (kind === 'loading') {
+            rightBar.addClass('is-loading');
+            rightBar.attr('aria-busy', 'true');
+            rightBar.append(
+                '<div class="setting-prices-users-placeholder" role="status" aria-live="polite">'
+                + '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>'
+                + '<span>Загрузка…</span>'
+                + '</div>'
+            );
+            setRightApplyDisabled(true);
+            return;
+        }
+
+        rightBar.removeAttr('aria-busy');
+        rightBar.append(
+            '<div class="setting-prices-users-placeholder setting-prices-users-placeholder--error" role="alert">'
+            + escapeHtml(message || 'Не удалось загрузить учеников группы.')
+            + '</div>'
+        );
+        setRightApplyDisabled(true);
+        usersPrice = [];
+        lastUsersTeam = [];
+    }
+
+    function finishTeamUsersRequestIfCurrent(requestSeq) {
+        if (requestSeq !== teamUsersRequestSeq) {
+            return false;
+        }
+        teamUsersRequestXhr = null;
+        teamUsersInFlightId = null;
+        clearTeamRowLoading();
+        return true;
+    }
+
+    function applyTeamRowActive(teamId) {
+        const rowEl = document.getElementById(String(teamId));
+        clearTeamRowHighlight();
+        if (rowEl) {
+            rowEl.classList.add('wrap-team--active');
+        }
+    }
+
+    /**
+     * Загрузить учеников группы справа.
+     * Плашка wrap-team--active ставится только после успешного ответа.
+     * @param {string|number} teamId
+     * @param {{keepActiveHighlight?: boolean}|null} [options]
+     */
+    function loadTeamUsersRightColumn(teamId, options) {
         if (!teamId) {
             return;
         }
+        options = options || {};
+        const keepActiveHighlight = !!options.keepActiveHighlight;
         const selectedDate = getSelectedMonthLabel();
-        const applyBtn = document.querySelector('#right_bar .btn-setting-prices');
-        if (applyBtn) {
-            applyBtn.setAttribute('disabled', 'disabled');
-        }
+        const rowEl = document.getElementById(String(teamId));
+
         editingMonthlyUserId = null;
         editingMonthlySnapshot = null;
 
+        if (!keepActiveHighlight) {
+            lastTeamId = null;
+            clearTeamRowHighlight();
+            setTeamRowLoading(rowEl);
+        } else {
+            clearTeamRowLoading();
+        }
+
+        showRightColumnPlaceholder('loading');
+
+        const requestSeq = ++teamUsersRequestSeq;
+        teamUsersInFlightId = String(teamId);
+        if (teamUsersRequestXhr && typeof teamUsersRequestXhr.abort === 'function') {
+            teamUsersRequestXhr.abort();
+        }
+
         const csrf = $('meta[name="csrf-token"]').attr('content');
-        $.ajax({
+        teamUsersRequestXhr = $.ajax({
             url: '/admin/setting-prices/get-team-price',
             method: 'POST',
             contentType: 'application/json',
@@ -232,21 +362,42 @@ document.addEventListener('DOMContentLoaded', function () {
                 selectedDate: selectedDate
             }),
             success: function (response) {
+                if (!finishTeamUsersRequestIfCurrent(requestSeq)) {
+                    return;
+                }
+                lastLessonPackages = Array.isArray(response.lessonPackages)
+                    ? response.lessonPackages
+                    : [];
+                lastTeamId = String(teamId);
+                applyTeamRowActive(teamId);
                 if (response.success) {
                     usersPrice = response.usersPrice;
-                    lastLessonPackages = Array.isArray(response.lessonPackages)
-                        ? response.lessonPackages
-                        : [];
-                    lastTeamId = String(teamId);
-                    const usersTeam = response.usersTeam;
-                    const canManage = !!response.can_manage_manual_paid;
-                    renderUsersRightColumn(usersTeam, usersPrice, canManage);
+                    renderUsersRightColumn(
+                        response.usersTeam,
+                        usersPrice,
+                        !!response.can_manage_manual_paid
+                    );
+                    return;
                 }
+                // Пустая группа: 200 + success:false — не ошибка, список пустой.
+                usersPrice = [];
+                renderUsersRightColumn([], [], !!response.can_manage_manual_paid);
             },
-            error: function (xhr, status, error) {
-                console.error('Ошибка: ' + error);
-                console.error('Статус: ' + status);
-                console.dir(xhr);
+            error: function (xhr, status) {
+                if (status === 'abort') {
+                    return;
+                }
+                if (!finishTeamUsersRequestIfCurrent(requestSeq)) {
+                    return;
+                }
+                if (!keepActiveHighlight) {
+                    clearTeamRowHighlight();
+                    lastTeamId = null;
+                }
+                showRightColumnPlaceholder(
+                    'error',
+                    ajaxErrorMessage(xhr, 'Не удалось загрузить учеников группы.')
+                );
             }
         });
     }
@@ -417,16 +568,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /**
      * Открыть группу справа (клик по строке слева).
+     * Плашка wrap-team--active появится только вместе с ответом AJAX.
      * @param {HTMLElement|null} rowEl
      */
     function openTeamDetail(rowEl) {
         if (!rowEl) {
             return;
         }
-
-        clearTeamRowHighlight();
-        rowEl.classList.add('wrap-team--active');
-        lastTeamId = rowEl.id || null;
         loadTeamUsersRightColumn(rowEl.id);
     }
 
@@ -549,8 +697,42 @@ document.addEventListener('DOMContentLoaded', function () {
         return payload;
     }
 
-    function postManualPaid(userId, teamId, selectedDate, mode, comment, errorEl) {
+    function postManualPaid(userId, teamId, selectedDate, mode, comment, $card) {
         const csrf = $('meta[name="csrf-token"]').attr('content');
+        const errorEl = $card && $card.length ? $card.find('.manual-paid-error')[0] : null;
+        const packageSelect = $card && $card.length ? $card.find('.setting-prices-monthly-package-select') : $();
+        const priceInput = $card && $card.length ? $card.find('.setting-prices-monthly-price-input') : $();
+
+        const payload = {
+            user_id: userId,
+            team_id: teamId,
+            selectedDate: selectedDate,
+            mode: mode,
+            comment: comment
+        };
+
+        if (mode === 'paid') {
+            const pkgVal = packageSelect.length ? String(packageSelect.val() || '') : '';
+            let lessonPackageId = null;
+            if (pkgVal !== '') {
+                const parsedPkg = parseInt(pkgVal, 10);
+                lessonPackageId = Number.isFinite(parsedPkg) && parsedPkg > 0 ? parsedPkg : null;
+            }
+            payload.lesson_package_id = lessonPackageId;
+
+            let price = 0;
+            if (priceInput.length) {
+                const raw = priceInput.val();
+                if (raw !== '' && raw != null) {
+                    const num = Number(raw);
+                    price = Number.isFinite(num) ? num : 0;
+                }
+            }
+            payload.price = price;
+        }
+
+        clearMonthlyCardFieldErrors($card);
+
         return $.ajax({
             url: '/admin/setting-prices/manual-paid',
             method: 'POST',
@@ -560,13 +742,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 'X-CSRF-TOKEN': csrf,
                 'Accept': 'application/json',
             },
-            data: JSON.stringify({
-                user_id: userId,
-                team_id: teamId,
-                selectedDate: selectedDate,
-                mode: mode,
-                comment: comment
-            })
+            data: JSON.stringify(payload)
         }).done(function (res) {
             if (res && res.success && res.user_price) {
                 syncUsersPriceFromDom();
@@ -586,31 +762,75 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }).fail(function (xhr) {
             let msg = 'Не удалось сохранить ручную отметку.';
+            let fieldShown = false;
+            let generalFromErrors = '';
             if (xhr.responseJSON) {
                 if (xhr.responseJSON.message) {
                     msg = xhr.responseJSON.message;
                 }
                 const errs = xhr.responseJSON.errors;
-                if (errs && errs.record && errs.record[0]) {
-                    msg = errs.record[0];
-                }
-                if (errs && errs.comment && errs.comment[0]) {
-                    msg = errs.comment[0];
+                if (errs) {
+                    if (errs.lesson_package_id && errs.lesson_package_id[0]) {
+                        showMonthlyCardFieldError($card, 'lesson_package_id', errs.lesson_package_id[0]);
+                        fieldShown = true;
+                    }
+                    if (errs.price && errs.price[0]) {
+                        showMonthlyCardFieldError($card, 'price', errs.price[0]);
+                        fieldShown = true;
+                    }
+                    if (errs.record && errs.record[0]) {
+                        generalFromErrors = errs.record[0];
+                    } else if (errs.comment && errs.comment[0]) {
+                        generalFromErrors = errs.comment[0];
+                    } else if (errs.mode && errs.mode[0]) {
+                        generalFromErrors = errs.mode[0];
+                    }
                 }
             }
-            if (errorEl) {
+            if (generalFromErrors) {
+                msg = generalFromErrors;
+            }
+            if (errorEl && (generalFromErrors || !fieldShown)) {
                 errorEl.style.display = 'block';
                 errorEl.textContent = msg;
-            } else {
+            } else if (!fieldShown) {
                 console.error(msg);
             }
         });
+    }
+
+    function clearMonthlyCardFieldErrors($card) {
+        if (!$card || !$card.length) {
+            return;
+        }
+        $card.find('.setting-prices-monthly-package-error, .setting-prices-monthly-price-error, .manual-paid-error')
+            .hide()
+            .text('');
+        $card.find('.setting-prices-monthly-package-select, .setting-prices-monthly-price-input')
+            .removeClass('is-invalid');
+    }
+
+    function showMonthlyCardFieldError($card, field, message) {
+        if (!$card || !$card.length || !message) {
+            return;
+        }
+        if (field === 'lesson_package_id') {
+            $card.find('.setting-prices-monthly-package-error').text(message).show();
+            $card.find('.setting-prices-monthly-package-select').addClass('is-invalid');
+            return;
+        }
+        if (field === 'price') {
+            $card.find('.setting-prices-monthly-price-error').text(message).show();
+            $card.find('.setting-prices-monthly-price-input').addClass('is-invalid');
+        }
     }
 
     function renderUsersRightColumn(usersTeam, usersPriceList, canManage) {
         lastCanManageManualPaid = !!canManage;
         lastUsersTeam = usersTeam || [];
         const rightBar = $('.wrap-users');
+        rightBar.removeClass('is-loading');
+        rightBar.removeAttr('aria-busy');
         const rightBarEl = rightBar.get(0);
 
         if (rightBarEl && window.KidsCrmTooltip) {
@@ -787,10 +1007,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                         aria-label="Абонемент">
                                         ${buildPackageSelectOptions(packageId)}
                                     </select>
+                                    <div class="setting-prices-monthly-package-error small text-danger mt-1" style="display:none"></div>
                                 </div>
                                 ${postpayVisitsHtml}
                                 <div class="setting-prices-monthly-price flex-shrink-0">
                                     ${priceCellInner}
+                                    <div class="setting-prices-monthly-price-error small text-danger mt-1" style="display:none"></div>
                                 </div>
                                 <div class="setting-prices-monthly-status flex-shrink-0 min-w-0">
                                     ${statusCellHtml}
@@ -1146,13 +1368,13 @@ document.addEventListener('DOMContentLoaded', function () {
             'Будет установлен статус: «' + labelWant + '». Укажите комментарий.',
             function (comment) {
                 if (!lastTeamId) {
-                    if (errorEl) {
-                        errorEl.style.display = 'block';
-                        errorEl.textContent = 'Не выбрана группа.';
+                    if (errBox) {
+                        errBox.style.display = 'block';
+                        errBox.textContent = 'Не выбрана группа.';
                     }
                     return;
                 }
-                postManualPaid(userId, lastTeamId, selectedDate, mode, comment, errBox);
+                postManualPaid(userId, lastTeamId, selectedDate, mode, comment, $card);
             }
         );
     });
@@ -1226,8 +1448,11 @@ document.addEventListener('DOMContentLoaded', function () {
                                 if (!selectedTeamOptionIsPostpay(packageSelect) && priceEl) {
                                     priceEl.classList.add('animated-input');
                                 }
-                                if (String(lastTeamId) === String(parentDiv.id)) {
-                                    loadTeamUsersRightColumn(parentDiv.id);
+                                if (String(lastTeamId) === String(parentDiv.id)
+                                    || String(teamUsersInFlightId) === String(parentDiv.id)) {
+                                    loadTeamUsersRightColumn(parentDiv.id, {
+                                        keepActiveHighlight: String(lastTeamId) === String(parentDiv.id)
+                                    });
                                 }
                             }
                         },
@@ -1405,7 +1630,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         // Актуализируем правую колонку для той же группы (бывшие подтянутся с get-team-price).
                         if (lastTeamId) {
-                            loadTeamUsersRightColumn(lastTeamId);
+                            loadTeamUsersRightColumn(lastTeamId, { keepActiveHighlight: true });
                         } else {
                             const responsePrices = Array.isArray(response.usersPrice) ? response.usersPrice : [];
                             usersPrice = responsePrices.concat(pendingFormerSnapshot);

@@ -171,7 +171,11 @@ final class TbankPaymentsPageFullAccessFeatureTest extends CrmTestCase
             ->assertViewHas('activeTab', 'tbank-payments')
             ->assertViewHas('tpCanFilterPartner', $isSuperadmin)
             ->assertSee('KidsCrmDataTable.create', false)
-            ->assertSee('id="tbank-payments-table"', false);
+            ->assertSee('id="tbank-payments-table"', false)
+            ->assertSee('Комиссия платформы', false)
+            ->assertSee('data-column-key="platform_commission"', false)
+            ->assertSee('data-column-key="receipt"', false)
+            ->assertSee('<th>Чек</th>', false);
 
         if ($isSuperadmin) {
             $index->assertSee('tp-filter-partner', false);
@@ -264,11 +268,16 @@ final class TbankPaymentsPageFullAccessFeatureTest extends CrmTestCase
             [],
             ['status' => 'all'],
             ['status' => 'CONFIRMED'],
+            ['method' => 'all'],
+            ['method' => 'card'],
+            ['method' => 'sbp'],
+            ['method' => 'tpay'],
             ['partner_id' => $this->partner->id],
             ['created_from' => now()->subMonth()->toDateString()],
             ['created_to' => now()->toDateString()],
             [
                 'status' => 'CONFIRMED',
+                'method' => 'card',
                 'partner_id' => $this->partner->id,
                 'created_from' => now()->subMonth()->toDateString(),
                 'created_to' => now()->toDateString(),

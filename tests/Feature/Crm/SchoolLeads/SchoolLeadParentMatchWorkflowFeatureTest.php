@@ -55,7 +55,7 @@ final class SchoolLeadParentMatchWorkflowFeatureTest extends CrmTestCase
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('id="editLeadModal"', false)
-            ->assertSee('modal-xl', false)
+            ->assertSee("toggleClass('modal-xl'", false)
             ->assertSee('id="leadParentMatchBanner"', false)
             ->assertSee('id="leadParentMatchAcceptBtn"', false)
             ->assertSee('id="leadParentMatchRejectBtn"', false)

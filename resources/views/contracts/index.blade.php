@@ -148,6 +148,15 @@
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
                                            type="checkbox"
+                                           data-column-key="signed_file"
+                                           id="colSignedFile"
+                                           checked>
+                                    <label class="form-check-label" for="colSignedFile">Договор</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
                                            data-column-key="updated_at"
                                            id="colUpdatedAt"
                                            checked>
@@ -230,6 +239,7 @@
                     <th>Телефон</th>
                     <th>Email</th>
                     <th>Статус</th>
+                    <th>Договор</th>
                     <th>Обновлён</th>
                     <th>Действия</th>
                 </tr>
@@ -278,6 +288,24 @@
                 }
             }
 
+            function renderSignedContractFileCell(data, type) {
+                if (type !== 'display') {
+                    return data ? 1 : 0;
+                }
+
+                if (!data) {
+                    return '';
+                }
+
+                return window.KidsCrmDataTable.renderIcon([{
+                    href: data,
+                    iconClass: 'fa-solid fa-file-pdf',
+                    color: '#0d6efd',
+                    title: 'Скачать подписанный договор',
+                    ariaLabel: 'Скачать подписанный договор'
+                }], type, {});
+            }
+
             const dtApi = KidsCrmDataTable.create('#contracts-table', {
                 columnsSettings: {
                     defaults: {
@@ -287,6 +315,7 @@
                         user_phone: true,
                         user_email: true,
                         status_label: true,
+                        signed_file: true,
                         updated_at: true,
                         actions: true,
                     },
@@ -309,7 +338,7 @@
                             d.status = params.status;
                         },
                     },
-                    order: [[7, 'desc']],
+                    order: [[8, 'desc']],
                     language: @include('partials.datatables.ru'),
                 },
                 columns: [
@@ -354,6 +383,15 @@
                             return '<span class="badge ' + badgeClass + '">' + label + '</span>'
                                 + ' <a href="#" class="js-contract-path-open small text-nowrap" data-contract-id="' + contractId + '">(посмотреть)</a>';
                         },
+                    },
+                    {
+                        key: 'signed_file',
+                        type: 'icon',
+                        data: 'download_signed_url',
+                        orderable: false,
+                        searchable: false,
+                        className: 'dt-col-icon text-center',
+                        render: renderSignedContractFileCell,
                     },
                     { key: 'updated_at', type: 'text', data: 'updated_at', className: 'dt-col-text text-nowrap' },
                     {

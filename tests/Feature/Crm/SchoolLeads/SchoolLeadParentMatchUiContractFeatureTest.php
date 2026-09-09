@@ -53,13 +53,18 @@ final class SchoolLeadParentMatchUiContractFeatureTest extends CrmTestCase
         $this->assertStringContainsString('#lead-parent-email', $html);
         $this->assertStringContainsString('не из снимка', $html);
         $this->assertStringContainsString('При сохранении лида с матчем фронт шлёт', $html);
+        $this->assertStringContainsString("toggleClass('modal-xl')", $html);
+        $this->assertStringContainsString('school-lead-edit-modal-width-index', $html);
+
+        $index = (string) file_get_contents(base_path('docs/documentation/index.html'));
+        $this->assertGreaterThanOrEqual(2, substr_count($index, 'school-lead-edit-modal-width-index'));
     }
 
     public function test_edit_modal_contains_parent_match_ui(): void
     {
         $this->get(route('admin.school-leads'))
             ->assertOk()
-            ->assertSee('modal-xl', false)
+            ->assertSee("toggleClass('modal-xl'", false)
             ->assertSee('id="leadParentMatchBanner"', false)
             ->assertSee('id="leadParentMatchAcceptBtn"', false)
             ->assertSee('id="leadParentMatchRejectBtn"', false)
@@ -72,6 +77,12 @@ final class SchoolLeadParentMatchUiContractFeatureTest extends CrmTestCase
             ->assertSee('is-match-hit', false)
             ->assertSee('совпало', false)
             ->assertSee('Выберите родителя', false);
+
+        $modal = (string) file_get_contents(resource_path('views/admin/school-leads/partials/edit-lead-modal.blade.php'));
+        $this->assertStringContainsString('class="modal-dialog modal-dialog-scrollable"', $modal);
+        $this->assertStringNotContainsString('modal-xl', $modal);
+        $this->assertStringNotContainsString('modal-lg', $modal);
+        $this->assertStringNotContainsString('modal-fullscreen', $modal);
     }
 
     public function test_datatable_includes_parent_match_payload(): void

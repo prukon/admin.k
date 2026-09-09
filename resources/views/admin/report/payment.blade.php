@@ -557,9 +557,13 @@
 </div>
 @endcan
 
-@vite(['resources/css/admin-list-toolbar.css'])
+@push('styles')
+    @vite(['resources/css/admin-list-toolbar.css', 'resources/css/admin-reports-tables.css', 'resources/js/admin-reports-tables-sticky.js'])
+    <link rel="stylesheet" href="{{ asset('plugins/datatables-fixedheader/css/fixedHeader.bootstrap4.min.css') }}">
+@endpush
 
 @section('scripts')
+    <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script type="text/javascript">
         $(function () {
             const canAdditional = @json($canAdditional);
@@ -1302,6 +1306,9 @@ columns.push(
                         $('.payments-column-toggle[data-column-key="' + key + '"]').prop('disabled', true);
                     });
                 }
+                if (window.KidsCrmReportTableSticky) {
+                    window.KidsCrmReportTableSticky.bind('#payments-table');
+                }
             }
 
             var dtApi = KidsCrmDataTable.create('#payments-table', {
@@ -1343,7 +1350,15 @@ columns.push(
                         }
                     },
                     order: [[paymentsReportDefaultOrderColumnIndex, 'desc']],
-                    language: @include('partials.datatables.ru')
+                    language: @include('partials.datatables.ru'),
+                    fixedHeader: ($.fn.dataTable && $.fn.dataTable.FixedHeader)
+                        ? { header: true, footer: false }
+                        : false,
+                    drawCallback: function () {
+                        if (window.KidsCrmReportTableSticky) {
+                            window.KidsCrmReportTableSticky.bind('#payments-table');
+                        }
+                    }
                 },
                 columns: buildPaymentsKidsColumns(columns)
             });

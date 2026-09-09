@@ -116,9 +116,12 @@ class ContractTableController extends Controller
                     $baseQuery->orderBy('contracts.status', $orderDir);
                     break;
                 case 7:
-                    $baseQuery->orderByRaw('last_event_at is null, last_event_at ' . $orderDir);
+                    $baseQuery->orderByDesc('contracts.id');
                     break;
                 case 8:
+                    $baseQuery->orderByRaw('last_event_at is null, last_event_at ' . $orderDir);
+                    break;
+                case 9:
                 default:
                     $baseQuery->orderByDesc('contracts.id');
                     break;
@@ -145,11 +148,12 @@ class ContractTableController extends Controller
                 'user_email'         => $contract->user_email ?: '—',
                 'status_label'       => $contract->school_status_ru ?? '',
                 'status_badge_class' => $contract->status_badge_class ?? '',
-                'status'             => $contract->status,
-                'creation_mode'      => $contract->creation_mode,
-                'path_title'         => $this->pathTimelineBuilder->title($contract),
-                'path_steps'         => $this->pathTimelineBuilder->build($contract),
-                'updated_at'         => $this->formatLastEventAt($contract->last_event_at ?? null),
+                'status'              => $contract->status,
+                'creation_mode'       => $contract->creation_mode,
+                'path_title'          => $this->pathTimelineBuilder->title($contract),
+                'path_steps'          => $this->pathTimelineBuilder->build($contract),
+                'download_signed_url' => $this->signedDownloadUrl($contract),
+                'updated_at'          => $this->formatLastEventAt($contract->last_event_at ?? null),
             ];
         })->toArray();
 
@@ -215,6 +219,15 @@ class ContractTableController extends Controller
         }
 
         return Carbon::parse($value)->format('d.m.Y H:i:s');
+    }
+
+    private function signedDownloadUrl(Contract $contract): ?string
+    {
+        if (!filled($contract->signed_pdf_path)) {
+            return null;
+        }
+
+        return route('contracts.downloadSigned', $contract);
     }
 }
 

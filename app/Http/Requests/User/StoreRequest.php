@@ -4,6 +4,7 @@ namespace App\Http\Requests\User;
 
 use App\Http\Requests\Concerns\ValidatesSendWelcomeEmail;
 use App\Http\Requests\User\Concerns\ForbidsSuperadminRole;
+use App\Http\Requests\User\Concerns\ValidatesLeadSendContract;
 use App\Http\Requests\User\Concerns\ValidatesStudentCommentAndSex;
 use App\Http\Requests\User\Concerns\ValidatesStudentHealthFields;
 use App\Http\Requests\User\Concerns\ValidatesStudentParent;
@@ -16,6 +17,7 @@ use Illuminate\Validation\Rule;
 class StoreRequest extends FormRequest
 {
     use ForbidsSuperadminRole;
+    use ValidatesLeadSendContract;
     use ValidatesSendWelcomeEmail;
     use ValidatesStudentCommentAndSex;
     use ValidatesStudentHealthFields;
@@ -81,6 +83,7 @@ class StoreRequest extends FormRequest
         $this->prepareStudentHealthFieldsForValidation();
         $this->prepareStudentCommentAndSexForValidation();
         $this->prepareSendWelcomeEmailForValidation();
+        $this->prepareLeadSendContractForValidation();
     }
 
     protected function shouldSkipSendWelcomeEmailAddressRequirement(): bool
@@ -115,6 +118,7 @@ class StoreRequest extends FormRequest
         $rules = array_merge(
             $rules,
             $this->sendWelcomeEmailRules(),
+            $this->leadSendContractRules(),
             $this->studentParentRules(),
             $this->studentHealthFieldRules(),
             $this->studentCommentAndSexRules(),
@@ -165,6 +169,7 @@ class StoreRequest extends FormRequest
             'address'        => 'Адрес проживания',
             'school_lead_id' => 'Заявка с сайта',
         ] + $this->sendWelcomeEmailAttributes()
+            + $this->leadSendContractAttributes()
             + $this->studentParentAttributes()
             + $this->studentHealthFieldAttributes()
             + $this->studentCommentAndSexAttributes();
@@ -175,6 +180,7 @@ class StoreRequest extends FormRequest
         $validator->after(function ($validator): void {
             $this->forbidSuperadminRoleAssignment($validator);
             $this->validateSendWelcomeEmailRequiresAddress($validator);
+            $this->validateLeadSendContract($validator);
 
             if ($this->filled('school_lead_id') && trim((string) $this->input('parent_email', '')) === '') {
                 $validator->errors()->add(
@@ -283,7 +289,8 @@ class StoreRequest extends FormRequest
             'school_lead_id.exists'  => 'Заявка не найдена, уже привязана к клиенту или недоступна.',
 
             'parent_email.required' => 'Укажите email родителя для создания клиента и отправки данных для входа.',
-        ] + $this->studentParentMessages()
+        ] + $this->leadSendContractMessages()
+            + $this->studentParentMessages()
             + $this->studentHealthFieldMessages()
             + $this->studentCommentAndSexMessages();
     }

@@ -114,12 +114,20 @@ final class SchoolLeadCreateClientDirectorySwitchUiContractsFeatureTest extends 
         $this->assertStringContainsString("showToast(message, 'error')", $saveChunk);
         $this->assertStringNotContainsString('editLeadError', $saveChunk);
 
-        $createPos = strpos($js, "$('#createClientBtn').on('click'");
+        $createPos = strpos($js, 'function submitCreateClientFromLead');
         $this->assertNotFalse($createPos);
-        $createChunk = substr($js, $createPos, 2800);
+        $createChunk = substr($js, $createPos, 3500);
+        $this->assertStringContainsString('buildCreateClientFromLeadPayload({', $createChunk);
         $this->assertStringContainsString('showCreateClientResultModal(false, message)', $createChunk);
         $this->assertStringNotContainsString('editLeadError', $createChunk);
         $this->assertStringNotContainsString('showErrorModal', $createChunk);
+        $this->assertStringContainsString('clientPayload.send_contract', $js);
+
+        $clickPos = strpos($js, "$('#createClientBtn').on('click'");
+        $this->assertNotFalse($clickPos);
+        $clickChunk = substr($js, $clickPos, 900);
+        $this->assertStringContainsString('precheckCreateClientFromLeadThenOpenChoice()', $clickChunk);
+        $this->assertStringContainsString('submitCreateClientFromLead({ sendContract: false })', $clickChunk);
     }
 
     public function test_page_renders_single_kids_main_toast(): void

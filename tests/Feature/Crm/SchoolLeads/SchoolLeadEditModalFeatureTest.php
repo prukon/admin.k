@@ -53,6 +53,24 @@ final class SchoolLeadEditModalFeatureTest extends CrmTestCase
             ->assertDontSee('id="createUserModal"', false)
             ->assertDontSee('create-user-from-lead', false)
             ->assertDontSee('Редактирование заявки', false);
+
+        $modal = (string) file_get_contents(resource_path('views/admin/school-leads/partials/edit-lead-modal.blade.php'));
+        $this->assertStringContainsString('class="modal-dialog modal-dialog-scrollable"', $modal);
+        $this->assertStringContainsString('data-bs-backdrop="static"', $modal);
+        $this->assertStringNotContainsString('data-bs-keyboard="false"', $modal);
+        $this->assertStringNotContainsString('modal-xl', $modal);
+        $this->assertStringNotContainsString('modal-lg', $modal);
+        $this->assertStringNotContainsString('modal-fullscreen', $modal);
+
+        $js = (string) file_get_contents(resource_path('views/admin/school-leads/tabs/leads.blade.php'));
+        $this->assertStringContainsString("new bootstrap.Modal(editLeadModalEl, { backdrop: 'static' })", $js);
+
+        $widget = (string) file_get_contents(base_path('docs/documentation/school-leads-widget.html'));
+        $this->assertStringContainsString('data-bs-backdrop="static"', $widget);
+        $this->assertStringContainsString('school-lead-edit-modal-static-backdrop-index', $widget);
+
+        $index = (string) file_get_contents(base_path('docs/documentation/index.html'));
+        $this->assertGreaterThanOrEqual(2, substr_count($index, 'school-lead-edit-modal-static-backdrop-index'));
     }
 
     public function test_leads_page_hides_create_client_button_without_users_view(): void

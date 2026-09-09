@@ -36,9 +36,18 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
             ->assertSee('contract-memo-timeline', false)
             ->assertSee('js-contract-path-open', false)
             ->assertSee('id="contractPathModal"', false)
+            ->assertSee('<th>Статус</th>', false)
+            ->assertSee('<th>Договор</th>', false)
             ->assertSee('<th>Обновлён</th>', false)
+            ->assertSee('data-column-key="signed_file"', false)
+            ->assertSee('for="colSignedFile">Договор</label>', false)
             ->assertSee('data-column-key="updated_at"', false)
-            ->assertSee('for="colUpdatedAt">Обновлён</label>', false);
+            ->assertSee('for="colUpdatedAt">Обновлён</label>', false)
+            ->assertSee('renderSignedContractFileCell', false)
+            ->assertSee("key: 'signed_file'", false)
+            ->assertSee("type: 'icon'", false)
+            ->assertSee('fa-solid fa-file-pdf', false)
+            ->assertSee('download_signed_url', false);
     }
 
     /** @test */

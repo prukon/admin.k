@@ -93,9 +93,68 @@
       LTV-детализация своего <code>filter()</code> не ставит: непустой поиск с колонкой <code>summ</code> может дать 42S22; UI пустой <code>search.value</code> не шлёт.</li>
     <li>Data payments / LTV / monthly без AJAX → <b>404</b>. Intents data AJAX-заголовок не требует.</li>
     <li>Задолженности, чеки, исходящие письма — вне этого инкремента.
-      «Платежи T‑Bank» ищут Order / Deal / id / название партнёра — <a href="#reports-tbank-payments">§9</a>,
-      анонс <a href="/doc#reports-tbank-payments-index">/doc</a>.</li>
+      «Платежи T‑Bank» ищут Order / Deal / id / название партнёра (не сумму, комиссию платформы, способ, чек) — <a href="#reports-tbank-payments">§9</a>,
+      анонс вкладки <a href="/doc#reports-tbank-payments-index">/doc</a>,
+      колонки «Чек» / комиссия — <a href="/doc#reports-tbank-payments-receipt-commission-index">/doc#reports-tbank-payments-receipt-commission-index</a>.</li>
   </ul>
+
+  <h2 id="reports-tables-sticky-header">1.3) Закрепление шапки и горизонтального скролла</h2>
+  <p>Только четыре вкладки с <code>reports.view</code>:
+    «Все платежи» (<code>#payments-table</code>),
+    «Платежи по месяцам» (<code>#payments-monthly-table</code>),
+    «Платежи по ученикам» (<code>#ltv-table</code>),
+    «Задолженности» (<code>#debts-table</code>).
+    Intents / fiscal / tbank / emails без этого.
+    Вложенные таблицы LTV и monthly без FixedHeader.
+    В пресет <code>KidsCrmDataTable</code> не выносилось.
+    CSS — Vite-бандл <code>resources/css/admin-reports-tables.css</code>,
+    JS — <code>resources/js/admin-reports-tables-sticky.js</code>
+    (<code>window.KidsCrmReportTableSticky.bind(selector)</code>;
+    вход в <code>vite.config.js</code>, <code>@vite</code> на странице вместе
+    с toolbar, не <code>public/css</code> и не inline <code>&lt;style&gt;</code> в blade).</p>
+  <ul>
+    <li><b>Шапка.</b> Плагин DataTables FixedHeader
+      (<code>public/plugins/datatables-fixedheader/</code>) подключается <b>до</b>
+      <code>KidsCrmDataTable.create</code>. Опция
+      <code>fixedHeader: { header: true, footer: false }</code>
+      (нет плагина → <code>false</code>, thead остаётся на месте).
+      Горизонтальный скролл <code>.kids-dt-scroll-x</code> сдвигает клон шапки
+      тем же <code>scrollLeft</code>, что и тело таблицы
+      (<code>.dtfh-floatingparenthead.scrollLeft</code>), не <code>margin-left</code>:
+      FixedHeader и так пишет <code>scrollLeft</code>,
+      второй сдвиг рассинхронизирует заголовки со столбцами.
+      Клон на <code>body</code> обрезается по видимой ширине обёртки:
+      <code>left</code>/<code>width</code> из <code>getBoundingClientRect()</code> хоста,
+      <code>overflow: hidden</code> — иначе широкая шапка вылезает за карточку.
+      Ширины <code>th</code> клона копируются с ячеек строки (<code>offsetWidth</code>,
+      <code>box-sizing: border-box</code>, <code>max-width</code>), иначе
+      <code>table-layout: fixed</code> раздувает колонки на padding и шапка едет быстрее столбцов.
+      Пересчёт после вертикального скролла страницы (FixedHeader сам переписывает геометрию).</li>
+    <li><b>Полоса скролла.</b> Не <code>scrollX</code>/<code>scrollY</code> DataTables
+      (страница скроллится как раньше). После обёртки
+      <code>.kids-dt-scroll-x</code> — клон <code>.kids-dt-sticky-hscroll</code>
+      (<code>position: sticky; bottom: 0</code>), ширина спейсера = <code>scrollWidth</code> таблицы.
+      Пока таблица шире карточки, нативная полоса у обёртки скрыта, виден клон у нижнего края окна.
+      Узкая таблица — клон <code>hidden</code>. <code>scrollLeft</code> синхронизируется в обе стороны;
+      после draw / resize — <code>KidsCrmReportTableSticky.bind</code> из <code>drawCallback</code>;
+      на «Платежи» ещё из <code>paymentsAfterApplyVisibleColumns</code> (чекбоксы колонок).
+      «Применить» / «Сброс» фильтров — <code>dtApi.reload</code>, таблицу не пересоздают.
+      Право страниц — <code>reports.view</code> (гость 302/401, без права 403).</li>
+  </ul>
+  <p class="small">Тесты: <code>ReportsTablesStickyHeaderFeatureTest</code>
+    (HTTP-разметка, fallback без плагина, вложенные таблицы без pin,
+    вкладки intents / fiscal / tbank / emails без бандла,
+    повторное открытие с фильтрами),
+    <code>ReportsTablesStickyHeaderFullAccessFeatureTest</code>
+    (гость 302/401, без <code>reports.view</code> → 403, viewer/admin/SA,
+    методы 405, data JSON),
+    <code>BladeInlineJsSyntaxTest::test_admin_reports_sticky_header_and_hscroll_vite_contract_and_valid_javascript</code>
+    (<code>@vite</code>, вход в <code>vite.config.js</code>, <code>position: sticky</code>, <code>node --check</code>),
+    <code>BladeInlineJsSyntaxTest::test_admin_reports_sticky_header_nested_tables_column_toggle_and_filter_reload_keep_pin</code>,
+    <code>ReportsTablesStickyHeaderDocumentationContractTest</code>.
+    Анонс — <a href="/doc#reports-tables-sticky-header-index">/doc#reports-tables-sticky-header-index</a>.
+    Тот же приём на клиентах — <a href="/docs/documentation/admin-users#users-sticky-header">admin-users §2.0.1</a>,
+    на заявках — <a href="/docs/documentation/school-leads-widget#school-leads-sticky-header">school-leads-widget §5.1.6</a>.</p>
 
   <h2>2) Права доступа (middleware can:…)</h2>
   <div class="note">
@@ -362,7 +421,7 @@
   <h2 id="debts">3) Отчёт “Задолженности”</h2>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/debts</code> (middleware <code>can:reports.view</code>)</li>
-    <li><b>DataTables</b>: <code>GET /admin/reports/getDebts</code> (только AJAX / <code>X-Requested-With</code>; без AJAX → <b>404</b>; UI — <code>KidsCrmDataTable.create('#debts-table')</code>)</li>
+    <li><b>DataTables</b>: <code>GET /admin/reports/getDebts</code> (только AJAX / <code>X-Requested-With</code>; без AJAX → <b>404</b>; UI — <code>KidsCrmDataTable.create('#debts-table')</code>; шапка и горизонтальный скролл — §<a href="#reports-tables-sticky-header">1.3</a>)</li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/debts/total</code> (JSON: <code>{ total_formatted, total_raw }</code>) —
       те же фильтры и то же правило оплаты, что у таблицы; на странице JS
       <code>refreshDebtReportTotal()</code> дергает этот endpoint без перезагрузки</li>
@@ -419,7 +478,9 @@
       <ul>
         <li>Месяц: <code>POST /admin/setting-prices/manual-paid</code>
           (<code>setPrices.manualPaid.manage</code>, комментарий ≥ 3 символов,
-          текущее членство в группе; AJAX JSON / non-AJAX <b>302</b> на users) —
+          текущее членство в группе; AJAX JSON / non-AJAX <b>302</b> на users;
+          на «По месяцам» при unpaid→paid ещё абонемент/сумма из карточки —
+          <a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>) —
           см. <a href="/docs/documentation/setting-prices-monthly-users#manual-paid-debts">setting-prices-monthly-users</a>.</li>
         <li>Доп. платёж: <code>POST …/custom-payments/{id}/manual-paid</code> —
           см. <a href="/docs/documentation/setting-prices-custom-payments#debts-report">setting-prices-custom-payments</a>.</li>
@@ -443,7 +504,7 @@
   <h2 id="ltv-vs-partners-turnover">4) Отчёт “Платежи по ученикам (LTV)”</h2>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/ltv</code> (middleware <code>can:reports.view</code>)</li>
-    <li><b>DataTables</b>: <code>GET /admin/reports/ltv/data</code> (AJAX; UI — <code>KidsCrmDataTable.create('#ltv-table')</code>)</li>
+    <li><b>DataTables</b>: <code>GET /admin/reports/ltv/data</code> (AJAX; UI — <code>KidsCrmDataTable.create('#ltv-table')</code>; шапка и горизонтальный скролл — §<a href="#reports-tables-sticky-header">1.3</a>)</li>
     <li><b>Детализация</b>: <code>GET /admin/reports/ltv/{user}/payments</code> (AJAX, только с заголовком <code>X-Requested-With: XMLHttpRequest</code>)</li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/ltv/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
     <li><b>Колонки (настройки)</b>:
@@ -491,7 +552,7 @@
   <h2>5) Отчёт “Платежи по месяцам”</h2>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/payments/monthly</code> (middleware <code>can:reports.view</code>)</li>
-    <li><b>DataTables (месяцы)</b>: <code>GET /admin/reports/payments/monthly/data</code> (AJAX; UI — <code>KidsCrmDataTable.create('#payments-monthly-table')</code>)</li>
+    <li><b>DataTables (месяцы)</b>: <code>GET /admin/reports/payments/monthly/data</code> (AJAX; UI — <code>KidsCrmDataTable.create('#payments-monthly-table')</code>; шапка и горизонтальный скролл — §<a href="#reports-tables-sticky-header">1.3</a>)</li>
     <li><b>Детализация месяца</b>: <code>GET /admin/reports/payments/monthly/{yearMonth}/payments</code> (AJAX, <code>yearMonth</code> = <code>YYYY-MM</code>)</li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/payments/monthly/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
     <li><b>Колонки (настройки)</b>:
@@ -775,6 +836,8 @@
     <a href="/docs/documentation/tbank#commissions-ui"><code>/admin/settings/tbank-commissions</code></a>
     (<a href="/doc#tbank-commissions-columns-index">анонс «Колонки»</a>, право <code>settings.commission</code>).
     Анонс вкладки: <a href="/doc#reports-tbank-payments-index">/doc#reports-tbank-payments-index</a>.
+    Колонки «Чек» и «Комиссия платформы»:
+    <a href="/doc#reports-tbank-payments-receipt-commission-index">/doc#reports-tbank-payments-receipt-commission-index</a>.
   </div>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/tbank-payments</code> (вкладка <code>activeTab=tbank-payments</code> в <code>admin/report/index.blade.php</code>; middleware <code>can:reports.tbank.payments.view</code>)</li>
@@ -783,9 +846,9 @@
     <li><b>Контроллер</b>: <code>TbankPaymentReportController</code></li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/tbank-payments/total</code> (JSON: <code>{ total_formatted, total_raw }</code>, считает <code>sum(tinkoff_payments.amount)</code> в копейках; в UI — рубли)</li>
     <li><b>Фильтр «Партнер»</b>: Select2 <code>#tp-filter-partner</code> рендерится <b>только для superadmin</b> (<code>$tpCanFilterPartner</code>). Superadmin не режется по <code>current_partner</code>; не-superadmin — только свой партнёр, фильтр скрыт, query <code>partner_id</code> игнорируется. Единые правила — <a href="#partner-filter-cross-report">§2.4</a>.</li>
-    <li><b>Фильтры формы</b>: <code>status</code> (NEW / FORM / CONFIRMED / REJECTED / CANCELED), <code>created_from</code> / <code>created_to</code>. Request: <code>TbankPaymentsReportFilterRequest</code> (ошибки под полями, AJAX → 422; non-AJAX GET → 302 + <code>errors[field]</code>). Sentinel <code>status=all</code> и пустой статус = «все статусы»: фильтры не раскрываются, в селекте выбрано «Все статусы». Невалидный статус / даты / <code>partner_id</code> — ошибка поля, не 500.</li>
-    <li><b>Поиск DataTables</b> (<code>search.value</code>): <code>order_id</code>, <code>deal_id</code>, числовой <code>id</code>, название партнёра. Сумма, выплата, статус, дата в SQL не попадают. <code>filter($callback)</code> без второго аргумента <code>true</code>. Шапка total поиск не учитывает.</li>
-    <li><b>Колонки</b>: ID, Создан (<code>datetime</code>), Партнер, Order, Сумма (<code>money</code>, рубли в JSON из <code>amount</code> копеек), Выплата (<code>money</code>, ключ <code>payout_amount</code>: рубли из <code>COALESCE(net_amount, amount)</code> последней <code>tinkoff_payouts</code> по <code>payment_id</code> со статусом не <code>REJECTED</code>; JSON <code>null</code> и UI «—», если выплаты нет или есть только <code>REJECTED</code>), Статус (<code>badge</code>), Deal, Действия (<code>actions</code> — ссылка «Открыть» на карточку). Без <code>type: 'custom'</code>.</li>
+    <li><b>Фильтры формы</b>: <code>status</code> (NEW / FORM / CONFIRMED / REJECTED / CANCELED), <code>method</code> (card / sbp / tpay → Карта / СБП / T‑Pay), <code>created_from</code> / <code>created_to</code>. Request: <code>TbankPaymentsReportFilterRequest</code> (ошибки под полями, AJAX → 422; non-AJAX GET → 302 + <code>errors[field]</code>). Sentinel <code>status=all</code> и пустой статус = «все статусы»: фильтры не раскрываются, в селекте выбрано «Все статусы». Sentinel <code>method=all</code> и пустой способ = «все способы»: в селекте «Все способы». Невалидный статус / способ / даты / <code>partner_id</code> — ошибка поля, не 500.</li>
+    <li><b>Поиск DataTables</b> (<code>search.value</code>): <code>order_id</code>, <code>deal_id</code>, числовой <code>id</code>, название партнёра. Сумма, комиссия платформы, выплата, статус, способ, чек, дата в SQL не попадают. <code>filter($callback)</code> без второго аргумента <code>true</code>. Шапка total поиск не учитывает.</li>
+    <li><b>Колонки</b>: ID, Создан (<code>datetime</code>), Партнер, Order, Сумма (<code>money</code>, рубли в JSON из <code>amount</code> копеек), Комиссия платформы (<code>money</code>, ключ <code>platform_commission</code>, <code>orderable: false</code>: текущие <code>tinkoff_commission_rules</code> как в отчёте «Платежи» — <code>platform_percent</code> / <code>platform_min_fixed</code>, не снимок <code>tinkoff_payouts.platform_fee</code>; без правила — <code>0.00</code>; видна всем с <code>reports.tbank.payments.view</code>, без <code>reports.additional.value.view</code>; в <code>GET …/total</code> не входит), Выплата (<code>money</code>, ключ <code>payout_amount</code>: рубли из <code>COALESCE(net_amount, amount)</code> последней <code>tinkoff_payouts</code> по <code>payment_id</code> со статусом не <code>REJECTED</code>; JSON <code>null</code> и UI «—», если выплаты нет или есть только <code>REJECTED</code>), Способ (<code>text</code>, ключ <code>method</code>, JSON <code>method_label</code> из <code>tinkoff_payments.method</code>: card → Карта, sbp → СБП, tpay → T‑Pay, пусто → «—»), Статус (<code>badge</code>), Deal, Чек (<code>icon</code>, ключ <code>receipt</code>, <code>orderable: false</code>: JSON <code>receipt_url</code> / <code>has_receipt</code> / <code>receipt_hint</code> и поля возврата через <code>TinkoffPaymentFiscalReceiptResolver</code>; UI как в «Платежи» — иконка прихода и возврата, без ветки Robokassa), Действия (<code>actions</code> — ссылка «Открыть» на карточку). Без <code>type: 'custom'</code>.</li>
     <li><b>columns-settings</b>: <code>table_key = reports_tbank_payments</code>; GET/POST <code>/admin/reports/tbank-payments/columns-settings</code>; «Показать N» — <code>$tbankPaymentsPageLength</code>, <code>persistPageLength: true</code>.</li>
     <li><b>Кнопка «Комиссии»</b> в тулбаре вкладки: ссылка на <code>/admin/settings/tbank-commissions</code> (<code>admin.setting.tbankCommissions</code>), рендер <code>@can('settings.commission')</code> (<code>#tp-toolbar-commissions</code>). Без права кнопки нет. Сама страница комиссий остаётся в настройках.</li>
     <li><b>Карточка</b>: <code>GET /admin/tinkoff/payments/{id}</code> — просмотр при <code>reports.tbank.payments.view</code> <b>или</b> <code>manage.payment.method.tbank</code>. Не-superadmin — только свой партнёр (чужой → <b>403</b>). Кнопки «Выплатить сейчас» / «Отложить» — только при <code>manage.payment.method.tbank</code>. «Закрыть сделку» в UI видна при <code>deal_id</code> и без этого права; POST <code>/tinkoff/deals/{deal}/close</code> — <code>can:manage.payment.method.tbank</code> (без права → <b>403</b>).</li>
@@ -801,10 +864,12 @@
   <ul>
     <li><code>tests/Feature/Crm/Reports/ReportsPartnerFilterFeatureTest.php</code> — <b>фильтр «Партнер»</b> в emails / fiscal / payment-intents / tbank-payments: UI SA vs admin, soft-scope, isolation (игнор чужого <code>partner_id</code>), partners-search + 422, show foreign</li>
     <li><code>tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b> во всех четырёх отчётах (Платежи, monthly, LTV, debts): логика active/inactive/all, UI, детализация; контроль доступа (guest / без <code>reports.view</code> / admin / superadmin); smoke 200 для всех вариантов <code>status</code>. Назначение абонементов — отдельный файл <code>LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> (см. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages</a>).</li>
-    <li><code>tests/Feature/Crm/Reports/TbankPaymentsReportTest.php</code> — отчёт «Платежи T‑Bank»: 403, total, isolation, DataTables (в т.ч. колонка «Выплата»: COMPLETED / INITIATED / REJECTED / retry), поиск (order/deal), карточка по праву отчёта или <code>manage.payment.method.tbank</code>, старый URL списка 404 (в т.ч. гость), кнопка «Комиссии» только при <code>settings.commission</code> (реальная <code>&lt;a href&gt;</code>), вкладка скрыта без права, UX первого открытия (фильтры свёрнуты, все колонки checked, N=10), <code>status=all</code> не раскрывает фильтры</li>
+    <li><code>tests/Feature/Crm/Reports/TbankPaymentsReportTest.php</code> — отчёт «Платежи T‑Bank»: 403, total, isolation, DataTables (в т.ч. колонка «Выплата»: COMPLETED / INITIATED / REJECTED / retry; колонка «Способ»: Карта / СБП / T‑Pay / «—»; колонка «Чек»: <code>TinkoffPaymentFiscalReceiptResolver</code>; колонка «Комиссия платформы»: текущие правила как в «Платежи», не снимок выплаты, не в total), поиск (order/deal), фильтр <code>method</code> (card/sbp/tpay, <code>method=all</code>, 422), карточка по праву отчёта или <code>manage.payment.method.tbank</code>, старый URL списка 404 (в т.ч. гость), кнопка «Комиссии» только при <code>settings.commission</code> (реальная <code>&lt;a href&gt;</code>), вкладка скрыта без права, UX первого открытия (фильтры свёрнуты, все колонки checked, N=10), <code>status=all</code> / <code>method=all</code> не раскрывает фильтры</li>
+    <li><code>tests/Feature/Crm/Reports/TbankPaymentsReceiptAndCommissionFeatureTest.php</code> — колонки «Чек» / «Комиссия платформы»: гость/403, разметка без <code>reports.additional.value.view</code>, порядок колонок, повторное открытие с фильтром не сбрасывает чекбоксы, сохранённый <code>false</code> не форсится, старые columns-settings без новых ключей, non-AJAX data JSON, total без комиссии, не снимок <code>tinkoff_payouts.platform_fee</code>, fallback 0% (не 2% <code>pickForPartner</code>), min_fixed, disabled-правило, приоритет partner+method, поиск не матчит URL чека и сумму комиссии, не-receipts.ru / CloudKassir pending, последний income URL</li>
     <li><code>tests/Feature/Crm/Reports/TbankPaymentsPageFullAccessFeatureTest.php</code> — guest / без права / с правом / superadmin на все endpoints вкладки; варианты фильтров 200; PUT/PATCH/DELETE → 404/405</li>
-    <li><code>tests/Feature/Crm/Reports/TbankPaymentsNonAjaxSafetyNetFeatureTest.php</code> — columns-settings non-AJAX JSON 200 + persist; пустой POST → 302 <code>errors.columns</code>; AJAX 422; GET колонок JSON не пустой 200; data без AJAX-заголовка — JSON не пустой HTML; валидация status/дат/partner_id по полям; partners-search 422/JSON; гость HTML 302 / JSON 401; PUT/PATCH/DELETE → 404/405 без записи</li>
+    <li><code>tests/Feature/Crm/Reports/TbankPaymentsNonAjaxSafetyNetFeatureTest.php</code> — columns-settings non-AJAX JSON 200 + persist; пустой POST → 302 <code>errors.columns</code>; AJAX 422; GET колонок JSON не пустой 200; data без AJAX-заголовка — JSON не пустой HTML; валидация status/method/дат/partner_id по полям; partners-search 422/JSON; гость HTML 302 / JSON 401; PUT/PATCH/DELETE → 404/405 без записи</li>
     <li><code>tests/Unit/Documentation/ReportsTbankPaymentsDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-index">/doc#reports-tbank-payments-index</a> совпадает с routes / Blade / Request / миграцией</li>
+    <li><code>tests/Unit/Documentation/ReportsTbankPaymentsReceiptCommissionDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-receipt-commission-index">/doc#reports-tbank-payments-receipt-commission-index</a> совпадает с колонками «Чек» / «Комиссия платформы»</li>
     <li><code>tests/Feature/Crm/Permissions/ReportsTbankPaymentsPermissionCatalogFeatureTest.php</code> — скрытое право, не в базовых ролях</li>
     <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php</code> — §1.1 персональный page_length на payments / monthly / LTV / intents / fiscal / tbank-payments / payouts; UX повторного открытия и открытия с фильтрами; вложенные LTV/monthly остаются на 10 после сохранения N; N одной таблицы не течёт в другую; 422/302 по полям; гость/403; debts/emails без opt-in</li>
     <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFullAccessFeatureTest.php</code> — гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405</li>
@@ -818,7 +883,10 @@
     <li><code>tests/Feature/Crm/Reports/FiscalReceiptsReportTest.php</code> — totals, partners-search, DataTables fields; чеки <code>source=platform</code> исключены из data/total</li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsPageFullAccessFeatureTest.php</code> — guest/403/smoke intents, видимость <code>piCanFilterPartner</code></li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsReportTest.php</code> — в т.ч. <code>payment_date</code> в JSON (формат «месяц год»), client context, partner_id filter</li>
-    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS: <code>outgoing_emails</code>, <code>fiscal_receipts</code>, <code>tbank_payments</code> (<code>test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate</code>), <code>payment_intents</code>, <code>payment_monthly</code>, <code>debt</code> (+ контракт refreshDebtReportTotal / default status=active; settings-prices.js + manual-paid; поиск DataTables payments/LTV/monthly/intents; reload без пересоздания таблицы)</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS: <code>outgoing_emails</code>, <code>fiscal_receipts</code>, <code>tbank_payments</code> (<code>test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate</code>), <code>payment_intents</code>, <code>payment_monthly</code>, <code>debt</code> (+ контракт refreshDebtReportTotal / default status=active; settings-prices.js + manual-paid; поиск DataTables payments/LTV/monthly/intents; reload без пересоздания таблицы; закрепление шапки отчётов — <code>test_admin_reports_sticky_header_and_hscroll_vite_contract_and_valid_javascript</code>, <code>test_admin_reports_sticky_header_nested_tables_column_toggle_and_filter_reload_keep_pin</code>)</li>
+    <li><code>tests/Feature/Crm/Reports/ReportsTablesStickyHeaderFeatureTest.php</code> — закрепление thead и липкого горизонтального скролла на payments / monthly / LTV / debts: fallback без плагина, <code>scrollLeft</code> не <code>margin-left</code>, фильтр не recreate, вложенные LTV/monthly без FixedHeader, колонки payments rebind, вкладки intents / fiscal / tbank / emails без плагина и без Vite-бандла</li>
+    <li><code>tests/Feature/Crm/Reports/ReportsTablesStickyHeaderFullAccessFeatureTest.php</code> — гость HTML 302 / JSON 401; без <code>reports.view</code> → 403; viewer/admin/SA 200 + bind; повторное открытие с <code>status=inactive</code>; POST/PATCH/PUT/DELETE → 405; data AJAX JSON 200 без sticky-скрипта, без AJAX → 404; учётка без организации</li>
+    <li><code>tests/Unit/Documentation/ReportsTablesStickyHeaderDocumentationContractTest.php</code> — анонс <code>/doc#reports-tables-sticky-header-index</code>, Vite-вход <code>admin-reports-tables.css</code> / <code>admin-reports-tables-sticky.js</code>, <code>@vite</code>, нет <code>public/css</code></li>
     <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code>, фильтр локации, unit-кейсы <code>is_manual_paid</code>)</li>
     <li><code>tests/Feature/Crm/Reports/DebtsReportManualPaidFeatureTest.php</code> — UX: ручная оплата из установки цен / доп. платежей ↔ отчёт задолженностей (effective_is_paid), guest/403, Blade/JS-контракт</li>
     <li><code>tests/Feature/Crm/Reports/ReportsDatatableSearchFeatureTest.php</code> — поиск DataTables в «Платежи» и LTV: гость/403, UX-баг пустого ФИО и Ajax error tn/7, границы (сумма/месяц/локация/даты/%/_/пробелы), filter+search, без <code>locations.view</code>, Blade <code>searchable</code></li>

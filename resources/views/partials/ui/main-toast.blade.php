@@ -53,5 +53,17 @@
         }
         bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2500, autohide: true }).show();
     };
+
+    window.hideToast = function () {
+        var toastEl = document.getElementById('kidsMainToast');
+        if (!toastEl || !window.bootstrap || !bootstrap.Toast) {
+            return;
+        }
+
+        var existing = bootstrap.Toast.getInstance(toastEl);
+        if (existing) {
+            existing.hide();
+        }
+    };
 </script>
 @endonce

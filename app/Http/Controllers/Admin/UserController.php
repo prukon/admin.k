@@ -7,6 +7,7 @@ use App\Enums\UserSex;
 use App\Http\Requests\User\FilterRequest;
 use App\Http\Requests\User\StoreRequest;
 use App\Http\Requests\User\UpdatePasswordRequest;
+use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\ParentProfile;
 use App\Models\Role;
@@ -14,6 +15,7 @@ use App\Models\SchoolLead;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserTableSetting;
+use App\Services\Contracts\ContractCreationService;
 use App\Services\PartnerContext;
 use Illuminate\Http\Request;
 use App\Models\UserField;
@@ -55,6 +57,7 @@ class UserController extends AdminBaseController
         private readonly TeamUserSyncService $teamUserSync,
         private readonly ClientWelcomeCredentialsService $welcomeCredentialsService,
         private readonly FamilyStudentLoginResolver $familyStudentLoginResolver,
+        private readonly ContractCreationService $contractCreationService,
     )
     {
         parent::__construct($partnerContext); // <-- КРИТИЧЕСКИЙ МОМЕНТ
@@ -397,6 +400,21 @@ class UserController extends AdminBaseController
             : null;
         unset($validatedData['school_lead_id']);
 
+        $validateOnly = $schoolLeadId && $request->boolean('validate_only');
+        unset($validatedData['validate_only']);
+
+        if ($validateOnly) {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['ok' => true], 200);
+            }
+
+            return redirect()->back();
+        }
+
+        $sendContract = $schoolLeadId && $request->boolean('send_contract');
+        $contractTemplateId = (int) ($validatedData['contract_template_id'] ?? 0);
+        unset($validatedData['send_contract'], $validatedData['contract_template_id']);
+
         $sendWelcomeEmail = $schoolLeadId
             || !empty($validatedData['send_welcome_email']);
         unset($validatedData['send_welcome_email']);
@@ -462,15 +480,19 @@ class UserController extends AdminBaseController
         // 2) Создание пользователя + логирование в транзакции
         $user            = null;
         $teamTitleForLog = '-';
+        $createdContract = null;
 
         DB::transaction(function () use (
             &$user,
             &$teamTitleForLog,
+            &$createdContract,
             $data,
             $partnerId,
             $schoolLeadId,
             $customInput,
-            $editableSlugSet
+            $editableSlugSet,
+            $sendContract,
+            $contractTemplateId
         ) {
             // Создаём пользователя через доменный сервис
             $user = $this->service->store($data);
@@ -535,6 +557,17 @@ class UserController extends AdminBaseController
                     ->withUser($user)
                     ->withTarget($user, $user->full_name ?: "user#{$user->id}")
             );
+
+            if ($sendContract) {
+                $partner = app('current_partner');
+                $groupId = !empty($data['team_ids']) ? (int) $data['team_ids'][0] : null;
+                $createdContract = $this->contractCreationService->create($partner, [
+                    'user_id'              => $user->id,
+                    'creation_mode'         => Contract::CREATION_MODE_TEMPLATE,
+                    'contract_template_id' => $contractTemplateId,
+                    'group_id'             => $groupId,
+                ]);
+            }
         });
 
         if (!$user) {
@@ -588,6 +621,11 @@ class UserController extends AdminBaseController
             }
         }
 
+        if ($createdContract) {
+            $responseMessage = rtrim($responseMessage, '.')
+                . '. Договор создан. С баланса списано 70 ₽. Клиенту отправлено уведомление в личный кабинет (и на email, если указан).';
+        }
+
         // 3) Ответ для AJAX (без лишних повторных запросов и с безопасными доступами)
         if ($request->ajax()) {
             $birthdayFormatted   = $user->birthday
@@ -609,6 +647,7 @@ class UserController extends AdminBaseController
                     'is_enabled' => $user->is_enabled ? 'Да' : 'Нет',
                 ],
                 'welcome_email_sent' => ($sendWelcomeEmail && $mailResult['sent']) ? true : false,
+                'contract_id' => $createdContract?->id,
             ], 200);
         }
 

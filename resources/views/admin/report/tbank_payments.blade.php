@@ -1,7 +1,9 @@
 @php
     $tpCanFilterPartner = $tpCanFilterPartner ?? false;
     $tpStatuses = \App\Http\Requests\Admin\Report\TbankPaymentsReportFilterRequest::STATUSES;
+    $tpMethods = \App\Models\TinkoffPayment::METHOD_LABELS;
     $tpStatus = (string) ($filters['status'] ?? '');
+    $tpMethod = (string) ($filters['method'] ?? '');
 @endphp
 @vite(['resources/css/admin-list-toolbar.css'])
 
@@ -80,8 +82,16 @@
                                 <label class="form-check-label" for="tpColAmount">Сумма</label>
                             </div>
                             <div class="form-check">
+                                <input class="form-check-input tbank-payments-column-toggle" type="checkbox" data-column-key="platform_commission" id="tpColPlatformCommission" checked>
+                                <label class="form-check-label" for="tpColPlatformCommission">Комиссия платформы</label>
+                            </div>
+                            <div class="form-check">
                                 <input class="form-check-input tbank-payments-column-toggle" type="checkbox" data-column-key="payout_amount" id="tpColPayoutAmount" checked>
                                 <label class="form-check-label" for="tpColPayoutAmount">Выплата</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input tbank-payments-column-toggle" type="checkbox" data-column-key="method" id="tpColMethod" checked>
+                                <label class="form-check-label" for="tpColMethod">Способ</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input tbank-payments-column-toggle" type="checkbox" data-column-key="status" id="tpColStatus" checked>
@@ -90,6 +100,10 @@
                             <div class="form-check">
                                 <input class="form-check-input tbank-payments-column-toggle" type="checkbox" data-column-key="deal_id" id="tpColDeal" checked>
                                 <label class="form-check-label" for="tpColDeal">Deal</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input tbank-payments-column-toggle" type="checkbox" data-column-key="receipt" id="tpColReceipt" checked>
+                                <label class="form-check-label" for="tpColReceipt">Чек</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input tbank-payments-column-toggle" type="checkbox" data-column-key="actions" id="tpColActions" checked>
@@ -108,17 +122,28 @@
         <div class="row g-2 align-items-end">
             <div class="col-12 col-md-2">
                 <label class="form-label" for="tp-filter-status">Статус</label>
-                <select class="form-select" name="status" id="tp-filter-status">
+                <select class="form-select @error('status') is-invalid @enderror" name="status" id="tp-filter-status">
                     <option value="" {{ $tpStatus === '' ? 'selected' : '' }}>Все статусы</option>
                     @foreach($tpStatuses as $st)
                         <option value="{{ $st }}" {{ $tpStatus === $st ? 'selected' : '' }}>{{ $st }}</option>
                     @endforeach
                 </select>
+                <div class="invalid-feedback" data-error-for="status" @error('status') style="display:block" @enderror>@error('status'){{ $message }}@enderror</div>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="tp-filter-method">Способ</label>
+                <select class="form-select @error('method') is-invalid @enderror" name="method" id="tp-filter-method">
+                    <option value="" {{ $tpMethod === '' ? 'selected' : '' }}>Все способы</option>
+                    @foreach($tpMethods as $code => $label)
+                        <option value="{{ $code }}" {{ $tpMethod === $code ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <div class="invalid-feedback" data-error-for="method" @error('method') style="display:block" @enderror>@error('method'){{ $message }}@enderror</div>
             </div>
             @if(!empty($tpCanFilterPartner))
             <div class="col-12 col-md-3">
                 <label class="form-label" for="tp-filter-partner">Партнер</label>
-                <select class="form-select payments-report-filter-select2"
+                <select class="form-select payments-report-filter-select2 @error('partner_id') is-invalid @enderror"
                         id="tp-filter-partner"
                         name="partner_id"
                         data-placeholder="Все партнеры"
@@ -128,15 +153,18 @@
                         <option value="{{ $tpFilterPartner['id'] }}" selected>{{ $tpFilterPartner['text'] }}</option>
                     @endif
                 </select>
+                <div class="invalid-feedback" data-error-for="partner_id" @error('partner_id') style="display:block" @enderror>@error('partner_id'){{ $message }}@enderror</div>
             </div>
             @endif
             <div class="col-12 col-md-2">
                 <label class="form-label" for="tp-filter-created-from">Создано: с</label>
-                <input class="form-control" type="date" name="created_from" id="tp-filter-created-from" value="{{ $filters['created_from'] ?? '' }}">
+                <input class="form-control @error('created_from') is-invalid @enderror" type="date" name="created_from" id="tp-filter-created-from" value="{{ $filters['created_from'] ?? '' }}">
+                <div class="invalid-feedback" data-error-for="created_from" @error('created_from') style="display:block" @enderror>@error('created_from'){{ $message }}@enderror</div>
             </div>
             <div class="col-12 col-md-2">
                 <label class="form-label" for="tp-filter-created-to">Создано: по</label>
-                <input class="form-control" type="date" name="created_to" id="tp-filter-created-to" value="{{ $filters['created_to'] ?? '' }}">
+                <input class="form-control @error('created_to') is-invalid @enderror" type="date" name="created_to" id="tp-filter-created-to" value="{{ $filters['created_to'] ?? '' }}">
+                <div class="invalid-feedback" data-error-for="created_to" @error('created_to') style="display:block" @enderror>@error('created_to'){{ $message }}@enderror</div>
             </div>
             <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                 <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
@@ -155,9 +183,12 @@
             <th>Партнер</th>
             <th>Order</th>
             <th>Сумма</th>
+            <th>Комиссия платформы</th>
             <th>Выплата</th>
+            <th>Способ</th>
             <th>Статус</th>
             <th>Deal</th>
+            <th>Чек</th>
             <th></th>
         </tr>
         </thead>
@@ -287,10 +318,32 @@
             function tpFilterParams() {
                 return {
                     status: $form.find('[name="status"]').val() || '',
+                    method: $form.find('[name="method"]').val() || '',
                     partner_id: $form.find('[name="partner_id"]').val() || '',
                     created_from: $form.find('[name="created_from"]').val() || '',
                     created_to: $form.find('[name="created_to"]').val() || ''
                 };
+            }
+
+            function tpClearFieldErrors() {
+                $form.find('[data-error-for]').text('').hide();
+                $form.find('.is-invalid').removeClass('is-invalid');
+            }
+
+            function tpShowFieldErrors(xhr) {
+                tpClearFieldErrors();
+                var errors = xhr && xhr.responseJSON && xhr.responseJSON.errors;
+                if (!errors) {
+                    return;
+                }
+                Object.keys(errors).forEach(function (field) {
+                    var msg = errors[field] && errors[field][0];
+                    if (!msg) {
+                        return;
+                    }
+                    $form.find('[name="' + field + '"]').addClass('is-invalid');
+                    $form.find('[data-error-for="' + field + '"]').text(msg).show();
+                });
             }
 
             function refreshTbankPaymentsTotal() {
@@ -300,6 +353,7 @@
                 }
                 $.get(@json(route('reports.tbank-payments.total')), tpFilterParams())
                     .done(function (res) {
+                        tpClearFieldErrors();
                         if ($tpTotalStat.length) {
                             $tpTotalStat.removeClass('payments-report-total-stat--loading');
                         }
@@ -308,10 +362,11 @@
                         }
                         tpAnimateTotalChange(prevText, res.total_formatted, res.total_raw);
                     })
-                    .fail(function () {
+                    .fail(function (xhr) {
                         if ($tpTotalStat.length) {
                             $tpTotalStat.removeClass('payments-report-total-stat--loading');
                         }
+                        tpShowFieldErrors(xhr);
                     });
             }
 
@@ -329,6 +384,43 @@
                 return '<span class="badge ' + cls + '">' + $('<div/>').text(s).html() + '</span>';
             }
 
+            function renderTbankReceiptCell(data, type, row) {
+                if (type !== 'display') {
+                    return row.has_receipt ? 1 : 0;
+                }
+
+                var incomeTitle = row.receipt_hint || (row.has_receipt && row.receipt_url
+                    ? 'Чек сформирован'
+                    : 'Чек не сформирован');
+                var icons = [];
+                if (row.has_receipt && row.receipt_url) {
+                    icons.push({
+                        href: row.receipt_url,
+                        iconClass: 'fas fa-receipt text-primary',
+                        title: incomeTitle,
+                        ariaLabel: 'Чек сформирован'
+                    });
+                } else {
+                    icons.push({
+                        iconClass: 'fas fa-receipt text-secondary',
+                        title: incomeTitle,
+                        ariaLabel: 'Чек не сформирован'
+                    });
+                }
+
+                if (row.return_receipt_url) {
+                    icons.push({
+                        href: row.return_receipt_url,
+                        iconClass: 'fas fa-receipt return-receipt-icon',
+                        linkClass: 'return-receipt-link',
+                        title: row.return_receipt_hint || 'Чек возврата',
+                        ariaLabel: 'Чек возврата'
+                    });
+                }
+
+                return window.KidsCrmDataTable.renderIcon(icons, type, { sortKey: 'has_receipt' }, row);
+            }
+
             var dtApi = KidsCrmDataTable.create('#tbank-payments-table', {
                 columnsSettings: {
                     persistPageLength: true,
@@ -337,9 +429,12 @@
                         partner: true,
                         order_id: true,
                         amount: true,
+                        platform_commission: true,
                         payout_amount: true,
+                        method: true,
                         status: true,
                         deal_id: true,
+                        receipt: true,
                         actions: true
                     },
                     urls: {
@@ -375,7 +470,23 @@
                     },
                     { key: 'order_id', type: 'text', data: 'order_id', name: 'order_id' },
                     { key: 'amount', type: 'money', data: 'amount', name: 'amount', searchable: false },
+                    {
+                        key: 'platform_commission',
+                        type: 'money',
+                        data: 'platform_commission',
+                        name: 'platform_commission',
+                        orderable: false,
+                        searchable: false
+                    },
                     { key: 'payout_amount', type: 'money', data: 'payout_amount', name: 'payout_amount', searchable: false },
+                    {
+                        key: 'method',
+                        type: 'text',
+                        data: 'method_label',
+                        name: 'method',
+                        searchable: false,
+                        className: 'dt-col-text'
+                    },
                     {
                         key: 'status',
                         type: 'badge',
@@ -391,6 +502,16 @@
                         }
                     },
                     { key: 'deal_id', type: 'text', data: 'deal_id', name: 'deal_id' },
+                    {
+                        key: 'receipt',
+                        type: 'icon',
+                        data: null,
+                        name: 'receipt',
+                        orderable: false,
+                        searchable: false,
+                        className: 'dt-col-icon text-center',
+                        render: renderTbankReceiptCell
+                    },
                     {
                         key: 'actions',
                         type: 'actions',
@@ -419,6 +540,7 @@
                 @if($tpCanFilterPartner)
                 $tpFilterPartner.val(null).trigger('change');
                 @endif
+                tpClearFieldErrors();
                 refreshTbankPaymentsTotal();
                 dtApi.reload();
             });

@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Crm\Reports;
 
+use App\Models\FiscalReceipt;
 use App\Models\Partner;
+use App\Models\Payment;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use App\Models\UserTableSetting;
@@ -163,10 +165,146 @@ class TbankPaymentsReportTest extends CrmTestCase
         $this->assertSame('order-tbank-report-1', $row['order_id']);
         $this->assertSame('deal-tbank-report-1', $row['deal_id']);
         $this->assertSame('CONFIRMED', $row['status']);
+        $this->assertSame('Карта', $row['method_label']);
         $this->assertEquals(1500.0, (float) $row['amount']);
+        $this->assertEquals(0.0, (float) $row['platform_commission']);
         $this->assertNull($row['payout_amount']);
+        $this->assertFalse((bool) ($row['has_receipt'] ?? true));
+        $this->assertNull($row['receipt_url']);
+        $this->assertSame('Чек не сформирован', (string) ($row['receipt_hint'] ?? ''));
+        $this->assertFalse((bool) ($row['has_return_receipt'] ?? true));
+        $this->assertNull($row['return_receipt_url']);
         $this->assertSame('2026-09-07 11:30:00', $row['created_at']);
         $this->assertStringContainsString('/admin/tinkoff/payments/'.$payment->id, (string) $row['show_url']);
+    }
+
+    public function test_datatable_platform_commission_matches_payments_report_current_rules(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'card',
+            'platform_percent' => 2.00,
+            'platform_min_fixed' => 0,
+        ]);
+
+        $confirmed = $this->makePayment([
+            'partner_id' => $this->partner->id,
+            'amount' => 150000,
+            'method' => 'card',
+            'status' => 'CONFIRMED',
+        ]);
+        $form = $this->makePayment([
+            'partner_id' => $this->partner->id,
+            'amount' => 150000,
+            'method' => 'card',
+            'status' => 'FORM',
+        ]);
+
+        $rows = collect(
+            $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+                ->get(route('reports.tbank-payments.data', ['draw' => 1]))
+                ->assertOk()
+                ->json('data')
+        );
+
+        $confirmedRow = $rows->firstWhere('id', $confirmed->id);
+        $formRow = $rows->firstWhere('id', $form->id);
+
+        $this->assertIsArray($confirmedRow);
+        $this->assertEquals(30.00, (float) $confirmedRow['platform_commission']);
+        $this->assertIsArray($formRow);
+        $this->assertEquals(30.00, (float) $formRow['platform_commission']);
+
+        $totalJson = $this->get(route('reports.tbank-payments.total'))
+            ->assertOk()
+            ->json();
+        $this->assertArrayNotHasKey('platform_commission_formatted', $totalJson);
+        $this->assertArrayNotHasKey('platform_commission_raw', $totalJson);
+    }
+
+    public function test_non_superadmin_sees_platform_commission_without_additional_value_permission(): void
+    {
+        $actor = $this->grantTbankPaymentsViewToAdmin();
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'sbp',
+            'platform_percent' => 1.00,
+            'platform_min_fixed' => 0,
+        ]);
+
+        $payment = $this->makePayment([
+            'partner_id' => $this->partner->id,
+            'amount' => 20000,
+            'method' => 'sbp',
+            'status' => 'CONFIRMED',
+        ]);
+
+        $row = collect(
+            $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+                ->get(route('reports.tbank-payments.data', ['draw' => 1]))
+                ->assertOk()
+                ->json('data')
+        )->firstWhere('id', $payment->id);
+
+        $this->assertIsArray($row);
+        $this->assertEquals(2.00, (float) $row['platform_commission']);
+        $this->assertFalse($actor->can('reports.additional.value.view'));
+    }
+
+    public function test_datatable_receipt_fields_from_fiscal_resolver(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $payment = $this->makePayment([
+            'partner_id' => $this->partner->id,
+            'amount' => 50000,
+            'status' => 'CONFIRMED',
+            'tinkoff_payment_id' => 912345001,
+        ]);
+
+        $ledgerPayment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payment_number' => '912345001',
+            'deal_id' => $payment->deal_id,
+        ]);
+
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $ledgerPayment->id,
+            'type' => FiscalReceipt::TYPE_INCOME,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount_cents' => 50000,
+            'receipt_url' => 'https://receipts.ru/tbank-report-income',
+        ]);
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $ledgerPayment->id,
+            'type' => FiscalReceipt::TYPE_INCOME_RETURN,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount_cents' => 50000,
+            'receipt_url' => 'https://receipts.ru/tbank-report-return',
+        ]);
+
+        $row = collect(
+            $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+                ->get(route('reports.tbank-payments.data', ['draw' => 1]))
+                ->assertOk()
+                ->json('data')
+        )->firstWhere('id', $payment->id);
+
+        $this->assertIsArray($row);
+        $this->assertTrue((bool) ($row['has_receipt'] ?? false));
+        $this->assertSame('https://receipts.ru/tbank-report-income', $row['receipt_url']);
+        $this->assertSame('Чек сформирован', (string) ($row['receipt_hint'] ?? ''));
+        $this->assertTrue((bool) ($row['has_return_receipt'] ?? false));
+        $this->assertSame('https://receipts.ru/tbank-report-return', $row['return_receipt_url']);
+        $this->assertSame('Чек возврата сформирован', (string) ($row['return_receipt_hint'] ?? ''));
     }
 
     public function test_datatable_search_matches_order_and_partner(): void
@@ -341,7 +479,8 @@ class TbankPaymentsReportTest extends CrmTestCase
         $this->assertSame(1, preg_match('/<div\b[^>]*\bid="tbankPaymentsFiltersCollapse"[^>]*>/', $html, $collapseTag));
         $this->assertStringNotContainsString('show', $collapseTag[0]);
         $this->assertStringContainsString('<option value="" selected>Все статусы</option>', $html);
-        foreach (['created_at', 'partner', 'order_id', 'amount', 'payout_amount', 'status', 'deal_id', 'actions'] as $key) {
+        $this->assertStringContainsString('<option value="" selected>Все способы</option>', $html);
+        foreach (['created_at', 'partner', 'order_id', 'amount', 'platform_commission', 'payout_amount', 'method', 'status', 'deal_id', 'receipt', 'actions'] as $key) {
             $this->assertMatchesRegularExpression(
                 '/class="form-check-input tbank-payments-column-toggle"[^>]*data-column-key="'.$key.'"[^>]*checked/',
                 $html
@@ -390,6 +529,103 @@ class TbankPaymentsReportTest extends CrmTestCase
 
         $this->assertContains($confirmed->id, $ids);
         $this->assertNotContains($rejected->id, $ids);
+    }
+
+    public function test_invalid_method_filter_returns_422_with_field_error(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $this->getJson(route('reports.tbank-payments.total', ['method' => 'cash']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['method']);
+    }
+
+    public function test_method_all_does_not_open_filters_or_select_a_real_method(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $html = $this->get(route('reports.tbank-payments.index', [
+            'method' => 'all',
+        ]))
+            ->assertOk()
+            ->assertViewHas('tpHasActiveFilters', false)
+            ->getContent();
+
+        $this->assertSame(1, preg_match('/<div\b[^>]*\bid="tbankPaymentsFiltersCollapse"[^>]*>/', $html, $collapseTag));
+        $this->assertStringNotContainsString('show', $collapseTag[0]);
+        $this->assertStringContainsString('<option value="" selected>Все способы</option>', $html);
+        $this->assertStringNotContainsString('value="card" selected', $html);
+        $this->assertStringNotContainsString('value="sbp" selected', $html);
+        $this->assertStringNotContainsString('value="tpay" selected', $html);
+        $this->assertStringNotContainsString('value="all" selected', $html);
+    }
+
+    public function test_method_filter_opens_panel_and_selects_option(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $html = $this->get(route('reports.tbank-payments.index', ['method' => 'sbp']))
+            ->assertOk()
+            ->assertViewHas('tpHasActiveFilters', true)
+            ->getContent();
+
+        $this->assertSame(1, preg_match('/<div\b[^>]*\bid="tbankPaymentsFiltersCollapse"[^>]*>/', $html, $collapseTag));
+        $this->assertStringContainsString('show', $collapseTag[0]);
+        $this->assertStringContainsString('value="sbp" selected', $html);
+        $this->assertStringContainsString('id="tp-filter-method"', $html);
+        $this->assertStringContainsString('СБП', $html);
+        $this->assertStringContainsString('T‑Pay', $html);
+    }
+
+    public function test_method_filter_limits_total_and_datatable_rows(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $card = $this->makePayment(['method' => 'card', 'amount' => 10000]);
+        $sbp = $this->makePayment(['method' => 'sbp', 'amount' => 50000]);
+        $tpay = $this->makePayment(['method' => 'tpay', 'amount' => 70000]);
+
+        $this->get(route('reports.tbank-payments.total', ['method' => 'sbp']))
+            ->assertOk()
+            ->assertJsonPath('total_raw', 500);
+
+        $rows = collect(
+            $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+                ->get(route('reports.tbank-payments.data', [
+                    'draw' => 1,
+                    'method' => 'sbp',
+                ]))
+                ->assertOk()
+                ->json('data')
+        );
+        $ids = $rows->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        $this->assertContains($sbp->id, $ids);
+        $this->assertNotContains($card->id, $ids);
+        $this->assertNotContains($tpay->id, $ids);
+        $this->assertSame('СБП', $rows->firstWhere('id', $sbp->id)['method_label']);
+    }
+
+    public function test_datatable_empty_method_label_is_dash(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $payment = $this->makePayment(['method' => null]);
+
+        $row = collect(
+            $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+                ->get(route('reports.tbank-payments.data', ['draw' => 1]))
+                ->assertOk()
+                ->json('data')
+        )->firstWhere('id', $payment->id);
+
+        $this->assertIsArray($row);
+        $this->assertSame('—', $row['method_label']);
     }
 
     public function test_date_filter_limits_total(): void

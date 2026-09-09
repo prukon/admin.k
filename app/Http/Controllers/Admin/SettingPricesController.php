@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\Admin\GetTeamPriceRequest;
 use App\Http\Requests\Admin\SetManualUserPricePaidRequest;
 use App\Http\Requests\Admin\SetPriceAllTeamsRequest;
 use App\Http\Requests\Admin\SetPriceAllUsersRequest;
@@ -744,11 +745,11 @@ class SettingPricesController extends AdminBaseController
     }
 
     // AJAX ПОДРОБНО. Получение списка пользователей по группе (вкладка "по месяцам")
-    public function getTeamPrice(Request $request)
+    public function getTeamPrice(GetTeamPriceRequest $request)
     {
-        $data         = json_decode($request->getContent(), true);
-        $selectedDate = $data['selectedDate'] ?? null;
-        $teamId       = $data['teamId'] ?? null;
+        $data         = $request->validated();
+        $selectedDate = $data['selectedDate'];
+        $teamId       = $data['teamId'];
 
         $partnerId = $this->requirePartnerId();
 
@@ -1078,7 +1079,52 @@ class SettingPricesController extends AdminBaseController
 
         $authorId = auth()->id();
 
-        DB::transaction(function () use ($row, $mode, $comment, $authorId, $studentLabel, $selectedDate, $monthDate, $userId, $beforeManual, $beforeAuto, $beforeEff) {
+        $validated = $request->validated();
+        $shouldApplyCard = $mode === 'paid'
+            && ! $row->effective_is_paid
+            && (
+                array_key_exists('lesson_package_id', $validated)
+                || array_key_exists('price', $validated)
+            );
+
+        DB::transaction(function () use (
+            $row,
+            $mode,
+            $comment,
+            $authorId,
+            $studentLabel,
+            $selectedDate,
+            $monthDate,
+            $userId,
+            $beforeManual,
+            $beforeAuto,
+            $beforeEff,
+            $shouldApplyCard,
+            $validated,
+            $user,
+            $team,
+            $partnerId
+        ) {
+            if ($shouldApplyCard) {
+                $priceData = ['user' => ['name' => $studentLabel]];
+                if (array_key_exists('lesson_package_id', $validated)) {
+                    $priceData['lesson_package_id'] = $validated['lesson_package_id'];
+                }
+                if (array_key_exists('price', $validated)) {
+                    $priceData['price'] = $validated['price'];
+                }
+
+                $this->applyUnpaidUserPriceRow(
+                    $row,
+                    $priceData,
+                    $user,
+                    $team,
+                    $partnerId,
+                    $selectedDate,
+                    'lesson_package_id'
+                );
+                $row->refresh();
+            }
 
             if ($mode === 'paid') {
                 $row->forceFill([
@@ -1140,12 +1186,11 @@ class SettingPricesController extends AdminBaseController
         });
 
         $row->refresh();
-        $row->load('user');
-        $row->setAttribute('price', (float) Money::fromCents((int) $row->price_cents));
+        $decorated = $this->decorateUsersPricesForMonthlyUi([$row]);
 
         return $this->settingPricesUsersJsonOrRedirect($request, [
             'success'    => true,
-            'user_price' => $row,
+            'user_price' => $decorated[0] ?? $row,
         ]);
     }
 
@@ -1242,6 +1287,140 @@ class SettingPricesController extends AdminBaseController
                 $field => [$e->getMessage()],
             ]);
         }
+    }
+
+    /**
+     * Применить абонемент/цену к неоплаченной строке users_prices (как «Применить» справа для одной записи).
+     *
+     * @param  array{price?: mixed, lesson_package_id?: mixed, user?: array{name?: string}}  $priceData
+     *
+     * @throws ValidationException
+     */
+    protected function applyUnpaidUserPriceRow(
+        UserPrice $userPriceRecord,
+        array $priceData,
+        User $user,
+        Team $team,
+        int $partnerId,
+        string $selectedDateString,
+        string $ulpErrorField
+    ): void {
+        if ($userPriceRecord->effective_is_paid) {
+            return;
+        }
+
+        $packageKeyPresent = array_key_exists('lesson_package_id', $priceData);
+        $newPackageId = $packageKeyPresent
+            ? ($priceData['lesson_package_id'] !== null ? (int) $priceData['lesson_package_id'] : null)
+            : ($userPriceRecord->lesson_package_id !== null ? (int) $userPriceRecord->lesson_package_id : null);
+
+        $resolvedPackage = null;
+        if ($newPackageId !== null && $newPackageId > 0) {
+            $resolvedPackage = LessonPackage::query()
+                ->whereKey($newPackageId)
+                ->where('partner_id', $partnerId)
+                ->first();
+            if (! $resolvedPackage) {
+                return;
+            }
+        }
+
+        $userId = (int) $user->id;
+
+        // Postpay: сумма только из журнала, ручной price из UI игнорируем.
+        if ($resolvedPackage && $resolvedPackage->isPostpay()) {
+            $packageChanged = $packageKeyPresent
+                && (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) $newPackageId;
+            if ($packageChanged || (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) $newPackageId) {
+                $userPriceRecord->lesson_package_id = $newPackageId;
+                $userPriceRecord->fill(UserPercentDiscount::snapshotFromUser($user));
+                $userPriceRecord->save();
+            }
+            $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
+            $this->postpaySync->syncRow($userPriceRecord);
+            $this->syncUserPriceLessonPackage($userPriceRecord, $ulpErrorField);
+            $userPriceRecord->refresh();
+
+            $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
+            $this->auditLogger->record(
+                AuditEvent::PricingStudentApply,
+                AuditContext::make(
+                    'Обновлена постоплата: '.Money::formatRub((int) $userPriceRecord->price_cents)." руб. Абонемент #{$newPackageId}. Период: {$selectedDateString}. Группа: {$team->title}."
+                )
+                    ->withUserId($userId)
+                    ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
+                    ->withCreatedAt(now())
+            );
+
+            return;
+        }
+
+        $hasPrice = array_key_exists('price', $priceData);
+        $newPriceCents = $hasPrice
+            ? Money::toCentsOrFail($priceData['price'] ?? 0)
+            : (int) $userPriceRecord->price_cents;
+        $newPrice = $hasPrice
+            ? round((float) ($priceData['price'] ?? 0), 2)
+            : (float) Money::fromCents($newPriceCents);
+
+        $priceChanged = (int) $userPriceRecord->price_cents !== $newPriceCents;
+        $packageChanged = $packageKeyPresent
+            && (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) ($newPackageId ?? 0);
+
+        if (! $priceChanged && ! $packageChanged) {
+            // Идемпотентный догон: создать ULP / выставить ends_at конца billing_month.
+            if ($resolvedPackage
+                && ! $resolvedPackage->isPostpay()
+                && in_array((string) $resolvedPackage->schedule_type, LessonPackage::ASSIGNMENT_SCHEDULE_TYPES, true)
+            ) {
+                $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
+                $this->syncUserPriceLessonPackage($userPriceRecord, $ulpErrorField);
+            }
+
+            return;
+        }
+
+        $payload = [];
+        if ($priceChanged) {
+            $payload['price_cents'] = $newPriceCents;
+        }
+        if ($packageKeyPresent) {
+            $payload['lesson_package_id'] = $newPackageId;
+        }
+
+        $catalogCents = $resolvedPackage
+            ? (int) $resolvedPackage->price_cents
+            : $newPriceCents;
+        $snap = $resolvedPackage
+            ? UserPercentDiscount::snapshotIfMatchesCatalog($catalogCents, $newPriceCents, $user)
+            : UserPercentDiscount::emptySnapshot();
+        $payload['discount_percent'] = $snap['discount_percent'];
+        $payload['discount_comment'] = $snap['discount_comment'];
+
+        if ($payload === []) {
+            return;
+        }
+
+        $userPriceRecord->update($payload);
+        if ($resolvedPackage) {
+            $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
+        }
+        $this->syncUserPriceLessonPackage($userPriceRecord, $ulpErrorField);
+
+        $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
+        $packageNote = $newPackageId
+            ? " Абонемент #{$newPackageId}."
+            : '';
+
+        $this->auditLogger->record(
+            AuditEvent::PricingStudentApply,
+            AuditContext::make(
+                "Обновлена цена: {$newPrice} руб.{$packageNote} Период: {$selectedDateString}. Группа: {$team->title}."
+            )
+                ->withUserId($userId)
+                ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
+                ->withCreatedAt(now())
+        );
     }
 
     /**
@@ -1645,111 +1824,14 @@ class SettingPricesController extends AdminBaseController
                     continue;
                 }
 
-                $packageKeyPresent = array_key_exists('lesson_package_id', $priceData);
-                $newPackageId = $packageKeyPresent
-                    ? ($priceData['lesson_package_id'] !== null ? (int) $priceData['lesson_package_id'] : null)
-                    : ($userPriceRecord->lesson_package_id !== null ? (int) $userPriceRecord->lesson_package_id : null);
-
-                $resolvedPackage = null;
-                if ($newPackageId !== null && $newPackageId > 0) {
-                    $resolvedPackage = LessonPackage::query()
-                        ->whereKey($newPackageId)
-                        ->where('partner_id', $partnerId)
-                        ->first();
-                    if (! $resolvedPackage) {
-                        continue;
-                    }
-                }
-
-                $ulpErrorField = 'usersPrice.'.$index.'.lesson_package_id';
-
-                // Postpay: сумма только из журнала, ручной price из UI игнорируем.
-                if ($resolvedPackage && $resolvedPackage->isPostpay()) {
-                    $packageChanged = $packageKeyPresent
-                        && (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) $newPackageId;
-                    if ($packageChanged || (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) $newPackageId) {
-                        $userPriceRecord->lesson_package_id = $newPackageId;
-                        $userPriceRecord->fill(UserPercentDiscount::snapshotFromUser($user));
-                        $userPriceRecord->save();
-                    }
-                    $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
-                    $this->postpaySync->syncRow($userPriceRecord);
-                    $this->syncUserPriceLessonPackage($userPriceRecord, $ulpErrorField);
-                    $userPriceRecord->refresh();
-
-                    $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
-                    $this->auditLogger->record(
-                        AuditEvent::PricingStudentApply,
-                        AuditContext::make(
-                            'Обновлена постоплата: '.Money::formatRub((int) $userPriceRecord->price_cents)." руб. Абонемент #{$newPackageId}. Период: {$selectedDateString}. Группа: {$team->title}."
-                        )
-                            ->withUserId($userId)
-                            ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
-                            ->withCreatedAt(now())
-                    );
-
-                    continue;
-                }
-
-                $newPrice = round((float) ($priceData['price'] ?? 0), 2);
-                $newPriceCents = Money::toCentsOrFail($priceData['price'] ?? 0);
-
-                $priceChanged = (int) $userPriceRecord->price_cents !== $newPriceCents;
-                $packageChanged = $packageKeyPresent
-                    && (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) ($newPackageId ?? 0);
-
-                if (! $priceChanged && ! $packageChanged) {
-                    // Идемпотентный догон: создать ULP / выставить ends_at конца billing_month.
-                    if ($resolvedPackage
-                        && ! $resolvedPackage->isPostpay()
-                        && in_array((string) $resolvedPackage->schedule_type, LessonPackage::ASSIGNMENT_SCHEDULE_TYPES, true)
-                    ) {
-                        $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
-                        $this->syncUserPriceLessonPackage($userPriceRecord, $ulpErrorField);
-                    }
-                    continue;
-                }
-
-                $payload = [];
-                if ($priceChanged) {
-                    $payload['price_cents'] = $newPriceCents;
-                }
-                if ($packageKeyPresent) {
-                    $payload['lesson_package_id'] = $newPackageId;
-                }
-
-                $catalogCents = $resolvedPackage
-                    ? (int) $resolvedPackage->price_cents
-                    : $newPriceCents;
-                $snap = $resolvedPackage
-                    ? UserPercentDiscount::snapshotIfMatchesCatalog($catalogCents, $newPriceCents, $user)
-                    : UserPercentDiscount::emptySnapshot();
-                $payload['discount_percent'] = $snap['discount_percent'];
-                $payload['discount_comment'] = $snap['discount_comment'];
-
-                if ($payload === []) {
-                    continue;
-                }
-
-                $userPriceRecord->update($payload);
-                if ($resolvedPackage) {
-                    $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
-                }
-                $this->syncUserPriceLessonPackage($userPriceRecord, $ulpErrorField);
-
-                $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
-                $packageNote = $newPackageId
-                    ? " Абонемент #{$newPackageId}."
-                    : '';
-
-                $this->auditLogger->record(
-                    AuditEvent::PricingStudentApply,
-                    AuditContext::make(
-                        "Обновлена цена: {$newPrice} руб.{$packageNote} Период: {$selectedDateString}. Группа: {$team->title}."
-                    )
-                        ->withUserId($userId)
-                        ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
-                        ->withCreatedAt(now())
+                $this->applyUnpaidUserPriceRow(
+                    $userPriceRecord,
+                    $priceData,
+                    $user,
+                    $team,
+                    $partnerId,
+                    $selectedDateString,
+                    'usersPrice.'.$index.'.lesson_package_id'
                 );
             }
         });

@@ -327,7 +327,13 @@ function reloadTable() {
         <td><code>/admin/users</code> — <code>contract</code></td>
         <td><code>custom</code></td>
         <td><code>actions</code> + свой <code>render</code></td>
-        <td>«Создать договор» / «Посмотреть черновик» / иконка PDF подписанного + плюс «Создать ещё один договор». См. <a href="/docs/documentation/admin-users#user-contract-column">admin-users §2.3</a>.</td>
+        <td>«Создать договор» / «Посмотреть черновик» / иконка PDF подписанного + плюс «Создать ещё один договор». PDF ведёт на карточку при статусе <code>signed</code>, не скачивает файл. См. <a href="/docs/documentation/admin-users#user-contract-column">admin-users §2.3</a>.</td>
+      </tr>
+      <tr>
+        <td><code>/client-contracts</code> — <code>signed_file</code></td>
+        <td><code>icon</code></td>
+        <td><code>icon</code> + свой <code>render</code> (<code>renderSignedContractFileCell</code>)</td>
+        <td>Синяя PDF только при заполненном <code>signed_pdf_path</code> (не по статусу). Клик — <code>GET …/download-signed</code> в новой вкладке (<code>KidsCrmDataTable.renderIcon</code>, <code>target="_blank"</code>). Не <code>js-dt-nav-link</code>. См. <a href="/docs/documentation/contracts#contract-list-signed-file">contracts §4.1.1</a>, <a href="/doc#contract-list-signed-file-index">анонс</a>.</td>
       </tr>
       <tr>
         <td><code>/admin/school-leads</code> — <code>status</code></td>
@@ -447,7 +453,14 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
   <ul>
     <li>У <code>.dataTables_wrapper</code> — <code>overflow-x: visible</code>.</li>
     <li>Скролл только у области таблицы: обёртка <code>.kids-dt-scroll-x</code> (добавляется в <code>init.dt</code> через <code>KidsCrmDataTable.ensureTableScrollHost</code>) или встроенный <code>.dataTables_scroll</code> при <code>scrollX</code> / <code>fixedColumns</code>.</li>
-    <li>На <code>/admin/school-leads</code> и <code>/admin/users</code> дополнительно: FixedHeader для <code>thead</code> и липкий клон полосы <code>.kids-dt-sticky-hscroll</code> (не пресет). CSS — Vite-бандлы <code>school-leads-table.css</code> / <code>admin-users-table.css</code>. См. <a href="/docs/documentation/school-leads-widget#school-leads-sticky-header">school-leads-widget §5.1.6</a>, <a href="/docs/documentation/admin-users#users-sticky-header">admin-users §2.0.1</a>.</li>
+    <li>На <code>/admin/school-leads</code>, <code>/admin/users</code> и четырёх вкладках отчётов
+      (<code>/admin/reports/payments</code>, monthly, LTV, debts) дополнительно:
+      FixedHeader для <code>thead</code> и липкий клон полосы <code>.kids-dt-sticky-hscroll</code> (не пресет).
+      CSS — Vite-бандлы <code>school-leads-table.css</code> / <code>admin-users-table.css</code> /
+      <code>admin-reports-tables.css</code> (+ JS <code>admin-reports-tables-sticky.js</code> на отчётах).
+      См. <a href="/docs/documentation/school-leads-widget#school-leads-sticky-header">school-leads-widget §5.1.6</a>,
+      <a href="/docs/documentation/admin-users#users-sticky-header">admin-users §2.0.1</a>,
+      <a href="/docs/documentation/reports-admin#reports-tables-sticky-header">reports-admin §1.3</a>.</li>
   </ul>
 
   <h3>API возвращаемого объекта</h3>
@@ -533,6 +546,7 @@ dataTable: {
       (<code>/admin/lesson-packages/occurrence-statuses</code>, <code>/schedule/occurrence-statuses</code>) —
       sort, text (+ цветной badge title), badge, actions; <code>searching: false</code>; filters title/type/status/consumes</li>
     <li><a href="/docs/documentation/admin-users">/admin/users</a> — <code>image</code>, <code>link</code>, <code>badge</code>, <code>actions</code> (договор: создать / черновик / PDF + плюс у signed); 0 <code>custom</code></li>
+    <li><a href="/docs/documentation/contracts#contracts-list-table">/client-contracts</a> — <code>link</code> (имя → карточка), <code>icon</code> (колонка «Договор»: signed PDF в новой вкладке, <a href="/doc#contract-list-signed-file-index">анонс</a>)</li>
     <li><code>/admin/trainers</code> — <code>image</code>, <code>list</code>, <code>actions</code> (0 <code>custom</code>)</li>
     <li><code>/admin/administrators</code>, <code>/admin/roles/{name}</code> — тот же паттерн toolbar + DataTables, что у тренеров (см. <a href="/docs/documentation/admin-role-staff">admin-role-staff</a>)</li>
     <li><a href="/docs/documentation/admin-teams">/admin/teams</a> — <code>link</code>, <code>list</code> (расписание — <code>list</code> + свой <code>render</code> для badge дней), <code>money</code>, условные колонки по правам; 0 <code>custom</code></li>

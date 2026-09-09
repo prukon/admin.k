@@ -46,7 +46,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
                 'draw',
                 'recordsTotal',
                 'recordsFiltered',
-                'data' => [['id', 'user_name', 'user_lastname', 'team_title', 'user_phone', 'user_email', 'status_label', 'status_badge_class', 'status', 'creation_mode', 'path_title', 'path_steps', 'updated_at']],
+                'data' => [['id', 'user_name', 'user_lastname', 'team_title', 'user_phone', 'user_email', 'status_label', 'status_badge_class', 'status', 'creation_mode', 'path_title', 'path_steps', 'download_signed_url', 'updated_at']],
             ]);
 
         $this->assertSame(1, (int)$resp->json('recordsTotal'));
@@ -58,6 +58,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $this->assertSame('active', $resp->json('data.0.path_steps.0.state'));
         $this->assertSame(Contract::STATUS_DRAFT, $resp->json('data.0.path_steps.0.key'));
         $this->assertSame('', $resp->json('data.0.updated_at'));
+        $this->assertNull($resp->json('data.0.download_signed_url'));
     }
 
     /** @test */
@@ -118,6 +119,55 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $this->assertSame('Открыто СМС', $rows[$opened->id]['status_label']);
         $this->assertSame('Отправлено', Contract::$STATUS_RU[Contract::STATUS_SENT]);
         $this->assertSame('Открыто', Contract::$STATUS_RU[Contract::STATUS_OPENED]);
+    }
+
+    /** @test */
+    public function data_download_signed_url_is_present_only_when_signed_pdf_path_is_filled(): void
+    {
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        $signedWithFile = Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'source_pdf_path'  => 'documents/2026/01/signed-with.pdf',
+            'signed_pdf_path'  => 'documents/2026/01/signed-with-file.pdf',
+            'source_sha256'    => str_repeat('8', 64),
+            'provider'         => 'podpislon',
+            'status'           => Contract::STATUS_SIGNED,
+        ]);
+        $signedWithoutFile = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/signed-without.pdf',
+            'signed_pdf_path' => null,
+            'source_sha256'   => str_repeat('9', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_SIGNED,
+        ]);
+        $revokedWithFile = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/revoked-with.pdf',
+            'signed_pdf_path' => 'documents/2026/01/revoked-signed.pdf',
+            'source_sha256'   => str_repeat('0', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_REVOKED,
+        ]);
+
+        $rows = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data'))
+            ->keyBy('id');
+
+        $this->assertSame(
+            route('contracts.downloadSigned', $signedWithFile),
+            $rows[$signedWithFile->id]['download_signed_url']
+        );
+        $this->assertNull($rows[$signedWithoutFile->id]['download_signed_url']);
+        $this->assertSame(
+            route('contracts.downloadSigned', $revokedWithFile),
+            $rows[$revokedWithFile->id]['download_signed_url']
+        );
     }
 
     /** @test */
@@ -236,7 +286,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $this->createContractEvent($older->id, 'created', '2026-01-10 08:00:00');
         $this->createContractEvent($newer->id, 'created', '2026-05-20 11:30:00');
 
-        $descIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=7&order[0][dir]=desc')
+        $descIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=8&order[0][dir]=desc')
             ->assertOk()
             ->json('data'))
             ->pluck('id')
@@ -244,7 +294,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
 
         $this->assertSame([$newer->id, $older->id, $empty->id], $descIds);
 
-        $ascIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=7&order[0][dir]=asc')
+        $ascIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=8&order[0][dir]=asc')
             ->assertOk()
             ->json('data'))
             ->pluck('id')

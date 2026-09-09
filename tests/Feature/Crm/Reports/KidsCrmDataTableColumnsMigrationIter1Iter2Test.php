@@ -275,7 +275,9 @@ final class KidsCrmDataTableColumnsMigrationIter1Iter2Test extends CrmTestCase
         $html = $this->get(route('reports.tbank-payments.index'))->assertOk()->getContent();
 
         $this->assertColumnBlockUsesType($html, 'amount', 'money');
+        $this->assertColumnBlockUsesType($html, 'platform_commission', 'money');
         $this->assertColumnBlockUsesType($html, 'created_at', 'datetime');
+        $this->assertColumnBlockUsesType($html, 'receipt', 'icon');
         $this->assertColumnBlockUsesType($html, 'actions', 'actions');
         $this->assertStringNotContainsString("type: 'custom'", $html);
     }

@@ -64,6 +64,18 @@
     по неоплаченным <code>users_prices</code> —
     <a href="/docs/documentation/setting-prices-payment-notifications">setting-prices-payment-notifications</a>.
     <br><br>
+    <b>Ручная оплата и абонемент в карточке:</b> на «По месяцам» смена статуса
+    «неоплачено → оплачено» сохраняет выбранный в селекте абонемент и сумму
+    (apply до флажка <code>is_manual_paid</code>). Анонс —
+    <a href="/doc#setting-prices-monthly-manual-paid-card-index">/doc</a>, подробно —
+    <a href="#manual-paid-card">§4.0</a>.
+    <br><br>
+    <b>Выбор группы на «По месяцам»:</b> оранжевая плашка слева появляется
+    только вместе со списком учеников справа (пульс строки без спиннера у селекта,
+    справа «Загрузка…»). Анонс —
+    <a href="/doc#setting-prices-monthly-team-select-index">/doc</a>, подробно —
+    <a href="#team-select">§3.2</a>.
+    <br><br>
     <b>Ручная пролонгация месяца:</b> на «По месяцам» кнопка копирует абонементы M → M+1
     по всем группам партнёра (превью, затем подтверждение). Это не classic-автопролонг
     назначений и не вкладка «По ученикам». Анонс —
@@ -80,7 +92,9 @@
   <h3>0.1) Когда создаётся / обновляется ULP</h3>
   <ul>
     <li>Триггеры: <code>setPriceAllUsers</code>, <code>setTeamPrice</code> / снимок ученикам группы,
-      <code>user-year-prices/save</code> (и аналогичные пути apply в контроллере).</li>
+      <code>user-year-prices/save</code>, <code>setManualPaid</code> при <code>mode=paid</code> с
+      <code>lesson_package_id</code> / <code>price</code> из карточки (до флажка оплаты),
+      и аналогичные пути apply в контроллере.</li>
     <li>Типы шаблона: <code>fixed</code>, <code>flexible</code>, <code>no_schedule</code>
       (<code>LessonPackage::ASSIGNMENT_SCHEDULE_TYPES</code>). <b>Postpay → ULP не создаётся.</b></li>
     <li>При создании assignable-пакета:
@@ -133,7 +147,7 @@
         <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>,
         <a href="/doc#lesson-packages-type-permissions-index">анонс</a>,
         postpay — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a></td></tr>
-      <tr><td><code>setPrices.manualPaid.manage</code></td><td>Карандаш ручной оплаты месяца (<code>POST …/manual-paid</code>). У бывших участников UI скрывает карандаш; API всё равно требует текущее членство → <b>422</b>. На вкладке доп. платежей то же право скрывает только селект статуса, не кнопку «Редактировать» — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>, <a href="/doc#custom-payments-edit-permission-index">/doc</a></td></tr>
+      <tr><td><code>setPrices.manualPaid.manage</code></td><td>Карандаш ручной оплаты месяца (<code>POST …/manual-paid</code>). У бывших участников UI скрывает карандаш; API всё равно требует текущее членство → <b>422</b>. На «По месяцам» unpaid→paid ещё apply абонемента/суммы из карточки — <a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>, <a href="#manual-paid-card">§4.0</a>. На вкладке доп. платежей то же право скрывает только селект статуса, не кнопку «Редактировать» — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>, <a href="/doc#custom-payments-edit-permission-index">/doc</a></td></tr>
       <tr><td><code>setPrices.customPayments.view</code></td><td>Не относится к этим вкладкам — см. <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a></td></tr>
     </tbody>
   </table>
@@ -199,6 +213,22 @@
   <h3 id="former-monthly">3.2) Вкладка «По месяцам»</h3>
   <ul>
     <li><b>Endpoint:</b> <code>POST /admin/setting-prices/get-team-price</code> (<code>getTeamPrice</code>) — JSON.</li>
+    <li id="team-select"><b>Выбор группы:</b> оранжевая плашка <code>wrap-team--active</code> ставится только после успешного ответа, вместе со списком справа.
+      Vite-модуль: <code>openTeamDetail</code> только вызывает <code>loadTeamUsersRightColumn</code> (плашку и <code>lastTeamId</code> не трогает).
+      Между кликом и ответом — <code>wrap-team--loading</code> (пульс строки, без спиннера у селекта) и плейсхолдер «Загрузка…» в <code>.wrap-users</code>.
+      HTTP-ошибка AJAX — плашку не ставить, правую колонку очистить с текстом ошибки
+      (кроме <code>keepActiveHighlight</code> после «Применить»: плашку оставить).
+      Повторный клик отменяет предыдущий запрос (<code>abort</code>).
+      Нет текущих и нет бывших (<code>200</code> + <code>success: false</code>) — не ошибка: плашка ставится, список пустой.
+      Только бывшие с <code>price_cents &gt; 0</code> — <code>success: true</code>, список бывших.
+      После «Применить» слева/справа — <code>keepActiveHighlight: true</code> (плашку не снимать, loading только справа).
+      Первый HTML: <code>.wrap-users</code> пустой, «Применить» справа <code>disabled</code>, ни одна строка без <code>wrap-team--active</code>.
+      HTTP: нет <code>teamId</code> / <code>selectedDate</code> → <b>422</b> <code>errors.teamId</code> / <code>errors.selectedDate</code>
+      (<code>GetTeamPriceRequest</code>, в т.ч. non-AJAX).
+      Чужая/нет группы → <b>404</b> JSON <code>success: false</code>, <code>message: Team not found</code> (не 500).
+      Тело — JSON или form-urlencoded (оба читаются Request).
+      Вкладка «По ученикам» этот loading <b>не</b> использует: там плашка по-прежнему на клике.
+      Анонс — <a href="/doc#setting-prices-monthly-team-select-index">/doc#setting-prices-monthly-team-select-index</a>.</li>
     <li><b>Текущие:</b> активные ученики группы → <code>UserPrice::firstOrCreate</code> по <code>(user_id, team_id, new_month)</code>, флаг <code>is_former_member=false</code>.</li>
     <li><b>Бывшие:</b> существующие строки за <b>этот же месяц</b> с <code>price_cents &gt; 0</code>, <code>user_id</code> не в pivot группы; <code>firstOrCreate</code> <b>не</b> вызывается; флаг <code>is_former_member=true</code> и в <code>usersTeam</code>, и в <code>usersPrice</code>.</li>
     <li><b>Порядок:</b> сначала текущие (ФИО), затем бывшие (ФИО).</li>
@@ -243,7 +273,10 @@
         <td>POST</td>
         <td><code>/admin/setting-prices/get-team-price</code></td>
         <td><code>getTeamPrice</code></td>
-        <td>JSON: <code>success</code>, <code>usersTeam[]</code> (+ <code>is_former_member</code>), <code>usersPrice[]</code> (+ <code>is_former_member</code>), <code>lessonPackages</code>, <code>can_manage_manual_paid</code>. Чужой партнёр / нет группы → <b>404</b></td>
+        <td>JSON: <code>success</code>, <code>usersTeam[]</code> (+ <code>is_former_member</code>), <code>usersPrice[]</code> (+ <code>is_former_member</code>), <code>lessonPackages</code>, <code>can_manage_manual_paid</code>.
+          Нет <code>teamId</code> / <code>selectedDate</code> → <b>422</b> <code>errors.teamId</code> / <code>errors.selectedDate</code> (<code>GetTeamPriceRequest</code>).
+          Чужой партнёр / нет группы → <b>404</b>. UI выбора группы — <a href="#team-select">§3.2</a>,
+          <a href="/doc#setting-prices-monthly-team-select-index">анонс</a></td>
       </tr>
       <tr>
         <td>POST</td>
@@ -298,10 +331,37 @@
         <td><code>setting-prices.manual-paid</code></td>
         <td>Нужны <code>setPrices.manualPaid.manage</code> + членство. Бывший → <b>422</b>.
           Пишет <code>is_manual_paid</code> / note / by / at, <b>не</b> трогает авто <code>is_paid</code>.
+          Опционально <code>lesson_package_id</code> и <code>price</code> — см. §<a href="#manual-paid-card">manual-paid карточка</a>.
           См. §<a href="#manual-paid-debts">manual-paid → задолженности</a></td>
       </tr>
     </tbody>
   </table>
+
+  <h2 id="manual-paid-card">4.0) Ручная оплата и абонемент/сумма в карточке</h2>
+  <div class="ok">
+    На вкладке «По месяцам» смена статуса в селекте оплаты не должна терять несохранённый
+    абонемент и сумму. Фронт (<code>postManualPaid</code>) при <code>mode=paid</code>
+    шлёт <code>lesson_package_id</code> и <code>price</code> из DOM карточки.
+    Бэкенд в одной транзакции вызывает <code>applyUnpaidUserPriceRow</code>
+    (те же правила, что Apply справа: ULP sync, postpay, права типа шаблона)
+    <b>до флажка оплаты</b>, затем пишет <code>is_manual_paid</code>.
+    Если apply даёт <b>422</b> (в т.ч. <code>errors.lesson_package_id</code> / <code>errors.price</code>) —
+    статус не ставится. Фронт показывает тексты под селектом абонемента
+    (<code>setting-prices-monthly-package-error</code>) и полем цены
+    (<code>setting-prices-monthly-price-error</code>);
+    <code>errors.comment</code> / <code>errors.record</code> — в <code>.manual-paid-error</code>.
+    <code>mode=unpaid</code> поля карточки игнорирует (селект абонемента у оплаченного месяца disabled).
+    Если месяц уже эффективно оплачен, <code>applyUnpaidUserPriceRow</code> поля карточки не применяет.
+    Без этих полей контракт прежний: только ручная отметка.
+    Фронт читает селект/цену из DOM карточки (<code>JSON.stringify(payload)</code> после
+    <code>if (mode === 'paid')</code>), а не из устаревшего <code>usersPrice</code> в памяти.
+    Гость / без <code>setPrices.view</code> / без <code>setPrices.manualPaid.manage</code> —
+    <b>302/401/403</b>, запись не меняется. GET/PATCH/DELETE на POST-руте → <b>404/405</b>.
+    AJAX с <code>X-Requested-With</code> — JSON <code>success</code> + <code>user_price</code> или
+    <b>422</b> <code>errors.lesson_package_id</code> / <code>errors.price</code> / <code>errors.comment</code>.
+    Non-AJAX POST — <b>302</b> на вкладку «По ученикам» и запись в БД (не пустой 200).
+    Анонс — <a href="/doc#setting-prices-monthly-manual-paid-card-index">/doc#setting-prices-monthly-manual-paid-card-index</a>.
+  </div>
 
   <h2 id="manual-paid-debts">4.1) Ручная оплата месяца и отчёт «Задолженности»</h2>
   <div class="ok">
@@ -368,7 +428,8 @@
 
   <h2 id="code">5) Ключевые файлы</h2>
   <ul>
-    <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>getTeamPrice</code>, <code>formerMemberPricesForTeamMonth</code>, <code>usersForPricesUsersTab</code>, <code>userYearPrices</code>, apply/save/manual, <code>previewMonthProlong</code> / <code>applyMonthProlong</code></li>
+    <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>getTeamPrice</code>, <code>formerMemberPricesForTeamMonth</code>, <code>usersForPricesUsersTab</code>, <code>userYearPrices</code>, apply/save/manual, <code>applyUnpaidUserPriceRow</code>, <code>previewMonthProlong</code> / <code>applyMonthProlong</code></li>
+    <li><code>app/Http/Requests/Admin/SetManualUserPricePaidRequest.php</code> — ручная отметка оплаты месяца (+ опционально абонемент/цена карточки)</li>
     <li><code>app/Services/SettingPrices/MonthlyPricesProlongService.php</code> — превью и запись пролонгации месяца</li>
     <li><code>app/Services/SettingPrices/UsersPriceLessonPackageSync.php</code> — create/update/delete ULP из начисления</li>
     <li><code>app/Support/UserPriceTeamMembership.php</code> — <code>studentBelongsToTeam</code>, <code>studentHasPositivePriceHistoryForTeam</code></li>
@@ -376,7 +437,7 @@
       у учеников справа — персональная сумма (каталог × % карточки) и снимок скидки.
       Иконка <code>%</code> у поля цены ученика: скидка применилась при выставлении; tooltip
       <code>Скидка N%. {основание}</code> — см. <a href="/docs/documentation/admin-users.html#user-percent-discount">admin-users §2.6</a>.</li>
-    <li><code>resources/js/settings-prices.js</code> — Vite-модуль вкладки «По месяцам», в т.ч. <code>initMonthProlong</code></li>
+    <li><code>app/Http/Requests/Admin/GetTeamPriceRequest.php</code> — 422 на <code>teamId</code> / <code>selectedDate</code> (JSON даже без AJAX)</li>
     <li><code>resources/views/admin/SettingPrices/monthly.blade.php</code>, <code>users.blade.php</code></li>
   </ul>
 
@@ -385,7 +446,22 @@
     <li><code>SettingPricesUsersPriceUlpSyncFeatureTest</code> — create/update/clear ULP, postpay без ULP, block при laid out, reapply/ends_at</li>
     <li><code>SettingPricesUsersPriceUlpSyncContractsFeatureTest</code> — AJAX/non-AJAX, guest/403, year-prices sync</li>
     <li><code>SettingPricesMonthlyFormerMembersFeatureTest</code> — список, флаги, apply не трогает бывших, нет auto-create нулей</li>
-    <li><code>SettingPricesMonthlyFormerMembersAccessFeatureTest</code> — guest / 403 / 200, AJAX-контракт, non-AJAX 302, foreign 404, manual-paid</li>
+    <li><code>SettingPricesMonthlyManualPaidAppliesPackageFeatureTest</code> — UX-баг: смена абонемента в селекте
+      без Apply, затем «оплачено» сохраняет ромашку+сумму; без полей — только статус;
+      <code>mode=unpaid</code> пакет игнорирует; 422 на пакет/цену/разложенный ULP не ставит оплату;
+      тот же уже назначенный пакет можно повторить без права на тип</li>
+    <li><code>SettingPricesMonthlyManualPaidPackageAccessFeatureTest</code> — guest / 403 без view / 403 без
+      <code>manualPaid.manage</code> / 200 с правами; GET/PATCH/DELETE → 404/405; чужой ученик → 404</li>
+    <li><code>SettingPricesMonthlyManualPaidPackageAjaxContractFeatureTest</code> — JSON с
+      <code>X-Requested-With</code>; 422 <code>errors.comment</code> / <code>team_id</code> /
+      <code>mode</code> / <code>lesson_package_id</code> / <code>price</code> с текстами Request</li>
+    <li><code>SettingPricesMonthlyManualPaidPackageNonAjaxSafetyNetFeatureTest</code> — POST без AJAX:
+      302 + БД (абонемент и оплата); невалидный пакет/цена/комментарий — 302 + session errors, без оплаты</li>
+    <li><code>SettingPricesMonthlyManualPaidPackageMarkupFeatureTest</code> — модалка комментария на «По месяцам»
+      (стандартный <code>modal-dialog</code>); вкладка «По ученикам» без monthly Vite-модуля карточки</li>
+    <li><code>SettingPricesMonthlyManualPaidPackageJsContractTest</code> —
+      <code>postManualPaid</code> читает селект/цену из DOM, шлёт их только при <code>mode=paid</code>,
+      422 показывает под полями и не перерисовывает строку</li>
     <li><code>SettingPricesUsersFormerMembersFeatureTest</code> — <code>data-former-team-ids</code>, read-only год, save reject, история «любой месяц»</li>
     <li><code>SettingPricesUsersFormerMembersAccessFeatureTest</code> — доступ, AJAX/non-AJAX save бывшего → 422</li>
     <li><code>SettingPricesUserPercentDiscountFeatureTest</code> — персональная скидка: apply-all по ученикам, snapshot vs override, JSON года и getTeamPrice, year save AJAX/non-AJAX, страница helpers, постоплата по снимку строки</li>
@@ -407,6 +483,25 @@
     <li><code>SettingPricesMonthlyProlongMarkupFeatureTest</code> — кнопка и стандартная модалка только на «По месяцам»;
       confirm <code>disabled</code> при первом рендере; нет плашки «Будет пролонгировано»; вкладки
       «По ученикам» и «Доп. платежи» кнопку не показывают</li>
+    <li><code>SettingPricesMonthlyTeamSelectAccessFeatureTest</code> — guest GET/POST / 403 без <code>setPrices.view</code> /
+      200 с правом; GET/PATCH/DELETE на get-team-price → 404/405; чужая группа → 404 без утечки учеников</li>
+    <li><code>SettingPricesMonthlyTeamSelectAjaxContractFeatureTest</code> — JSON список + firstOrCreate нулей;
+      пустая группа <code>200</code> + <code>success: false</code>; нет <code>teamId</code> / месяца → 422
+      <code>errors.teamId</code> / <code>errors.selectedDate</code>; soft-delete → 404
+      <code>Team not found</code></li>
+    <li><code>SettingPricesMonthlyTeamSelectNonAjaxSafetyNetFeatureTest</code> — JSON-body и form-urlencoded без
+      <code>X-Requested-With</code> отдают учеников; без месяца — 422 JSON, не 302</li>
+    <li><code>SettingPricesMonthlyTeamSelectMarkupFeatureTest</code> — первый рендер: пустой
+      <code>.wrap-users</code>, «Применить» справа disabled, нет <code>wrap-team--active</code> /
+      loading-классов; вкладка «По ученикам» без monthly Vite-loading</li>
+    <li><code>SettingPricesMonthlyTeamSelectJsContractTest</code> — UX-баг: <code>openTeamDetail</code>
+      не ставит плашку до AJAX; loading до <code>$.ajax</code>; плашка в success вместе с
+      <code>renderUsersRightColumn</code>; ошибка очищает правую колонку; apply —
+      <code>keepActiveHighlight</code></li>
+    <li><code>SettingPricesMonthlyManualPaidPackageDocumentationContractTest</code> — §4.0 и анонс
+      <code>/doc#setting-prices-monthly-manual-paid-card-index</code> совпадают с кодом</li>
+    <li><code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract</code> —
+      <code>node --check</code> + контракт: payload из селекта карточки, не старый stringify без абонемента</li>
     <li><code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_prolong_vite_module_ux_contract</code> —
       <code>node --check</code> + UX: <code>getSelectedMonthLabel</code> в теле POST, превью на
       <code>show.bs.modal</code>, confirm disabled пока нет <code>can_apply</code>, после успеха
@@ -418,6 +513,13 @@
   tests/Feature/Crm/SettingPrices/SettingPricesUsersPriceUlpSyncContractsFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersAccessFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyManualPaidAppliesPackageFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyManualPaidPackageAccessFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyManualPaidPackageAjaxContractFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyManualPaidPackageNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyManualPaidPackageMarkupFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyManualPaidPackageJsContractTest.php \
+  tests/Unit/Documentation/SettingPricesMonthlyManualPaidPackageDocumentationContractTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersAccessFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUserPercentDiscountFeatureTest.php \
@@ -426,13 +528,20 @@
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyProlongAjaxContractFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyProlongNonAjaxSafetyNetFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyProlongMarkupFeatureTest.php \
-  tests/Unit/Services/SettingPrices/MonthlyPricesProlongReportTest.php
+  tests/Unit/Services/SettingPrices/MonthlyPricesProlongReportTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyTeamSelectAccessFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyTeamSelectAjaxContractFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyTeamSelectNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyTeamSelectMarkupFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyTeamSelectJsContractTest.php \
+  tests/Unit/Documentation/SettingPricesMonthlyTeamSelectDocumentationContractTest.php
 php artisan test --env=testing \
   tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php \
-  --filter=test_setting_prices_monthly_prolong_vite_module_ux_contract</code></pre>
+  --filter='test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract|test_setting_prices_monthly_prolong_vite_module_ux_contract|test_setting_prices_monthly_team_select_loading_ux_contract'</code></pre>
 
   <h2 id="related">7) Связанные страницы</h2>
   <p class="small">
+    <a href="/doc#setting-prices-monthly-team-select-index">/doc#setting-prices-monthly-team-select-index</a> ·
     <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a> ·
     <a href="/docs/documentation/reports-admin#debts-effective-is-paid">reports-admin §3.1 (задолженности + effective_is_paid)</a> ·
     <a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a> ·
@@ -445,6 +554,7 @@ php artisan test --env=testing \
     <a href="/docs/documentation/dashboard-cabinet">консоль /cabinet</a> ·
     <a href="/docs/documentation/dashboard-cabinet#cabinet-season-years">учебный сезон на консоли</a> ·
     <a href="/doc#cabinet-season-years-index">анонс сезона 2026–2027</a> ·
+    <a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс ручной оплаты с карточкой</a> ·
     <a href="/docs/documentation/set-prices-package-assignments">packageAssignments.view</a>
   </p>
 </div>

@@ -44,12 +44,21 @@ class ContractCreationService
         abort_unless($student, 422, 'Ученик не найден у текущего партнёра.');
 
         $mode = $data['creation_mode'];
-        $groupId = $this->resolveContractGroupId(
-            $student,
-            array_key_exists('group_id', $data) && $data['group_id'] !== null
-                ? (int) $data['group_id']
-                : null
-        );
+        $requestedGroupId = array_key_exists('group_id', $data) && $data['group_id'] !== null
+            ? (int) $data['group_id']
+            : null;
+
+        $groupId = $this->resolveContractGroupId($student, $requestedGroupId);
+
+        if ($mode === Contract::CREATION_MODE_TEMPLATE) {
+            $this->assertCanCreateTemplateContract(
+                $partner,
+                (int) ($data['contract_template_id'] ?? 0),
+                $groupId,
+            );
+        } else {
+            $this->assertSufficientCreationBalance($partner);
+        }
 
         return DB::transaction(function () use ($partner, $student, $data, $mode, $groupId) {
             if ($mode === Contract::CREATION_MODE_PDF) {
@@ -82,6 +91,53 @@ class ContractCreationService
 
             return $contract;
         });
+    }
+
+    /**
+     * Предпроверка шаблонного договора: баланс, шаблон, реквизиты юр. лица.
+     * Без побочных эффектов — клиент и договор не создаются.
+     *
+     * @throws ValidationException
+     */
+    public function assertCanCreateTemplateContract(
+        Partner $partner,
+        int $templateId,
+        ?int $groupId,
+        string $legalEntityErrorKey = 'group_id',
+    ): void {
+        $this->assertSufficientCreationBalance($partner);
+
+        if ($templateId <= 0) {
+            throw ValidationException::withMessages([
+                'contract_template_id' => 'Выберите шаблон договора.',
+            ]);
+        }
+
+        $template = $this->templateService->resolveForPartner($partner->id, $templateId);
+        $version = $template->currentVersion;
+        $schema = is_array($version?->fields_schema) ? $version->fields_schema : [];
+
+        $this->legalEntityPlaceholders->assertResolvableForPartnerTeam(
+            (int) $partner->id,
+            $groupId,
+            $schema,
+            $legalEntityErrorKey,
+        );
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public function assertSufficientCreationBalance(Partner $partner): void
+    {
+        $feeCents = $this->billing->createFeeCents();
+        $balanceCents = (int) (Partner::query()->whereKey($partner->id)->value('wallet_balance_cents') ?? 0);
+
+        if ($balanceCents < $feeCents) {
+            throw ValidationException::withMessages([
+                'wallet' => 'Недостаточно средств для создания договора.',
+            ]);
+        }
     }
 
     private function createPdfContract(Partner $partner, User $student, UploadedFile $pdf, ?int $groupId): Contract

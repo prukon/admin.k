@@ -1909,6 +1909,12 @@ JS;
         $this->assertStringContainsString('postManualPaid', $content);
         $this->assertStringContainsString('showManualPaidCommentModal', $content);
         $this->assertStringContainsString('user-manual-paid-select', $content);
+        $this->assertStringContainsString("mode === 'paid'", $content);
+        $this->assertStringContainsString('payload.lesson_package_id', $content);
+        $this->assertStringContainsString('payload.price', $content);
+        $this->assertStringContainsString('setting-prices-monthly-package-error', $content);
+        $this->assertStringContainsString('setting-prices-monthly-price-error', $content);
+        $this->assertStringContainsString('showMonthlyCardFieldError', $content);
         $this->assertStringContainsString('preventDefault', $content);
         $this->assertStringContainsString("Accept': 'application/json'", $content);
         $this->assertStringContainsString('$.ajax', $content);
@@ -1917,8 +1923,29 @@ JS;
         $this->assertStringContainsString('pendingApplyPayload', $content);
         // После Apply справа: группа слева остаётся выбранной (без reload)
         $this->assertStringContainsString('wrap-team--active', $content);
-        $this->assertStringContainsString('loadTeamUsersRightColumn(lastTeamId)', $content);
+        $this->assertStringContainsString('loadTeamUsersRightColumn(lastTeamId, { keepActiveHighlight: true })', $content);
         $this->assertStringContainsString('clearTeamRowHighlight', $content);
+        // Плашка только вместе с AJAX; между кликом и ответом — loading
+        $this->assertStringContainsString('wrap-team--loading', $content);
+        $this->assertStringNotContainsString('setting-prices-team-loading', $content);
+        $this->assertStringContainsString('setting-prices-users-placeholder', $content);
+        $this->assertStringContainsString('keepActiveHighlight', $content);
+        $this->assertStringContainsString('Не удалось загрузить учеников группы.', $content);
+        $openPos = strpos($content, 'function openTeamDetail');
+        $this->assertNotFalse($openPos);
+        $openChunk = substr($content, (int) $openPos, 450);
+        $this->assertStringNotContainsString("rowEl.classList.add('wrap-team--active')", $openChunk);
+        $this->assertStringContainsString('loadTeamUsersRightColumn(rowEl.id)', $openChunk);
+        $this->assertStringContainsString("rowEl.classList.add('wrap-team--active')", $content);
+
+        $css = (string) file_get_contents(resource_path('css/style.css'));
+        $this->assertStringContainsString('wrap-team--loading', $css);
+        $this->assertStringContainsString('setting-prices-team-pulse', $css);
+        $this->assertStringContainsString('setting-prices-users-placeholder--error', $css);
+
+        $doc = (string) file_get_contents(base_path('docs/documentation/setting-prices-monthly-users.html'));
+        $this->assertStringContainsString('wrap-team--loading', $doc);
+        $this->assertStringContainsString('плашку не ставить, правую колонку очистить', $doc);
         $this->assertStringNotContainsString(
             'showSuccessModal("Установка цен в одной группе"',
             $content
@@ -1974,6 +2001,96 @@ JS;
             $exitCode,
             "JS syntax error in resources/js/settings-prices.js:\n".implode("\n", $output)
         );
+    }
+
+    /**
+     * P1: плашка выбранной группы только после get-team-price, не в openTeamDetail.
+     */
+    public function test_setting_prices_monthly_team_select_loading_ux_contract(): void
+    {
+        $path = resource_path('js/settings-prices.js');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $openPos = strpos($content, 'function openTeamDetail');
+        $this->assertNotFalse($openPos);
+        $openEnd = strpos($content, 'function effectivePaidFromUserPrice', $openPos);
+        $this->assertNotFalse($openEnd);
+        $openChunk = substr($content, $openPos, $openEnd - $openPos);
+        $this->assertStringContainsString('loadTeamUsersRightColumn(rowEl.id)', $openChunk);
+        $this->assertStringNotContainsString("rowEl.classList.add('wrap-team--active')", $openChunk);
+        $this->assertStringNotContainsString('lastTeamId = rowEl.id', $openChunk);
+
+        $loadPos = strpos($content, 'function loadTeamUsersRightColumn');
+        $this->assertNotFalse($loadPos);
+        $loadEnd = strpos($content, 'function escapeAttr', $loadPos);
+        $this->assertNotFalse($loadEnd);
+        $loadChunk = substr($content, $loadPos, $loadEnd - $loadPos);
+        $this->assertLessThan(
+            strpos($loadChunk, '$.ajax('),
+            strpos($loadChunk, "showRightColumnPlaceholder('loading')")
+        );
+        $this->assertLessThan(
+            strpos($loadChunk, 'renderUsersRightColumn'),
+            strpos($loadChunk, 'applyTeamRowActive(teamId)')
+        );
+        $this->assertStringContainsString("status === 'abort'", $loadChunk);
+        $this->assertStringContainsString('Не удалось загрузить учеников группы.', $loadChunk);
+        $this->assertStringContainsString('keepActiveHighlight', $loadChunk);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/settings-prices.js (team select):\n".implode("\n", $output)
+        );
+    }
+
+    /**
+     * P1: ручная оплата на «По месяцам» шлёт абонемент/цену из DOM карточки.
+     * Падает на коде до фикса, где JSON.stringify содержал только status/comment.
+     */
+    public function test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract(): void
+    {
+        $path = resource_path('js/settings-prices.js');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/settings-prices.js:\n".implode("\n", $output)
+        );
+
+        $start = strpos($content, 'function postManualPaid(');
+        $this->assertNotFalse($start, 'postManualPaid missing');
+        $end = strpos($content, 'function clearMonthlyCardFieldErrors(', $start);
+        $this->assertNotFalse($end);
+        $fn = substr($content, $start, $end - $start);
+
+        $this->assertStringContainsString('/admin/setting-prices/manual-paid', $fn);
+        $this->assertStringContainsString('$.ajax', $fn);
+        $this->assertStringContainsString("mode === 'paid'", $fn);
+        $this->assertStringContainsString("\$card.find('.setting-prices-monthly-package-select')", $fn);
+        $this->assertStringContainsString("\$card.find('.setting-prices-monthly-price-input')", $fn);
+        $this->assertStringContainsString('payload.lesson_package_id = lessonPackageId', $fn);
+        $this->assertStringContainsString('payload.price = price', $fn);
+        $this->assertStringContainsString('JSON.stringify(payload)', $fn);
+        $this->assertStringContainsString("showMonthlyCardFieldError(\$card, 'lesson_package_id'", $fn);
+        $this->assertStringContainsString("showMonthlyCardFieldError(\$card, 'price'", $fn);
+        $this->assertDoesNotMatchRegularExpression(
+            '/JSON\.stringify\(\s*\{\s*user_id:\s*userId[\s\S]*comment:\s*comment\s*\}\s*\)/',
+            $fn
+        );
+
+        $this->assertStringContainsString('setting-prices-monthly-package-error', $content);
+        $this->assertStringContainsString('setting-prices-monthly-price-error', $content);
+        $this->assertStringContainsString("packageSelectDisabled = eff ? 'disabled' : ''", $content);
     }
 
     /**
@@ -2492,14 +2609,55 @@ JS;
             'partner: true',
             'order_id: true',
             'amount: true',
+            'platform_commission: true',
             'payout_amount: true',
+            'method: true',
             'status: true',
             'deal_id: true',
+            'receipt: true',
             'actions: true',
         ] as $defaultLine) {
             $this->assertStringContainsString($defaultLine, $createChunk);
         }
         $this->assertStringContainsString("url: \"{{ route('reports.tbank-payments.data') }}\"", $createChunk);
+        $this->assertStringContainsString("key: 'platform_commission'", $content);
+        $this->assertStringContainsString("key: 'receipt'", $content);
+        $this->assertStringContainsString('renderTbankReceiptCell', $content);
+        $this->assertStringContainsString("type: 'icon'", $content);
+        $this->assertStringContainsString("type: 'money'", $content);
+        $this->assertStringContainsString('fas fa-receipt text-primary', $content);
+        $this->assertStringContainsString('fas fa-receipt text-secondary', $content);
+        $this->assertStringContainsString('return-receipt-icon', $content);
+        $this->assertStringContainsString('row.receipt_hint', $content);
+        $this->assertStringContainsString('KidsCrmDataTable.renderIcon', $content);
+        $this->assertStringNotContainsString("row.payment_provider !== 'tbank'", $content);
+        $this->assertStringNotContainsString("row.payment_provider === 'robokassa'", $content);
+
+        $amountPos = strpos($content, "key: 'amount', type: 'money'");
+        $commissionPos = strpos($content, "key: 'platform_commission'");
+        $payoutPos = strpos($content, "key: 'payout_amount', type: 'money'");
+        $dealPos = strpos($content, "key: 'deal_id'");
+        $receiptPos = strpos($content, "key: 'receipt'");
+        $actionsPos = strpos($content, "key: 'actions'");
+        $this->assertNotFalse($amountPos);
+        $this->assertNotFalse($commissionPos);
+        $this->assertNotFalse($payoutPos);
+        $this->assertGreaterThan($amountPos, $commissionPos);
+        $this->assertGreaterThan($commissionPos, $payoutPos);
+        $this->assertGreaterThan($dealPos, $receiptPos);
+        $this->assertGreaterThan($receiptPos, $actionsPos);
+
+        $commissionChunk = substr($content, $commissionPos, 280);
+        $this->assertStringContainsString('orderable: false', $commissionChunk);
+        $this->assertStringContainsString('searchable: false', $commissionChunk);
+        $this->assertStringContainsString("type: 'money'", $commissionChunk);
+
+        $receiptChunk = substr($content, $receiptPos, 350);
+        $this->assertStringContainsString("type: 'icon'", $receiptChunk);
+        $this->assertStringContainsString('orderable: false', $receiptChunk);
+        $this->assertStringContainsString('searchable: false', $receiptChunk);
+        $this->assertStringContainsString('render: renderTbankReceiptCell', $receiptChunk);
+
         $this->assertStringContainsString('tpFilterParams()', $createChunk);
         $this->assertStringContainsString('d[key] = extra[key]', $createChunk);
 
@@ -5354,6 +5512,167 @@ JS;
     }
 
     /**
+     * P1: закрепление thead (FixedHeader) и липкий горизонтальный скролл
+     * на payments / monthly / LTV / debts. CSS и JS через Vite.
+     */
+    public function test_admin_reports_sticky_header_and_hscroll_vite_contract_and_valid_javascript(): void
+    {
+        $viteTag = "@vite(['resources/css/admin-list-toolbar.css', 'resources/css/admin-reports-tables.css', 'resources/js/admin-reports-tables-sticky.js'])";
+        $cases = [
+            resource_path('views/admin/report/payment.blade.php') => '#payments-table',
+            resource_path('views/admin/report/payment_monthly.blade.php') => '#payments-monthly-table',
+            resource_path('views/admin/report/ltv.blade.php') => '#ltv-table',
+            resource_path('views/admin/report/debt.blade.php') => '#debts-table',
+        ];
+
+        foreach ($cases as $path => $selector) {
+            $this->assertFileExists($path);
+            $content = (string) file_get_contents($path);
+
+            $this->assertStringContainsString($viteTag, $content, $path);
+            $this->assertStringNotContainsString("asset('css/admin-reports-tables.css')", $content, $path);
+            $this->assertStringNotContainsString('<style>', $content, $path);
+            $this->assertStringContainsString('dataTables.fixedHeader.min.js', $content, $path);
+            $this->assertStringContainsString('fixedHeader.bootstrap4.min.css', $content, $path);
+            $this->assertStringContainsString('KidsCrmReportTableSticky.bind(\''.$selector.'\')', $content, $path);
+            $this->assertStringContainsString('header: true', $content, $path);
+            $this->assertStringContainsString('footer: false', $content, $path);
+            $this->assertStringNotContainsString("margin-left', (-", $content, $path);
+            $this->assertStringNotContainsString('scrollY:', $content, $path);
+
+            $pluginPos = strpos($content, 'dataTables.fixedHeader.min.js');
+            $createPos = strpos($content, "KidsCrmDataTable.create('".$selector."'");
+            $this->assertNotFalse($pluginPos, $path);
+            $this->assertNotFalse($createPos, $path);
+            $this->assertLessThan(
+                $createPos,
+                $pluginPos,
+                'FixedHeader должен загружаться до KidsCrmDataTable.create, иначе шапка не закрепится: '.$path
+            );
+
+            $this->assertInlineScriptsContainingHaveValidJavascript(
+                $path,
+                'KidsCrmReportTableSticky.bind',
+                'blade-js-reports-sticky-hscroll-'.basename($path)
+            );
+        }
+
+        $css = (string) file_get_contents(resource_path('css/admin-reports-tables.css'));
+        $this->assertStringContainsString('.dtfh-floatingparenthead', $css);
+        $this->assertStringContainsString('#payments-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#payments-monthly-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#ltv-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#debts-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('kids-dt-scroll-x--has-sticky-bar', $css);
+        $this->assertStringContainsString('position: sticky', $css);
+        $this->assertStringContainsString('overflow-x: scroll', $css);
+
+        $jsPath = resource_path('js/admin-reports-tables-sticky.js');
+        $this->assertFileExists($jsPath);
+        $js = (string) file_get_contents($jsPath);
+        $this->assertStringContainsString('window.KidsCrmReportTableSticky', $js);
+        $this->assertStringContainsString('kids-dt-sticky-hscroll', $js);
+        $this->assertStringContainsString('dtfh-floatingparenthead', $js);
+        $this->assertStringContainsString('getBoundingClientRect()', $js);
+        $this->assertStringContainsString("setProperty('overflow'", $js);
+        $this->assertStringContainsString('parent.scrollLeft', $js);
+        $this->assertStringContainsString('boxSizing', $js);
+        $this->assertStringContainsString('maxWidth', $js);
+        $this->assertStringNotContainsString("margin-left', (-", $js);
+
+        $vite = (string) file_get_contents(base_path('vite.config.js'));
+        $this->assertStringContainsString("'resources/css/admin-reports-tables.css'", $vite);
+        $this->assertStringContainsString("'resources/js/admin-reports-tables-sticky.js'", $vite);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($jsPath).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/admin-reports-tables-sticky.js:\n".implode("\n", $output)
+        );
+
+        $otherBlades = [
+            resource_path('views/admin/report/payment_intents.blade.php'),
+            resource_path('views/admin/report/fiscal_receipts.blade.php'),
+            resource_path('views/admin/report/tbank_payments.blade.php'),
+            resource_path('views/admin/report/outgoing_emails.blade.php'),
+        ];
+        foreach ($otherBlades as $otherPath) {
+            $other = (string) file_get_contents($otherPath);
+            $this->assertStringNotContainsString('admin-reports-tables.css', $other, $otherPath);
+            $this->assertStringNotContainsString('KidsCrmReportTableSticky', $other, $otherPath);
+            $this->assertStringNotContainsString('dataTables.fixedHeader.min.js', $other, $otherPath);
+        }
+    }
+
+    /**
+     * P1: вложенные LTV/monthly без pin; смена колонок и фильтр не снимают bind;
+     * JS-модуль синхронизирует scrollLeft, полосу создаёт один раз.
+     */
+    public function test_admin_reports_sticky_header_nested_tables_column_toggle_and_filter_reload_keep_pin(): void
+    {
+        $payment = (string) file_get_contents(resource_path('views/admin/report/payment.blade.php'));
+        $afterApplyStart = strpos($payment, 'function paymentsAfterApplyVisibleColumns');
+        $this->assertNotFalse($afterApplyStart);
+        $createPos = strpos($payment, "KidsCrmDataTable.create('#payments-table'");
+        $this->assertNotFalse($createPos);
+        $afterApply = substr($payment, $afterApplyStart, $createPos - $afterApplyStart);
+        $this->assertStringContainsString("KidsCrmReportTableSticky.bind('#payments-table')", $afterApply);
+        $this->assertStringContainsString('afterApplyVisibleColumns: paymentsAfterApplyVisibleColumns', $payment);
+        $this->assertStringContainsString('$payFiltersForm.on(\'submit\'', $payment);
+        $this->assertStringContainsString('e.preventDefault()', $payment);
+        $this->assertStringContainsString('dtApi.reload()', $payment);
+        $this->assertSame(1, substr_count($payment, "KidsCrmDataTable.create('#payments-table'"));
+        $this->assertGreaterThanOrEqual(2, substr_count($payment, "KidsCrmReportTableSticky.bind('#payments-table')"));
+        $this->assertMatchesRegularExpression(
+            '/fixedHeader:\s*\(\$\.fn\.dataTable\s*&&\s*\$\.fn\.dataTable\.FixedHeader\)\s*\?\s*\{\s*header:\s*true,\s*footer:\s*false\s*\}\s*:\s*false/',
+            $payment
+        );
+
+        $ltv = (string) file_get_contents(resource_path('views/admin/report/ltv.blade.php'));
+        $ltvCreate = strpos($ltv, "KidsCrmDataTable.create('#ltv-table'");
+        $this->assertNotFalse($ltvCreate);
+        $ltvNested = substr($ltv, (int) strpos($ltv, 'function initLtvUserPaymentsDetailTable'), $ltvCreate - (int) strpos($ltv, 'function initLtvUserPaymentsDetailTable'));
+        $this->assertStringContainsString("dom: 'rtip'", $ltvNested);
+        $this->assertStringNotContainsString('fixedHeader', $ltvNested);
+        $this->assertStringNotContainsString('KidsCrmReportTableSticky', $ltvNested);
+        $this->assertStringContainsString('$ltvFiltersForm.on(\'submit\'', $ltv);
+        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $ltv);
+        $this->assertSame(1, substr_count($ltv, "KidsCrmDataTable.create('#ltv-table'"));
+
+        $monthly = (string) file_get_contents(resource_path('views/admin/report/payment_monthly.blade.php'));
+        $monthlyCreate = strpos($monthly, "KidsCrmDataTable.create('#payments-monthly-table'");
+        $this->assertNotFalse($monthlyCreate);
+        $monthlyNested = substr(
+            $monthly,
+            (int) strpos($monthly, 'function initMonthlyPaymentsDetailTable'),
+            $monthlyCreate - (int) strpos($monthly, 'function initMonthlyPaymentsDetailTable')
+        );
+        $this->assertStringContainsString("dom: 'rtip'", $monthlyNested);
+        $this->assertStringNotContainsString('fixedHeader', $monthlyNested);
+        $this->assertStringNotContainsString('KidsCrmReportTableSticky', $monthlyNested);
+        $this->assertSame(1, substr_count($monthly, "KidsCrmDataTable.create('#payments-monthly-table'"));
+
+        $js = (string) file_get_contents(resource_path('js/admin-reports-tables-sticky.js'));
+        $this->assertStringContainsString('function bind(selector)', $js);
+        $this->assertStringContainsString('if (!$bar.length)', $js);
+        $this->assertStringContainsString("'reportStickyH'", $js);
+        $this->assertStringContainsString('parent.scrollLeft = hostEl.scrollLeft', $js);
+        $this->assertStringContainsString("cloneTable.style.marginLeft = '0px'", $js);
+        $this->assertStringContainsString("setProperty('overflow', 'hidden'", $js);
+        $this->assertStringContainsString('window.KidsCrmReportTableSticky', $js);
+        $this->assertStringContainsString('update: function (selector)', $js);
+        $this->assertStringNotContainsString("margin-left', (-", $js);
+
+        $css = (string) file_get_contents(resource_path('css/admin-reports-tables.css'));
+        $this->assertStringContainsString('#payments-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringNotContainsString('#ltv-user-payments-', $css);
+        $this->assertStringNotContainsString('#monthly-payments-', $css);
+    }
+
+    /**
      * P1: inline JS лидов — смена статуса у лида с клиентом + динамический tooltip «Создать клиента».
      */
     public function test_school_leads_linked_status_and_create_client_tooltip_inline_script_is_valid_javascript(): void
@@ -5435,6 +5754,7 @@ JS;
         $this->assertStringContainsString('highlightLeadParentSnapshotMatches', $content);
         $this->assertStringContainsString('is-match-hit', $content);
         $this->assertStringContainsString('lead-parent-match-hit-badge', $content);
+        $this->assertStringContainsString("toggleClass('modal-xl'", $content);
         $this->assertStringContainsString("type: 'PUT'", $content);
         $this->assertStringContainsString("Accept': 'application/json'", $content);
         $this->assertStringContainsString('$.ajax', $content);
@@ -5443,7 +5763,10 @@ JS;
         $modalPath = resource_path('views/admin/school-leads/partials/edit-lead-modal.blade.php');
         $this->assertFileExists($modalPath);
         $modal = (string) file_get_contents($modalPath);
-        $this->assertStringContainsString('modal-xl', $modal);
+        $this->assertStringContainsString('class="modal-dialog modal-dialog-scrollable"', $modal);
+        $this->assertStringNotContainsString('modal-xl', $modal);
+        $this->assertStringNotContainsString('modal-lg', $modal);
+        $this->assertStringNotContainsString('modal-fullscreen', $modal);
         $this->assertStringContainsString('id="leadParentMatchBanner"', $modal);
         $this->assertStringContainsString('id="leadParentMatchAcceptBtn"', $modal);
         $this->assertStringContainsString('id="leadParentMatchRejectBtn"', $modal);
@@ -5524,12 +5847,19 @@ JS;
         $this->assertStringContainsString('window.showToast(message, type)', $content);
         $this->assertStringNotContainsString("showErrorModal('Создание клиента'", $content);
 
-        $createClick = strpos($content, "$('#createClientBtn').on('click'");
-        $this->assertNotFalse($createClick);
-        $createChunk = substr($content, $createClick, 2800);
-        $this->assertStringContainsString('collectCreateClientPayload()', $createChunk);
+        $createFn = strpos($content, 'function submitCreateClientFromLead');
+        $this->assertNotFalse($createFn);
+        $createChunk = substr($content, $createFn, 3500);
+        $this->assertStringContainsString('buildCreateClientFromLeadPayload({', $createChunk);
         $this->assertStringContainsString('saveLeadAjax()', $createChunk);
         $this->assertStringContainsString('showCreateClientResultModal(false, message)', $createChunk);
+        $this->assertStringContainsString('clientPayload.send_contract', $content);
+
+        $createClick = strpos($content, "$('#createClientBtn').on('click'");
+        $this->assertNotFalse($createClick);
+        $clickChunk = substr($content, $createClick, 900);
+        $this->assertStringContainsString('precheckCreateClientFromLeadThenOpenChoice()', $clickChunk);
+        $this->assertStringContainsString('submitCreateClientFromLead({ sendContract: false })', $clickChunk);
 
         $modalPath = resource_path('views/admin/school-leads/partials/edit-lead-modal.blade.php');
         $this->assertFileExists($modalPath);
@@ -5555,6 +5885,91 @@ JS;
             $parentPath,
             'js-parent-mode-btn',
             'blade-js-parent-form-directory-mode'
+        );
+    }
+
+    /**
+     * P1: модалка «Создать клиента» из лида — радио с/без договора, hideToast при смене, precheck.
+     */
+    public function test_school_leads_create_client_choice_modal_inline_script_is_valid_javascript(): void
+    {
+        $leadsPath = resource_path('views/admin/school-leads/tabs/leads.blade.php');
+        $this->assertFileExists($leadsPath);
+        $content = (string) file_get_contents($leadsPath);
+
+        $this->assertStringContainsString("@include('admin.school-leads.partials.create-client-choice-modal')", $content);
+        $this->assertStringContainsString('function openCreateLeadClientChoiceModal()', $content);
+        $this->assertStringContainsString('function precheckCreateClientFromLeadThenOpenChoice()', $content);
+        $this->assertStringContainsString('function submitCreateClientFromLead(options)', $content);
+        $this->assertStringContainsString('function isLeadContractPrecheckError(errors)', $content);
+        $this->assertStringContainsString('hideToast()', $content);
+        $this->assertStringContainsString("errors.wallet || errors.send_contract || errors.contract_template_id", $content);
+        $this->assertStringContainsString("$(document).on('change', 'input[name=\"lead_create_client_mode\"]'", $content);
+        $this->assertStringContainsString("if (canViewContracts && document.getElementById('createLeadClientChoiceModal'))", $content);
+        $this->assertStringContainsString('precheckCreateClientFromLeadThenOpenChoice();', $content);
+        $this->assertStringContainsString('submitCreateClientFromLead({ sendContract: false })', $content);
+        $this->assertStringContainsString('clientPayload.validate_only = 1', $content);
+        $this->assertStringContainsString("$('#leadCreateClientModeWithContract').prop('checked', true)", $content);
+        $this->assertStringContainsString("$('#leadCreateClientModeWithoutContract').prop('checked', false)", $content);
+        $this->assertStringContainsString('fromChoiceModal && isLeadContractPrecheckError(errors)', $content);
+        $this->assertStringContainsString('closeCreateLeadClientChoiceModal(true)', $content);
+        $this->assertStringContainsString('clientPayload.send_contract = options.sendContract ? 1 : 0', $content);
+        $this->assertStringContainsString("contract_template_id: ['Выберите шаблон договора.']", $content);
+        $this->assertStringContainsString('sendContract: true', $content);
+        $this->assertStringContainsString('fromChoiceModal: true', $content);
+        $this->assertStringContainsString("if (typeof showModalQueued === 'function' && editLeadModalEl.classList.contains('show'))", $content);
+        $this->assertStringContainsString('var suppressLeadModalResetOnHide = false', $content);
+        $this->assertStringContainsString('suppressLeadModalResetOnHide = true', $content);
+        $this->assertStringContainsString('function resetLeadModalTransientState()', $content);
+
+        $hiddenPos = strpos($content, "editLeadModalEl.addEventListener('hidden.bs.modal', function()");
+        $this->assertNotFalse($hiddenPos);
+        $hiddenFn = substr($content, $hiddenPos, 500);
+        $this->assertStringContainsString('if (suppressLeadModalResetOnHide)', $hiddenFn);
+        $earlyReturn = strpos($hiddenFn, 'return;');
+        $resetCall = strpos($hiddenFn, 'resetLeadModalTransientState()');
+        $this->assertNotFalse($earlyReturn);
+        $this->assertNotFalse($resetCall);
+        $this->assertLessThan($resetCall, $earlyReturn);
+
+        $radioPos = strpos($content, "$(document).on('change', 'input[name=\"lead_create_client_mode\"]'");
+        $this->assertNotFalse($radioPos);
+        $radioChunk = substr($content, $radioPos, 280);
+        $this->assertStringContainsString('hideToast()', $radioChunk);
+        $this->assertStringContainsString('clearLeadCreateClientChoiceErrors()', $radioChunk);
+
+        $applyStart = strpos($content, 'function applyLeadCreateClientChoiceErrors(errors)');
+        $this->assertNotFalse($applyStart);
+        $applyFn = substr($content, $applyStart, 700);
+        $this->assertStringContainsString('errors.contract_template_id', $applyFn);
+        $this->assertStringContainsString('errors.send_contract', $applyFn);
+        $this->assertStringNotContainsString('errors.wallet', $applyFn);
+
+        $okPos = strpos($content, "$('#createLeadClientChoiceOkBtn').on('click'");
+        $this->assertNotFalse($okPos);
+        $okChunk = substr($content, $okPos, 1800);
+        $this->assertStringContainsString('hideToast()', $okChunk);
+        $this->assertStringContainsString('sendContract: false', $okChunk);
+        $this->assertStringContainsString('templateId: templateId', $okChunk);
+
+        $modalPath = resource_path('views/admin/school-leads/partials/create-client-choice-modal.blade.php');
+        $this->assertFileExists($modalPath);
+        $modal = (string) file_get_contents($modalPath);
+        $this->assertStringContainsString('id="createLeadClientChoiceModal"', $modal);
+        $this->assertStringContainsString('id="leadCreateClientModeWithContract"', $modal);
+        $this->assertStringContainsString('id="leadCreateClientModeWithoutContract"', $modal);
+        $this->assertStringContainsString('id="leadCreateClientTemplateId"', $modal);
+        $this->assertStringContainsString('id="createLeadClientChoiceOkBtn"', $modal);
+        $this->assertStringContainsString('Это действие платное', $modal);
+        $this->assertStringContainsString('с баланса будет списано', $modal);
+        $this->assertStringContainsString('checked', $modal);
+        $this->assertStringNotContainsString('modal-xl', $modal);
+        $this->assertStringNotContainsString('modal-fullscreen', $modal);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $leadsPath,
+            'openCreateLeadClientChoiceModal',
+            'blade-js-school-leads-create-client-choice'
         );
     }
 
@@ -5858,10 +6273,20 @@ JS;
         $this->assertStringNotContainsString('lockUser: true', $index);
         $this->assertStringContainsString('js-contract-path-open', $index);
         $this->assertStringContainsString('renderContractPathTimeline', $index);
+        $this->assertStringContainsString('renderSignedContractFileCell', $index);
+        $this->assertStringContainsString("key: 'signed_file'", $index);
+        $this->assertStringContainsString("type: 'icon'", $index);
+        $this->assertStringContainsString('fa-solid fa-file-pdf', $index);
+        $this->assertStringContainsString('download_signed_url', $index);
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $indexPath,
             'js-contract-path-open',
             'blade-js-contract-path-open'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $indexPath,
+            'renderSignedContractFileCell',
+            'blade-js-contract-signed-file-icon'
         );
 
         $modalPath = resource_path('views/contracts/partials/create-modal.blade.php');
@@ -5889,6 +6314,49 @@ JS;
         $this->assertStringContainsString('event.stopPropagation()', $users);
         $this->assertStringNotContainsString('js-dt-cell-ellipsis-tooltip', $cell);
         $this->assertStringContainsString('event.preventDefault()', $users);
+    }
+
+    /**
+     * P1: иконка подписанного PDF в списке /client-contracts — пустая ячейка без URL,
+     * скачивание в новой вкладке, не переход на карточку, сортировка «Обновлён» на индексе 8.
+     */
+    public function test_contracts_list_signed_file_icon_cell_is_valid_javascript_and_keeps_empty_fallback(): void
+    {
+        $indexPath = resource_path('views/contracts/index.blade.php');
+        $this->assertFileExists($indexPath);
+        $index = (string) file_get_contents($indexPath);
+
+        $fnStart = strpos($index, 'function renderSignedContractFileCell');
+        $this->assertNotFalse($fnStart);
+        $cell = substr($index, $fnStart, 900);
+        $this->assertStringContainsString('if (!data)', $cell);
+        $this->assertStringContainsString("return '';", $cell);
+        $this->assertStringContainsString('KidsCrmDataTable.renderIcon', $cell);
+        $this->assertStringContainsString('fa-solid fa-file-pdf', $cell);
+        $this->assertStringContainsString('#0d6efd', $cell);
+        $this->assertStringContainsString('href: data', $cell);
+        $this->assertStringNotContainsString('js-dt-nav-link', $cell);
+
+        $signedPos = strpos($index, "key: 'signed_file'");
+        $this->assertNotFalse($signedPos);
+        $this->assertGreaterThan(strpos($index, "key: 'status_label'"), $signedPos);
+        $this->assertLessThan(strpos($index, "key: 'updated_at'"), $signedPos);
+        $colChunk = substr($index, $signedPos, 420);
+        $this->assertStringContainsString("type: 'icon'", $colChunk);
+        $this->assertStringContainsString("data: 'download_signed_url'", $colChunk);
+        $this->assertStringContainsString('orderable: false', $colChunk);
+        $this->assertStringContainsString('render: renderSignedContractFileCell', $colChunk);
+        $this->assertStringNotContainsString('js-dt-nav-link', $colChunk);
+
+        $this->assertStringContainsString("order: [[8, 'desc']]", $index);
+        $this->assertStringNotContainsString("order: [[7, 'desc']]", $index);
+        $this->assertStringContainsString('signed_file: true', $index);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $indexPath,
+            'renderSignedContractFileCell',
+            'blade-js-contract-signed-file-icon-contract'
+        );
     }
 
     /**
@@ -6981,6 +7449,7 @@ JS;
         $this->assertFileExists($toastPath);
         $toast = (string) file_get_contents($toastPath);
         $this->assertStringContainsString('window.showToast = function (message, type)', $toast);
+        $this->assertStringContainsString('window.hideToast = function ()', $toast);
         $this->assertStringContainsString('id="kidsMainToast"', $toast);
         $this->assertStringContainsString('@once', $toast);
         $this->assertStringContainsString('z-index: 4050', $toast);
