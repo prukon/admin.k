@@ -816,6 +816,37 @@ JS;
     }
 
     /**
+     * P1: ЛК SMS-2FA — AJAX PATCH, 422 на видимом чекбоксе, admin через hasRole, не role_id=10.
+     */
+    public function test_account_user_two_factor_ajax_submit_is_valid_javascript_and_attaches_errors_to_visible_field(): void
+    {
+        $path = resource_path('views/account/users.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('$user->hasRole(\'admin\')', $content);
+        $this->assertStringNotContainsString('(int)$user->role_id === 10', $content);
+        $this->assertStringContainsString("type: 'PATCH'", $content);
+        $this->assertStringContainsString('e.preventDefault()', $content);
+        $this->assertStringContainsString('.off(\'submit\')', $content);
+        $this->assertStringContainsString(
+            '$form.find(\'[name="\' + safe + \'"]:not([type="hidden"])\')',
+            $content
+        );
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'function updateUserData()',
+            'blade-js-account-user-two-factor-ajax'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            '// 2fa:',
+            'blade-js-account-user-two-factor-client'
+        );
+    }
+
+    /**
      * P1: сайдбар «Учетная запись» — badge как у «Пользователи», скрыт при 0.
      */
     public function test_sidebar_account_menu_counter_badge_markup_contract(): void
@@ -2310,6 +2341,7 @@ JS;
         $this->assertStringContainsString('page_length: length', $content);
         $this->assertStringContainsString('kids-dt-page-length-error', $content);
         $this->assertStringContainsString("table.on('length.kidsCrmPageLength'", $content);
+        $this->assertStringContainsString('ensureTableScrollHost(tableElement, table.settings()[0])', $content);
 
         $output = [];
         $exitCode = 0;
@@ -2662,7 +2694,7 @@ JS;
 
         $createPos = strpos($content, "KidsCrmDataTable.create('#tbank-payments-table'");
         $this->assertNotFalse($createPos);
-        $createChunk = substr($content, $createPos, 4500);
+        $createChunk = substr($content, $createPos, 6000);
         $this->assertStringContainsString('persistPageLength: true', $createChunk);
         foreach ([
             'created_at: true',
@@ -2720,6 +2752,20 @@ JS;
 
         $this->assertStringContainsString('tpFilterParams()', $createChunk);
         $this->assertStringContainsString('d[key] = extra[key]', $createChunk);
+        $this->assertStringContainsString('id="tp-filter-without-payout"', $content);
+        $this->assertStringContainsString('value="1"', $content);
+        $this->assertStringContainsString('data-error-for="without_payout"', $content);
+
+        $filterParamsPos = strpos($content, 'function tpFilterParams()');
+        $this->assertNotFalse($filterParamsPos);
+        $filterParamsChunk = substr($content, $filterParamsPos, 800);
+        $this->assertStringContainsString("without_payout: \$form.find('[name=\"without_payout\"]').is(':checked') ? '1' : ''", $filterParamsChunk);
+        $this->assertStringNotContainsString('without_payout: true', $filterParamsChunk);
+        $this->assertStringNotContainsString("without_payout: 'on'", $filterParamsChunk);
+
+        $this->assertStringContainsString('function tpShowFieldErrors(xhr)', $content);
+        $this->assertStringContainsString("\$form.find('[name=\"' + field + '\"]').addClass('is-invalid')", $content);
+        $this->assertStringContainsString("\$form.find('[data-error-for=\"' + field + '\"]').text(msg).show()", $content);
 
         $submitPos = strpos($content, '$form.on(\'submit\'');
         $this->assertNotFalse($submitPos);
@@ -3124,6 +3170,8 @@ JS;
             $this->assertStringContainsString('const payload = normalizePayload(fd, \'edit\')', $rawScript);
             $this->assertStringContainsString('if (createFreezeSection)', $rawScript);
             $this->assertStringContainsString('if (createFreezeEnabled)', $rawScript);
+            $this->assertStringContainsString('const canViewScheduleSlots', $rawScript);
+            $this->assertStringContainsString('when: canViewScheduleSlots', $rawScript);
             $this->assertStringContainsString('if (editFreezeSection)', $rawScript);
             $this->assertStringContainsString('if (editFreezeEnabled)', $rawScript);
             $this->assertStringContainsString("createFreezeSection.style.display = 'none'", $rawScript);
@@ -3247,6 +3295,8 @@ JS;
             $this->assertStringContainsString('const payload = normalizePayload(fd, \'edit\')', $rawScript);
             $this->assertStringContainsString('getElementById(\'create_duration_days\')', $rawScript);
             $this->assertStringContainsString('getElementById(\'edit_duration_days\')', $rawScript);
+            $this->assertStringContainsString('const canViewScheduleSlots', $rawScript);
+            $this->assertStringContainsString('when: canViewScheduleSlots', $rawScript);
             $this->assertStringContainsString('if (createDuration)', $rawScript);
             $this->assertStringContainsString('if (editDuration)', $rawScript);
             $this->assertStringContainsString('if (createDurationWrap)', $rawScript);
@@ -3260,6 +3310,10 @@ JS;
             $this->assertStringContainsString('createFormEl.reset()', $rawScript);
             $this->assertStringContainsString('applyCreateScheduleTypeUi()', $rawScript);
             $this->assertStringContainsString('applyEditScheduleTypeUi()', $rawScript);
+            $this->assertStringContainsString('function applyEditScheduleTypeUi(fromTypeChange)', $rawScript);
+            $this->assertStringContainsString('applyEditScheduleTypeUi(true)', $rawScript);
+            $this->assertStringContainsString('else if (fromTypeChange)', $rawScript);
+            $this->assertStringContainsString('canSnapshotPrevious', $rawScript);
             $this->assertStringContainsString('applyValidationErrors', $rawScript);
             $this->assertStringContainsString('reloadPackagesTable', $rawScript);
             $this->assertStringContainsString("t === 'no_schedule'", $rawScript);
@@ -3303,6 +3357,96 @@ JS;
         $this->assertTrue(
             $durationScriptFound,
             'В packages.blade.php не найден script с normalizePayload / duration_days'
+        );
+    }
+
+    /**
+     * P1: fill edit шаблона не затирает занятий/срок дефолтами 8/30 при открытии.
+     * UX-баг: таблица 12, модалка 8 — applyEditScheduleTypeUi() без fromTypeChange.
+     */
+    public function test_lesson_packages_edit_fill_defaults_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/packages.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('id="edit_lessons_count"', $content);
+        $this->assertStringContainsString('name="edit[lessons_count]"', $content);
+        $this->assertStringContainsString('data-error-for="edit[lessons_count]"', $content);
+        $this->assertStringContainsString('lesson-package-edit-btn', $content);
+        $this->assertStringContainsString('id="create_lessons_count"', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В packages.blade.php нет inline <script>');
+
+        $fillScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'function applyEditScheduleTypeUi')) {
+                continue;
+            }
+            $fillScriptFound = true;
+
+            $this->assertStringContainsString('preventDefault', $rawScript);
+            $this->assertStringContainsString("Accept': 'application/json'", $rawScript);
+            $this->assertStringContainsString('lp.lessons_count || 8', $rawScript);
+            $this->assertStringContainsString('editDuration.value = lp.duration_days || 30', $rawScript);
+            $this->assertStringContainsString('editSnapshotBeforeSingle = null;', $rawScript);
+            $this->assertStringContainsString('function applyEditScheduleTypeUi(fromTypeChange)', $rawScript);
+            $this->assertStringContainsString('applyEditScheduleTypeUi();', $rawScript);
+            $this->assertStringContainsString('applyEditScheduleTypeUi(true)', $rawScript);
+            $this->assertStringContainsString('else if (fromTypeChange)', $rawScript);
+            $this->assertStringContainsString('canSnapshotPrevious', $rawScript);
+            $this->assertStringContainsString("editLessons.value = '8'", $rawScript);
+            $this->assertStringContainsString("editDuration.value = '30'", $rawScript);
+            $this->assertStringContainsString('.lesson-package-edit-btn', $rawScript);
+
+            $openPos = strpos($rawScript, 'editSnapshotBeforeSingle = null;');
+            $applyOpenPos = strpos($rawScript, 'applyEditScheduleTypeUi();');
+            $applyChangePos = strpos($rawScript, 'applyEditScheduleTypeUi(true)');
+            $this->assertNotFalse($openPos);
+            $this->assertNotFalse($applyOpenPos);
+            $this->assertNotFalse($applyChangePos);
+            $this->assertTrue(
+                $openPos < $applyOpenPos,
+                'После fill show JSON должен вызываться applyEditScheduleTypeUi() без флага смены типа.'
+            );
+
+            $elseIfPos = strpos($rawScript, 'else if (fromTypeChange)');
+            $eightPos = strpos($rawScript, "editLessons.value = '8'");
+            $this->assertNotFalse($elseIfPos);
+            $this->assertNotFalse($eightPos);
+            $this->assertTrue(
+                $elseIfPos < $eightPos,
+                'Дефолт 8 занятий в edit должен быть только в ветке fromTypeChange, не при открытии.'
+            );
+
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-packages-edit-fill-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in lesson packages edit-fill script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $fillScriptFound,
+            'В packages.blade.php не найден script с applyEditScheduleTypeUi'
         );
     }
 
@@ -5617,7 +5761,7 @@ JS;
 
     /**
      * P1: закрепление thead (FixedHeader) и липкий горизонтальный скролл
-     * на payments / monthly / LTV / debts. CSS и JS через Vite.
+     * на payments / monthly / LTV / debts / intents / fiscal / tbank / emails. CSS и JS через Vite.
      */
     public function test_admin_reports_sticky_header_and_hscroll_vite_contract_and_valid_javascript(): void
     {
@@ -5627,6 +5771,14 @@ JS;
             resource_path('views/admin/report/payment_monthly.blade.php') => '#payments-monthly-table',
             resource_path('views/admin/report/ltv.blade.php') => '#ltv-table',
             resource_path('views/admin/report/debt.blade.php') => '#debts-table',
+            resource_path('views/admin/report/tbank_payments.blade.php') => '#tbank-payments-table',
+            resource_path('views/admin/report/payment_intents.blade.php') => '#payment-intents-table',
+            resource_path('views/admin/report/fiscal_receipts.blade.php') => '#fiscal-receipts-table',
+            resource_path('views/admin/report/outgoing_emails.blade.php') => '#emails-table',
+        ];
+        $allowInlineStyle = [
+            resource_path('views/admin/report/payment_intents.blade.php') => true,
+            resource_path('views/admin/report/fiscal_receipts.blade.php') => true,
         ];
 
         foreach ($cases as $path => $selector) {
@@ -5635,7 +5787,9 @@ JS;
 
             $this->assertStringContainsString($viteTag, $content, $path);
             $this->assertStringNotContainsString("asset('css/admin-reports-tables.css')", $content, $path);
-            $this->assertStringNotContainsString('<style>', $content, $path);
+            if (empty($allowInlineStyle[$path])) {
+                $this->assertStringNotContainsString('<style>', $content, $path);
+            }
             $this->assertStringContainsString('dataTables.fixedHeader.min.js', $content, $path);
             $this->assertStringContainsString('fixedHeader.bootstrap4.min.css', $content, $path);
             $this->assertStringContainsString('KidsCrmReportTableSticky.bind(\''.$selector.'\')', $content, $path);
@@ -5667,6 +5821,10 @@ JS;
         $this->assertStringContainsString('#payments-monthly-table_wrapper .kids-dt-sticky-hscroll', $css);
         $this->assertStringContainsString('#ltv-table_wrapper .kids-dt-sticky-hscroll', $css);
         $this->assertStringContainsString('#debts-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#tbank-payments-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#payment-intents-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#fiscal-receipts-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#emails-table_wrapper .kids-dt-sticky-hscroll', $css);
         $this->assertStringContainsString('kids-dt-scroll-x--has-sticky-bar', $css);
         $this->assertStringContainsString('position: sticky', $css);
         $this->assertStringContainsString('overflow-x: scroll', $css);
@@ -5682,6 +5840,9 @@ JS;
         $this->assertStringContainsString('parent.scrollLeft', $js);
         $this->assertStringContainsString('boxSizing', $js);
         $this->assertStringContainsString('maxWidth', $js);
+        $this->assertStringContainsString('function scheduleBindWhenHostReady(selector)', $js);
+        $this->assertStringContainsString('init.dt.', $js);
+        $this->assertStringContainsString('requestAnimationFrame', $js);
         $this->assertStringNotContainsString("margin-left', (-", $js);
 
         $vite = (string) file_get_contents(base_path('vite.config.js'));
@@ -5696,19 +5857,6 @@ JS;
             $exitCode,
             "JS syntax error in resources/js/admin-reports-tables-sticky.js:\n".implode("\n", $output)
         );
-
-        $otherBlades = [
-            resource_path('views/admin/report/payment_intents.blade.php'),
-            resource_path('views/admin/report/fiscal_receipts.blade.php'),
-            resource_path('views/admin/report/tbank_payments.blade.php'),
-            resource_path('views/admin/report/outgoing_emails.blade.php'),
-        ];
-        foreach ($otherBlades as $otherPath) {
-            $other = (string) file_get_contents($otherPath);
-            $this->assertStringNotContainsString('admin-reports-tables.css', $other, $otherPath);
-            $this->assertStringNotContainsString('KidsCrmReportTableSticky', $other, $otherPath);
-            $this->assertStringNotContainsString('dataTables.fixedHeader.min.js', $other, $otherPath);
-        }
     }
 
     /**
@@ -5763,6 +5911,11 @@ JS;
         $this->assertStringContainsString('function bind(selector)', $js);
         $this->assertStringContainsString('if (!$bar.length)', $js);
         $this->assertStringContainsString("'reportStickyH'", $js);
+        $this->assertStringContainsString('function scheduleBindWhenHostReady(selector)', $js);
+        $this->assertStringContainsString('init.dt.', $js);
+        $this->assertStringContainsString('column-visibility.', $js);
+        $this->assertStringContainsString('column-sizing.', $js);
+        $this->assertStringContainsString('requestAnimationFrame', $js);
         $this->assertStringContainsString('parent.scrollLeft = hostEl.scrollLeft', $js);
         $this->assertStringContainsString("cloneTable.style.marginLeft = '0px'", $js);
         $this->assertStringContainsString("setProperty('overflow', 'hidden'", $js);
@@ -5772,8 +5925,81 @@ JS;
 
         $css = (string) file_get_contents(resource_path('css/admin-reports-tables.css'));
         $this->assertStringContainsString('#payments-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#tbank-payments-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#payment-intents-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#fiscal-receipts-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#emails-table_wrapper .kids-dt-sticky-hscroll', $css);
         $this->assertStringNotContainsString('#ltv-user-payments-', $css);
         $this->assertStringNotContainsString('#monthly-payments-', $css);
+    }
+
+    /**
+     * P1: T‑Bank / intents / fiscal / emails — pin без fixedColumns,
+     * фильтр preventDefault + reload, afterApply rebind, node --check.
+     */
+    public function test_extra_report_sticky_header_inline_script_keeps_pin_without_fixed_columns(): void
+    {
+        $cases = [
+            resource_path('views/admin/report/tbank_payments.blade.php') => [
+                'selector' => '#tbank-payments-table',
+                'afterApply' => 'tbankPaymentsAfterApplyVisibleColumns',
+            ],
+            resource_path('views/admin/report/payment_intents.blade.php') => [
+                'selector' => '#payment-intents-table',
+                'afterApply' => 'paymentIntentsAfterApplyVisibleColumns',
+            ],
+            resource_path('views/admin/report/fiscal_receipts.blade.php') => [
+                'selector' => '#fiscal-receipts-table',
+                'afterApply' => 'fiscalReceiptsAfterApplyVisibleColumns',
+            ],
+            resource_path('views/admin/report/outgoing_emails.blade.php') => [
+                'selector' => '#emails-table',
+                'afterApply' => 'emailsAfterApplyVisibleColumns',
+            ],
+        ];
+
+        foreach ($cases as $path => $meta) {
+            $this->assertFileExists($path);
+            $content = (string) file_get_contents($path);
+            $selector = $meta['selector'];
+            $afterApply = $meta['afterApply'];
+
+            $this->assertStringNotContainsString('fixedColumns:', $content, $path);
+            $this->assertStringNotContainsString('leftColumns:', $content, $path);
+            $this->assertStringNotContainsString('<div class="table-responsive">', $content, $path);
+            $this->assertStringNotContainsString('scrollY:', $content, $path);
+            $this->assertStringNotContainsString("margin-left', (-", $content, $path);
+            $this->assertStringContainsString('function '.$afterApply, $content, $path);
+            $this->assertStringContainsString("KidsCrmReportTableSticky.bind('".$selector."')", $content, $path);
+            $this->assertStringContainsString('afterApplyVisibleColumns: '.$afterApply, $content, $path);
+            $this->assertStringContainsString('e.preventDefault()', $content, $path);
+            $this->assertStringContainsString('dtApi.reload()', $content, $path);
+            $this->assertSame(1, substr_count($content, "KidsCrmDataTable.create('".$selector."'"), $path);
+            $this->assertGreaterThanOrEqual(2, substr_count($content, "KidsCrmReportTableSticky.bind('".$selector."')"), $path);
+
+            $afterStart = strpos($content, 'function '.$afterApply);
+            $createPos = strpos($content, "KidsCrmDataTable.create('".$selector."'");
+            $this->assertNotFalse($afterStart, $path);
+            $this->assertNotFalse($createPos, $path);
+            $this->assertLessThan($createPos, $afterStart, $path);
+            $afterChunk = substr($content, $afterStart, $createPos - $afterStart);
+            $this->assertStringContainsString("KidsCrmReportTableSticky.bind('".$selector."')", $afterChunk, $path);
+
+            $pluginPos = strpos($content, 'dataTables.fixedHeader.min.js');
+            $this->assertNotFalse($pluginPos, $path);
+            $this->assertLessThan($createPos, $pluginPos, $path);
+
+            $this->assertInlineScriptsContainingHaveValidJavascript(
+                $path,
+                'KidsCrmReportTableSticky.bind',
+                'blade-js-extra-reports-sticky-'.basename($path)
+            );
+        }
+
+        $preset = (string) file_get_contents(resource_path('js/kids-datatable.js'));
+        $this->assertStringContainsString('function ensureTableScrollHost', $preset);
+        $this->assertStringContainsString('settings.oInit.fixedColumns', $preset);
+        $this->assertStringContainsString("\$table.wrap('<div class=\"kids-dt-scroll-x\"></div>')", $preset);
     }
 
     /**

@@ -11,8 +11,10 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Доступ к HTML четырёх вкладок отчётов с закреплённой шапкой:
- * гость / без reports.view / viewer / admin / superadmin;
+ * Доступ к HTML вкладок отчётов с закреплённой шапкой:
+ * payments / monthly / LTV / debts (reports.view) и
+ * intents / fiscal / tbank / emails (права вкладок);
+ * гость / без права / viewer / admin / superadmin;
  * чужие методы не 500 и не пустой 200; повторное открытие с фильтрами
  * не снимает pin.
  *
@@ -43,6 +45,225 @@ final class ReportsTablesStickyHeaderFullAccessFeatureTest extends CrmTestCase
             'ltv'      => ['reports.ltv', 'ltv-table'],
             'debts'    => ['debts', 'debts-table'],
         ];
+    }
+
+    /**
+     * @return list<array{0: string, 1: string, 2: string}>
+     */
+    public static function extraStickyPageRoutes(): array
+    {
+        return [
+            'intents' => ['reports.payment-intents.index', 'payment-intents-table', 'reports.payment.intents.view'],
+            'fiscal'  => ['reports.fiscal-receipts.index', 'fiscal-receipts-table', 'reports.fiscal.receipts.view'],
+            'tbank'   => ['reports.tbank-payments.index', 'tbank-payments-table', 'reports.tbank.payments.view'],
+            'emails'  => ['reports.emails.index', 'emails-table', 'reports.emails.view'],
+        ];
+    }
+
+    #[DataProvider('extraStickyPageRoutes')]
+    public function test_guest_cannot_open_extra_sticky_report_page(string $route, string $tableId, string $permission): void
+    {
+        Auth::logout();
+        $url = route($route);
+
+        $web = $this->get($url);
+        $this->assertNotSame(500, $web->getStatusCode(), $url);
+        $this->assertNotSame(200, $web->getStatusCode(), $url);
+        $web->assertStatus(302);
+        $this->assertStringNotContainsString('KidsCrmReportTableSticky', (string) $web->getContent());
+
+        $json = $this->getJson($url);
+        $this->assertNotSame(500, $json->getStatusCode(), $url);
+        $json->assertStatus(401);
+
+        $ajax = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])->get($url);
+        $this->assertNotSame(500, $ajax->getStatusCode(), $url);
+        $this->assertContains($ajax->getStatusCode(), [302, 401]);
+        unset($tableId, $permission);
+    }
+
+    #[DataProvider('extraStickyPageRoutes')]
+    public function test_manager_without_extra_permission_gets_403_on_extra_sticky_report_page(
+        string $route,
+        string $tableId,
+        string $permission
+    ): void {
+        $actor = $this->createUserWithoutPermission($permission, $this->partner);
+        $session = ['current_partner' => $this->partner->id, '2fa:passed' => true];
+        $url = route($route);
+
+        $web = $this->actingAs($actor)->withSession($session)->get($url);
+        $this->assertNotSame(500, $web->getStatusCode(), $url);
+        $web->assertStatus(403);
+        $this->assertStringNotContainsString('KidsCrmReportTableSticky.bind(\'#'.$tableId.'\')', (string) $web->getContent());
+
+        $json = $this->actingAs($actor)->withSession($session)->getJson($url);
+        $this->assertNotSame(500, $json->getStatusCode(), $url);
+        $json->assertStatus(403);
+    }
+
+    #[DataProvider('extraStickyPageRoutes')]
+    public function test_viewer_with_extra_permission_sees_pinned_thead_markup(
+        string $route,
+        string $tableId,
+        string $permission
+    ): void {
+        $actor = $this->createUserWithoutPermission($permission, $this->partner);
+        $this->grantPermission($actor, $permission);
+        $this->actingAs($actor)->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed'      => true,
+        ]);
+
+        $page = $this->get(route($route));
+        $page->assertOk();
+        $html = (string) $page->getContent();
+        $this->assertNotSame('', trim($html), $route);
+        $this->assertStringContainsString('id="'.$tableId.'"', $html);
+        $this->assertStringContainsString('dataTables.fixedHeader.min.js', $html);
+        $this->assertStringContainsString('KidsCrmReportTableSticky.bind(\'#'.$tableId.'\')', $html);
+        $this->assertStringContainsString('header: true', $html);
+        $this->assertStringContainsString('footer: false', $html);
+        $this->assertStringContainsString(
+            '($.fn.dataTable && $.fn.dataTable.FixedHeader)',
+            $html,
+            'Нет плагина → false, иначе шапка не должна падать'
+        );
+    }
+
+    #[DataProvider('extraStickyPageRoutes')]
+    public function test_admin_without_extra_permission_gets_403_on_extra_sticky_page(
+        string $route,
+        string $tableId,
+        string $permission
+    ): void {
+        unset($permission);
+        $this->asAdmin();
+        $url = route($route);
+
+        $web = $this->get($url);
+        $this->assertNotSame(500, $web->getStatusCode(), $url);
+        $web->assertStatus(403);
+        $this->assertStringNotContainsString('KidsCrmReportTableSticky.bind(\'#'.$tableId.'\')', (string) $web->getContent());
+
+        $json = $this->getJson($url);
+        $this->assertNotSame(500, $json->getStatusCode(), $url);
+        $json->assertStatus(403);
+    }
+
+    #[DataProvider('extraStickyPageRoutes')]
+    public function test_superadmin_sees_pinned_thead_on_extra_sticky_pages(
+        string $route,
+        string $tableId,
+        string $permission
+    ): void {
+        unset($permission);
+        $this->asSuperadmin();
+        $this->user->unsetRelation('role');
+
+        $page = $this->get(route($route));
+        $page->assertOk();
+        $html = (string) $page->getContent();
+        $this->assertNotSame('', trim($html), $route);
+        $this->assertStringContainsString('id="'.$tableId.'"', $html);
+        $this->assertStringContainsString('KidsCrmReportTableSticky.bind(\'#'.$tableId.'\')', $html);
+        $this->assertStringContainsString('dataTables.fixedHeader.min.js', $html);
+        $this->assertStringNotContainsString('fixedColumns:', $html);
+    }
+
+    #[DataProvider('extraStickyPageRoutes')]
+    public function test_unsupported_methods_on_extra_sticky_report_page_are_not_server_errors(
+        string $route,
+        string $tableId,
+        string $permission
+    ): void {
+        $actor = $this->createUserWithoutPermission($permission, $this->partner);
+        $this->grantPermission($actor, $permission);
+        $this->actingAs($actor)->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed'      => true,
+        ]);
+        $url = route($route);
+
+        foreach (['post', 'patch', 'put', 'delete'] as $method) {
+            $response = $this->{$method}($url);
+            $this->assertNotSame(500, $response->getStatusCode(), $method.' '.$url);
+            $this->assertNotSame(200, $response->getStatusCode(), $method.' '.$url.' пустой/бессмысленный 200');
+            $this->assertContains(
+                $response->getStatusCode(),
+                [404, 405, 419],
+                $method.' '.$url.' → '.$response->getStatusCode()
+            );
+        }
+
+        $this->postJson($url)->assertStatus(405);
+        $this->patchJson($url)->assertStatus(405);
+        $this->putJson($url)->assertStatus(405);
+        $this->deleteJson($url)->assertStatus(405);
+        unset($tableId);
+    }
+
+    public function test_extra_sticky_pages_data_json_does_not_return_500_or_empty_200(): void
+    {
+        $this->asAdmin();
+        $this->grantPermission($this->user, 'reports.payment.intents.view');
+        $this->grantPermission($this->user, 'reports.fiscal.receipts.view');
+        $this->grantPermission($this->user, 'reports.tbank.payments.view');
+        $this->grantPermission($this->user, 'reports.emails.view');
+
+        $ajax = [
+            'HTTP_ACCEPT' => 'application/json',
+            'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest',
+        ];
+        $dt = ['draw' => 1, 'start' => 0, 'length' => 10];
+
+        $ajaxUrls = [
+            route('reports.payment-intents.data', $dt),
+            route('reports.fiscal-receipts.data', $dt),
+            route('reports.tbank-payments.data', $dt),
+            route('reports.emails.data', $dt),
+        ];
+
+        foreach ($ajaxUrls as $url) {
+            $response = $this->call('GET', $url, [], [], [], $ajax);
+            $this->assertSame(200, $response->getStatusCode(), $url);
+            $this->assertNotSame('', trim((string) $response->getContent()), $url);
+            $response->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+            $this->assertStringNotContainsString('KidsCrmReportTableSticky', (string) $response->getContent());
+        }
+
+        $this->get(route('reports.emails.data', $dt))->assertNotFound();
+
+        $tbank = $this->get(route('reports.tbank-payments.data', $dt), [
+            'HTTP_ACCEPT' => 'text/html',
+        ]);
+        $tbank->assertOk();
+        $this->assertNotSame('', trim((string) $tbank->getContent()));
+        $this->assertIsArray($tbank->json());
+        $this->assertArrayHasKey('data', $tbank->json());
+        $this->assertStringNotContainsString('KidsCrmReportTableSticky', (string) $tbank->getContent());
+    }
+
+    public function test_guest_and_manager_without_permission_do_not_get_500_on_extra_data_json(): void
+    {
+        Auth::logout();
+        $ajax = [
+            'HTTP_ACCEPT' => 'application/json',
+            'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest',
+        ];
+        $url = route('reports.tbank-payments.data', ['draw' => 1, 'start' => 0, 'length' => 10]);
+
+        $guest = $this->call('GET', $url, [], [], [], $ajax);
+        $this->assertNotSame(500, $guest->getStatusCode());
+        $this->assertContains($guest->getStatusCode(), [302, 401, 403, 419]);
+
+        $actor = $this->createUserWithoutPermission('reports.tbank.payments.view', $this->partner);
+        $denied = $this->actingAs($actor)->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed'      => true,
+        ])->call('GET', $url, [], [], [], $ajax);
+        $this->assertNotSame(500, $denied->getStatusCode());
+        $denied->assertStatus(403);
     }
 
     #[DataProvider('stickyPageRoutes')]
@@ -178,7 +399,16 @@ final class ReportsTablesStickyHeaderFullAccessFeatureTest extends CrmTestCase
         $actor = User::factory()->create(['partner_id' => null]);
         $this->actingAs($actor)->withSession([]);
 
-        foreach (['payments', 'reports.payments.monthly', 'reports.ltv', 'debts'] as $route) {
+        foreach ([
+            'payments',
+            'reports.payments.monthly',
+            'reports.ltv',
+            'debts',
+            'reports.payment-intents.index',
+            'reports.fiscal-receipts.index',
+            'reports.tbank-payments.index',
+            'reports.emails.index',
+        ] as $route) {
             $response = $this->from(route('login'))->get(route($route));
             $response->assertStatus(302);
             $this->assertGuest();

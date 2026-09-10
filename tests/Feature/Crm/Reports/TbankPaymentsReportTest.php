@@ -480,6 +480,8 @@ class TbankPaymentsReportTest extends CrmTestCase
         $this->assertStringNotContainsString('show', $collapseTag[0]);
         $this->assertStringContainsString('<option value="" selected>Все статусы</option>', $html);
         $this->assertStringContainsString('<option value="" selected>Все способы</option>', $html);
+        $this->assertSame(1, preg_match('/<input\b[^>]*\bid="tp-filter-without-payout"[^>]*>/', $html, $checkboxTag));
+        $this->assertStringNotContainsString('checked', $checkboxTag[0]);
         foreach (['created_at', 'partner', 'order_id', 'amount', 'platform_commission', 'payout_amount', 'method', 'status', 'deal_id', 'receipt', 'actions'] as $key) {
             $this->assertMatchesRegularExpression(
                 '/class="form-check-input tbank-payments-column-toggle"[^>]*data-column-key="'.$key.'"[^>]*checked/',
@@ -529,6 +531,101 @@ class TbankPaymentsReportTest extends CrmTestCase
 
         $this->assertContains($confirmed->id, $ids);
         $this->assertNotContains($rejected->id, $ids);
+    }
+
+    public function test_without_payout_filter_matches_column_dash_across_all_payment_statuses(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $noPayoutConfirmed = $this->makePayment(['status' => 'CONFIRMED', 'amount' => 10000]);
+        $noPayoutNew = $this->makePayment(['status' => 'NEW', 'amount' => 20000]);
+        $noPayoutForm = $this->makePayment(['status' => 'FORM', 'amount' => 30000]);
+        $noPayoutCanceled = $this->makePayment(['status' => 'CANCELED', 'amount' => 40000]);
+        $rejectedOnly = $this->makePayment(['status' => 'CONFIRMED', 'amount' => 50000]);
+        $completed = $this->makePayment(['status' => 'CONFIRMED', 'amount' => 60000]);
+        $initiated = $this->makePayment(['status' => 'CONFIRMED', 'amount' => 70000]);
+        $retryAfterReject = $this->makePayment(['status' => 'CONFIRMED', 'amount' => 80000]);
+
+        $this->makePayout($rejectedOnly, ['status' => 'REJECTED', 'amount' => 45000, 'net_amount' => 45000]);
+        $this->makePayout($completed, ['status' => 'COMPLETED', 'amount' => 54000, 'net_amount' => 54000]);
+        $this->makePayout($initiated, [
+            'status' => 'INITIATED',
+            'amount' => 63000,
+            'net_amount' => 63000,
+            'when_to_run' => Carbon::parse('2026-09-10 12:00:00'),
+        ]);
+        $this->makePayout($retryAfterReject, ['status' => 'REJECTED', 'amount' => 1000, 'net_amount' => 1000]);
+        $this->makePayout($retryAfterReject, ['status' => 'COMPLETED', 'amount' => 72000, 'net_amount' => 72000]);
+
+        $this->get(route('reports.tbank-payments.total', ['without_payout' => 1]))
+            ->assertOk()
+            ->assertJsonPath('total_raw', 1500);
+
+        $ids = collect(
+            $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+                ->get(route('reports.tbank-payments.data', [
+                    'draw' => 1,
+                    'without_payout' => 1,
+                ]))
+                ->assertOk()
+                ->json('data')
+        )->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        $this->assertContains($noPayoutConfirmed->id, $ids);
+        $this->assertContains($noPayoutNew->id, $ids);
+        $this->assertContains($noPayoutForm->id, $ids);
+        $this->assertContains($noPayoutCanceled->id, $ids);
+        $this->assertContains($rejectedOnly->id, $ids);
+        $this->assertNotContains($completed->id, $ids);
+        $this->assertNotContains($initiated->id, $ids);
+        $this->assertNotContains($retryAfterReject->id, $ids);
+    }
+
+    public function test_without_payout_filter_opens_panel_and_checks_checkbox(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $html = $this->get(route('reports.tbank-payments.index', ['without_payout' => 1]))
+            ->assertOk()
+            ->assertViewHas('tpHasActiveFilters', true)
+            ->getContent();
+
+        $this->assertSame(1, preg_match('/<div\b[^>]*\bid="tbankPaymentsFiltersCollapse"[^>]*>/', $html, $collapseTag));
+        $this->assertStringContainsString('show', $collapseTag[0]);
+        $this->assertSame(1, preg_match('/<input\b[^>]*\bid="tp-filter-without-payout"[^>]*>/', $html, $checkboxTag));
+        $this->assertStringContainsString('checked', $checkboxTag[0]);
+        $this->assertStringContainsString('name="without_payout"', $checkboxTag[0]);
+        $this->assertStringContainsString('Не было выплаты', $html);
+    }
+
+    public function test_without_payout_all_or_zero_does_not_open_filters(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        foreach (['all', '0', ''] as $value) {
+            $html = $this->get(route('reports.tbank-payments.index', ['without_payout' => $value]))
+                ->assertOk()
+                ->assertViewHas('tpHasActiveFilters', false)
+                ->getContent();
+
+            $this->assertSame(1, preg_match('/<div\b[^>]*\bid="tbankPaymentsFiltersCollapse"[^>]*>/', $html, $collapseTag));
+            $this->assertStringNotContainsString('show', $collapseTag[0]);
+            $this->assertSame(1, preg_match('/<input\b[^>]*\bid="tp-filter-without-payout"[^>]*>/', $html, $checkboxTag));
+            $this->assertStringNotContainsString('checked', $checkboxTag[0]);
+        }
+    }
+
+    public function test_invalid_without_payout_filter_returns_422_with_field_error(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $this->getJson(route('reports.tbank-payments.total', ['without_payout' => 'maybe']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['without_payout']);
     }
 
     public function test_invalid_method_filter_returns_422_with_field_error(): void

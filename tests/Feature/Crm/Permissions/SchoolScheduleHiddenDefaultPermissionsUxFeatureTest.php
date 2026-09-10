@@ -80,6 +80,8 @@ final class SchoolScheduleHiddenDefaultPermissionsUxFeatureTest extends CrmTestC
             $this->assertStringNotContainsString('name="create[freeze_enabled]"', $create);
             $this->assertStringContainsString('id="create_schedule_type"', $create);
             $this->assertStringContainsString('id="create_lessons_count"', $create);
+            $this->assertStringNotContainsString('id="colLessonPackageDuration"', $html);
+            $this->assertStringNotContainsString('id="colLessonPackageFreeze"', $html);
 
             $typePos = strpos($create, 'id="create_schedule_type"');
             $lessonsPos = strpos($create, 'id="create_lessons_count"');
@@ -160,6 +162,8 @@ final class SchoolScheduleHiddenDefaultPermissionsUxFeatureTest extends CrmTestC
             '/id="create_auto_attendance_enabled"[^>]*\bchecked\b/',
             $create
         );
+        $this->assertStringContainsString('id="colLessonPackageDuration"', $packages);
+        $this->assertStringContainsString('id="colLessonPackageFreeze"', $packages);
 
         $typePos = strpos($create, 'id="create_schedule_type"');
         $durationPos = strpos($create, 'id="create_duration_days"');

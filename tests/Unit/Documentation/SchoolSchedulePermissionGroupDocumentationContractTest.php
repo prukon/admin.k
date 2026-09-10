@@ -65,6 +65,8 @@ final class SchoolSchedulePermissionGroupDocumentationContractTest extends TestC
         $this->assertStringContainsString('lesson-package-auto-attendance-index', $chunk);
         $this->assertStringContainsString('lesson-package-freeze-permission-index', $chunk);
         $this->assertStringContainsString('lesson-package-duration-permission-index', $chunk);
+        $this->assertStringContainsString('колонки «Срок действия (дни)»', $chunk);
+        $this->assertStringContainsString('колонках таблицы', $chunk);
     }
 
     public function test_permission_groups_page_documents_school_schedule_group(): void

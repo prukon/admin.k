@@ -69,6 +69,10 @@
       Тесты: <code>SchoolScheduleHiddenDefaultPermissionsAjaxContractFeatureTest</code>,
       <code>SchoolScheduleHiddenDefaultPermissionsNonAjaxSafetyNetFeatureTest</code> —
       <a href="/doc#school-schedule-permission-group-index">анонс</a>.</li>
+    <li>С 2026‑09 скрытое <code>account.user.two_factor.update</code> (SMS-2FA в ЛК)
+      <b>не</b> входит в стартовый набор <code>roles.admin</code>. При создании партнёра
+      и при создании кастомной роли право выключено. Superadmin включает в матрице.
+      Анонс: <a href="/doc#account-two-factor-permission-index">/doc#account-two-factor-permission-index</a>.</li>
     <li>Записи создаются в <code>permission_role</code> с полями <code>role_id</code> (новая роль), <code>permission_id</code>, <code>partner_id</code> (текущий партнёр из контекста). Так же, как при ручном включении чекбокса на той же странице.</li>
     <li>Вставка идемпотентна: используется <code>insertOrIgnore</code>, уникальность по тройке <code>(partner_id, role_id, permission_id)</code> (см. раздел про UNIQUE в документе по партнёрам).</li>
   </ul>

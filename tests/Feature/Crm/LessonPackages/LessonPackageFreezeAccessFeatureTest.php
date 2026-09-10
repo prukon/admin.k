@@ -195,8 +195,8 @@ final class LessonPackageFreezeAccessFeatureTest extends CrmTestCase
                 ->assertDontSee('id="edit_freeze_enabled"', false)
                 ->assertDontSee('id="create_freeze_days"', false)
                 ->assertSee('id="create_lessons_count"', false)
-                ->assertSee('id="colLessonPackageFreeze"', false)
-                ->assertSee('Заморозка', false);
+                ->assertDontSee('id="colLessonPackageFreeze"', false)
+                ->assertDontSee('Заморозка', false);
         }
     }
 
@@ -241,7 +241,8 @@ final class LessonPackageFreezeAccessFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertSee('id="create_freeze_enabled"', false)
             ->assertSee('id="edit_freeze_enabled"', false)
-            ->assertSee('Разрешена заморозка', false);
+            ->assertSee('Разрешена заморозка', false)
+            ->assertSee('id="colLessonPackageFreeze"', false);
     }
 
     public function test_update_of_foreign_partner_package_returns_not_found(): void

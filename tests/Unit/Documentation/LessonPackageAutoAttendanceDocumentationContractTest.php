@@ -111,9 +111,11 @@ final class LessonPackageAutoAttendanceDocumentationContractTest extends TestCas
         $this->assertStringContainsString('Чекбокс «Автосписание» в модалках шаблона абонемента', $hints);
         $this->assertStringContainsString('Чекбокс «Разрешена заморозка» в модалках шаблона абонемента', $hints);
         $this->assertStringContainsString('Поле «Срок действия (дни)» в модалках шаблона абонемента', $hints);
+        $this->assertStringContainsString('Колонка «Срок действия (дни)» в таблице шаблонов абонемента', $hints);
+        $this->assertStringContainsString('Колонка «Заморозка» в таблице шаблонов абонемента', $hints);
 
         $controller = (string) file_get_contents(dirname(__DIR__, 3).'/app/Http/Controllers/DocumentationController.php');
-        $this->assertStringContainsString('автосписание, заморозка и срок действия (поля при scheduleSlots.view)', $controller);
+        $this->assertStringContainsString('автосписание, заморозка и срок действия (поля и колонки при scheduleSlots.view)', $controller);
     }
 
     public function test_helper_deny_message_matches_docs(): void

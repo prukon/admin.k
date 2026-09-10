@@ -204,13 +204,21 @@ class AccountController extends AdminBaseController
         $targetRoleName = $roleNameById($targetRoleId);
 
         $isAdminRole    = ($targetRoleName === 'admin');
-        $requestedTwoFa = (int)$request->boolean('two_factor_enabled');
+        $canToggleTwoFa = Gate::allows('account.user.two_factor.update');
+        $requestedTwoFa = array_key_exists('two_factor_enabled', $validatedForUser)
+            ? (int) $request->boolean('two_factor_enabled')
+            : (int) $user->two_factor_enabled;
         $forceAdmin2fa  = Setting::getBool('force_2fa_admins', false, null);
 
         $forcedForThisUser = ($isAdminRole && $forceAdmin2fa);
 
-        // Итоговое состояние 2FA
-        $twoFaEnabled = $forcedForThisUser ? 1 : $requestedTwoFa;
+        if ($forcedForThisUser) {
+            $twoFaEnabled = 1;
+        } elseif ($canToggleTwoFa) {
+            $twoFaEnabled = $requestedTwoFa;
+        } else {
+            $twoFaEnabled = (int) $user->two_factor_enabled;
+        }
         $validatedForUser['two_factor_enabled'] = $twoFaEnabled;
 
         // Если 2FA была включена и мы её выключаем (не админ под глобалкой) — чистим служебные поля

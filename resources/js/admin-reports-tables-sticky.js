@@ -3,8 +3,13 @@
  *
  * API: window.KidsCrmReportTableSticky.bind(selector)
  *
- * Страницы: #payments-table, #payments-monthly-table, #ltv-table, #debts-table.
+ * Страницы: #payments-table, #payments-monthly-table, #ltv-table, #debts-table,
+ * #tbank-payments-table, #payment-intents-table, #fiscal-receipts-table, #emails-table.
  * Не пресет KidsCrmDataTable. Зависимости: jQuery, DataTables FixedHeader (опционально).
+ *
+ * Первый drawCallback бывает до обёртки .kids-dt-scroll-x (она на init.dt).
+ * Тогда bind ждёт init.dt той же таблицы и повторяет — иначе полоса не создаётся,
+ * а нативный скролл остаётся внизу длинной таблицы.
  */
 (function (window, $) {
     'use strict';
@@ -92,6 +97,45 @@
         return 'reportStickyH' + String(selector || '').replace(/[^a-zA-Z0-9_-]/g, '');
     }
 
+    function scheduleBindWhenHostReady(selector) {
+        var ns = eventNs(selector);
+        var eventName = 'init.dt.' + ns;
+
+        $(document).off(eventName);
+        $(document).on(eventName, function (event, settings) {
+            if (!settings || !settings.nTable || !$(settings.nTable).is(selector)) {
+                return;
+            }
+            $(document).off(eventName);
+            bind(selector);
+        });
+    }
+
+    function bindColumnEvents($table, selector) {
+        var ns = eventNs(selector);
+        var tableNode = $table.get(0);
+        var tableApi;
+
+        if ($table.data('kidsDtStickyColsBound')) {
+            return;
+        }
+
+        if (!$.fn.dataTable || typeof $.fn.dataTable.isDataTable !== 'function' || !$.fn.dataTable.isDataTable(tableNode)) {
+            return;
+        }
+
+        $table.data('kidsDtStickyColsBound', true);
+        tableApi = $table.DataTable();
+        tableApi.on('column-visibility.' + ns + ' column-sizing.' + ns, function () {
+            window.requestAnimationFrame(function () {
+                bind(selector);
+                if (tableApi.fixedHeader && typeof tableApi.fixedHeader.adjust === 'function') {
+                    tableApi.fixedHeader.adjust();
+                }
+            });
+        });
+    }
+
     function bind(selector) {
         if (!$ || !selector) {
             return;
@@ -103,6 +147,9 @@
         var ns = eventNs(selector);
 
         if (!$table.length || !$wrapper.length || !$host.length) {
+            if ($table.length) {
+                scheduleBindWhenHostReady(selector);
+            }
             return;
         }
 
@@ -138,6 +185,7 @@
             $(window).on('scroll.' + ns, function () {
                 syncHeaderHScroll($table);
             });
+            bindColumnEvents($table, selector);
         }
 
         updateStickyHScroll($table);

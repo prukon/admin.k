@@ -78,10 +78,12 @@
                                 <input class="form-check-input column-toggle" type="checkbox" data-column-key="schedule_type_label" id="colLessonPackageType" checked>
                                 <label class="form-check-label" for="colLessonPackageType">Тип</label>
                             </div>
+                            @can('scheduleSlots.view')
                             <div class="form-check">
                                 <input class="form-check-input column-toggle" type="checkbox" data-column-key="duration_days" id="colLessonPackageDuration" checked>
                                 <label class="form-check-label" for="colLessonPackageDuration">Срок действия (дни)</label>
                             </div>
+                            @endcan
                             <div class="form-check">
                                 <input class="form-check-input column-toggle" type="checkbox" data-column-key="lessons_count" id="colLessonPackageLessons" checked>
                                 <label class="form-check-label" for="colLessonPackageLessons">Занятий</label>
@@ -90,10 +92,12 @@
                                 <input class="form-check-input column-toggle" type="checkbox" data-column-key="price_label" id="colLessonPackagePrice" checked>
                                 <label class="form-check-label" for="colLessonPackagePrice">Стоимость</label>
                             </div>
+                            @can('scheduleSlots.view')
                             <div class="form-check">
                                 <input class="form-check-input column-toggle" type="checkbox" data-column-key="freeze_label" id="colLessonPackageFreeze" checked>
                                 <label class="form-check-label" for="colLessonPackageFreeze">Заморозка</label>
                             </div>
+                            @endcan
                             @can('lessonPackages.view')
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle" type="checkbox" data-column-key="actions" id="colLessonPackageActions" checked>
@@ -150,10 +154,14 @@
             <tr>
                 <th>Название</th>
                 <th>Тип</th>
-                <th>Срок действия (дни)</th>
+                @can('scheduleSlots.view')
+                    <th>Срок действия (дни)</th>
+                @endcan
                 <th>Занятий</th>
                 <th>Стоимость</th>
-                <th>Заморозка</th>
+                @can('scheduleSlots.view')
+                    <th>Заморозка</th>
+                @endcan
                 @can('lessonPackages.view')
                     <th class="text-start" style="min-width: 220px;">Действия</th>
                 @endcan
@@ -379,6 +387,7 @@
         $(document).ready(function () {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                 const canManagePackages = @json(auth()->user()->can('lessonPackages.view'));
+                const canViewScheduleSlots = @json(auth()->user()->can('scheduleSlots.view'));
 
                 function clearErrors(modalEl) {
                     modalEl.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
@@ -473,10 +482,10 @@
                         defaults: {
                             name: true,
                             schedule_type_label: true,
-                            duration_days: true,
+                            ...(canViewScheduleSlots ? { duration_days: true } : {}),
                             lessons_count: true,
                             price_label: true,
-                            freeze_label: true,
+                            ...(canViewScheduleSlots ? { freeze_label: true } : {}),
                             ...(canManagePackages ? { actions: true } : {}),
                         },
                         urls: {
@@ -518,6 +527,7 @@
                             data: 'duration_days',
                             name: 'duration_days',
                             className: 'text-center',
+                            when: canViewScheduleSlots,
                         },
                         {
                             key: 'lessons_count',
@@ -539,6 +549,7 @@
                             data: 'freeze_label',
                             name: 'freeze_label',
                             className: 'text-center',
+                            when: canViewScheduleSlots,
                         },
                         {
                             key: 'actions',
@@ -764,7 +775,7 @@
                     editFreezeDaysWrap.style.display = editFreezeEnabled.checked ? '' : 'none';
                 }
 
-                function applyEditScheduleTypeUi() {
+                function applyEditScheduleTypeUi(fromTypeChange) {
                     if (!editScheduleType) {
                         return;
                     }
@@ -772,11 +783,14 @@
                     const isSingle = t === 'no_schedule';
                     const isPostpay = t === 'postpay';
                     if (isSingle || isPostpay) {
-                        if (isSingle) {
+                        const canSnapshotPrevious = !editDuration || !editDuration.readOnly;
+                        if (fromTypeChange && !editSnapshotBeforeSingle && canSnapshotPrevious) {
                             editSnapshotBeforeSingle = {
                                 duration: (editDuration && editDuration.value) ? editDuration.value : '30',
                                 lessons: (editLessons && editLessons.value) ? editLessons.value : '8',
                             };
+                        }
+                        if (isSingle) {
                             if (editDuration) {
                                 editDuration.value = '1';
                                 editDuration.readOnly = true;
@@ -832,7 +846,7 @@
                                 editLessons.value = editSnapshotBeforeSingle.lessons;
                             }
                             editSnapshotBeforeSingle = null;
-                        } else {
+                        } else if (fromTypeChange) {
                             if (editDuration) {
                                 editDuration.value = '30';
                             }
@@ -866,7 +880,9 @@
                 }
 
                 editFreezeEnabled?.addEventListener('change', editToggleFreezeDays);
-                editScheduleType?.addEventListener('change', applyEditScheduleTypeUi);
+                editScheduleType?.addEventListener('change', function () {
+                    applyEditScheduleTypeUi(true);
+                });
 
                 editFormEl?.addEventListener('submit', async function (e) {
                     e.preventDefault();

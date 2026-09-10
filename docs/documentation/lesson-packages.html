@@ -66,7 +66,8 @@
     <br><br>
     <b>Заморозка в модалке шаблона (2026‑09):</b> чекбокс «Разрешена заморозка»
     и поле дней — только при <code>scheduleSlots.view</code>
-    (тот же <code>@can</code>, что у автосписания). Без права store с
+    (тот же <code>@can</code>, что у автосписания). Колонка таблицы «Заморозка»
+    скрывается тем же правом. Без права store с
     <code>freeze_enabled=true</code> → <code>422</code> на поле; update не сбрасывает
     уже сохранённые <code>freeze_enabled</code>/<code>freeze_days</code>.
     Флаг <b>не</b> участвует в календаре школы и журнале.
@@ -76,11 +77,19 @@
     <br><br>
     <b>Срок действия в модалке шаблона (2026‑09):</b> поле «Срок действия (дни)»
     только при <code>scheduleSlots.view</code> (свой <code>@can</code>).
+    Колонка таблицы «Срок действия (дни)» скрывается тем же правом.
     Без права create <code>fixed</code>/<code>flexible</code> пишет фоном <code>30</code>;
     update сохраняет текущий срок. Разовое → <code>1</code>, постоплата → <code>31</code>.
     Анонс — <a href="/doc#lesson-package-duration-permission-index">/doc</a>,
     группа прав — <a href="/doc#school-schedule-permission-group-index">«Расписание школы»</a>,
     подробно — <a href="#duration-permission">§duration-permission</a>.
+    <br><br>
+    <b>Fill edit шаблона (2026‑09):</b> «Изменить» для фикса/предоплаты не затирает
+    занятия и срок дефолтами 8/30. 8/30 — при смене типа на фикс/предоплату,
+    если нет снимка (в том числе фикс↔предоплата). Create по-прежнему стартует с 8/30.
+    Разовое/постоплата при открытии остаются 1 занятие / 1 день и 1 / 31.
+    Анонс — <a href="/doc#lesson-package-edit-fill-defaults-index">/doc</a>,
+    подробно — <a href="#edit-fill-defaults">§packages-tab</a>.
   </div>
 
   <h2 id="type-permissions">Права на тип шаблона <code>lessonPackages.type.*</code></h2>
@@ -180,7 +189,7 @@
     </tbody>
   </table>
   <p>Значение <code>duration_days</code> берётся из <b>сохранённого</b> шаблона.
-    Скрытие поля в модалке без <code>scheduleSlots.view</code> не отключает правило:
+    Скрытие поля в модалке и колонки таблицы без <code>scheduleSlots.view</code> не отключает правило:
     create без права пишет фоном <code>30</code>, update сохраняет текущий срок
     (<a href="#duration-permission">§duration-permission</a>,
     <a href="/doc#lesson-package-duration-permission-index">анонс</a>).</p>
@@ -426,7 +435,10 @@
     <code>#create_duration_wrap</code> / <code>#edit_duration_wrap</code>
     в отдельном <code>@can('scheduleSlots.view')</code>
     (не в общем блоке заморозки/автосписания).
-    Колонка таблицы «Срок действия (дни)» этим правом не скрывается.
+    Колонка таблицы «Срок действия (дни)» и пункт в меню «Колонки»
+    (<code>#colLessonPackageDuration</code>) — тот же <code>@can</code>;
+    DataTable <code>when: canViewScheduleSlots</code>. JSON <code>…/data</code>
+    по-прежнему отдаёт <code>duration_days</code>.
     Хелпер: <code>App\Support\LessonPackageDurationPermission</code>
     (<code>DEFAULT_CREATE_DAYS = 30</code>, разовое <code>NO_SCHEDULE_DAYS = 1</code>,
     постоплата <code>POSTPAY_DAYS = 31</code>).
@@ -440,6 +452,9 @@
     пустая строка на update без права не должна подменять 45 на 30.
     Fill edit идёт через <code>if (editDuration)</code> (без поля <code>querySelector</code> даёт
     <code>null</code> и обрывает заполнение цены/занятий).
+    После fill <code>applyEditScheduleTypeUi()</code> без аргумента <b>не</b> сбрасывает
+    срок фикса/предоплаты на 30
+    (<a href="#edit-fill-defaults">§edit-fill-defaults</a>).
     Повторное открытие create (<code>shown.bs.modal</code>) сбрасывает срок в <code>30</code>,
     если input есть в DOM; для <code>no_schedule</code> JS ставит <code>1</code>, для
     <code>postpay</code> скрывает wrap и ставит <code>31</code>.</p>
@@ -451,7 +466,7 @@
     <tbody>
       <tr>
         <td>Нет права <code>scheduleSlots.view</code>, тип <code>fixed</code> / <code>flexible</code></td>
-        <td>Поле скрыто. Create → фоново <code>30</code> (клиентский <code>90</code> игнорируется).
+        <td>Поле и колонка скрыты. Create → фоново <code>30</code> (клиентский <code>90</code> игнорируется).
           Update сохраняет уже записанный срок</td>
       </tr>
       <tr>
@@ -477,7 +492,10 @@
     (<code>lesson_packages</code>), не в назначении (<code>user_lesson_packages</code>).
     Чекбокс «Разрешена заморозка» и поле «Дней заморозки» в модалках create/edit —
     только при <code>scheduleSlots.view</code> (общий <code>@can</code> с автосписанием).
-    Колонка таблицы «Заморозка» (<code>freeze_label</code>) правом <b>не</b> скрывается.
+    Колонка таблицы «Заморозка» (<code>freeze_label</code>) и пункт в меню «Колонки»
+    (<code>#colLessonPackageFreeze</code>) скрываются тем же правом;
+    DataTable <code>when: canViewScheduleSlots</code>. JSON <code>…/data</code>
+    по-прежнему отдаёт <code>freeze_label</code>.
     Календарь школы и журнал флаг <b>не читают</b>; таблица
     <code>user_lesson_package_freezes</code> чистится при удалении назначения, но
     создание заморозок из UI по этому флагу нет.
@@ -516,7 +534,7 @@
     <tbody>
       <tr>
         <td>Нет права <code>scheduleSlots.view</code></td>
-        <td>Чекбокс и поле дней скрыты. Store с <code>true</code> → <code>422</code> на
+        <td>Чекбокс, поле дней и колонка таблицы скрыты. Store с <code>true</code> → <code>422</code> на
           <code>freeze_enabled</code>. Update не включает флаг и не сбрасывает уже включённый
           (дни тоже preserve)</td>
       </tr>
@@ -647,7 +665,8 @@
     <li>Таблица <code>#lesson-packages-table</code> — server-side <code>KidsCrmDataTable.create</code>
       (init в <code>@push('scripts')</code> + <code>$(document).ready</code>, иначе Vite-модуль ещё не готов).</li>
     <li>После успешного AJAX create/update/delete — <code>reloadPackagesTable()</code> (<code>dtApi.reload({ keepPage: true })</code>), без F5.</li>
-    <li>Колонки: название, тип, <b>Срок действия (дни)</b>, занятий, стоимость, заморозка, действия
+    <li>Колонки: название, тип, <b>Срок действия (дни)</b> и <b>заморозка</b> — только при
+      <code>scheduleSlots.view</code> (<code>when: canViewScheduleSlots</code>), занятий, стоимость, действия
       («Изменить» / «Удалить» — удаление только если нет назначений и привязок в календаре, флаг <code>can_delete</code> в JSON).</li>
     <li>Настройки колонок: <code>user_table_settings.table_key = lesson_packages_index</code>.</li>
   </ul>
@@ -681,9 +700,36 @@
       Поле «Срок действия (дни)» — отдельный <code>@can('scheduleSlots.view')</code>;
       без права create пишет <code>30</code>, update сохраняет срок
       (<a href="#duration-permission">§duration-permission</a>).</li>
-    <li>Подпись поля срока — <b>«Срок действия (дни) *»</b> (не «Длительность»); в модалке только при <code>scheduleSlots.view</code>.</li>
+    <li>Подпись поля срока — <b>«Срок действия (дни) *»</b> (не «Длительность»); в модалке и в таблице только при <code>scheduleSlots.view</code>.</li>
     <li>Раскладка: по 2 поля в ряд (<code>col-md-6</code>); в create у обязательных полей стоят <code>*</code>.</li>
     <li>Ширина модалок — стандартная Bootstrap (не full-screen).</li>
+    <li id="edit-fill-defaults">Fill edit: <code>GET /admin/lesson-packages/{id}</code> пишет название, тип,
+      срок, занятия и цену; затем <code>applyEditScheduleTypeUi()</code> <b>без</b> аргумента.
+      Для <code>fixed</code>/<code>flexible</code> занятия и срок <b>не</b> затираются
+      дефолтами create 8/30 (это и был UX-баг: таблица 12, модалка 8).
+      Для разового при открытии JS по-прежнему ставит 1/1 readonly;
+      для постоплаты — 1 занятие / 31 день и скрывает wrap (служебные константы типа).
+      Дефолты 8 занятий и 30 дней — только при смене типа в селекте на фикс/предоплату
+      (<code>applyEditScheduleTypeUi(true)</code>), если нет снимка
+      (в том числе фикс↔предоплата).
+      Fill до UI: <code>lp.lessons_count || 8</code> / <code>lp.duration_days || 30</code>
+      — только если JSON пустой, не затирание после fill.
+      Снимок берётся при уходе с фикса/предоплаты на разовое или постоплату
+      (<code>canSnapshotPrevious</code>: поле срока отсутствует либо не <code>readOnly</code>).
+      Create не меняли: HTML <code>value="8"</code> / <code>30</code>,
+      <code>shown.bs.modal</code> снова 8/30 и тип <code>fixed</code>.
+      Оба экрана (расписание школы и справочники) — один partial, один JS.
+      Не путать с фоновым сроком 30 без <code>scheduleSlots.view</code> на create
+      (<a href="#duration-permission">§duration-permission</a>).
+      Тесты: <code>LessonPackageEditFillDefaultsAccessFeatureTest</code>,
+      <code>LessonPackageEditFillDefaultsMarkupFeatureTest</code>,
+      <code>LessonPackageEditFillDefaultsAjaxContractFeatureTest</code>,
+      <code>LessonPackageEditFillDefaultsNonAjaxSafetyNetFeatureTest</code>,
+      <code>LessonPackageEditFillDefaultsJsContractFeatureTest</code>
+      (node: открытие 12 не становится 8 — падает на коде до фикса),
+      <code>LessonPackageEditFillDefaultsWorkflowFeatureTest</code>,
+      <code>BladeInlineJsSyntaxTest::test_lesson_packages_edit_fill_defaults_inline_script_is_valid_javascript</code>.
+      Анонс — <a href="/doc#lesson-package-edit-fill-defaults-index">/doc</a>.</li>
   </ul>
 
   <h3>Endpoint’ы шаблонов</h3>
@@ -1429,17 +1475,17 @@
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + session errors по полю; store без права с <code>auto=0</code>; update без чекбокса preserve (в т.ч. <code>from</code> справочников)</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceMarkupFeatureTest.php</code> — разметка create/edit на обеих страницах: чекбоксы заморозки и автосписания без <code>checked</code>/<code>disabled</code>, порядок заморозка → автосписание; без права оба input отсутствуют</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageFreezePermissionFeatureTest.php</code> — право <code>scheduleSlots.view</code> для заморозки: AJAX 422 / preserve / включение с правом; non-AJAX 302 + ошибка под <code>freeze_enabled</code></li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageFreezeAccessFeatureTest.php</code> — guest 302/не 500, без <code>lessonPackages.view</code> → 403, с правом + <code>scheduleSlots.view</code> → чекбокс и CRUD, без <code>scheduleSlots.view</code> страницы 200 и input скрыт (колонка «Заморозка» остаётся, <code>…/data</code> отдаёт <code>freeze_label</code>), superadmin видит чекбокс, чужой партнёр → 404</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageFreezeAccessFeatureTest.php</code> — guest 302/не 500, без <code>lessonPackages.view</code> → 403, с правом + <code>scheduleSlots.view</code> → чекбокс, колонка и CRUD, без <code>scheduleSlots.view</code> страницы 200, input и колонка скрыты (<code>…/data</code> отдаёт <code>freeze_label</code>), superadmin видит чекбокс и колонку, чужой партнёр → 404</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageFreezeAjaxContractFeatureTest.php</code> — AJAX JSON 200/422, <code>errors.freeze_enabled</code> / <code>errors.freeze_days</code>, UX payload 0 без чекбокса не сбрасывает флаг и дни, omit поля, enable/disable с правом, разовое → 422, postpay тихо <code>false</code>, смена типа на разовое без права сбрасывает заморозку</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageFreezeNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + session errors по полю; store без права с <code>freeze=0</code>; update без чекбокса preserve (в т.ч. <code>from</code> справочников); с правом omit дней → session <code>errors.freeze_days</code></li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageFreezeMarkupFeatureTest.php</code> — create без <code>checked</code>, дни value=7 и wrap <code>d-none</code>, порядок заморозка → автосписание; edit без зашитых checked/value; без права input нет, колонка таблицы остаётся</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageFreezeMarkupFeatureTest.php</code> — create без <code>checked</code>, дни value=7 и wrap <code>d-none</code>, порядок заморозка → автосписание; edit без зашитых checked/value; без права input и колонка таблицы скрыты</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageFreezeWorkflowFeatureTest.php</code> — [P2] страница справочника без чекбокса → AJAX update с <code>freeze=0</code> → show/data без F5, <code>freeze_label</code> «14»</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_lesson_packages_freeze_permission_inline_script_is_valid_javascript</code>: <code>@can</code>, <code>normalizePayload</code> (missing checkbox → 0 / дни ''), null-guard fill edit, hide <code>no_schedule</code>/<code>postpay</code>, reset create, <code>node --check</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageDurationPermissionFeatureTest.php</code> — право <code>scheduleSlots.view</code> для поля срока: без права create → 30 (клиентский срок игнорируется), update preserve, разовое 1 / postpay 31; с правом — своё значение и 422 без поля</li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageDurationAccessFeatureTest.php</code> — guest 302/не 500, без <code>lessonPackages.view</code> → 403, с правом + <code>scheduleSlots.view</code> → поле и CRUD, без <code>scheduleSlots.view</code> страницы 200 и input скрыт, superadmin видит поле, чужой партнёр → 404</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageDurationAccessFeatureTest.php</code> — guest 302/не 500, без <code>lessonPackages.view</code> → 403, с правом + <code>scheduleSlots.view</code> → поле, колонка и CRUD, без <code>scheduleSlots.view</code> страницы 200, input и колонка скрыты, superadmin видит поле и колонку, чужой партнёр → 404</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageDurationAjaxContractFeatureTest.php</code> — AJAX JSON 200/422, <code>errors.duration_days</code>, UX пустая строка без поля не сбрасывает 45 на 30, omit с правом → 422</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageDurationNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + БД; store без права → 30; update без поля preserve (в т.ч. <code>from</code> справочников); с правом omit → session <code>errors.duration_days</code></li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageDurationMarkupFeatureTest.php</code> — create value=30, порядок тип→срок→занятий, edit без зашитого value; без права input нет, колонка таблицы остаётся</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageDurationMarkupFeatureTest.php</code> — create value=30, порядок тип→срок→занятий, edit без зашитого value; без права input и колонка таблицы скрыты</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageDurationWorkflowFeatureTest.php</code> — [P2] страница справочника без поля → AJAX update с пустым сроком → show/data без F5, срок 45</li>
     <li><code>tests/Unit/Documentation/LessonPackageDurationDocumentationContractTest.php</code> — анонс <code>/doc#lesson-package-duration-permission-index</code> совпадает с хелпером и модалками</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_lesson_packages_duration_permission_inline_script_is_valid_javascript</code>: <code>@can</code>, <code>normalizePayload</code> (missing input → ''), null-guard fill edit, reset create на 30, hide postpay, <code>node --check</code></li>

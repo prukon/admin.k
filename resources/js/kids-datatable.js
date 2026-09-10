@@ -790,6 +790,9 @@
 
         const table = $table.DataTable(dtOptions);
         const tableElement = $table.get(0);
+        // Обёртка нужна до первого ajax-drawCallback: init.dt приходит после него,
+        // и page-specific bind липкого скролла иначе не находит .kids-dt-scroll-x.
+        ensureTableScrollHost(tableElement, table.settings()[0]);
 
         window.KidsCrmTooltip.bindDataTable(tableElement);
 

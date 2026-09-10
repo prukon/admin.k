@@ -1,7 +1,10 @@
 @php
     $frCanFilterPartner = $frCanFilterPartner ?? false;
 @endphp
-@vite(['resources/css/admin-list-toolbar.css'])
+@push('styles')
+    @vite(['resources/css/admin-list-toolbar.css', 'resources/css/admin-reports-tables.css', 'resources/js/admin-reports-tables-sticky.js'])
+    <link rel="stylesheet" href="{{ asset('plugins/datatables-fixedheader/css/fixedHeader.bootstrap4.min.css') }}">
+@endpush
 
 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
     <div class="card-body px-3 py-3">
@@ -237,8 +240,7 @@
     </form>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-bordered dt-columns-managed w-100" id="fiscal-receipts-table">
+<table class="table table-bordered dt-columns-managed w-100" id="fiscal-receipts-table">
         <thead>
         <tr>
             <th>ID</th>
@@ -260,9 +262,9 @@
         </tr>
         </thead>
     </table>
-</div>
 
 @push('scripts')
+    <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script type="text/javascript">
         $(function () {
             var $form = $('#fiscal-receipts-filters');
@@ -504,6 +506,12 @@
                 }
             }
 
+            function fiscalReceiptsAfterApplyVisibleColumns() {
+                if (window.KidsCrmReportTableSticky) {
+                    window.KidsCrmReportTableSticky.bind('#fiscal-receipts-table');
+                }
+            }
+
             var dtApi = KidsCrmDataTable.create('#fiscal-receipts-table', {
                 columnsSettings: {
                     persistPageLength: true,
@@ -522,7 +530,8 @@
                         save: '/admin/reports/fiscal-receipts/columns-settings'
                     },
                     toggleSelector: '.fiscal-receipts-column-toggle',
-                    csrfToken: '{{ csrf_token() }}'
+                    csrfToken: '{{ csrf_token() }}',
+                    afterApplyVisibleColumns: fiscalReceiptsAfterApplyVisibleColumns
                 },
                 dataTable: {
                     pageLength: @json((int) ($fiscalReceiptsPageLength ?? 10)),
@@ -536,8 +545,15 @@
                         }
                     },
                     order: [[0, 'desc']],
-                    fixedColumns: {leftColumns: 2},
-                    language: @include('partials.datatables.ru')
+                    language: @include('partials.datatables.ru'),
+                    fixedHeader: ($.fn.dataTable && $.fn.dataTable.FixedHeader)
+                        ? { header: true, footer: false }
+                        : false,
+                    drawCallback: function () {
+                        if (window.KidsCrmReportTableSticky) {
+                            window.KidsCrmReportTableSticky.bind('#fiscal-receipts-table');
+                        }
+                    }
                 },
                 columns: [
                     { key: 'id', type: 'id', data: 'id', name: 'id' },

@@ -47,11 +47,15 @@ final class LessonPackageDurationDocumentationContractTest extends TestCase
         $this->assertStringContainsString('billing_month', $chunk);
         $this->assertStringContainsString('period-rule', $chunk);
         $this->assertStringContainsString('Укажите длительность в днях.', $chunk);
-        $this->assertStringContainsString('Занятий', $chunk);
+        $this->assertStringContainsString('Поле «Занятий»', $chunk);
+        $this->assertStringContainsString('canViewScheduleSlots', $chunk);
+        $this->assertStringContainsString('colLessonPackageDuration', $chunk);
+        $this->assertStringContainsString('Колонка «Срок действия (дни)» в таблице шаблонов абонемента', $chunk);
         $this->assertStringContainsString('role_base_permissions.php', $chunk);
         $this->assertStringContainsString('DEFAULT_CREATE_DAYS = 30', $chunk);
 
         $this->assertStringContainsString('/doc#lesson-package-duration-permission-index', $html);
+        $this->assertStringContainsString('/doc#lesson-package-edit-fill-defaults-index', $chunk);
     }
 
     public function test_lesson_packages_page_documents_duration_gate(): void
@@ -76,6 +80,9 @@ final class LessonPackageDurationDocumentationContractTest extends TestCase
         $this->assertStringContainsString('period-rule', $html);
         $this->assertStringContainsString('auto-prolong', $html);
         $this->assertStringContainsString('lessons_count', $html);
+        $this->assertStringContainsString('edit-fill-defaults', $html);
+        $this->assertStringContainsString('canViewScheduleSlots', $html);
+        $this->assertStringContainsString('colLessonPackageDuration', $html);
     }
 
     public function test_capability_hint_and_helper_match_docs(): void
@@ -83,6 +90,7 @@ final class LessonPackageDurationDocumentationContractTest extends TestCase
         $hints = (string) file_get_contents(dirname(__DIR__, 3).'/config/permission_capability_hints.php');
         $this->assertStringContainsString("'scheduleSlots.view'", $hints);
         $this->assertStringContainsString('Поле «Срок действия (дни)» в модалках шаблона абонемента', $hints);
+        $this->assertStringContainsString('Колонка «Срок действия (дни)» в таблице шаблонов абонемента', $hints);
 
         $helper = (string) file_get_contents(dirname(__DIR__, 3).'/app/Support/LessonPackageDurationPermission.php');
         $this->assertStringContainsString("NAME = 'scheduleSlots.view'", $helper);
@@ -98,6 +106,8 @@ final class LessonPackageDurationDocumentationContractTest extends TestCase
         $this->assertStringContainsString('id="create_duration_wrap"', $blade);
         $this->assertStringContainsString('id="edit_duration_wrap"', $blade);
         $this->assertStringContainsString('@can(\'scheduleSlots.view\')', $blade);
+        $this->assertStringContainsString('id="colLessonPackageDuration"', $blade);
+        $this->assertStringContainsString('when: canViewScheduleSlots', $blade);
     }
 
     public function test_permission_groups_link_duration_section(): void
@@ -115,6 +125,7 @@ final class LessonPackageDurationDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#lesson-package-duration-permission-index', $calendar);
         $this->assertStringContainsString('duration_days', $calendar);
         $this->assertStringContainsString('ends_at = starts_at + duration_days', $calendar);
+        $this->assertStringContainsString('колонка таблицы', $calendar);
 
         $postpay = $this->docFile('postpay.html');
         $this->assertStringContainsString('duration_days = 31', $postpay);

@@ -221,6 +221,7 @@ users (role=user) — ученик, вход в CRM
       <tr><td><code>users.sex</code></td><td><code>users.sex</code></td><td>Пол ученика: в CRM (колонка, модалки) и в личном кабинете (<code>/account-settings/user/edit</code>); без права — поле не рендерится. Комментарий в кабинете недоступен.</td></tr>
       <tr><td><code>users.full_name_genitive</code></td><td><code>users.full_name_genitive</code></td><td>ФИО ученика в родительном падеже: CRM и ЛК; <code>is_visible=0</code>, не в базовых ролях. Без права — поле не рендерится.
         См. <a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>.</td></tr>
+      <tr><td><code>account.user.two_factor.update</code></td><td><code>account.user.two_factor.update</code></td><td>Переключатель «Двухфакторная аутентификация (SMS)» на <code>/account-settings/user/edit</code>. Скрытое (<code>is_visible=0</code>), <b>не</b> в базовых ролях: при создании партнёра выключено у всех. Без права — блок не рендерится, PATCH не меняет <code>two_factor_enabled</code> (уже включённая 2FA остаётся). Superadmin включает любой роли в матрице. См. <a href="#account-two-factor">§4.6</a>.</td></tr>
     </tbody>
   </table>
   <p>Базовая роль <code>user</code> получает <code>account.user.parent.update</code> и <code>users.sex</code> из <code>config/role_base_permissions.php</code> (сидер <code>PermissionSeeder</code>).
@@ -342,6 +343,67 @@ users (role=user) — ученик, вход в CRM
     <code>CabinetTeamAttachInAppNotification*FeatureTest</code>,
     <code>AccountUserEditPageFeatureTest</code>,
     <code>SuccessToastInsteadOfModalUiContractsFeatureTest</code> (свой пароль в ЛК — toast).</p>
+
+  <h3 id="account-two-factor">4.6) Двухфакторная аутентификация (SMS)</h3>
+  <div class="note">
+    Переключатель на <code>/account-settings/user/edit</code>
+    (<code>resources/views/account/users.blade.php</code>) закрыт правом
+    <code>account.user.two_factor.update</code> (группа <code>account</code>,
+    <code>is_visible=0</code>, <code>sort_order</code> 62). Скрытое, <b>не</b> в базовых
+    ролях <code>user</code> / <code>admin</code> / <code>trainer</code>: при создании
+    партнёра выключено у всех. Superadmin видит его в матрице «Права и роли» и
+    включает любой роли партнёра. Админ школы строку не видит.
+    Не путать с <code>settings.force2fa.admins</code> (кто включает глобалку
+    <code>force_2fa_admins</code>).
+    Анонс: <a href="/doc#account-two-factor-permission-index">/doc</a>.
+  </div>
+  <ul>
+    <li>Доступ: гость GET → login, PATCH → 302/401; без <code>account.user.view</code>
+      → 403. Без <code>account.user.two_factor.update</code> при наличии
+      <code>account.user.view</code> — GET 200, блока нет (нет
+      <code>name="two_factor_enabled"</code>), PATCH 200 JSON, поле не меняется.
+      Не 403.</li>
+    <li><code>PATCH /account-settings/user</code> (<code>AccountUpdateRequest</code> +
+      <code>AccountController@update</code>): без права поле снимается, текущее
+      <code>users.two_factor_enabled</code> не меняется — ни включить, ни выключить.
+      Уже включённая 2FA на входе продолжает работать. Ответ успеха — JSON 200
+      (и без <code>X-Requested-With</code>).</li>
+    <li>С правом — чекбокс, hidden 0 перед чекбоксом (снятие галочки шлёт 0),
+      422 на <code>phone</code> если включают 2FA без номера формата 79XXXXXXXXX.
+      AJAX <code>updateUserData</code>: <code>e.preventDefault</code>, PATCH,
+      <code>Accept: application/json</code>, успех → <code>location.reload</code>.
+      422 цепляется к видимому input (<code>[name=…]:not([type=hidden])</code>, затем
+      <code>#field</code>), не к hidden 0. Первый submit-handler (клиентская проверка
+      2FA) снимается через <code>.off('submit')</code>.</li>
+    <li>Глобалка <code>force_2fa_admins</code> не зависит от права
+      <code>account.user.two_factor.update</code>. В ЛК locked-on —
+      <code>$user-&gt;hasRole('admin')</code> (не <code>role_id === 10</code>:
+      у seeded admin id=2). Чекбокс disabled + hidden 1.
+      <code>AccountController</code> на PATCH смотрит имя роли <code>admin</code>
+      и пишет 1 (ответ 200). Ученик/тренер глобалку не получают.
+      <code>AccountUpdateRequest::withValidator</code> по-прежнему
+      <code>role_id === 10</code> — для seeded admin эта 422 не срабатывает.</li>
+    <li>Вход: <code>EnsureTwoFactorIsVerified</code> и <code>TwoFactorController</code>
+      для глобалки всё ещё проверяют <code>role_id === 10</code>. У seeded admin
+      challenge из глобалки <b>не</b> включается, пока
+      <code>users.two_factor_enabled=1</code> (после save профиля контроллер выставит).
+      Не описывать как «на входе 2FA обязательна для всех admin по имени роли».</li>
+    <li>Миграция <code>2026_09_10_034100_add_account_user_two_factor_update_permission.php</code>
+      создаёт скрытое право в каталоге без выдачи ролям.
+      <code>2026_09_10_044800_revoke_account_user_two_factor_update_from_roles.php</code>
+      снимает выдачу со всех ролей (после раннего бэкфилла). Кастомные роли:
+      стартовый набор admin это право не содержит —
+      <a href="/docs/documentation/settings-roles-custom">settings-roles-custom</a>.</li>
+  </ul>
+  <p class="small">Тесты: <code>AccountTwoFactorPermissionCatalogFeatureTest</code>,
+    <code>AccountTwoFactorPermissionAccessFeatureTest</code>,
+    <code>AccountTwoFactorPermissionFullAccessFeatureTest</code>,
+    <code>AccountTwoFactorPermissionAjaxContractFeatureTest</code>,
+    <code>AccountTwoFactorPermissionNonAjaxSafetyNetFeatureTest</code>,
+    <code>AccountTwoFactorPermissionMarkupFeatureTest</code>,
+    <code>AccountTwoFactorPermissionUiContractsFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_account_user_two_factor_ajax_submit_is_valid_javascript_and_attaches_errors_to_visible_field</code>,
+    <code>AccountTwoFactorPermissionDocumentationContractTest</code>.</p>
 
   <h2 id="family-cabinet">5) Семейный кабинет (переключение детей)</h2>
   <p class="small">Оплата за выбранного ребёнка (витрина, Init, отчёты) — <a href="/doc#family-student-payment-index">анонс на /doc</a>.</p>

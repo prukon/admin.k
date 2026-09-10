@@ -218,7 +218,9 @@ final class LessonPackageAutoAttendanceAccessFeatureTest extends CrmTestCase
                 ->assertDontSee('id="create_freeze_enabled"', false)
                 ->assertDontSee('id="edit_freeze_enabled"', false)
                 ->assertDontSee('id="create_duration_days"', false)
-                ->assertDontSee('id="edit_duration_days"', false);
+                ->assertDontSee('id="edit_duration_days"', false)
+                ->assertDontSee('id="colLessonPackageDuration"', false)
+                ->assertDontSee('id="colLessonPackageFreeze"', false);
         }
     }
 
@@ -237,6 +239,8 @@ final class LessonPackageAutoAttendanceAccessFeatureTest extends CrmTestCase
             ->assertSee('id="edit_freeze_enabled"', false)
             ->assertSee('id="create_duration_days"', false)
             ->assertSee('id="edit_duration_days"', false)
+            ->assertSee('id="colLessonPackageDuration"', false)
+            ->assertSee('id="colLessonPackageFreeze"', false)
             ->assertSee('Автосписание', false)
             ->assertSee('Разрешена заморозка', false);
     }

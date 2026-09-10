@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Разметка модалок: поле «Срок действия (дни)», дефолт 30, @can(scheduleSlots.view).
+ * Разметка модалок и колонки таблицы: поле «Срок действия (дни)», дефолт 30, @can(scheduleSlots.view).
  *
  * @see LessonPackageDurationAccessFeatureTest
  * @see docs/documentation/lesson-packages.html
@@ -96,6 +96,8 @@ final class LessonPackageDurationMarkupFeatureTest extends CrmTestCase
                 (int) strpos($create, 'id="create_duration_wrap"'),
                 'Срок в create должен идти до поля «Занятий».'
             );
+            $this->assertStringContainsString('id="colLessonPackageDuration"', $html);
+            $this->assertStringContainsString('data-column-key="duration_days"', $html);
         }
     }
 
@@ -123,7 +125,7 @@ final class LessonPackageDurationMarkupFeatureTest extends CrmTestCase
         }
     }
 
-    public function test_both_modals_hide_duration_inputs_without_schedule_slots_view_but_keep_lessons_and_table_column(): void
+    public function test_both_modals_hide_duration_inputs_and_table_column_without_schedule_slots_view_but_keep_lessons(): void
     {
         foreach ($this->packagesPageUrls() as $url) {
             $page = $this->get($url);
@@ -140,8 +142,9 @@ final class LessonPackageDurationMarkupFeatureTest extends CrmTestCase
             $this->assertStringNotContainsString('name="edit[duration_days]"', $edit);
             $this->assertStringContainsString('id="create_lessons_count"', $create);
             $this->assertStringContainsString('id="edit_lessons_count"', $edit);
-            $this->assertStringContainsString('id="colLessonPackageDuration"', $html);
-            $this->assertStringContainsString('data-column-key="duration_days"', $html);
+            $this->assertStringNotContainsString('id="colLessonPackageDuration"', $html);
+            $this->assertStringNotContainsString('data-column-key="duration_days"', $html);
+            $this->assertStringNotContainsString('>Срок действия (дни)<', $html);
         }
     }
 }

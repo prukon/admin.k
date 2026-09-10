@@ -159,6 +159,8 @@ final class LessonPackageAutoAttendanceMarkupFeatureTest extends CrmTestCase
             $this->assertStringNotContainsString('name="create[duration_days]"', $create);
             $this->assertStringNotContainsString('id="edit_duration_days"', $edit);
             $this->assertStringNotContainsString('name="edit[duration_days]"', $edit);
+            $this->assertStringNotContainsString('id="colLessonPackageDuration"', $html);
+            $this->assertStringNotContainsString('id="colLessonPackageFreeze"', $html);
         }
     }
 }

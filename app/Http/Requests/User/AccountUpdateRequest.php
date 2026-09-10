@@ -36,19 +36,26 @@ class AccountUpdateRequest extends FormRequest
         // Исторически он приходил через route('user') (Model Binding),
         // но для self-service страницы параметра в URL может не быть.
         $targetUser = $this->route('user') ?: $this->user();
-        $incomingHasTfa   = $this->has('two_factor_enabled');
-
-        $resolvedTwoFactorEnabled = $incomingHasTfa
-            ? (int) !!$this->input('two_factor_enabled')
-            : (int) ($targetUser ? $targetUser->two_factor_enabled : 0);
 
         // Нормализуем is_enabled (чекбокс может не прийти)
         $resolvedIsEnabled = $this->boolean('is_enabled');
 
         $this->merge([
-            'two_factor_enabled' => $resolvedTwoFactorEnabled,
-            'is_enabled'         => $resolvedIsEnabled,
+            'is_enabled' => $resolvedIsEnabled,
         ]);
+
+        if ($this->user()?->can('account.user.two_factor.update')) {
+            $incomingHasTfa = $this->has('two_factor_enabled');
+            $resolvedTwoFactorEnabled = $incomingHasTfa
+                ? (int) !!$this->input('two_factor_enabled')
+                : (int) ($targetUser ? $targetUser->two_factor_enabled : 0);
+
+            $this->merge([
+                'two_factor_enabled' => $resolvedTwoFactorEnabled,
+            ]);
+        } else {
+            $this->offsetUnset('two_factor_enabled');
+        }
 
         // Разрешаем очищать email: пустая строка -> null, чтобы nullable+email работали корректно.
         if ($this->has('email') && is_string($this->input('email'))) {
@@ -87,11 +94,12 @@ class AccountUpdateRequest extends FormRequest
             : (int) $targetUser;
 
         $rules = [
-            'custom.*'            => ['nullable','string','max:255'],
-
-            // 2FA (булево)
-            'two_factor_enabled'  => ['nullable','boolean'],
+            'custom.*' => ['nullable','string','max:255'],
         ];
+
+        if ($this->user()->can('account.user.two_factor.update')) {
+            $rules['two_factor_enabled'] = ['nullable', 'boolean'];
+        }
 
         if ($this->user()->can('account.user.name.update')) {
             $rules['name'] = ['required','string','max:30'];
@@ -138,6 +146,10 @@ class AccountUpdateRequest extends FormRequest
         $validator->after(function ($afterValidator) {
             $targetUser = $this->route('user') ?: $this->user();
             if (!$targetUser) {
+                return;
+            }
+
+            if (!$this->user()?->can('account.user.two_factor.update')) {
                 return;
             }
 

@@ -215,6 +215,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     Список платежей: вкладка отчётов <code>GET /admin/reports/tbank-payments</code> (DataTables, server-side, право <code>reports.tbank.payments.view</code>).
     В таблице колонка <b>«Выплата»</b> — сумма последней выплаты по платежу со статусом не <code>REJECTED</code> (выполнена, отложена или в процессе); иначе «—».
     Колонка <b>«Способ»</b> — <code>tinkoff_payments.method</code> (Карта / СБП / T‑Pay); фильтр <code>method</code> на вкладке отчётов.
+    Фильтр <b>«Не было выплаты»</b> (<code>without_payout=1</code>) — платежи без выплаты или только с <code>REJECTED</code> (как «—» в колонке), все статусы платежа; чекбокс <code>value="1"</code>.
     Колонка <b>«Чек»</b> — как в отчёте «Платежи»: иконка прихода / возврата через <code>TinkoffPaymentFiscalReceiptResolver</code> (тот же резолвер, что блок «Фискальный чек» на этой карточке).
     Колонка <b>«Комиссия платформы»</b> — текущие <code>tinkoff_commission_rules</code>, та же формула, что в отчёте «Платежи»; не снимок <code>tinkoff_payouts.platform_fee</code>; видна всем с правом отчёта; в сумму шапки не входит.
     На тулбаре вкладки кнопка <b>«Комиссии»</b> (<code>#tp-toolbar-commissions</code>) — только при <code>settings.commission</code>, ведёт на <code>/admin/settings/tbank-commissions</code>. Страница комиссий не переносится.
@@ -222,6 +223,8 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     Анонс вкладки: <a href="/doc#reports-tbank-payments-index">/doc#reports-tbank-payments-index</a>.
     Колонки «Чек» / «Комиссия платформы»:
     <a href="/doc#reports-tbank-payments-receipt-commission-index">/doc#reports-tbank-payments-receipt-commission-index</a>.
+    Фильтр «Не было выплаты»:
+    <a href="/doc#reports-tbank-payments-without-payout-index">/doc#reports-tbank-payments-without-payout-index</a>.
     См. <a href="/docs/documentation/reports-admin#reports-tbank-payments">reports-admin §9</a>.
   </div>
   <p>Контроллер: <code>TinkoffAdminPaymentController::show</code>. Шаблон: <code>resources/views/tinkoff/payments/show.blade.php</code>.</p>
@@ -442,7 +445,8 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Feature/Crm/Payments/TBank/TbankPaymentShowEnhancementsFeatureTest.php</code> — карточка платежа: доступ <code>manage.payment.method.tbank</code> (403/200), строка «Организация» из снимка <code>legal_entity_id</code> (withTrashed), timeline (4 шага, состояния done/pending/active/failed), калькуляция: колонки Описание / % / Сумма и строка «Итого комиссия».</li>
     <li><code>tests/Unit/Documentation/ReportsTbankPaymentsDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-index">/doc#reports-tbank-payments-index</a> совпадает с вкладкой отчётов (не страница комиссий).</li>
     <li><code>tests/Unit/Documentation/ReportsTbankPaymentsReceiptCommissionDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-receipt-commission-index">/doc#reports-tbank-payments-receipt-commission-index</a> совпадает с колонками «Чек» / «Комиссия платформы».</li>
-    <li><code>tests/Feature/Crm/Reports/TbankPaymentsReportTest.php</code> / <code>TbankPaymentsReceiptAndCommissionFeatureTest.php</code> / <code>TbankPaymentsPageFullAccessFeatureTest.php</code> / <code>TbankPaymentsNonAjaxSafetyNetFeatureTest.php</code> — вкладка отчётов «Платежи T‑Bank»: права, скоуп, DataTables (колонка «Способ», «Чек», «Комиссия платформы»: не снимок выплаты, не 2% fallback, поиск не по чеку), UX фильтров (<code>status=all</code>, <code>method=all</code>), карточка по праву отчёта или manage, кнопка «Комиссии».</li>
+    <li><code>tests/Unit/Documentation/ReportsTbankPaymentsWithoutPayoutDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-without-payout-index">/doc#reports-tbank-payments-without-payout-index</a> совпадает с фильтром «Не было выплаты».</li>
+    <li><code>tests/Feature/Crm/Reports/TbankPaymentsReportTest.php</code> / <code>TbankPaymentsWithoutPayoutFilterFeatureTest.php</code> / <code>TbankPaymentsReceiptAndCommissionFeatureTest.php</code> / <code>TbankPaymentsPageFullAccessFeatureTest.php</code> / <code>TbankPaymentsNonAjaxSafetyNetFeatureTest.php</code> — вкладка отчётов «Платежи T‑Bank»: права, скоуп, DataTables (колонка «Способ», «Чек», «Комиссия платформы»: не снимок выплаты, не 2% fallback, поиск не по чеку), UX фильтров (<code>status=all</code>, <code>method=all</code>, <code>without_payout</code>), карточка по праву отчёта или manage, кнопка «Комиссии».</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate</code>.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankPaymentShowPayoutActionsTest.php</code> — кнопки выплаты на карточке + отображение «Организация».</li>
     <li><code>tests/Unit/Services/Tinkoff/TinkoffPaymentTimelineBuilderTest.php</code> — unit-тесты builder'а timeline.</li>

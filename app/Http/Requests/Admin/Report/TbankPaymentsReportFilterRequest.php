@@ -27,6 +27,11 @@ class TbankPaymentsReportFilterRequest extends FormRequest
         if ($method === 'all' || $method === '') {
             $this->merge(['method' => null]);
         }
+
+        $withoutPayout = $this->input('without_payout');
+        if ($withoutPayout === 'all' || $withoutPayout === '') {
+            $this->merge(['without_payout' => null]);
+        }
     }
 
     public function rules(): array
@@ -37,6 +42,7 @@ class TbankPaymentsReportFilterRequest extends FormRequest
             'partner_id' => ['nullable', 'integer', 'min:1'],
             'created_from' => ['nullable', 'date'],
             'created_to' => ['nullable', 'date', 'after_or_equal:created_from'],
+            'without_payout' => ['nullable', 'boolean'],
         ];
     }
 
@@ -48,6 +54,7 @@ class TbankPaymentsReportFilterRequest extends FormRequest
             'partner_id' => 'Партнер',
             'created_from' => 'Создано с',
             'created_to' => 'Создано по',
+            'without_payout' => 'Не было выплаты',
         ];
     }
 
@@ -61,11 +68,12 @@ class TbankPaymentsReportFilterRequest extends FormRequest
             'created_from.date' => 'Поле «:attribute» должно быть датой.',
             'created_to.date' => 'Поле «:attribute» должно быть датой.',
             'created_to.after_or_equal' => 'Поле «:attribute» не может быть раньше даты «Создано с».',
+            'without_payout.boolean' => 'Поле «:attribute» содержит недопустимое значение.',
         ];
     }
 
     /**
-     * @return array{status: ?string, method: ?string, partner_id: ?int, created_from: ?string, created_to: ?string}
+     * @return array{status: ?string, method: ?string, partner_id: ?int, created_from: ?string, created_to: ?string, without_payout: bool}
      */
     public function filters(): array
     {
@@ -83,6 +91,7 @@ class TbankPaymentsReportFilterRequest extends FormRequest
             'partner_id' => $partnerId !== null ? (int) $partnerId : null,
             'created_from' => isset($data['created_from']) && $data['created_from'] !== '' ? (string) $data['created_from'] : null,
             'created_to' => isset($data['created_to']) && $data['created_to'] !== '' ? (string) $data['created_to'] : null,
+            'without_payout' => $this->boolean('without_payout'),
         ];
     }
 }

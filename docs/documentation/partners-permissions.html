@@ -137,7 +137,7 @@
       <li><code>scheduleSlots.view</code> / <code>scheduleSlots.manage</code> / <code>scheduleSlots.table</code> /
         <code>lessonPackages.export</code> / <code>lessonPackages.manualPaid.manage</code> — группа «Расписание школы»
         (<code>schoolSchedule</code>): пункт меню, слоты, вкладка «Таблица занятий», Excel, ручная оплата назначения;
-        <code>scheduleSlots.view</code> также закрывает автосписание / заморозку / срок в модалке шаблона.
+        <code>scheduleSlots.view</code> также закрывает автосписание / заморозку / срок в модалке и колонках таблицы шаблона.
         Все шесть прав группы (включая <code>setPrices.packageAssignments.view</code>) скрытые (<code>is_visible=0</code>);
         новым партнёрам не выдаются; существующим школам миграция выдачу не снимает —
         <a href="/doc#school-schedule-permission-group-index">анонс</a>,
@@ -213,6 +213,7 @@
     <code>test_new_partner_does_not_assign_trainer_salary_scheme_kansas_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_trainer_salary_scheme_sales_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_account_user_team_update_to_base_roles</code>,
+    <code>test_new_partner_does_not_assign_account_user_two_factor_update_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_reports_payments_commission_total_to_base_roles</code>,
     <code>ReportsTbankPaymentsPermissionCatalogFeatureTest</code>.
   </div>
@@ -222,6 +223,20 @@
     <code>users.discount.manage</code> (персональная скидка ученика, <code>is_visible=1</code>).
     У <code>user</code> / <code>trainer</code> их нет. Существующим партнёрам выдача не накатывается.
     Тест: <code>UserPercentDiscountFeatureTest::test_permission_is_visible_and_in_admin_role_base_permissions</code>.
+  </p>
+  <p class="small">
+    С 2026‑09 скрытое <code>account.user.two_factor.update</code> <b>не</b> входит в базовые роли
+    <code>user</code>, <code>admin</code> и <code>trainer</code> (ЛК: переключатель
+    «Двухфакторная аутентификация (SMS)»). При создании партнёра выключено у всех.
+    Админ школы строку в матрице не видит; superadmin включает любой роли.
+    Миграция <code>2026_09_10_044800_revoke_account_user_two_factor_update_from_roles.php</code>
+    снимает ранее выданное. Уже включённая 2FA при отсутствии права не сбрасывается.
+    Без права PATCH не 403 — значение в БД не меняется.
+    Тесты: <code>AccountTwoFactorPermissionCatalogFeatureTest</code>,
+    <code>AccountTwoFactorPermissionAccessFeatureTest</code>,
+    <code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_account_user_two_factor_update_to_base_roles</code>.
+    См. <a href="/docs/documentation/parents-and-family-cabinet#account-two-factor">parents-and-family-cabinet §4.6</a>,
+    анонс <a href="/doc#account-two-factor-permission-index">/doc</a>.
   </p>
 
   <h2>8) Роль <code>trainer</code> и право <code>trainers.view</code></h2>

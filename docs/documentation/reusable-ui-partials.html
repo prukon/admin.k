@@ -452,9 +452,10 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
   <p>Поиск DataTables (<code>.dataTables_filter</code>) и блок «Показать N записей» остаются на ширине карточки и <b>не</b> уезжают при горизонтальном скролле.</p>
   <ul>
     <li>У <code>.dataTables_wrapper</code> — <code>overflow-x: visible</code>.</li>
-    <li>Скролл только у области таблицы: обёртка <code>.kids-dt-scroll-x</code> (добавляется в <code>init.dt</code> через <code>KidsCrmDataTable.ensureTableScrollHost</code>) или встроенный <code>.dataTables_scroll</code> при <code>scrollX</code> / <code>fixedColumns</code>.</li>
-    <li>На <code>/admin/school-leads</code>, <code>/admin/users</code> и четырёх вкладках отчётов
-      (<code>/admin/reports/payments</code>, monthly, LTV, debts) дополнительно:
+    <li>Скролл только у области таблицы: обёртка <code>.kids-dt-scroll-x</code> (добавляется сразу после <code>DataTable()</code> и повторно на <code>init.dt</code> через <code>KidsCrmDataTable.ensureTableScrollHost</code>, идемпотентно) или встроенный <code>.dataTables_scroll</code> при <code>scrollX</code> / <code>fixedColumns</code>.</li>
+    <li>    На <code>/admin/school-leads</code>, <code>/admin/users</code> и вкладках отчётов
+      (<code>/admin/reports/payments</code>, monthly, LTV, debts,
+      payment-intents, fiscal-receipts, tbank-payments, emails) дополнительно:
       FixedHeader для <code>thead</code> и липкий клон полосы <code>.kids-dt-sticky-hscroll</code> (не пресет).
       CSS — Vite-бандлы <code>school-leads-table.css</code> / <code>admin-users-table.css</code> /
       <code>admin-reports-tables.css</code> (+ JS <code>admin-reports-tables-sticky.js</code> на отчётах).
@@ -479,7 +480,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
       <tr><td><code>renderImage(value, type, col)</code></td><td>Рендер для типа <code>image</code> (аватар, fallback, размер)</td></tr>
       <tr><td><code>renderIcon(value, type, col, row)</code></td><td>Рендер для типа <code>icon</code> (иконки / icon-link)</td></tr>
       <tr><td><code>renderInlineSelect(value, type, row, col)</code></td><td>Рендер для типа <code>inline-select</code> (badge + select)</td></tr>
-      <tr><td><code>ensureTableScrollHost(table, settings)</code></td><td>Обёртка горизонтального скролла (вызывается на <code>init.dt</code>)</td></tr>
+      <tr><td><code>ensureTableScrollHost(table, settings)</code></td><td>Обёртка горизонтального скролла (сразу после <code>DataTable()</code> и на <code>init.dt</code>)</td></tr>
       <tr><td><code>bindNavLinks(tableElement)</code></td><td>Delegated click по <code>.js-dt-nav-link</code> → переход по <code>data-href</code> / <code>href</code> (см. <a href="#datatable-clickable-names">§3.2</a>)</td></tr>
     </tbody>
   </table>

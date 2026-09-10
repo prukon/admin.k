@@ -160,7 +160,8 @@ final class LessonPackageDurationAccessFeatureTest extends CrmTestCase
                 ->assertOk()
                 ->assertSee('id="create_duration_days"', false)
                 ->assertSee('id="edit_duration_days"', false)
-                ->assertSee('Срок действия (дни) *', false);
+                ->assertSee('Срок действия (дни) *', false)
+                ->assertSee('id="colLessonPackageDuration"', false);
         }
 
         $this->postJson(route('admin.lesson-packages.store'), $this->storePayload())
@@ -201,7 +202,8 @@ final class LessonPackageDurationAccessFeatureTest extends CrmTestCase
             $page->assertDontSee('id="create_duration_days"', false)
                 ->assertDontSee('id="edit_duration_days"', false)
                 ->assertSee('id="create_lessons_count"', false)
-                ->assertSee('Срок действия (дни)', false);
+                ->assertDontSee('id="colLessonPackageDuration"', false)
+                ->assertDontSee('Срок действия (дни)', false);
         }
     }
 
@@ -215,7 +217,8 @@ final class LessonPackageDurationAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.lesson-packages.index'))
             ->assertOk()
             ->assertSee('id="create_duration_days"', false)
-            ->assertSee('id="edit_duration_days"', false);
+            ->assertSee('id="edit_duration_days"', false)
+            ->assertSee('id="colLessonPackageDuration"', false);
     }
 
     public function test_update_of_foreign_partner_package_returns_not_found(): void

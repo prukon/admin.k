@@ -287,11 +287,11 @@
             </div>
             @endif
 
-            {{-- 2FA (SMS) --}}
+            {{-- 2FA (SMS): только при account.user.two_factor.update --}}
+            @can('account.user.two_factor.update')
             @php
-                // глобальная настройка «Обязательная 2FA для администраторов»
                 $forceAdmin2fa = \App\Models\Setting::getBool('force_2fa_admins', false);
-                $isAdmin = (int)$user->role_id === 10;
+                $isAdmin = $user->hasRole('admin');
                 $forcedForThisUser = $isAdmin && $forceAdmin2fa;
                 $isChecked = $forcedForThisUser ? true : (bool) old('two_factor_enabled', $user->two_factor_enabled);
             @endphp
@@ -331,6 +331,7 @@
                 <p class="text-danger">{{ $message }}</p>
                 @enderror
             </div>
+            @endcan
 
                 </div>
             </div>
@@ -542,8 +543,9 @@
         // 2fa: простая клиентская проверка телефона (оставлена как была)
         document.addEventListener('DOMContentLoaded', function () {
             $('#userUpdateForm').on('submit', function () {
-                const isAdmin = {{ (int)$user->role_id === 10 ? 'true' : 'false' }};
-                const twofaChecked = isAdmin ? true : $('#two_factor_enabled').is(':checked');
+                const isAdmin = {{ $user->hasRole('admin') ? 'true' : 'false' }};
+                const twofaBox = $('#two_factor_enabled');
+                const twofaChecked = twofaBox.length === 0 ? false : (isAdmin ? true : twofaBox.is(':checked'));
                 const phone = ($('#phone').val() || '').replace(/\D+/g, '');
                 // if (twofaChecked && phone.length < 11) {
                 //     alert('Для включения 2FA укажите корректный телефон (формат 79XXXXXXXXX).');
@@ -676,9 +678,10 @@
                                         const messages = errors[field];
                                         const safe = field.replace(/\./g, '\\.').replace(/\*/g, '\\*');
 
-                                        // Сначала ищем по name="field", если нет — по id
-                                        let $input = $form.find('[name="' + safe + '"]');
+                                        // Hidden+checkbox (2FA): ошибка должна быть у видимого поля, не у hidden.
+                                        let $input = $form.find('[name="' + safe + '"]:not([type="hidden"])');
                                         if (!$input.length) $input = $form.find('#' + field);
+                                        if (!$input.length) $input = $form.find('[name="' + safe + '"]');
 
                                         if ($input.length) {
                                             $input.addClass('is-invalid');

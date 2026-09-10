@@ -1,11 +1,16 @@
 /* Закреплённая шапка и липкий горизонтальный скролл таблиц отчётов.
-   /admin/reports/payments, /monthly, /ltv, /debts.
-   Не пресет KidsCrmDataTable. Не вкладки intents / fiscal / tbank / emails. */
+   /admin/reports/payments, /monthly, /ltv, /debts,
+   /payment-intents, /fiscal-receipts, /tbank-payments, /emails.
+   Не пресет KidsCrmDataTable. */
 
 #payments-table thead th,
 #payments-monthly-table thead th,
 #ltv-table thead th,
 #debts-table thead th,
+#tbank-payments-table thead th,
+#payment-intents-table thead th,
+#fiscal-receipts-table thead th,
+#emails-table thead th,
 table.fixedHeader-floating thead th,
 table.fixedHeader-locked thead th {
     background-color: var(--bs-body-bg, #fff);
@@ -21,7 +26,11 @@ table.fixedHeader-locked thead th {
 #payments-table_wrapper .kids-dt-sticky-hscroll,
 #payments-monthly-table_wrapper .kids-dt-sticky-hscroll,
 #ltv-table_wrapper .kids-dt-sticky-hscroll,
-#debts-table_wrapper .kids-dt-sticky-hscroll {
+#debts-table_wrapper .kids-dt-sticky-hscroll,
+#tbank-payments-table_wrapper .kids-dt-sticky-hscroll,
+#payment-intents-table_wrapper .kids-dt-sticky-hscroll,
+#fiscal-receipts-table_wrapper .kids-dt-sticky-hscroll,
+#emails-table_wrapper .kids-dt-sticky-hscroll {
     position: sticky;
     bottom: 0;
     z-index: 4;
@@ -37,14 +46,22 @@ table.fixedHeader-locked thead th {
 #payments-table_wrapper .kids-dt-sticky-hscroll[hidden],
 #payments-monthly-table_wrapper .kids-dt-sticky-hscroll[hidden],
 #ltv-table_wrapper .kids-dt-sticky-hscroll[hidden],
-#debts-table_wrapper .kids-dt-sticky-hscroll[hidden] {
+#debts-table_wrapper .kids-dt-sticky-hscroll[hidden],
+#tbank-payments-table_wrapper .kids-dt-sticky-hscroll[hidden],
+#payment-intents-table_wrapper .kids-dt-sticky-hscroll[hidden],
+#fiscal-receipts-table_wrapper .kids-dt-sticky-hscroll[hidden],
+#emails-table_wrapper .kids-dt-sticky-hscroll[hidden] {
     display: none !important;
 }
 
 #payments-table_wrapper .kids-dt-sticky-hscroll-spacer,
 #payments-monthly-table_wrapper .kids-dt-sticky-hscroll-spacer,
 #ltv-table_wrapper .kids-dt-sticky-hscroll-spacer,
-#debts-table_wrapper .kids-dt-sticky-hscroll-spacer {
+#debts-table_wrapper .kids-dt-sticky-hscroll-spacer,
+#tbank-payments-table_wrapper .kids-dt-sticky-hscroll-spacer,
+#payment-intents-table_wrapper .kids-dt-sticky-hscroll-spacer,
+#fiscal-receipts-table_wrapper .kids-dt-sticky-hscroll-spacer,
+#emails-table_wrapper .kids-dt-sticky-hscroll-spacer {
     height: 1px;
     pointer-events: none;
 }
@@ -52,13 +69,21 @@ table.fixedHeader-locked thead th {
 #payments-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
 #payments-monthly-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
 #ltv-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
-#debts-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar {
+#debts-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
+#tbank-payments-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
+#payment-intents-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
+#fiscal-receipts-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
+#emails-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar {
     scrollbar-width: none;
 }
 
 #payments-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
 #payments-monthly-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
 #ltv-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
-#debts-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar {
+#debts-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
+#tbank-payments-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
+#payment-intents-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
+#fiscal-receipts-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
+#emails-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar {
     display: none;
 }

@@ -191,6 +191,10 @@ final class DirectoriesLessonPackagesAccessFeatureTest extends CrmTestCase
         $page = $this->get(route('admin.directories.lesson-packages.index'));
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()), 'Пустой 200 на HTML странице справочника');
+        $page->assertDontSee('id="colLessonPackageDuration"', false)
+            ->assertDontSee('id="colLessonPackageFreeze"', false)
+            ->assertDontSee('id="create_duration_days"', false)
+            ->assertDontSee('id="create_freeze_enabled"', false);
 
         $store = $this->postJson(route('admin.lesson-packages.store'), $this->validStorePayload([
             'name' => 'Dirs viewer create',

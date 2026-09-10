@@ -72,7 +72,7 @@ final class LessonPackageFreezeWorkflowFeatureTest extends CrmTestCase
             ->assertSee('reloadPackagesTable', false)
             ->assertSee('normalizePayload', false)
             ->assertDontSee('id="edit_freeze_enabled"', false)
-            ->assertSee('id="colLessonPackageFreeze"', false);
+            ->assertDontSee('id="colLessonPackageFreeze"', false);
 
         $updatedName = $unique.'-saved';
         $this->putJson(

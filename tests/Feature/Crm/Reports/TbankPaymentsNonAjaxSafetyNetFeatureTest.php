@@ -172,6 +172,58 @@ final class TbankPaymentsNonAjaxSafetyNetFeatureTest extends CrmTestCase
             ->assertJsonValidationErrors(['partner_id']);
     }
 
+    public function test_invalid_without_payout_on_index_redirects_back_with_field_error(): void
+    {
+        $this->from(route('reports.tbank-payments.index'))
+            ->get(route('reports.tbank-payments.index', ['without_payout' => 'maybe']))
+            ->assertStatus(302)
+            ->assertSessionHasErrors(['without_payout']);
+    }
+
+    public function test_invalid_without_payout_ajax_returns_422_json(): void
+    {
+        $this->getJson(route('reports.tbank-payments.total', ['without_payout' => 'maybe']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['without_payout']);
+
+        $this->getJson(route('reports.tbank-payments.data', ['draw' => 1, 'without_payout' => 'maybe']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['without_payout'])
+            ->assertJsonPath('errors.without_payout.0', 'Поле «Не было выплаты» содержит недопустимое значение.');
+    }
+
+    public function test_invalid_without_payout_non_ajax_total_and_data_redirect_with_field_error(): void
+    {
+        $this->from(route('reports.tbank-payments.index'))
+            ->get(route('reports.tbank-payments.total', ['without_payout' => 'on']))
+            ->assertStatus(302)
+            ->assertSessionHasErrors(['without_payout']);
+
+        $this->from(route('reports.tbank-payments.index'))
+            ->get(route('reports.tbank-payments.data', ['draw' => 1, 'without_payout' => 'yes']))
+            ->assertStatus(302)
+            ->assertSessionHasErrors(['without_payout']);
+    }
+
+    public function test_non_ajax_data_with_without_payout_returns_json_not_empty_html(): void
+    {
+        $response = $this->get(route('reports.tbank-payments.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'without_payout' => 1,
+        ]), [
+            'HTTP_ACCEPT' => 'text/html',
+        ]);
+
+        $response->assertOk();
+        $this->assertNotSame('', trim((string) $response->getContent()));
+        $json = $response->json();
+        $this->assertIsArray($json);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('recordsFiltered', $json);
+    }
+
     public function test_partners_search_ajax_validation_failure_returns_422_json(): void
     {
         $this->getJson(route('reports.tbank-payments.partners.search', [

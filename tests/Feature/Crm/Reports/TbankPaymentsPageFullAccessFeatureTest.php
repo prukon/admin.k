@@ -256,6 +256,20 @@ final class TbankPaymentsPageFullAccessFeatureTest extends CrmTestCase
                 'url' => route('reports.tbank-payments.index', ['status' => 'CONFIRMED']),
                 'headers' => ['HTTP_ACCEPT' => 'text/html'],
             ],
+            [
+                'method' => 'GET',
+                'url' => route('reports.tbank-payments.index', ['without_payout' => 1]),
+                'headers' => ['HTTP_ACCEPT' => 'text/html'],
+            ],
+            [
+                'method' => 'GET',
+                'url' => route('reports.tbank-payments.total', ['without_payout' => 1]),
+            ],
+            [
+                'method' => 'GET',
+                'url' => route('reports.tbank-payments.data', array_merge($this->baseDataTableParams(), ['without_payout' => 1])),
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
+            ],
         ];
     }
 
@@ -275,12 +289,15 @@ final class TbankPaymentsPageFullAccessFeatureTest extends CrmTestCase
             ['partner_id' => $this->partner->id],
             ['created_from' => now()->subMonth()->toDateString()],
             ['created_to' => now()->toDateString()],
+            ['without_payout' => 1],
+            ['without_payout' => 0],
             [
                 'status' => 'CONFIRMED',
                 'method' => 'card',
                 'partner_id' => $this->partner->id,
                 'created_from' => now()->subMonth()->toDateString(),
                 'created_to' => now()->toDateString(),
+                'without_payout' => 1,
             ],
         ];
     }

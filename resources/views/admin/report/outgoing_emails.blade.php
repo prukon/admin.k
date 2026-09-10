@@ -1,4 +1,7 @@
-@vite(['resources/css/admin-list-toolbar.css'])
+@push('styles')
+    @vite(['resources/css/admin-list-toolbar.css', 'resources/css/admin-reports-tables.css', 'resources/js/admin-reports-tables-sticky.js'])
+    <link rel="stylesheet" href="{{ asset('plugins/datatables-fixedheader/css/fixedHeader.bootstrap4.min.css') }}">
+@endpush
 
 @php
     $et = $emailsToolbar ?? [];
@@ -226,6 +229,7 @@
 </div>
 
 @section('scripts')
+<script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
 <script type="text/javascript">
 $(function () {
     var $form = $('#emails-report-filters');
@@ -392,6 +396,12 @@ $(function () {
         openOutgoingEmailShowModal(showUrl);
     });
 
+    function emailsAfterApplyVisibleColumns() {
+        if (window.KidsCrmReportTableSticky) {
+            window.KidsCrmReportTableSticky.bind('#emails-table');
+        }
+    }
+
     var dtApi = KidsCrmDataTable.create('#emails-table', {
         columnsSettings: {
             defaults: {
@@ -413,7 +423,8 @@ $(function () {
                 save: '/admin/reports/emails/columns-settings'
             },
             toggleSelector: '.emails-column-toggle',
-            csrfToken: '{{ csrf_token() }}'
+            csrfToken: '{{ csrf_token() }}',
+            afterApplyVisibleColumns: emailsAfterApplyVisibleColumns
         },
         dataTable: {
             ajax: {
@@ -426,7 +437,15 @@ $(function () {
                 }
             },
             order: [[3, 'desc']],
-            language: @include('partials.datatables.ru')
+            language: @include('partials.datatables.ru'),
+            fixedHeader: ($.fn.dataTable && $.fn.dataTable.FixedHeader)
+                ? { header: true, footer: false }
+                : false,
+            drawCallback: function () {
+                if (window.KidsCrmReportTableSticky) {
+                    window.KidsCrmReportTableSticky.bind('#emails-table');
+                }
+            }
         },
         columns: [
             { type: 'rownum' },

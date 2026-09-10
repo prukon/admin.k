@@ -13,6 +13,7 @@ return [
             'account.user.birthdate.update',
             'account.user.email.update',
             'account.user.phone.update',
+            // 'account.user.two_factor.update', // ЛК SMS-2FA — скрытое, по умолчанию выкл.
             'account.user.parent.update',
             'users.sex',
             'paying.classes',
@@ -36,6 +37,7 @@ return [
             'account.user.name.update',
             'account.user.email.update',
             'account.user.phone.update',
+            // 'account.user.two_factor.update', // ЛК SMS-2FA — скрытое, по умолчанию выкл.
             'account.partner.view',
             'inAppNotifications.view',
             'messages.view',
@@ -102,6 +104,7 @@ return [
             'account.user.startDate.update',
             'account.user.email.update',
             'account.user.phone.update',
+            // 'account.user.two_factor.update', // ЛК SMS-2FA — скрытое, по умолчанию выкл.
             'inAppNotifications.view',
             'messages.view',
             'users.name.update',

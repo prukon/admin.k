@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Разметка модалок: чекбокс «Разрешена заморозка», дефолт дней 7, @can(scheduleSlots.view).
+ * Разметка модалок и колонки таблицы: чекбокс «Разрешена заморозка», дефолт дней 7, @can(scheduleSlots.view).
  *
  * @see LessonPackageFreezeAccessFeatureTest
  * @see docs/documentation/lesson-packages.html
@@ -105,6 +105,8 @@ final class LessonPackageFreezeMarkupFeatureTest extends CrmTestCase
                 (int) strpos($create, 'id="create_freeze_section"'),
                 'Заморозка в create должна идти до автосписания.'
             );
+            $this->assertStringContainsString('id="colLessonPackageFreeze"', $html);
+            $this->assertStringContainsString('data-column-key="freeze_label"', $html);
         }
     }
 
@@ -143,7 +145,7 @@ final class LessonPackageFreezeMarkupFeatureTest extends CrmTestCase
         }
     }
 
-    public function test_both_modals_hide_freeze_inputs_without_schedule_slots_view_but_keep_table_column(): void
+    public function test_both_modals_hide_freeze_inputs_and_table_column_without_schedule_slots_view(): void
     {
         foreach ($this->packagesPageUrls() as $url) {
             $page = $this->get($url);
@@ -161,8 +163,9 @@ final class LessonPackageFreezeMarkupFeatureTest extends CrmTestCase
             $this->assertStringNotContainsString('name="edit[freeze_enabled]"', $edit);
             $this->assertStringNotContainsString('name="edit[freeze_days]"', $edit);
             $this->assertStringContainsString('id="create_lessons_count"', $create);
-            $this->assertStringContainsString('id="colLessonPackageFreeze"', $html);
-            $this->assertStringContainsString('data-column-key="freeze_label"', $html);
+            $this->assertStringNotContainsString('id="colLessonPackageFreeze"', $html);
+            $this->assertStringNotContainsString('data-column-key="freeze_label"', $html);
+            $this->assertStringNotContainsString('>Заморозка<', $html);
         }
     }
 }

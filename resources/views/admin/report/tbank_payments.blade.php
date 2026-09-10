@@ -4,8 +4,12 @@
     $tpMethods = \App\Models\TinkoffPayment::METHOD_LABELS;
     $tpStatus = (string) ($filters['status'] ?? '');
     $tpMethod = (string) ($filters['method'] ?? '');
+    $tpWithoutPayout = ! empty($filters['without_payout']);
 @endphp
-@vite(['resources/css/admin-list-toolbar.css'])
+@push('styles')
+    @vite(['resources/css/admin-list-toolbar.css', 'resources/css/admin-reports-tables.css', 'resources/js/admin-reports-tables-sticky.js'])
+    <link rel="stylesheet" href="{{ asset('plugins/datatables-fixedheader/css/fixedHeader.bootstrap4.min.css') }}">
+@endpush
 
 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
     <div class="card-body px-3 py-3">
@@ -166,6 +170,18 @@
                 <input class="form-control @error('created_to') is-invalid @enderror" type="date" name="created_to" id="tp-filter-created-to" value="{{ $filters['created_to'] ?? '' }}">
                 <div class="invalid-feedback" data-error-for="created_to" @error('created_to') style="display:block" @enderror>@error('created_to'){{ $message }}@enderror</div>
             </div>
+            <div class="col-12 col-md-auto">
+                <div class="form-check mb-0 pb-md-1">
+                    <input class="form-check-input @error('without_payout') is-invalid @enderror"
+                           type="checkbox"
+                           value="1"
+                           id="tp-filter-without-payout"
+                           name="without_payout"
+                           {{ $tpWithoutPayout ? 'checked' : '' }}>
+                    <label class="form-check-label text-nowrap" for="tp-filter-without-payout">Не было выплаты</label>
+                    <div class="invalid-feedback" data-error-for="without_payout" @error('without_payout') style="display:block" @enderror>@error('without_payout'){{ $message }}@enderror</div>
+                </div>
+            </div>
             <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                 <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
                 <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="tbankPaymentsResetBtn">Сброс</button>
@@ -174,28 +190,27 @@
     </form>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-bordered dt-columns-managed w-100" id="tbank-payments-table">
-        <thead>
-        <tr>
-            <th>ID</th>
-            <th>Создан</th>
-            <th>Партнер</th>
-            <th>Order</th>
-            <th>Сумма</th>
-            <th>Комиссия платформы</th>
-            <th>Выплата</th>
-            <th>Способ</th>
-            <th>Статус</th>
-            <th>Deal</th>
-            <th>Чек</th>
-            <th></th>
-        </tr>
-        </thead>
-    </table>
-</div>
+<table class="table table-bordered dt-columns-managed w-100" id="tbank-payments-table">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Создан</th>
+        <th>Партнер</th>
+        <th>Order</th>
+        <th>Сумма</th>
+        <th>Комиссия платформы</th>
+        <th>Выплата</th>
+        <th>Способ</th>
+        <th>Статус</th>
+        <th>Deal</th>
+        <th>Чек</th>
+        <th></th>
+    </tr>
+    </thead>
+</table>
 
 @push('scripts')
+    <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script type="text/javascript">
         $(function () {
             var $form = $('#tbank-payments-filters');
@@ -321,7 +336,8 @@
                     method: $form.find('[name="method"]').val() || '',
                     partner_id: $form.find('[name="partner_id"]').val() || '',
                     created_from: $form.find('[name="created_from"]').val() || '',
-                    created_to: $form.find('[name="created_to"]').val() || ''
+                    created_to: $form.find('[name="created_to"]').val() || '',
+                    without_payout: $form.find('[name="without_payout"]').is(':checked') ? '1' : ''
                 };
             }
 
@@ -421,6 +437,12 @@
                 return window.KidsCrmDataTable.renderIcon(icons, type, { sortKey: 'has_receipt' }, row);
             }
 
+            function tbankPaymentsAfterApplyVisibleColumns() {
+                if (window.KidsCrmReportTableSticky) {
+                    window.KidsCrmReportTableSticky.bind('#tbank-payments-table');
+                }
+            }
+
             var dtApi = KidsCrmDataTable.create('#tbank-payments-table', {
                 columnsSettings: {
                     persistPageLength: true,
@@ -442,7 +464,8 @@
                         save: '/admin/reports/tbank-payments/columns-settings'
                     },
                     toggleSelector: '.tbank-payments-column-toggle',
-                    csrfToken: '{{ csrf_token() }}'
+                    csrfToken: '{{ csrf_token() }}',
+                    afterApplyVisibleColumns: tbankPaymentsAfterApplyVisibleColumns
                 },
                 dataTable: {
                     pageLength: @json((int) ($tbankPaymentsPageLength ?? 10)),
@@ -456,7 +479,15 @@
                         }
                     },
                     order: [[0, 'desc']],
-                    language: @include('partials.datatables.ru')
+                    language: @include('partials.datatables.ru'),
+                    fixedHeader: ($.fn.dataTable && $.fn.dataTable.FixedHeader)
+                        ? { header: true, footer: false }
+                        : false,
+                    drawCallback: function () {
+                        if (window.KidsCrmReportTableSticky) {
+                            window.KidsCrmReportTableSticky.bind('#tbank-payments-table');
+                        }
+                    }
                 },
                 columns: [
                     { key: 'id', type: 'id', data: 'id', name: 'id' },

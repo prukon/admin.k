@@ -254,7 +254,8 @@ class PaymentIntentsReportTest extends CrmTestCase
             ->assertSee("type: 'badge'", false)
             ->assertSee("data-column-key=\"client_user_agent\"", false)
             ->assertSee("data-column-key=\"meta\"", false)
-            ->assertSee('fixedColumns: {leftColumns: 2}', false)
+            ->assertDontSee('fixedColumns: {leftColumns: 2}', false)
+            ->assertSee('KidsCrmReportTableSticky.bind(\'#payment-intents-table\')', false)
             ->assertSee('id="paymentIntentMetaModal"', false)
             ->assertSee("inlineActions: { modalTitle: 'User-Agent' }", false)
             ->assertSee("inlineActions: { modalTitle: 'Мета', format: 'meta-pretty' }", false);

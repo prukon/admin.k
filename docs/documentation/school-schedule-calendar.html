@@ -314,14 +314,14 @@
   <p><strong>POST</strong> сохранения: <code>/admin/lesson-packages/school-schedule/occurrence-status</code> (имя маршрута <code>admin.lesson-packages.school-schedule.occurrence-status.store</code>). В ответе при успехе могут быть объекты <code>user_lesson_package</code> { id, lessons_remaining, lessons_total } или <code>trial_registration</code> { user_team_schedule_slot_id, lessons_remaining, lessons_total } — их использует фронт для обновления счётчиков в модалке.</p>
   <p><strong>GET</strong> истории по паре слот + дата + ученик (+ опционально <code>user_lesson_package_id</code> для различения записей): <code>/admin/lesson-packages/school-schedule/occurrence-status/history</code>.</p>
   <p><strong>Автосписание</strong> (без участия UI календаря): если у шаблона абонемента включён <code>auto_attendance_enabled</code>, после окончания календарного дня занятия job может автоматически создать событие «Посетил» при отсутствии любого статуса по этой записи. Те же правила списания <code>lessons_remaining</code>, тот же сервис <code>UserLessonOccurrenceStatusService</code>. Чекбокс в модалке шаблона виден только при <code>scheduleSlots.view</code> (анонс — <a href="/doc#lesson-package-auto-attendance-index">/doc</a>). Job право пользователя не проверяет. Подробности, исключения (пробные, разовые, исключённая дата слота, нулевой остаток) — <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>.</p>
-  <p>Чекбокс шаблона «Разрешена заморозка» закрыт тем же <code>scheduleSlots.view</code>, но календарь школы <b>не читает</b>
+  <p>Чекбокс шаблона «Разрешена заморозка» и колонка таблицы «Заморозка» закрыты тем же <code>scheduleSlots.view</code>, но календарь школы <b>не читает</b>
     <code>freeze_enabled</code> / <code>freeze_days</code>
     (<a href="/doc#lesson-package-freeze-permission-index">анонс заморозки</a>,
     <a href="/docs/documentation/lesson-packages#freeze-permission">lesson-packages §Заморозка</a>).</p>
-  <p>Поле шаблона «Срок действия (дни)» закрыто тем же <code>scheduleSlots.view</code>
+  <p>Поле шаблона «Срок действия (дни)» и колонка таблицы закрыты тем же <code>scheduleSlots.view</code>
     (отдельный <code>@can</code>). Календарь читает сохранённое
     <code>duration_days</code> шаблона при первой привязке классики:
-    <code>ends_at = starts_at + duration_days</code>. Скрытие поля в модалке это правило
+    <code>ends_at = starts_at + duration_days</code>. Скрытие поля в модалке и колонки в таблице это правило
     не отключает. Месячные ULP из установки цен период по <code>duration_days</code> не считают.
     Анонс — <a href="/doc#lesson-package-duration-permission-index">/doc</a>,
     подробно — <a href="/docs/documentation/lesson-packages#duration-permission">lesson-packages §Срок действия</a>.</p>

@@ -128,7 +128,7 @@
   <h2 id="reports-tables-sticky-header">3.1) Закрепление шапки и горизонтального скролла</h2>
   <p>На <code>/admin/reports/payments</code> (таблица <code>#payments-table</code>)
     шапка и горизонтальная полоса остаются на экране при длинном списке.
-    Тот же приём на monthly / LTV / задолженностях.
+    Тот же приём на monthly / LTV / задолженностях / payment-intents / fiscal / tbank-payments / emails.
     В пресет <code>KidsCrmDataTable</code> не выносилось.
     CSS и JS — Vite-бандлы <code>resources/css/admin-reports-tables.css</code>
     и <code>resources/js/admin-reports-tables-sticky.js</code>
@@ -142,11 +142,16 @@
     (<code>position: sticky; bottom: 0</code>) после <code>.kids-dt-scroll-x</code>.
     Bind — <code>KidsCrmReportTableSticky.bind('#payments-table')</code>
     из <code>drawCallback</code> и <code>paymentsAfterApplyVisibleColumns</code>.
+    Если обёртки <code>.kids-dt-scroll-x</code> ещё нет, <code>bind</code> ждёт <code>init.dt</code>
+    и повторяет; смена колонок — <code>column-visibility</code> / <code>column-sizing</code>
+    через <code>requestAnimationFrame</code>.
     Подробно — <a href="/docs/documentation/reports-admin#reports-tables-sticky-header">reports-admin §1.3</a>.
     Анонс — <a href="/doc#reports-tables-sticky-header-index">/doc#reports-tables-sticky-header-index</a>.
-    Доступ: гость → 302/401, без <code>reports.view</code> → 403.
+    Доступ: гость → 302/401, без <code>reports.view</code> → 403 на payments;
+    T‑Bank / intents / fiscal / emails — свои права вкладок.
     Фильтр и смена колонок не пересоздают таблицу и не снимают pin;
-    вложенные таблицы monthly/LTV без FixedHeader.</p>
+    вложенные таблицы monthly/LTV без FixedHeader.
+    Intents / fiscal без <code>fixedColumns</code>.</p>
 
   <h2>4) Колонки: выплаты и комиссии (T‑Bank)</h2>
   <div class="note">

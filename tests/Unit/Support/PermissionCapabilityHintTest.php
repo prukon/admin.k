@@ -102,5 +102,7 @@ final class PermissionCapabilityHintTest extends TestCase
         $this->assertStringContainsString('Разрешена заморозка', $title);
         $this->assertStringContainsString('Срок действия (дни)', $title);
         $this->assertStringContainsString('шаблона абонемента', $title);
+        $this->assertStringContainsString('Колонка «Заморозка»', $title);
+        $this->assertStringContainsString('Колонка «Срок действия (дни)»', $title);
     }
 }

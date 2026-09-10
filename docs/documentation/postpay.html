@@ -64,7 +64,8 @@
     <li><code>price_cents</code> — стоимость <b>одного</b> занятия (в UI: «Стоимость за одно занятие»).</li>
     <li>При store/update: <code>duration_days = 31</code>, <code>lessons_count = 1</code> (служебные);
       независимо от <code>scheduleSlots.view</code> (поле в модалке скрыто JS и отдельно
-      <code>@can</code> — <a href="/docs/documentation/lesson-packages#duration-permission">§Срок действия</a>,
+      <code>@can</code>; колонка таблицы — только при том же праве —
+      <a href="/docs/documentation/lesson-packages#duration-permission">§Срок действия</a>,
       <a href="/doc#lesson-package-duration-permission-index">анонс</a>).
       Заморозка и автосписание недоступны (<code>freeze_enabled=false</code>, <code>auto_attendance_enabled=false</code>).
       Store/update с <code>auto_attendance_enabled=1</code> → <b>422</b> на поле

@@ -71,7 +71,8 @@ final class LessonPackageDurationWorkflowFeatureTest extends CrmTestCase
             ->assertSee('lesson-packages-table', false)
             ->assertSee('reloadPackagesTable', false)
             ->assertSee('normalizePayload', false)
-            ->assertDontSee('id="edit_duration_days"', false);
+            ->assertDontSee('id="edit_duration_days"', false)
+            ->assertDontSee('id="colLessonPackageDuration"', false);
 
         $updatedName = $unique.'-saved';
         $this->putJson(

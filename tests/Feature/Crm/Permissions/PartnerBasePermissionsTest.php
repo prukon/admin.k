@@ -252,6 +252,19 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('account.user.team.update', $trainerPerms);
     }
 
+    public function test_new_partner_does_not_assign_account_user_two_factor_update_to_base_roles(): void
+    {
+        $partner = Partner::factory()->create();
+
+        $userPerms = $this->permissionNamesForPartnerRole($partner->id, 'user');
+        $adminPerms = $this->permissionNamesForPartnerRole($partner->id, 'admin');
+        $trainerPerms = $this->permissionNamesForPartnerRole($partner->id, 'trainer');
+
+        $this->assertNotContains('account.user.two_factor.update', $userPerms);
+        $this->assertNotContains('account.user.two_factor.update', $adminPerms);
+        $this->assertNotContains('account.user.two_factor.update', $trainerPerms);
+    }
+
     public function test_new_partner_does_not_assign_reports_payments_commission_total_to_base_roles(): void
     {
         $partner = Partner::factory()->create();

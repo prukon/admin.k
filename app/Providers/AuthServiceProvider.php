@@ -502,6 +502,12 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('account.user.phone.update');
         });
 
+        // ЛК: переключатель SMS-2FA своего аккаунта.
+        // Скрытое; в базовых ролях user/admin/trainer. Superadmin видит в матрице.
+        Gate::define('account.user.two_factor.update', function (User $user) {
+            return $user->hasPermission('account.user.two_factor.update');
+        });
+
         // Изменение данных родителя в личном кабинете
         Gate::define('account.user.parent.update', function (User $user) {
             return $user->hasPermission('account.user.parent.update');

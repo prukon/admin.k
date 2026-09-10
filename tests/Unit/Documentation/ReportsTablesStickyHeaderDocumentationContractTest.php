@@ -7,7 +7,8 @@ namespace Tests\Unit\Documentation;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Анонс /doc#reports-tables-sticky-header-index совпадает с четырьмя вкладками отчётов.
+ * Анонс /doc#reports-tables-sticky-header-index совпадает с вкладками отчётов
+ * (payments / monthly / LTV / debts / intents / fiscal / tbank / emails).
  */
 final class ReportsTablesStickyHeaderDocumentationContractTest extends TestCase
 {
@@ -27,10 +28,18 @@ final class ReportsTablesStickyHeaderDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/admin/reports/payments/monthly', $chunk);
         $this->assertStringContainsString('/admin/reports/ltv', $chunk);
         $this->assertStringContainsString('/admin/reports/debts', $chunk);
+        $this->assertStringContainsString('/admin/reports/payment-intents', $chunk);
+        $this->assertStringContainsString('/admin/reports/fiscal-receipts', $chunk);
+        $this->assertStringContainsString('/admin/reports/tbank-payments', $chunk);
+        $this->assertStringContainsString('/admin/reports/emails', $chunk);
         $this->assertStringContainsString('KidsCrmDataTable.create(\'#payments-table\')', $chunk);
         $this->assertStringContainsString('#payments-monthly-table', $chunk);
         $this->assertStringContainsString('#ltv-table', $chunk);
         $this->assertStringContainsString('#debts-table', $chunk);
+        $this->assertStringContainsString('#tbank-payments-table', $chunk);
+        $this->assertStringContainsString('#payment-intents-table', $chunk);
+        $this->assertStringContainsString('#fiscal-receipts-table', $chunk);
+        $this->assertStringContainsString('#emails-table', $chunk);
         $this->assertStringContainsString('header: true', $chunk);
         $this->assertStringContainsString('footer: false', $chunk);
         $this->assertStringContainsString('kids-dt-sticky-hscroll', $chunk);
@@ -55,6 +64,11 @@ final class ReportsTablesStickyHeaderDocumentationContractTest extends TestCase
         $this->assertStringContainsString('ReportsTablesStickyHeaderFeatureTest', $chunk);
         $this->assertStringContainsString('ReportsTablesStickyHeaderFullAccessFeatureTest', $chunk);
         $this->assertStringContainsString('test_admin_reports_sticky_header_nested_tables_column_toggle_and_filter_reload_keep_pin', $chunk);
+        $this->assertStringContainsString('test_extra_report_sticky_header_inline_script_keeps_pin_without_fixed_columns', $chunk);
+        $this->assertStringContainsString('test_intents_and_fiscal_pages_do_not_enable_fixed_columns_so_sticky_scrollbar_can_pin', $chunk);
+        $this->assertStringContainsString('test_extra_reports_first_open_keeps_columns_checked_and_filters_collapsed', $chunk);
+        $this->assertStringContainsString('test_extra_reports_reopen_with_filters_keeps_pin_and_does_not_uncheck_columns', $chunk);
+        $this->assertStringContainsString('test_tbank_invalid_status_does_not_break_sticky_header_or_return_500', $chunk);
         $this->assertStringContainsString('ReportsTablesStickyHeaderDocumentationContractTest', $chunk);
         $this->assertStringContainsString('/doc#reports-tables-sticky-header-index', $html);
     }
@@ -103,6 +117,10 @@ final class ReportsTablesStickyHeaderDocumentationContractTest extends TestCase
             'admin/report/payment_monthly.blade.php' => '#payments-monthly-table',
             'admin/report/ltv.blade.php' => '#ltv-table',
             'admin/report/debt.blade.php' => '#debts-table',
+            'admin/report/tbank_payments.blade.php' => '#tbank-payments-table',
+            'admin/report/payment_intents.blade.php' => '#payment-intents-table',
+            'admin/report/fiscal_receipts.blade.php' => '#fiscal-receipts-table',
+            'admin/report/outgoing_emails.blade.php' => '#emails-table',
         ];
         foreach ($blades as $relative => $selector) {
             $blade = (string) file_get_contents(dirname(__DIR__, 3).'/resources/views/'.$relative);
@@ -127,6 +145,8 @@ final class ReportsTablesStickyHeaderDocumentationContractTest extends TestCase
         $this->assertStringContainsString('window.KidsCrmReportTableSticky', $js);
         $this->assertStringContainsString('getBoundingClientRect()', $js);
         $this->assertStringContainsString('parent.scrollLeft', $js);
+        $this->assertStringContainsString('init.dt.', $js);
+        $this->assertStringContainsString('requestAnimationFrame', $js);
 
         $this->assertStringContainsString('закрепление thead и горизонтального скролла', $controller);
     }

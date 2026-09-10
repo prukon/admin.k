@@ -13,7 +13,10 @@
         }
     }
 @endphp
-@vite(['resources/css/admin-list-toolbar.css'])
+@push('styles')
+    @vite(['resources/css/admin-list-toolbar.css', 'resources/css/admin-reports-tables.css', 'resources/js/admin-reports-tables-sticky.js'])
+    <link rel="stylesheet" href="{{ asset('plugins/datatables-fixedheader/css/fixedHeader.bootstrap4.min.css') }}">
+@endpush
 
 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
     <div class="card-body px-3 py-3">
@@ -234,16 +237,6 @@
         white-space: pre-wrap;
         word-break: break-word;
     }
-
-    #payment-intents-table_wrapper .dataTables_scrollHead table,
-    #payment-intents-table_wrapper .dataTables_scrollBody table {
-        width: 100% !important;
-        margin: 0 !important;
-    }
-
-    #payment-intents-table_wrapper .dataTables_scrollHead {
-        overflow: hidden !important;
-    }
 </style>
 
 <div class="modal fade" id="paymentIntentMetaModal" tabindex="-1" aria-labelledby="paymentIntentMetaModalLabel"
@@ -267,8 +260,7 @@
     </div>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-bordered dt-columns-managed w-100" id="payment-intents-table">
+<table class="table table-bordered dt-columns-managed w-100" id="payment-intents-table">
         <thead>
         <tr>
             <th>№</th>
@@ -292,9 +284,9 @@
         </tr>
         </thead>
     </table>
-</div>
 
 @push('scripts')
+    <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script type="text/javascript">
         $(function () {
             var $form = $('#payment-intents-filters');
@@ -571,6 +563,12 @@
                 }
             }
 
+            function paymentIntentsAfterApplyVisibleColumns() {
+                if (window.KidsCrmReportTableSticky) {
+                    window.KidsCrmReportTableSticky.bind('#payment-intents-table');
+                }
+            }
+
             var dtApi = KidsCrmDataTable.create('#payment-intents-table', {
                 columnsSettings: {
                     persistPageLength: true,
@@ -599,7 +597,8 @@
                         save: '/admin/reports/payment-intents/columns-settings'
                     },
                     toggleSelector: '.payment-intents-column-toggle',
-                    csrfToken: '{{ csrf_token() }}'
+                    csrfToken: '{{ csrf_token() }}',
+                    afterApplyVisibleColumns: paymentIntentsAfterApplyVisibleColumns
                 },
                 dataTable: {
                     pageLength: @json((int) ($paymentIntentsPageLength ?? 10)),
@@ -618,10 +617,15 @@
                     },
                     drawCallback: function () {
                         this.api().columns.adjust();
+                        if (window.KidsCrmReportTableSticky) {
+                            window.KidsCrmReportTableSticky.bind('#payment-intents-table');
+                        }
                     },
                     order: [[0, 'desc']],
-                    fixedColumns: {leftColumns: 2},
-                    language: @include('partials.datatables.ru')
+                    language: @include('partials.datatables.ru'),
+                    fixedHeader: ($.fn.dataTable && $.fn.dataTable.FixedHeader)
+                        ? { header: true, footer: false }
+                        : false
                 },
                 columns: [
                     { key: 'id', type: 'id', data: 'id', name: 'id' },

@@ -263,6 +263,15 @@ class TbankPaymentReportController extends AdminBaseController
         if ($filters['created_to'] !== null) {
             $query->whereDate('created_at', '<=', $filters['created_to']);
         }
+
+        if ($filters['without_payout']) {
+            $query->whereNotExists(function ($sub): void {
+                $sub->selectRaw('1')
+                    ->from('tinkoff_payouts')
+                    ->whereColumn('tinkoff_payouts.payment_id', 'tinkoff_payments.id')
+                    ->where('tinkoff_payouts.status', '<>', 'REJECTED');
+            });
+        }
     }
 
     /**
@@ -304,6 +313,10 @@ class TbankPaymentReportController extends AdminBaseController
      */
     private function hasActiveFilters(array $filters, bool $canFilterPartner): bool
     {
+        if (! empty($filters['without_payout'])) {
+            return true;
+        }
+
         $keys = ['status', 'method', 'created_from', 'created_to'];
         if ($canFilterPartner) {
             $keys[] = 'partner_id';
