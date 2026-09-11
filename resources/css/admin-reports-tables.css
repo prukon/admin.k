@@ -66,6 +66,10 @@ table.fixedHeader-locked thead th {
     pointer-events: none;
 }
 
+#payment-intents-table_wrapper .kids-dt-scroll-x {
+    overflow-y: hidden;
+}
+
 #payments-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
 #payments-monthly-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
 #ltv-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,

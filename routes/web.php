@@ -411,6 +411,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/setting-prices/user-year-prices', [SettingPricesController::class, 'userYearPrices'])->name('setting-prices.user-year-prices');
         Route::post('admin/setting-prices/user-year-prices/save', [SettingPricesController::class, 'saveUserYearPrices'])->name('setting-prices.user-year-prices.save');
 
+        Route::post('admin/setting-prices/former-month-charge/clear', [SettingPricesController::class, 'clearFormerMemberMonthCharge'])
+            ->name('setting-prices.former-month-charge.clear');
+
         Route::post('admin/setting-prices/manual-paid', [SettingPricesController::class, 'setManualPaid'])
             ->middleware('can:setPrices.manualPaid.manage')
             ->name('setting-prices.manual-paid');

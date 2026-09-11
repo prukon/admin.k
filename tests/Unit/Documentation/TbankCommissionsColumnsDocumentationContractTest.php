@@ -87,20 +87,18 @@ final class TbankCommissionsColumnsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('tbankCommissionsPageLength', $controller);
         $this->assertStringContainsString('ColumnsSettingsWithPageLengthSaveRequest', $controller);
         $this->assertStringContainsString('pageLengthForUser', $controller);
+        $this->assertStringContainsString("redirect()->route('admin.setting.tbankCommissions', ['edit' => \$id])", $controller);
 
-        $editPos = strpos($blade, "@if((\$mode ?? 'list') === 'edit')");
-        $this->assertNotFalse($editPos);
+        $this->assertStringNotContainsString("@if((\$mode ?? 'list') === 'edit')", $blade);
+        $this->assertStringNotContainsString('Правка правила', $blade);
         $listStart = strpos($blade, "@vite(['resources/css/admin-list-toolbar.css'])");
         $this->assertNotFalse($listStart);
-        $this->assertGreaterThan($editPos, $listStart);
-
-        $editChunk = substr($blade, $editPos, $listStart - $editPos);
-        $this->assertStringContainsString('Правка правила', $editChunk);
-        $this->assertStringNotContainsString('id="tbankCommissionsColumnsDropdown"', $editChunk);
-        $this->assertStringNotContainsString('persistPageLength: true', $editChunk);
 
         $listChunk = substr($blade, $listStart);
         $this->assertStringContainsString('id="tbankCommissionsColumnsDropdown"', $listChunk);
+        $this->assertStringContainsString('id="tbankCommissionEditModal"', $listChunk);
+        $this->assertStringContainsString("linkClass: 'js-tbank-commission-edit'", $listChunk);
+        $this->assertStringContainsString("'.js-tbank-commission-edit'", $listChunk);
         $this->assertStringContainsString('persistPageLength: true', $listChunk);
         $this->assertStringContainsString('pageLength: @json((int) ($tbankCommissionsPageLength ?? 10))', $listChunk);
         $this->assertStringContainsString("KidsCrmDataTable.create('#tbank-commissions-table'", $listChunk);

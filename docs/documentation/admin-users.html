@@ -953,7 +953,7 @@
     (<code>syncEmptyCellFeeBadge</code> только для <code>create_new</code>),
     Vite <code>settings-prices.js</code> (бейдж по <code>applied_discount_*</code>, левая колонка группы без <code>%</code>),
     helper <code>partials/ui/discount-percent-js.blade.php</code>.<br>
-    Каталог прав: <code>PermissionGroupsReorganizationFeatureTest</code> (группа <code>users</code> — 16 прав).
+    Каталог прав: <code>PermissionGroupsReorganizationFeatureTest</code> (группа <code>users</code> — 17 прав).
     Автопролонг: <code>FixedLessonPackageAutoProlongFeatureTest</code> (новый цикл = текущий % карточки × цена шаблона).
   </p>
 
@@ -969,9 +969,9 @@
     <thead><tr><th>Место</th><th>Поведение</th></tr></thead>
     <tbody>
       <tr><td>Модалки create/edit</td><td>Multiselect <code>team_ids[]</code> (<code>_student_teams_multiselect.blade.php</code>); право записи — <code>users.group.update</code></td></tr>
-      <tr><td>Колонка «Группы»</td><td>Все названия через запятую (<code>TeamUserSyncService::teamTitlesLabel</code>)</td></tr>
-      <tr><td>Фильтр «Группа»</td><td><code>team_id</code> / <code>none</code> — по pivot; ученик с двумя группами попадает в фильтр по любой из них</td></tr>
-      <tr><td>JSON edit</td><td><code>user.team_ids</code> — массив id из pivot</td></tr>
+      <tr><td>Колонка «Группы»</td><td>Названия через запятую. При праве <code>groups.own</code> у тренера — только его группы (<a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>); полное описание — <code>TrainerOwnTeamsScope::visibleTeamTitlesLabel</code></td></tr>
+      <tr><td>Фильтр «Группа»</td><td><code>team_id</code> / <code>none</code> — по pivot; ученик с двумя группами попадает в фильтр по любой из них. При <code>groups.own</code> в селекте только группы тренера; пустой фильтр («все») — только ученики этих групп, не вся школа</td></tr>
+      <tr><td>JSON edit</td><td><code>user.team_ids</code> — массив id из pivot; при <code>groups.own</code> — только видимые. Сохранение merge’ит скрытые группы, не снимает их</td></tr>
       <tr><td>Создание из лида</td><td>При одной группе в заявке — предзаполнение <code>team_ids</code> в create-модалке</td></tr>
     </tbody>
   </table>

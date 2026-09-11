@@ -152,6 +152,7 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
                 'blade'       => 'admin/report/tbank_payments.blade.php',
                 'auth'        => 'superadmin',
                 'permission'  => 'reports.tbank.payments.view',
+                'page_length_var' => 'currentPageLength',
             ],
             [
                 'label'       => 'Выплаты T‑Bank',
@@ -245,7 +246,12 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
         $this->assertNotFalse($pos, $case['create'].' не найден на '.$case['url']);
         $chunk = substr($html, $pos, 4500);
         $this->assertStringContainsString('persistPageLength: true', $chunk);
-        $this->assertMatchesRegularExpression('/pageLength:\s*10\b/', $chunk);
+        if (($case['page_length_var'] ?? '') === 'currentPageLength') {
+            $this->assertMatchesRegularExpression('/pageLength:\s*currentPageLength\b/', $chunk);
+            $this->assertMatchesRegularExpression('/var currentPageLength\s*=\s*10\b/', $html);
+        } else {
+            $this->assertMatchesRegularExpression('/pageLength:\s*10\b/', $chunk);
+        }
 
         $this->postJson($case['save_url'], [
             'page_length' => 50,

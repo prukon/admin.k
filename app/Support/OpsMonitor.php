@@ -82,7 +82,7 @@ final class OpsMonitor
                 'overdue_payouts' => $queue['overdue_scheduled_payouts_count'],
             ],
             'till' => [
-                'overdue_payouts' => $queue['overdue_scheduled_payouts_count'],
+                'overdue_payouts' => (int) TinkoffPayment::query()->missingPayoutAfterDelay()->count(),
                 'failed_intents' => (int) PaymentIntent::query()
                     ->where('status', 'failed')
                     ->where('updated_at', '>=', $since)

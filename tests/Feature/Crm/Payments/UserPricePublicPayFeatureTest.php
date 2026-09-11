@@ -265,6 +265,28 @@ final class UserPricePublicPayFeatureTest extends CrmTestCase
             ->assertSee('Ссылка недействительна', false);
     }
 
+    public function test_annulled_charge_shows_status_page_and_qr_returns_422(): void
+    {
+        $userPrice = $this->createUnpaidUserPrice();
+        $link = $this->issueLink($userPrice);
+
+        $userPrice->update(['price_cents' => 0]);
+
+        Auth::logout();
+
+        $this->get(route('up.public.pay.short', ['code' => $link->short_code]))
+            ->assertOk()
+            ->assertSee('Абонемент аннулирован', false)
+            ->assertSee('Этот абонемент был аннулирован. Если у вас остались вопросы, свяжитесь с клубом.', false);
+
+        $this->getJson(route('up.public.pay.qr.json', ['token' => $link->token]))
+            ->assertStatus(422)
+            ->assertJsonPath(
+                'Message',
+                'Этот абонемент был аннулирован. Если у вас остались вопросы, свяжитесь с клубом.'
+            );
+    }
+
     public function test_already_paid_shows_status_page_and_qr_state_confirmed(): void
     {
         $userPrice = $this->createUnpaidUserPrice();

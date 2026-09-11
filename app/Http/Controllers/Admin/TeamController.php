@@ -13,7 +13,9 @@ use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Models\Weekday;
 use App\Services\TeamService;
+use App\Services\TeamTrainerSyncService;
 use App\Services\TeamUserSyncService;
+use App\Services\TrainerOwnTeamsScope;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Enums\AuditEvent;
@@ -112,6 +114,7 @@ class TeamController extends AdminBaseController
         // базовый запрос
         $baseQuery = Team::query()
             ->where('teams.partner_id', $partnerId);
+        app(TrainerOwnTeamsScope::class)->restrictTeamsQuery($baseQuery, auth()->user(), $partnerId);
 
         // Поиск: панель фильтров (title) или глобальный поиск DataTables (search.value)
         $titleSearch = trim((string) ($validated['title'] ?? ''));
@@ -219,7 +222,9 @@ class TeamController extends AdminBaseController
         }
 
         // количество без фильтров
-        $totalRecords = Team::where('partner_id', $partnerId)->count();
+        $totalRecordsQuery = Team::where('partner_id', $partnerId);
+        app(TrainerOwnTeamsScope::class)->restrictTeamsQuery($totalRecordsQuery, $filterActor, $partnerId);
+        $totalRecords = $totalRecordsQuery->count();
 
         // количество c фильтрами
         $recordsFiltered = (clone $baseQuery)->count();
@@ -455,6 +460,15 @@ class TeamController extends AdminBaseController
 
         $team = $this->service->storeWithLogging($data, $authorId);
 
+        $ownTeams = app(TrainerOwnTeamsScope::class);
+        $actor = $request->user();
+        if ($ownTeams->isRestricted($actor)) {
+            $profileId = $ownTeams->trainerProfileId($actor);
+            if ($profileId) {
+                app(TeamTrainerSyncService::class)->attachTrainerToTeam($team, $profileId);
+            }
+        }
+
         if ($request->ajax()) {
             return response()->json([
                 'message' => 'Группа создана успешно',
@@ -488,6 +502,7 @@ class TeamController extends AdminBaseController
             ->where('partner_id', $partnerId)
             ->where('id', $id)
             ->firstOrFail();
+        $this->assertActorMayAccessTeam($team, $partnerId);
 
         $weekdays = Weekday::all(); // Получаем все дни недели
         $trainerProfileIds = $team->trainerProfiles
@@ -575,6 +590,9 @@ class TeamController extends AdminBaseController
         // Проверка наличия команды
         if (!$team || !$team->id) {
             return response()->json(['error' => 'Команда не найдена или принадлежит другому партнёру'], 404);
+        }
+        if (! app(TrainerOwnTeamsScope::class)->allowsTeamId($request->user(), $partnerId, (int) $team->id)) {
+            abort(403, 'Доступ запрещён.');
         }
 
         DB::transaction(function () use ($data, $authorId, $team, $canEditSchedule, $partnerId) {
@@ -719,6 +737,7 @@ class TeamController extends AdminBaseController
         if ((int) $team->partner_id !== $partnerId) {
             abort(403, 'Доступ запрещён.');
         }
+        $this->assertActorMayAccessTeam($team, $partnerId);
 
         DB::transaction(function () use ($team, $partnerId) {
             app(TeamUserSyncService::class)->detachTeamFromAllStudents((int) $team->id, $partnerId);
@@ -736,6 +755,13 @@ class TeamController extends AdminBaseController
         });
 
         return response()->json(['message' => 'Группа и её связь с пользователями успешно помечены как удалённые']);
+    }
+
+    private function assertActorMayAccessTeam(Team $team, int $partnerId): void
+    {
+        if (! app(TrainerOwnTeamsScope::class)->allowsTeamId(auth()->user(), $partnerId, (int) $team->id)) {
+            abort(403, 'Доступ запрещён.');
+        }
     }
 
     private function trainerOptionsForPartner(int $partnerId)

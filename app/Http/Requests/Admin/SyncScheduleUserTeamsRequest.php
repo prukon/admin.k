@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Rules\AllowedActorTeam;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -41,6 +42,7 @@ class SyncScheduleUserTeamsRequest extends FormRequest
                 Rule::exists('teams', 'id')->where(
                     fn ($query) => $query->where('partner_id', $partnerId)
                 ),
+                new AllowedActorTeam($partnerId),
             ],
         ];
     }

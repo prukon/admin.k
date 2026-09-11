@@ -16,6 +16,7 @@ use App\Models\ChatThread;
 use App\Models\Partner;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\TrainerOwnTeamsScope;
 use App\Support\UserTeamQuery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +31,7 @@ class ChatService
 
     public function __construct(
         private readonly ChatSupportIdentity $support,
+        private readonly TrainerOwnTeamsScope $ownTeams,
     ) {
     }
 
@@ -808,7 +810,11 @@ class ChatService
             $selects[] = DB::raw('NULL as role_label');
         }
 
-        $selects[] = DB::raw(UserTeamQuery::sqlStudentTeamTitlesSubquery($partnerId).' as team_title');
+        $selects[] = DB::raw(UserTeamQuery::sqlStudentTeamTitlesSubquery(
+            $partnerId,
+            'users',
+            $this->ownTeams->allowedTeamIds(User::query()->find($actorId), $partnerId),
+        ).' as team_title');
 
         if ($q !== '') {
             $like = '%'.$q.'%';
@@ -824,11 +830,14 @@ class ChatService
         }
 
         $teamFilter = trim($teamFilter);
+        $actor = User::query()->find($actorId);
         if ($teamFilter !== '') {
             if ($teamFilter !== 'none' && ctype_digit($teamFilter) && (int) $teamFilter > 0) {
                 $query->withSystemRoleUser();
             }
             $query->filterByStudentTeam($partnerId, $teamFilter);
+        } else {
+            $this->ownTeams->restrictChatContactsQuery($query, $actor, $partnerId);
         }
 
         $injectSupport = $this->support->shouldAppearInContacts($actorId, $q, $teamFilter, $excludeUserIds);

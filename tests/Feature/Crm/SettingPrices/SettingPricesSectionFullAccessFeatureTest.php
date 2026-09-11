@@ -564,6 +564,15 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
             ],
             [
                 'method' => 'POST',
+                'url'    => route('setting-prices.former-month-charge.clear'),
+                'data'   => [
+                    'user_id'      => $this->student->id,
+                    'team_id'      => $this->team->id,
+                    'selectedDate' => 'Сентябрь 2024',
+                ],
+            ],
+            [
+                'method' => 'POST',
                 'url'    => route('setting-prices.prolong-month.preview'),
                 'data'   => [
                     'selectedDate' => 'Сентябрь 2024',

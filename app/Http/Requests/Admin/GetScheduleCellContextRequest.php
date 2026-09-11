@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Rules\AllowedActorTeam;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -37,6 +38,7 @@ class GetScheduleCellContextRequest extends FormRequest
                 Rule::exists('teams', 'id')->where(
                     fn ($query) => $query->where('partner_id', $partnerId)
                 ),
+                new AllowedActorTeam($partnerId),
             ],
             'utss_id' => ['nullable', 'integer', 'exists:user_team_schedule_slots,id'],
         ];

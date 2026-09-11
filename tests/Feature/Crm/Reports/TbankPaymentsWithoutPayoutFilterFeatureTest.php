@@ -395,8 +395,9 @@ final class TbankPaymentsWithoutPayoutFilterFeatureTest extends CrmTestCase
         $createPos = strpos($html, "KidsCrmDataTable.create('#tbank-payments-table'");
         $this->assertNotFalse($createPos);
         $createChunk = substr($html, $createPos, 2500);
-        $this->assertMatchesRegularExpression('/pageLength:\s*50\b/', $createChunk);
-        $this->assertDoesNotMatchRegularExpression('/pageLength:\s*10\b/', $createChunk);
+        $this->assertMatchesRegularExpression('/var currentPageLength\s*=\s*50\b/', $html);
+        $this->assertMatchesRegularExpression('/pageLength:\s*currentPageLength\b/', $createChunk);
+        $this->assertDoesNotMatchRegularExpression('/pageLength:\s*\d+\b/', $createChunk);
         $this->assertStringContainsString('persistPageLength: true', $createChunk);
         $this->assertStringContainsString('checked', $this->withoutPayoutCheckboxTag($html));
     }

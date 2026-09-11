@@ -45,8 +45,9 @@ class TrainerController extends AdminBaseController
         $teamOptions = Team::query()
             ->where('partner_id', $partnerId)
             ->orderBy('order_by')
-            ->orderBy('title')
-            ->get(['id', 'title']);
+            ->orderBy('title');
+        app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery($teamOptions, auth()->user(), $partnerId);
+        $teamOptions = $teamOptions->get(['id', 'title']);
 
         $showTrainerTypes = TrainerTypeAccess::partnerHasKansas($partnerId);
         $canManageTrainerTypes = TrainerTypeAccess::canManageCatalog();
@@ -104,6 +105,11 @@ class TrainerController extends AdminBaseController
 
         if (!empty($validated['team_id'])) {
             $teamId = (int) $validated['team_id'];
+            if (! app(\App\Services\TrainerOwnTeamsScope::class)->allowsTeamId(auth()->user(), $partnerId, $teamId)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'team_id' => ['Выберите группу из списка.'],
+                ]);
+            }
             $baseQuery->whereHas('teams', function ($q) use ($teamId, $partnerId) {
                 $q->where('teams.id', $teamId)
                     ->where('teams.partner_id', $partnerId);

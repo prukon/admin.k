@@ -193,8 +193,9 @@ class PaymentReportController extends AdminBaseController
                 $qq->where('title', 'like', '%'.$q.'%');
             })
             ->orderBy('title')
-            ->limit(50)
-            ->get(['id', 'title']);
+            ->limit(50);
+        app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery($teams, auth()->user(), $partnerId);
+        $teams = $teams->get(['id', 'title']);
 
         $results = $teams->map(static function (Team $t) {
             return [
@@ -316,6 +317,9 @@ class PaymentReportController extends AdminBaseController
             ->where('partner_id', $partnerId)
             ->where('id', $tid)
             ->first(['id', 'title']);
+        if ($t && ! app(\App\Services\TrainerOwnTeamsScope::class)->allowsTeamId(auth()->user(), $partnerId, (int) $t->id)) {
+            return null;
+        }
 
         if (! $t) {
             return null;

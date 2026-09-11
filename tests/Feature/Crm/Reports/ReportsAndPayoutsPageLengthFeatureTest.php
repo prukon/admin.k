@@ -97,6 +97,7 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
             'create'        => "KidsCrmDataTable.create('#tbank-payments-table'",
             'view_var'      => 'tbankPaymentsPageLength',
             'sample_columns'=> ['partner' => true, 'deal_id' => false],
+            'page_length_var' => 'currentPageLength',
         ]];
         yield 'tinkoff_payouts' => [[
             'auth'          => 'payouts',
@@ -129,7 +130,7 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
 
         $chunk = $this->createChunk($html, $case['create']);
         $this->assertStringContainsString('persistPageLength: true', $chunk);
-        $this->assertMatchesRegularExpression('/pageLength:\s*10\b/', $chunk);
+        $this->assertRenderedPageLength($html, $case, 10);
         $this->assertSame(1, substr_count($html, 'persistPageLength: true'));
     }
 
@@ -151,8 +152,7 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
             ->getContent();
 
         $chunk = $this->createChunk($html, $case['create']);
-        $this->assertMatchesRegularExpression('/pageLength:\s*50\b/', $chunk);
-        $this->assertDoesNotMatchRegularExpression('/pageLength:\s*10\b/', $chunk);
+        $this->assertRenderedPageLength($html, $case, 50);
         $this->assertStringContainsString('persistPageLength: true', $chunk);
         $this->assertStringNotContainsString('start:', $chunk);
     }
@@ -201,7 +201,7 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
             ->assertViewHas($case['view_var'], 20)
             ->getContent();
 
-        $this->assertMatchesRegularExpression('/pageLength:\s*20\b/', $this->createChunk($html, $case['create']));
+        $this->assertRenderedPageLength($html, $case, 20);
 
         $setting = UserTableSetting::where('user_id', $this->user->id)
             ->where('table_key', $case['table_key'])
@@ -380,10 +380,7 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
             ->assertViewHas($case['view_var'], 10)
             ->getContent();
 
-        $this->assertMatchesRegularExpression(
-            '/pageLength:\s*10\b/',
-            $this->createChunk($html, $case['create'])
-        );
+        $this->assertRenderedPageLength($html, $case, 10);
     }
 
     /**
@@ -412,10 +409,7 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
             ->assertViewHas($case['view_var'], 10)
             ->getContent();
 
-        $this->assertMatchesRegularExpression(
-            '/pageLength:\s*10\b/',
-            $this->createChunk($html, $case['create'])
-        );
+        $this->assertRenderedPageLength($html, $case, 10);
     }
 
     /**
@@ -535,7 +529,7 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
             ->getContent();
 
         $chunk = $this->createChunk($html, $case['create']);
-        $this->assertMatchesRegularExpression('/pageLength:\s*50\b/', $chunk);
+        $this->assertRenderedPageLength($html, $case, 50);
         $this->assertStringContainsString('persistPageLength: true', $chunk);
     }
 
@@ -651,6 +645,23 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
         $this->assertNotFalse($pos, $needle.' не найден');
 
         return substr($html, $pos, 4500);
+    }
+
+    /**
+     * @param  array<string, mixed>  $case
+     */
+    private function assertRenderedPageLength(string $html, array $case, int $length): void
+    {
+        $chunk = $this->createChunk($html, $case['create']);
+        if (($case['page_length_var'] ?? '') === 'currentPageLength') {
+            $this->assertMatchesRegularExpression('/var currentPageLength\s*=\s*'.$length.'\b/', $html);
+            $this->assertMatchesRegularExpression('/pageLength:\s*currentPageLength\b/', $chunk);
+            $this->assertDoesNotMatchRegularExpression('/pageLength:\s*\d+\b/', $chunk);
+
+            return;
+        }
+
+        $this->assertMatchesRegularExpression('/pageLength:\s*'.$length.'\b/', $chunk);
     }
 
     private function jsFunctionChunk(string $html, string $fn): string

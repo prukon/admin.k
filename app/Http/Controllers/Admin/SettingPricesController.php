@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\Admin\ClearFormerMemberMonthChargeRequest;
 use App\Http\Requests\Admin\GetTeamPriceRequest;
 use App\Http\Requests\Admin\SetManualUserPricePaidRequest;
 use App\Http\Requests\Admin\SetPriceAllTeamsRequest;
@@ -40,6 +41,7 @@ use App\Http\Requests\Admin\UserCustomPaymentUpdateRequest;
 use App\Http\Requests\Admin\SetManualUserCustomPaymentPaidRequest;
 use App\Services\Postpay\PostpayUsersPriceSync;
 use App\Services\Pricing\UserPercentDiscount;
+use App\Services\SettingPrices\FormerMemberMonthChargeService;
 use App\Services\SettingPrices\UsersPriceLessonPackageSync;
 use App\Services\SettingPrices\UsersPriceLessonPackageSyncException;
 use App\Services\SettingPrices\MonthlyPricesProlongService;
@@ -67,6 +69,7 @@ class SettingPricesController extends AdminBaseController
         private readonly PostpayUsersPriceSync $postpaySync,
         private readonly UsersPriceLessonPackageSync $usersPriceLessonPackageSync,
         private readonly MonthlyPricesProlongService $monthlyPricesProlongService,
+        private readonly FormerMemberMonthChargeService $formerMemberMonthChargeService,
     ) {
         parent::__construct($partnerContext);
     }
@@ -76,10 +79,16 @@ class SettingPricesController extends AdminBaseController
      */
     protected function getPartnerTeamsOrdered()
     {
-        return $this->scopeByPartner(Team::query())
+        $query = $this->scopeByPartner(Team::query())
             ->whereNull('deleted_at')
-            ->orderBy('order_by', 'asc')
-            ->get();
+            ->orderBy('order_by', 'asc');
+        app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery(
+            $query,
+            auth()->user(),
+            (int) ($this->partnerId() ?? 0)
+        );
+
+        return $query->get();
     }
 
     /**
@@ -797,7 +806,7 @@ class SettingPricesController extends AdminBaseController
 
             $userPrice->name = $user->name;
             $userPrice->refresh();
-            $userPrice->load(['user', 'lessonPackage']);
+            $userPrice->load(['user', 'lessonPackage', 'userLessonPackage']);
             $userPrice->setAttribute('is_former_member', false);
             $usersPrice[] = $userPrice;
 
@@ -856,9 +865,13 @@ class SettingPricesController extends AdminBaseController
             ->where('team_id', $team->id)
             ->where('new_month', $monthDate)
             ->where('price_cents', '>', 0)
-            ->with(['user' => static function ($q) use ($partnerId) {
-                $q->where('partner_id', $partnerId);
-            }]);
+            ->with([
+                'user' => static function ($q) use ($partnerId) {
+                    $q->where('partner_id', $partnerId);
+                },
+                'lessonPackage',
+                'userLessonPackage',
+            ]);
 
         if ($memberIds !== []) {
             $query->whereNotIn('user_id', $memberIds);
@@ -984,6 +997,7 @@ class SettingPricesController extends AdminBaseController
                 $row->load('lessonPackage');
             }
             $this->postpaySync->appendVisitMeta($row);
+            $this->formerMemberMonthChargeService->decorate($row);
 
             if ($hasFormerFlag) {
                 $row->setAttribute('is_former_member', $formerFlag);
@@ -1191,6 +1205,113 @@ class SettingPricesController extends AdminBaseController
         return $this->settingPricesUsersJsonOrRedirect($request, [
             'success'    => true,
             'user_price' => $decorated[0] ?? $row,
+        ]);
+    }
+
+    /**
+     * Снять неоплаченное начисление бывшего участника группы (корзина на «По месяцам»).
+     */
+    public function clearFormerMemberMonthCharge(ClearFormerMemberMonthChargeRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+
+        $userId = (int) $request->validated('user_id');
+        $teamId = (int) $request->validated('team_id');
+        $selectedDate = $request->validated('selectedDate');
+        $monthDate = $this->formatedDate($selectedDate);
+
+        $user = User::query()
+            ->whereKey($userId)
+            ->where('partner_id', $partnerId)
+            ->first();
+
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ученик не найден или недоступен в контексте текущего партнёра.',
+                'errors' => [
+                    'user_id' => ['Ученик не найден или недоступен в контексте текущего партнёра.'],
+                ],
+            ], 404);
+        }
+
+        $team = $this->findPartnerTeam($teamId, $partnerId);
+        if (! $team) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Группа не найдена.',
+                'errors' => [
+                    'team_id' => ['Группа не найдена.'],
+                ],
+            ], 404);
+        }
+
+        if (UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId)) {
+            throw ValidationException::withMessages([
+                'charge' => ['Снять начисление корзиной можно только у ученика, который больше не состоит в этой группе.'],
+            ]);
+        }
+
+        /** @var UserPrice|null $row */
+        $row = UserPrice::query()
+            ->where('user_id', $userId)
+            ->where('team_id', $teamId)
+            ->where('new_month', $monthDate)
+            ->first();
+
+        if (! $row || (int) $row->price_cents <= 0) {
+            throw ValidationException::withMessages([
+                'charge' => ['Нет начисления за выбранный месяц, которое можно снять.'],
+            ]);
+        }
+
+        $oldCents = (int) $row->price_cents;
+        $oldPackageId = $row->lesson_package_id !== null ? (int) $row->lesson_package_id : null;
+        $studentLabel = trim((string) $user->lastname.' '.(string) $user->name);
+        if ($studentLabel === '') {
+            $studentLabel = (string) $user->name;
+        }
+        $teamTitle = trim((string) $team->title);
+        if ($teamTitle === '') {
+            $teamTitle = 'Группа';
+        }
+
+        DB::transaction(function () use (
+            $row,
+            $user,
+            $userId,
+            $oldCents,
+            $oldPackageId,
+            $selectedDate,
+            $teamTitle,
+            $studentLabel,
+        ) {
+            $this->formerMemberMonthChargeService->clear($row, auth()->id() !== null ? (int) auth()->id() : null);
+
+            $amount = str_replace(' ', '', Money::formatRub($oldCents));
+            $packageBit = $oldPackageId !== null ? ' Абонемент #'.$oldPackageId.'.' : '';
+            $description = sprintf(
+                'Снято начисление бывшего участника: %s руб.%s Период: %s. Группа: %s. Ученик: %s (#%d).',
+                $amount,
+                $packageBit,
+                $selectedDate,
+                $teamTitle,
+                $studentLabel !== '' ? $studentLabel : 'ученик',
+                $userId
+            );
+
+            $this->auditLogger->record(
+                AuditEvent::PricingFormerChargeCleared,
+                AuditContext::make($description)
+                    ->withUser($user)
+                    ->withTargetReference(UserPrice::class, (int) $row->id, $studentLabel !== '' ? $studentLabel : 'ученик')
+                    ->withCreatedAt(now())
+            );
+        });
+
+        return $this->settingPricesMonthlyJsonOrRedirect($request, [
+            'success' => true,
+            'message' => 'Начисление снято.',
         ]);
     }
 

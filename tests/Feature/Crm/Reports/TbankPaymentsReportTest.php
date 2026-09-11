@@ -488,7 +488,8 @@ class TbankPaymentsReportTest extends CrmTestCase
                 $html
             );
         }
-        $this->assertStringContainsString('pageLength: 10', $html);
+        $this->assertStringContainsString('var currentPageLength = 10;', $html);
+        $this->assertStringContainsString('pageLength: currentPageLength', $html);
         $this->assertStringContainsString('persistPageLength: true', $html);
     }
 

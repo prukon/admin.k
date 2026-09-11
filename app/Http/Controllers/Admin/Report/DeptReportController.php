@@ -494,6 +494,9 @@ class DeptReportController extends AdminBaseController
             ->where('partner_id', $partnerId)
             ->where('id', $tid)
             ->first(['id', 'title']);
+        if ($t && ! app(\App\Services\TrainerOwnTeamsScope::class)->allowsTeamId(auth()->user(), $partnerId, (int) $t->id)) {
+            return null;
+        }
 
         if (! $t) {
             return null;

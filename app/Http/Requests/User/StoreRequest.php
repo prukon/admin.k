@@ -9,6 +9,7 @@ use App\Http\Requests\User\Concerns\ValidatesStudentCommentAndSex;
 use App\Http\Requests\User\Concerns\ValidatesStudentHealthFields;
 use App\Http\Requests\User\Concerns\ValidatesStudentParent;
 use App\Models\UserField;
+use App\Rules\AllowedActorTeam;
 use App\Services\PartnerContext;
 use App\Services\Users\FamilyStudentLoginResolver;
 use Illuminate\Foundation\Http\FormRequest;
@@ -132,6 +133,7 @@ class StoreRequest extends FormRequest
             $rules['team_ids.*'][] = Rule::exists('teams', 'id')->where(
                 fn ($query) => $query->where('partner_id', $partnerId)
             );
+            $rules['team_ids.*'][] = new AllowedActorTeam((int) $partnerId);
 
             $rules['school_lead_id'] = [
                 'nullable',

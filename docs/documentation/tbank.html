@@ -127,15 +127,26 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
       non-AJAX пустой POST / невалидный N → <b>302</b> + session errors; успешный non-AJAX save — JSON <b>200</b> <code>{success: true}</code> (не пустой 200).
       PUT/PATCH/DELETE на URI настроек → <b>404/405</b> (<code>{id}</code> в CRUD ограничен <code>whereNumber</code>), запись не создаётся.
       Первое открытие: все чекбоксы меню включены, фильтры свёрнуты, <code>pageLength: 10</code>.
-      Query-фильтры и <code>?open_create=1</code> не убирают toolbar «Колонки» и не сбрасывают сохранённый N.
+      Query-фильтры, <code>?open_create=1</code> и <code>?edit={id}</code> не убирают toolbar «Колонки» и не сбрасывают сохранённый N.
       «Применить» / «Сброс» фильтров — <code>e.preventDefault()</code> + <code>dtApi.reload</code> (с <code>keepPage: true</code> на submit), таблицу не пересоздают.
-      Страница правки правила dropdown «Колонки» и persist N не рендерит.
+      Отдельной HTML-страницы правки нет: <code>GET …/{id}/edit</code> без AJAX редиректит на список с <code>?edit={id}</code>.
       Русификация — <code>@include('partials.datatables.ru')</code>.
       Подробнее о пресете: <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>,
       «Показать N» — <a href="/docs/documentation/reusable-ui-partials#persist-page-length">§ persistPageLength</a>.</li>
-    <li><b>Колонки таблицы</b>: №; Партнёр (название; бейдж «ключи?» если глобальный T‑Bank не подключён); Метод; три блока комиссий (эквайринг / выплата банка / платформа); <b>Автовыплата</b> (сводка «да, N ч» / «нет» по правилам партнёра; для глобального правила без <code>partner_id</code> — «—»); <b>Выплат за 30 дн.</b> (число автовыплат за 30 дней по партнёру, счётчик — ссылка на <code>/admin/tinkoff/payouts?partner_id=…&amp;source=auto</code>; для глобального правила — «—»); <b>Активность</b> (включено правило или нет); действия «Изменить» / «Удалить».</li>
+    <li><b>Колонки таблицы</b>: №; Партнёр (кликабельное название, <code>type: 'link'</code>, класс <code>js-tbank-commission-edit</code>; бейдж «ключи?» если глобальный T‑Bank не подключён); Метод; три блока комиссий (эквайринг / выплата банка / платформа); <b>Автовыплата</b> (сводка «да, N ч» / «нет» по правилам партнёра; для глобального правила без <code>partner_id</code> — «—»); <b>Выплат за 30 дн.</b> (число автовыплат за 30 дней по партнёру, счётчик — ссылка на <code>/admin/tinkoff/payouts?partner_id=…&amp;source=auto</code>; для глобального правила — «—»); <b>Активность</b> (включено правило или нет); действия «Изменить» / «Удалить». Клик по названию партнёра и кнопка «Изменить» открывают одну модалку редактирования.</li>
     <li><b>Фильтры</b> над таблицей (партнёр, метод) в сворачиваемом блоке в том же визуальном стиле, что отчёт по задолженностям; подключается <code>resources/css/admin-list-toolbar.css</code>. Фильтры передаются в запрос data как <code>filter_partner_id</code>, <code>filter_method</code>. Без query-параметров блок свёрнут; при активных фильтрах — <code>collapse show</code>.</li>
-    <li><b>Редактирование</b> по-прежнему отдельная страница <code>/admin/settings/tbank-commissions/{id}/edit</code> (чекбокс автовыплаты, задержка в часах, форма полей комиссий).</li>
+    <li><b>Редактирование</b> — модалка на странице списка, чуть шире стандартной
+      (<code>#tbankCommissionEditModal .modal-dialog { max-width: min(720px, 96vw) }</code>),
+      без <code>modal-lg</code> (в проекте это 90% экрана) и без fullscreen.
+      Клик по названию партнёра и кнопка «Изменить» вызывают <code>GET /admin/settings/tbank-commissions/{id}/edit</code>
+      (AJAX/JSON: поля правила, <code>partner_title</code>, <code>method_label</code>, автовыплата, счётчик выплат за 30 дн.).
+      Партнёр и метод в этой модалке <b>не выбираются</b>: подпись партнёра
+      (<code>#tbank_edit_partner_title</code>, «— Глобально —» если <code>partner_id</code> пуст)
+      и подпись метода (<code>#tbank_edit_method_label</code>: Карты / СБП / T‑Pay / «— Для всех —»),
+      значения уходят скрытыми полями. Селект «Партнёр (опционально)» остаётся только в модалке создания.
+      <code>PUT …/{id}</code> берёт <code>partner_id</code> и <code>method</code> из существующего правила и игнорирует подложенные в запросе.
+      Сохранение: AJAX → JSON <b>200</b> или <b>422</b> с ошибками под полями; non-AJAX → редирект на список (при ошибке валидации — <code>?edit={id}</code>, модалка с <code>old()</code>).
+      Закладки/старые ссылки: non-AJAX <code>GET …/{id}/edit</code> редиректит на список с <code>?edit={id}</code>.</li>
   </ul>
 
   <h2 id="auto-payout">5) Автовыплата партнёру (e2c) — управление</h2>
@@ -145,10 +156,11 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     Per-partner записи <code>payment_systems(name=tbank)</code> больше не используются.
   </div>
   <ul>
-    <li><b>Где включать/выключать</b>: на странице редактирования правила комиссии
-      <code>/admin/settings/tbank-commissions/{id}/edit</code> — чекбокс «Автовыплата включена» и поле «Задержка после оплаты (часы)».</li>
-    <li><b>Важно</b>: настройки применяются к <b>партнёру и методу</b>, указанным в правиле (<code>partner_id</code>, <code>method</code>).
-      Для «глобального» правила (<code>partner_id = NULL</code>) автовыплата не настраивается — сначала нужно выбрать партнёра и сохранить правило.</li>
+    <li><b>Где включать/выключать</b>: в модалке редактирования правила комиссии
+      на <code>/admin/settings/tbank-commissions</code> — чекбокс «Автовыплата включена» и поле «Задержка после оплаты (часы)».</li>
+    <li><b>Важно</b>: настройки применяются к <b>партнёру и методу</b>, уже записанным в правиле (<code>partner_id</code>, <code>method</code>).
+      В модалке «Изменить» их нельзя сменить. Для «глобального» правила (<code>partner_id = NULL</code>) автовыплата не настраивается —
+      нужно <b>создать</b> отдельное правило на партнёра (кнопка «Добавить комиссию»).</li>
     <li><b>Выбор правила при webhook</b>: <code>TinkoffCommissionRule::pickForPartner($partnerId, $method)</code> — сначала точное совпадение по методу, иначе правило с <code>method = NULL</code>.</li>
     <li><b>Что делает</b>: если <code>auto_payout_enabled = true</code> у подобранного правила — после <code>Status=CONFIRMED</code> создаётся выплата (e2c) с задержкой <code>auto_payout_delay_hours</code> из этого правила. При 0 — выплата уходит в банк сразу. Дальше статус доводится polling’ом (<code>GetState</code>) до <code>COMPLETED/REJECTED</code>.</li>
     <li><b>Если выключено</b>: выплаты запускаются только вручную (админ‑действиями).</li>
@@ -197,7 +209,14 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <ul>
     <li><b>Страница выплат</b> <code>/admin/tinkoff/payouts</code>: блок «Автовыплаты: включены у партнёров …» и «Обработка отложенных выплат: каждые N мин.»; таблица выплат (DataTables); блок просроченных отложенных выплат (см. отдельно <a href="/docs/documentation/tbank-admin-payouts">админка выплат</a>).</li>
     <li><b>Страница партнёра</b> <code>/admin/tinkoff/partners/{id}</code>: в карточке слева — сводка автовыплат <b>по методам</b> (вкл/выкл, задержка в часах), «За 30 дн.: N автовыплат», ссылка «к выплатам». Счётчик <b>«Ожидают выплат»</b> — выплаты в статусах <code>INITIATED</code>/<code>CREDIT_CHECKING</code>.</li>
-    <li><b>Страница комиссий</b>: в таблице правил колонка <b>«Автовыплата»</b> («да, N ч» / «нет») и <b>«Выплат за 30 дн.»</b> (число со ссылкой на автовыплаты партнёра); на форме редактирования — чекбокс, поле задержки в часах, счётчик «За 30 дн.: N автовыплат».</li>
+    <li><b>Страница комиссий</b>: в таблице правил колонка <b>«Автовыплата»</b> («да, N ч» / «нет») и <b>«Выплат за 30 дн.»</b> (число со ссылкой на автовыплаты партнёра); в модалке редактирования — чекбокс, поле задержки в часах, счётчик «За 30 дн.: N автовыплат».</li>
+    <li><b>Оверлей «Пульт»</b> (право <code>settings.systemMonitors.view</code>):
+      первое число строки <b>Касса</b> — <code>till.overdue_payouts</code>,
+      CONFIRMED мультисплит без <code>COMPLETED</code> после
+      <code>auto_payout_delay_hours</code> правила
+      <code>pickForPartner</code>. Это <b>не</b> фильтр «Не было выплаты»
+      и <b>не</b> блок просроченных Init на странице выплат.
+      Анонс: <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>.</li>
   </ul>
 
   <h3>5.6 Защита от повторной выплаты по одному платежу</h3>
@@ -216,6 +235,8 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     В таблице колонка <b>«Выплата»</b> — сумма последней выплаты по платежу со статусом не <code>REJECTED</code> (выполнена, отложена или в процессе); иначе «—».
     Колонка <b>«Способ»</b> — <code>tinkoff_payments.method</code> (Карта / СБП / T‑Pay); фильтр <code>method</code> на вкладке отчётов.
     Фильтр <b>«Не было выплаты»</b> (<code>without_payout=1</code>) — платежи без выплаты или только с <code>REJECTED</code> (как «—» в колонке), все статусы платежа; чекбокс <code>value="1"</code>.
+    Это <b>не</b> счётчик «Касса» пульта (<code>till.overdue_payouts</code>) —
+    <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>.
     Колонка <b>«Чек»</b> — как в отчёте «Платежи»: иконка прихода / возврата через <code>TinkoffPaymentFiscalReceiptResolver</code> (тот же резолвер, что блок «Фискальный чек» на этой карточке).
     Колонка <b>«Комиссия платформы»</b> — текущие <code>tinkoff_commission_rules</code>, та же формула, что в отчёте «Платежи»; не снимок <code>tinkoff_payouts.platform_fee</code>; видна всем с правом отчёта; в сумму шапки не входит.
     На тулбаре вкладки кнопка <b>«Комиссии»</b> (<code>#tp-toolbar-commissions</code>) — только при <code>settings.commission</code>, ведёт на <code>/admin/settings/tbank-commissions</code>. Страница комиссий не переносится.
@@ -225,6 +246,8 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <a href="/doc#reports-tbank-payments-receipt-commission-index">/doc#reports-tbank-payments-receipt-commission-index</a>.
     Фильтр «Не было выплаты»:
     <a href="/doc#reports-tbank-payments-without-payout-index">/doc#reports-tbank-payments-without-payout-index</a>.
+    Вид Платежи / По дням / По месяцам:
+    <a href="/doc#reports-tbank-payments-view-modes-index">/doc#reports-tbank-payments-view-modes-index</a>.
     См. <a href="/docs/documentation/reports-admin#reports-tbank-payments">reports-admin §9</a>.
   </div>
   <p>Контроллер: <code>TinkoffAdminPaymentController::show</code>. Шаблон: <code>resources/views/tinkoff/payments/show.blade.php</code>.</p>
@@ -446,7 +469,8 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Unit/Documentation/ReportsTbankPaymentsDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-index">/doc#reports-tbank-payments-index</a> совпадает с вкладкой отчётов (не страница комиссий).</li>
     <li><code>tests/Unit/Documentation/ReportsTbankPaymentsReceiptCommissionDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-receipt-commission-index">/doc#reports-tbank-payments-receipt-commission-index</a> совпадает с колонками «Чек» / «Комиссия платформы».</li>
     <li><code>tests/Unit/Documentation/ReportsTbankPaymentsWithoutPayoutDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-without-payout-index">/doc#reports-tbank-payments-without-payout-index</a> совпадает с фильтром «Не было выплаты».</li>
-    <li><code>tests/Feature/Crm/Reports/TbankPaymentsReportTest.php</code> / <code>TbankPaymentsWithoutPayoutFilterFeatureTest.php</code> / <code>TbankPaymentsReceiptAndCommissionFeatureTest.php</code> / <code>TbankPaymentsPageFullAccessFeatureTest.php</code> / <code>TbankPaymentsNonAjaxSafetyNetFeatureTest.php</code> — вкладка отчётов «Платежи T‑Bank»: права, скоуп, DataTables (колонка «Способ», «Чек», «Комиссия платформы»: не снимок выплаты, не 2% fallback, поиск не по чеку), UX фильтров (<code>status=all</code>, <code>method=all</code>, <code>without_payout</code>), карточка по праву отчёта или manage, кнопка «Комиссии».</li>
+    <li><code>tests/Unit/Documentation/OpsTillMissingPayoutDocumentationContractTest.php</code> — анонс <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a> совпадает с <code>till.overdue_payouts</code> (не фильтр <code>without_payout</code>).</li>
+    <li><code>tests/Feature/Crm/Reports/TbankPaymentsReportTest.php</code> / <code>TbankPaymentsWithoutPayoutFilterFeatureTest.php</code> / <code>TbankPaymentsReceiptAndCommissionFeatureTest.php</code> / <code>TbankPaymentsPageFullAccessFeatureTest.php</code> / <code>TbankPaymentsNonAjaxSafetyNetFeatureTest.php</code> / <code>TbankPaymentsViewModesFeatureTest.php</code> — вкладка отчётов «Платежи T‑Bank»: права, скоуп, DataTables (колонка «Способ», «Чек», «Комиссия платформы»: не снимок выплаты, не 2% fallback, поиск не по чеку), UX фильтров (<code>status=all</code>, <code>method=all</code>, <code>without_payout</code>), вид Платежи/По дням/По месяцам, карточка по праву отчёта или manage, кнопка «Комиссии».</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate</code>.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankPaymentShowPayoutActionsTest.php</code> — кнопки выплаты на карточке + отображение «Организация».</li>
     <li><code>tests/Unit/Services/Tinkoff/TinkoffPaymentTimelineBuilderTest.php</code> — unit-тесты builder'а timeline.</li>
@@ -486,7 +510,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>8.7 Комиссии (CRUD + приоритеты правил + настройки выплат)</h3>
   <ul>
-    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsToolbarFeatureTest.php</code> — разметка toolbar (включая «Колонки») и наличие <code>KidsCrmDataTable.create</code> на странице комиссий.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsToolbarFeatureTest.php</code> — разметка toolbar (включая «Колонки») и наличие <code>KidsCrmDataTable.create</code> на странице комиссий; в модалке «Изменить» нет селекта «Партнёр (опционально)», партнёр и метод — подписи.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsColumnsSettingsFeatureTest.php</code> — UX «Колонки» / «Показать N»: первое открытие (все чекбоксы + N=10, фильтры свёрнуты), порядок thead = меню = JS keys, скрытый <code>method</code> не сдвигает thead, query-фильтры и <code>open_create=1</code> не сбрасывают N/toolbar, страница edit без dropdown, submit/reset фильтров — <code>dtApi.reload</code> без второго <code>create</code>, невалидный/чужой N и N с «Все платежи» не навязываются.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsColumnsSettingsAjaxContractFeatureTest.php</code> — AJAX GET/POST: <code>[]</code> без записи, именованные ключи (не индексы), bool-нормализация, 422 <code>errors.columns</code> / <code>errors.page_length</code>, <code>page_length</code> не затирает скрытые колонки, пустой <code>columns: []</code> + N не пишет в БД, GET без <code>page_length</code>, изоляция пользователей, битые <code>columns</code> → <code>[]</code>.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsColumnsSettingsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX POST: успех JSON 200 + persist <code>'1'</code>/<code>'0'</code>; пустой/невалидный POST → 302 <code>errors[field]</code>; гость не 200/500; без <code>settings.commission</code> → 403.</li>
@@ -495,8 +519,8 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsPageFullAccessFeatureTest.php</code> — полный доступ (200) ко всем endpoint'ам раздела при <code>settings.commission</code>.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsAuthorizedEndpointsTest.php</code> — для пользователя с правом доступа успешные ответы по странице, <code>GET …/data</code>, редирект <code>create</code>, CRUD и настройки выплат; для роли admin с выданным <code>settings.commission</code> — 200 на index и data.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsFeatureCoverageTest.php</code> — разметка страницы (модалки, таблица, кнопки), структура JSON data (включая колонки автовыплаты и выплат за 30 дн.), фильтры и поиск, глобальное правило.</li>
-    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerCrudTest.php</code> — CRUD правил комиссий + валидация.</li>
-    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAutoPayoutTest.php</code> — поля <code>auto_payout_enabled</code> и <code>auto_payout_delay_hours</code> в <code>tinkoff_commission_rules</code> и их корректное сохранение.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerCrudTest.php</code> — CRUD правил комиссий + валидация (FormRequest, AJAX JSON edit/update с <code>partner_title</code>/<code>method_label</code>, PUT не меняет <code>partner_id</code>/<code>method</code>, non-AJAX редирект <code>?edit={id}</code>).</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAutoPayoutTest.php</code> — поля <code>auto_payout_enabled</code> и <code>auto_payout_delay_hours</code> в <code>tinkoff_commission_rules</code>; PUT не переносит автовыплату на другого партнёра.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionRulePriorityTest.php</code> — дефолт 2% и приоритет выбора правила (global → partner → partner+method).</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsPayoutSettingsTest.php</code> — сохранение интервала джобы (<code>payout_scheduled_interval_minutes</code>); в модалке «Настройки выплат» нет поля глобальной задержки автовыплаты.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX store/update/payout-settings: redirect 302 + запись в БД / ошибки валидации (columns-settings — отдельный файл выше).</li>

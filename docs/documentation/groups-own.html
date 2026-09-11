@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: право groups.own — только свои группы</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Право <code>groups.own</code>: только свои группы (тренер)</h1>
+  <div class="small">Файл: <code>/docs/documentation/groups-own.html</code> · анонс
+    <a href="/doc#groups-own-index">/doc#groups-own-index</a></div>
+
+  <div class="note">
+    Отдельное видимое право матрицы (<code>is_visible=1</code>, группа <code>users</code>,
+    <code>sort_order=42</code>, описание «Только свои группы (тренер)»).
+    В <code>config/role_base_permissions.php</code> <b>не входит</b> — ни <code>trainer</code>, ни <code>admin</code>, ни <code>user</code>.
+    Школа включает его роли тренера, когда фильтры и списки групп должны сужаться до <code>team_trainer</code>.
+    Без права тренер с рабочими правами (<code>users.view</code> / <code>schedule.view</code> / <code>groups.view</code>)
+    видит все группы школы, как раньше.
+  </div>
+
+  <h2 id="when">1) Когда срабатывает</h2>
+  <p>
+    Сервис <code>App\Services\TrainerOwnTeamsScope</code>.
+    Ограничение включается, если актор <code>can('groups.own')</code>
+    <b>и</b> у него есть профиль <code>trainer_profiles</code>.
+    Superadmin проходит <code>Gate::before</code> (право «есть»), но без профиля тренера
+    <code>isRestricted()</code> = false — списки не режутся.
+    Админ школы без <code>trainer_profiles</code> тоже не режется, даже если право выдано роли.
+    Список разрешённых групп: <code>team_trainer</code> текущего партнёра.
+    Нет привязанных групп — пустой список, не «все группы школы».
+  </p>
+  <p>
+    Gate: <code>AuthServiceProvider</code> — <code>Gate::define('groups.own', …)</code>.
+    Правило валидации: <code>App\Rules\AllowedActorTeam</code> — текст «Выберите группу из списка.» под полем (422).
+    Миграция: <code>2026_09_11_021700_add_groups_own_permission.php</code>.
+    Каталог hints: <code>config/permission_capability_hints.php</code>.
+  </p>
+
+  <h2 id="scope">2) Что режется</h2>
+  <table>
+    <thead>
+      <tr><th>Место</th><th>Поведение при включённом праве</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Селекты / фильтры групп, <code>/admin/teams</code></td>
+        <td>Только группы из <code>team_trainer</code>. Чужой id в URL/API — 422 или 403 (карточка группы).</td>
+      </tr>
+      <tr>
+        <td>Клиенты <code>/admin/users</code>, журнал <code>/schedule</code>, консоль «все»</td>
+        <td>Только ученики своих групп. Чужой <code>team_id</code> / <code>?team=</code> — 422 под полем.</td>
+      </tr>
+      <tr>
+        <td>Подписи и чекбоксы групп ученика</td>
+        <td>Пересечение: видна только группа тренера. JSON <code>team_ids</code> / колонка «Группы» — без чужих названий.</td>
+      </tr>
+      <tr>
+        <td>Сохранение <code>team_ids</code> ученика</td>
+        <td>Merge: чужие группы не снимаются. <code>TrainerOwnTeamsScope::mergeSubmittedStudentTeamIds</code>.</td>
+      </tr>
+      <tr>
+        <td>Чат</td>
+        <td>Фильтр контактов — только свои группы. Без фильтра: сотрудники школы видны, ученики — только своих групп.</td>
+      </tr>
+      <tr>
+        <td>Создание группы</td>
+        <td><code>TeamController@store</code> авто-attach’ит профиль актора в <code>team_trainer</code>, иначе он свою новую группу не увидит.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="not-cut">3) Что не режется этим правом</h2>
+  <ul>
+    <li>Заявки с сайта, договоры, ЗП, нагрузка других тренеров — отдельные права.</li>
+    <li>Ученики без группы — отдельный фильтр «Без группы» / <code>none</code> / <code>withoutTeam</code>; в консоли карточка такого ученика открывается.</li>
+    <li>Строки отчётов без выбранной группы не сужаются; сужается только dropdown групп.</li>
+    <li>Публичный лендинг, регистрация, «Моя группа» клиента.</li>
+  </ul>
+
+  <h2 id="tests">4) Тесты</h2>
+  <ul>
+    <li><code>TrainerOwnTeamsScopeFeatureTest</code> — ядро: гость 302, без рабочих прав 403, без <code>groups.own</code> видны все группы, с правом — только свои; ученики «всех групп»; 422 чужого <code>team_id</code>; merge; чат; админ без профиля не режется; право не в base roles; консоль.</li>
+    <li><code>TrainerOwnTeamsAccessFeatureTest</code> — гость HTML 302 / JSON не 200, без view 403 на GET/POST/PATCH/DELETE, с view без права страницы открываются, без <code>team_trainer</code> пустые списки (не все группы школы), чужой партнёр 422/403, без организации logout и <code>errors.email</code> «Ваша организация недоступна.», неверные методы не 500.</li>
+    <li><code>TrainerOwnTeamsAjaxContractFeatureTest</code> — <code>postJson</code>/<code>patchJson</code>/<code>getJson</code> с <code>X-Requested-With</code>: 422 <code>errors.team_id</code> / <code>errors.team</code> / <code>errors.team_ids.0</code> «Выберите группу из списка.»; store ученика/группы JSON 200; auto-attach <code>team_trainer</code>; пустой <code>team_ids</code> merge; фильтр <code>none</code>; sync журнала; поиск групп отчёта платежей.</li>
+    <li><code>TrainerOwnTeamsNonAjaxSafetyNetFeatureTest</code> — native POST группы → 302 + attach; native POST/PATCH ученика → 302 + merge; native GET <code>/schedule?team=чужая</code> → 302 + <code>errors.team</code> (не 200 с чужими учениками); native users/data и chat users — не пустой 200; консоль JSON без HTML.</li>
+    <li><code>TrainerOwnTeamsMarkupFeatureTest</code> — первый HTML: «Все группы» / «Без группы» / своя опция, чужой title нет; журнал <code>selected</code> на all / own / none; оба фильтра чата; консоль first-paint без чужого ученика; без права чужая опция есть; без <code>users.group.update</code> edit-select disabled (create остаётся редактируемым — <code>StoreRequest</code> принимает <code>team_ids</code>); заявки с сайта — dropdown без чужой группы.</li>
+    <li><code>TrainerOwnTeamsFullAccessFeatureTest</code> — смоук GET затронутых URL 200 не пустой; AJAX create/patch/delete своей группы; delete чужой 403.</li>
+    <li><code>BladeInlineJsSyntaxTest::test_groups_own_team_filters_and_edit_modal_fill_from_json_on_both_open_paths</code> — <code>editUserLink</code> и <code>editUserLink2</code> заполняют из <code>response.user.team_ids</code>; сброс <code>#filter-team</code> / <code>#contactsTeamFilter</code> / <code>createGroupMembersTeamFilter</code> на пустое; консоль пересобирает ФИО из <code>usersTeam</code>; журнал берёт <code>#filter-team</code> val; <code>node --check</code>.</li>
+    <li><code>TrainerOwnTeamsDocumentationContractTest</code> — анонс <code>/doc#groups-own-index</code>, страница, seeder, конфиг, Gate.</li>
+    <li><code>PermissionGroupsReorganizationFeatureTest</code> — каталог группы <code>users</code> (17 прав, в т.ч. <code>groups.own</code>).</li>
+    <li><code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_groups_own_to_base_roles</code>.</li>
+  </ul>
+  <p>
+    Связанные страницы:
+    <a href="/docs/documentation/admin-trainers#groups-own">admin-trainers</a>,
+    <a href="/docs/documentation/admin-teams">admin-teams</a>,
+    <a href="/docs/documentation/admin-users#user-teams">admin-users §3</a>,
+    <a href="/docs/documentation/schedule-journal">schedule-journal</a>,
+    <a href="/docs/documentation/chat">chat</a>,
+    <a href="/docs/documentation/dashboard-cabinet#fio-select-students">консоль</a>,
+    <a href="/docs/documentation/partners-permissions">partners-permissions §8</a>,
+    <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
+  </p>
+</div>
+</body>
+</html>

@@ -11,10 +11,30 @@ final class UserTeamQuery
 {
     /**
      * Correlated subquery: подписи групп ученика через запятую (без join-дублей строк).
+     *
+     * @param  int[]|null  $allowedTeamIds  null — все группы партнёра; [] — пустая подпись
      */
-    public static function sqlStudentTeamTitlesSubquery(int $partnerId, string $usersAlias = 'users'): string
-    {
+    public static function sqlStudentTeamTitlesSubquery(
+        int $partnerId,
+        string $usersAlias = 'users',
+        ?array $allowedTeamIds = null,
+    ): string {
         $pid = (int) $partnerId;
+
+        if ($allowedTeamIds !== null) {
+            $allowedTeamIds = array_values(array_unique(array_filter(
+                array_map('intval', $allowedTeamIds),
+                fn (int $id) => $id > 0
+            )));
+            if ($allowedTeamIds === []) {
+                return '(SELECT NULL)';
+            }
+        }
+
+        $teamInSql = '';
+        if ($allowedTeamIds !== null) {
+            $teamInSql = ' AND tu.team_id IN ('.implode(',', $allowedTeamIds).')';
+        }
 
         return <<<SQL
 (SELECT GROUP_CONCAT(DISTINCT t.title ORDER BY t.title SEPARATOR ', ')
@@ -23,7 +43,7 @@ final class UserTeamQuery
    AND t.partner_id = {$pid}
    AND t.deleted_at IS NULL
  WHERE tu.user_id = {$usersAlias}.id
-   AND tu.partner_id = {$pid})
+   AND tu.partner_id = {$pid}{$teamInSql})
 SQL;
     }
 

@@ -36,6 +36,7 @@ use App\Support\BuildsLogTable;
 use Intervention\Image\ImageManager;
 use App\Services\SchoolLeads\LatestUserContractLookup;
 use App\Services\TeamUserSyncService;
+use App\Services\TrainerOwnTeamsScope;
 use App\Services\UserService;
 use App\Services\Users\ClientWelcomeCredentialsService;
 use App\Services\Users\FamilyStudentLoginResolver;
@@ -97,10 +98,11 @@ class UserController extends AdminBaseController
         $fields = UserField::with('roles')->where('partner_id', $partnerId)->get();
         $userFieldsPayload = $this->buildUserFieldsPayloadForCurrentPartner();
 
-        // 5) Все команды партнёра
+        // 5) Команды партнёра (groups.own — только группы тренера)
         $allTeams = Team::where('partner_id', $partnerId)
-            ->orderBy('order_by', 'asc')
-            ->get();
+            ->orderBy('order_by', 'asc');
+        app(TrainerOwnTeamsScope::class)->restrictTeamsQuery($allTeams, $currentUser, (int) $partnerId);
+        $allTeams = $allTeams->get();
 
         $canViewContracts = $currentUser?->can('contracts.view') ?? false;
         $canViewUserSex = $currentUser?->can('users.sex') ?? false;
@@ -163,6 +165,17 @@ class UserController extends AdminBaseController
         $contractFilter   = $canViewContracts ? trim((string) ($validated['contract'] ?? '')) : '';
 
         $teamFilter = $validated['team_id'] ?? null;
+        $ownTeams = app(TrainerOwnTeamsScope::class);
+        $actor = Auth::user();
+        $partnerIdForScope = (int) $this->partnerId();
+
+        if ($teamFilter !== null && $teamFilter !== '' && $teamFilter !== 'none' && ctype_digit((string) $teamFilter)) {
+            if (! $ownTeams->allowsTeamId($actor, $partnerIdForScope, (int) $teamFilter)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'team_id' => ['Выберите группу из списка.'],
+                ]);
+            }
+        }
 
         $nameSearch = trim((string) ($validated['name'] ?? ''));
         if ($nameSearch === '' && $request->filled('search.value')) {
@@ -207,6 +220,8 @@ class UserController extends AdminBaseController
         // Фильтр по группе: id / none / пусто
         if ($teamFilter !== null && $teamFilter !== '') {
             $baseQuery->filterByStudentTeam((int) $this->partnerId(), $teamFilter);
+        } elseif ($ownTeams->isRestricted($actor)) {
+            $ownTeams->restrictStudentsQuery($baseQuery, $actor, $partnerIdForScope);
         }
 
         // Фильтр по статусу
@@ -226,10 +241,13 @@ class UserController extends AdminBaseController
             );
         }
 
-        // Общее количество записей по партнёру (без фильтров)
+        // Общее количество записей по партнёру (без фильтров панели)
         $totalRecordsQuery = $this->scopeByPartner(User::query());
         if ($studentRoleId > 0) {
             $totalRecordsQuery->where('users.role_id', $studentRoleId);
+        }
+        if ($ownTeams->isRestricted($actor)) {
+            $ownTeams->restrictStudentsQuery($totalRecordsQuery, $actor, $partnerIdForScope);
         }
         $totalRecords = $totalRecordsQuery->count();
 
@@ -305,7 +323,7 @@ class UserController extends AdminBaseController
                 'name'         => $user->full_name ?: 'Без имени',
                 'parent'       => $user->parent_full_name,
                 'parent_phone' => RuPhone::formatForInput($user->parentProfile?->phone),
-                'teams'        => $this->teamUserSync->teamTitlesLabel($user) ?: '',
+                'teams'        => app(TrainerOwnTeamsScope::class)->visibleTeamTitlesLabel($user, Auth::user(), (int) $this->partnerId()) ?: '',
                 'birthday'     => $user->birthday
                     ? Carbon::parse($user->birthday)->format('d.m.Y')
                     : '',
@@ -793,8 +811,10 @@ class UserController extends AdminBaseController
                     ->values()
                     ->all();
             }
-            $userArray['trainer_team_ids'] = $trainerTeamIds;
-            $userArray['team_ids'] = $this->teamUserSync->teamIdsForStudent($user);
+            $userArray['trainer_team_ids'] = app(TrainerOwnTeamsScope::class)
+                ->visibleTeamIds($trainerTeamIds, $currentUser, (int) $partnerId);
+            $userArray['team_ids'] = app(TrainerOwnTeamsScope::class)
+                ->visibleTeamIds($this->teamUserSync->teamIdsForStudent($user), $currentUser, (int) $partnerId);
             $userArray = array_merge($userArray, $user->parentFormFields());
 
             return response()->json([

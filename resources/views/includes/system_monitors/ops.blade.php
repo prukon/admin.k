@@ -97,7 +97,7 @@
         <span class="ops-monitors__label">Касса</span>
         <span class="ops-monitors__vals">
             @include('partials.ui.tooltip-hint', [
-                'title' => 'Просроченные выплаты T‑Bank по всем школам (срок наступил, выплата не ушла в банк)',
+                'title' => 'CONFIRMED без успешной выплаты после задержки автовыплаты партнёра (все школы)',
                 'placement' => 'left',
                 'wrapperClass' => '',
                 'innerHtml' => '<span data-role="till-overdue">…</span>',

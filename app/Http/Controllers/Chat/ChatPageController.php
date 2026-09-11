@@ -26,8 +26,17 @@ class ChatPageController extends Controller
                 ->where('partner_id', $partnerId)
                 ->orderBy('order_by')
                 ->orderBy('title')
-                ->get(['id', 'title'])
-            : collect();
+            : null;
+        if ($contactTeams) {
+            app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery(
+                $contactTeams,
+                auth()->user(),
+                $partnerId
+            );
+            $contactTeams = $contactTeams->get(['id', 'title']);
+        } else {
+            $contactTeams = collect();
+        }
 
         $userId = (int) auth()->id();
 

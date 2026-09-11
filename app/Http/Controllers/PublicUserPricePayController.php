@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\UserPricePublicPayLink;
 use App\Services\Payments\UserPricePublicPayService;
+use App\Services\SettingPrices\FormerMemberMonthChargeService;
 use Illuminate\Http\Request;
 
 final class PublicUserPricePayController extends Controller
@@ -41,6 +42,10 @@ final class PublicUserPricePayController extends Controller
             'paid' => view('payment.ulp-public-status', [
                 'title' => 'Оплата получена',
                 'message' => 'Этот период уже оплачен. Если у вас остались вопросы, свяжитесь с клубом.',
+            ]),
+            'annulled' => view('payment.ulp-public-status', [
+                'title' => 'Абонемент аннулирован',
+                'message' => FormerMemberMonthChargeService::ANNULLED_PAY_MESSAGE,
             ]),
             'expired' => view('payment.ulp-public-status', [
                 'title' => 'Ссылка недействительна',

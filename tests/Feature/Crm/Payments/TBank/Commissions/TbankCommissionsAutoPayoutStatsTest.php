@@ -117,9 +117,11 @@ class TbankCommissionsAutoPayoutStatsTest extends CrmTestCase
             'created_at' => now()->subDays(2),
         ]);
 
-        $resp = $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]));
+        $resp = $this->getJson(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]));
 
         $resp->assertOk();
-        $resp->assertSee('За 30 дн.: 1 автовыплат');
+        $resp->assertJsonPath('payouts_30d_count', 1);
+        $this->assertNotEmpty($resp->json('payouts_30d_last_at'));
+        $this->assertStringContainsString('source=auto', (string) $resp->json('payouts_30d_url'));
     }
 }

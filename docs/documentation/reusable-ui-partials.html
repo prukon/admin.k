@@ -425,6 +425,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
       <tr><td><code>/client-contracts</code></td><td><code>user_name</code></td><td><code>js-dt-nav-link</code> → карточка договора</td><td><a href="/docs/documentation/contracts#contracts-list-table">contracts §4.1</a></td></tr>
       <tr><td><code>/client-contract-templates</code></td><td><code>title</code></td><td><code>js-contract-template-edit-link</code> → AJAX-модалка (<code>GET …/edit</code> JSON)</td><td><a href="/docs/documentation/contract-templates#template-edit-from-table">contract-templates §5.5</a></td></tr>
       <tr><td><code>/admin/users</code></td><td>ФИО</td><td><code>edit-user-link</code> → модалка (эталон до унификации справочников)</td><td><a href="/docs/documentation/admin-users">admin-users</a></td></tr>
+      <tr><td><code>/admin/settings/tbank-commissions</code></td><td><code>partner_title</code></td><td><code>js-tbank-commission-edit</code> → модалка (клик по названию и кнопка «Изменить»; <code>GET …/{id}/edit</code> JSON)</td><td><a href="/docs/documentation/tbank#commissions-ui">tbank §4.3</a></td></tr>
     </tbody>
   </table>
   <p class="small"><b>Шаблоны договоров:</b> клик по названию и кнопка «Изменить» в колонке «Действия» вызывают один и тот же <code>openEditModal(id)</code> без полной перезагрузки (<code>contract-templates/partials/edit-modal-init.blade.php</code>). Deep-link <code>?edit={id}</code> по-прежнему открывает модалку при загрузке страницы.</p>

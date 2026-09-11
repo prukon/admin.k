@@ -1994,6 +1994,14 @@ JS;
         $this->assertStringContainsString('isFormerMemberFlag', $content);
         $this->assertStringContainsString('is_former_member', $content);
         $this->assertStringContainsString('data-is-former-member', $content);
+        $this->assertStringContainsString('user-price-former-clear', $content);
+        $this->assertStringContainsString('can_clear_former_charge', $content);
+        $this->assertStringContainsString('former_charge_clear_block_reason', $content);
+        $this->assertStringContainsString('/admin/setting-prices/former-month-charge/clear', $content);
+        $this->assertStringContainsString('showConfirmDeleteModal', $content);
+        $this->assertStringContainsString('former-clear-error', $content);
+        $this->assertStringContainsString('kids-tooltip-hint', $content);
+        $this->assertStringContainsString("if (isFormer && !eff && uid)", $content);
         $this->assertStringContainsString('/admin/setting-prices/get-team-price', $content);
         $this->assertStringContainsString('/admin/setting-prices/set-price-all-users', $content);
         $this->assertStringContainsString('/admin/setting-prices/manual-paid', $content);
@@ -2033,6 +2041,8 @@ JS;
         $this->assertStringContainsString('wrap-team--loading', $css);
         $this->assertStringContainsString('setting-prices-team-pulse', $css);
         $this->assertStringContainsString('setting-prices-users-placeholder--error', $css);
+        $this->assertStringContainsString('setting-prices-monthly-clear-btn', $css);
+        $this->assertStringContainsString('setting-prices-monthly-clear-disabled-wrap', $css);
 
         $doc = (string) file_get_contents(base_path('docs/documentation/setting-prices-monthly-users.html'));
         $this->assertStringContainsString('wrap-team--loading', $doc);
@@ -2092,6 +2102,59 @@ JS;
             $exitCode,
             "JS syntax error in resources/js/settings-prices.js:\n".implode("\n", $output)
         );
+    }
+
+    /**
+     * P1: корзина бывшего на «По месяцам» — UX-баг: не было корзины / не было disabled+ховер.
+     */
+    public function test_setting_prices_monthly_former_charge_clear_ux_contract(): void
+    {
+        $path = resource_path('js/settings-prices.js');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/settings-prices.js (former charge clear):\n".implode("\n", $output)
+        );
+
+        $this->assertStringContainsString('if (!isFormer && canManage && uid && hasAbon)', $content);
+        $this->assertStringContainsString('if (isFormer && !eff && uid)', $content);
+        $this->assertStringContainsString('user-price-former-clear', $content);
+        $this->assertStringContainsString('can_clear_former_charge', $content);
+        $this->assertStringContainsString('former_charge_clear_block_reason', $content);
+        $this->assertStringContainsString('kids-tooltip-hint', $content);
+        $this->assertStringContainsString('setting-prices-monthly-clear-disabled-wrap', $content);
+        $this->assertStringContainsString('escapeAttr(reason)', $content);
+        $this->assertStringContainsString('showConfirmDeleteModal', $content);
+        $this->assertStringContainsString('/admin/setting-prices/former-month-charge/clear', $content);
+        $this->assertStringContainsString('JSON.stringify({', $content);
+        $this->assertStringContainsString('errs.charge', $content);
+        $this->assertStringContainsString('.former-clear-error', $content);
+        $this->assertStringContainsString("loadTeamUsersRightColumn(lastTeamId, { keepActiveHighlight: true })", $content);
+        $this->assertStringContainsString("\$btn.prop('disabled')", $content);
+        $this->assertStringContainsString("data-is-former-member') !== '1'", $content);
+
+        $clickStart = strpos($content, "$(document).on('click', '#right_bar .wrap-users .user-price-former-clear'");
+        $this->assertNotFalse($clickStart);
+        $clickEnd = strpos($content, 'function restoreEditingMonthlySnapshot', $clickStart);
+        $this->assertNotFalse($clickEnd);
+        $click = substr($content, $clickStart, $clickEnd - $clickStart);
+        $this->assertStringNotContainsString('location.reload', $click);
+        $this->assertStringNotContainsString('renderUsersRightColumn', $click);
+        $this->assertLessThan(
+            strpos($click, 'showConfirmDeleteModal'),
+            strpos($click, "\$btn.prop('disabled')")
+        );
+
+        $users = (string) file_get_contents(resource_path('views/admin/SettingPrices/users.blade.php'));
+        $this->assertStringNotContainsString('user-price-former-clear', $users);
+        $this->assertStringNotContainsString('former-month-charge/clear', $users);
+        $this->assertStringNotContainsString('resources/js/settings-prices.js', $users);
     }
 
     /**
@@ -2478,7 +2541,7 @@ JS;
             ],
             "KidsCrmDataTable.create('#tbank-payments-table'" => [
                 'file' => resource_path('views/admin/report/tbank_payments.blade.php'),
-                'pageLength' => 'pageLength: @json((int) ($tbankPaymentsPageLength ?? 10))',
+                'pageLength' => 'var currentPageLength = @json((int) ($tbankPaymentsPageLength ?? 10));',
                 'prefix' => 'blade-js-tbank-payments-page-length',
             ],
             "KidsCrmDataTable.create('#payouts-table'" => [
@@ -2499,7 +2562,12 @@ JS;
             $this->assertNotFalse($createPos, $createNeedle);
             $chunk = substr($contents, $createPos, 4500);
             $this->assertStringContainsString('persistPageLength: true', $chunk);
-            $this->assertStringContainsString($meta['pageLength'], $chunk);
+            if (($meta['prefix'] ?? '') === 'blade-js-tbank-payments-page-length') {
+                $this->assertStringContainsString('pageLength: currentPageLength', $chunk);
+                $this->assertStringContainsString($meta['pageLength'], $contents);
+            } else {
+                $this->assertStringContainsString($meta['pageLength'], $chunk);
+            }
             $this->assertInlineScriptsContainingHaveValidJavascript(
                 $meta['file'],
                 $createNeedle,
@@ -2687,10 +2755,28 @@ JS;
 
         $this->assertSame(1, substr_count($content, "KidsCrmDataTable.create('#tbank-payments-table'"));
         $this->assertSame(1, substr_count($content, 'persistPageLength: true'));
-        $this->assertStringContainsString('pageLength: @json((int) ($tbankPaymentsPageLength ?? 10))', $content);
+        $this->assertStringContainsString('pageLength: currentPageLength', $content);
+        $this->assertStringContainsString('var currentPageLength = @json((int) ($tbankPaymentsPageLength ?? 10));', $content);
         $this->assertStringContainsString('@can(\'settings.commission\')', $content);
         $this->assertStringContainsString('id="tp-toolbar-commissions"', $content);
         $this->assertStringContainsString("route('admin.setting.tbankCommissions')", $content);
+        $this->assertStringContainsString('id="tp-view-switch"', $content);
+        $this->assertStringContainsString('id="tp-view-btn-payments"', $content);
+        $this->assertStringContainsString('id="tp-view-btn-days"', $content);
+        $this->assertStringContainsString('id="tp-view-btn-months"', $content);
+        $this->assertStringContainsString('function mountTbankPaymentsTable()', $content);
+        $this->assertStringContainsString('function destroyTbankPaymentsTable()', $content);
+        $destroyPos = strpos($content, 'function destroyTbankPaymentsTable()');
+        $this->assertNotFalse($destroyPos);
+        $destroyChunk = substr($content, $destroyPos, 2200);
+        $unwrapPos = strpos($destroyChunk, 'if ($table.parent().hasClass(\'kids-dt-scroll-x\'))');
+        $destroyCallPos = strpos($destroyChunk, 'dtApi.table.destroy()');
+        $this->assertNotFalse($unwrapPos);
+        $this->assertNotFalse($destroyCallPos);
+        $this->assertLessThan($destroyCallPos, $unwrapPos);
+        $this->assertStringContainsString('$table.find(\'tbody\').remove()', $destroyChunk);
+        $this->assertStringContainsString('$table.append(\'<tbody></tbody>\')', $destroyChunk);
+        $this->assertStringContainsString('tbankPaymentsTheadHtml(currentView)', $destroyChunk);
 
         $createPos = strpos($content, "KidsCrmDataTable.create('#tbank-payments-table'");
         $this->assertNotFalse($createPos);
@@ -2709,7 +2795,13 @@ JS;
             'receipt: true',
             'actions: true',
         ] as $defaultLine) {
-            $this->assertStringContainsString($defaultLine, $createChunk);
+            $this->assertStringContainsString($defaultLine, $content);
+        }
+        foreach ([
+            'period: true',
+            'payments_count: true',
+        ] as $summaryDefault) {
+            $this->assertStringContainsString($summaryDefault, $content);
         }
         $this->assertStringContainsString("url: \"{{ route('reports.tbank-payments.data') }}\"", $createChunk);
         $this->assertStringContainsString("key: 'platform_commission'", $content);
@@ -2739,12 +2831,12 @@ JS;
         $this->assertGreaterThan($dealPos, $receiptPos);
         $this->assertGreaterThan($receiptPos, $actionsPos);
 
-        $commissionChunk = substr($content, $commissionPos, 280);
+        $commissionChunk = substr($content, $commissionPos, 400);
         $this->assertStringContainsString('orderable: false', $commissionChunk);
         $this->assertStringContainsString('searchable: false', $commissionChunk);
         $this->assertStringContainsString("type: 'money'", $commissionChunk);
 
-        $receiptChunk = substr($content, $receiptPos, 350);
+        $receiptChunk = substr($content, $receiptPos, 500);
         $this->assertStringContainsString("type: 'icon'", $receiptChunk);
         $this->assertStringContainsString('orderable: false', $receiptChunk);
         $this->assertStringContainsString('searchable: false', $receiptChunk);
@@ -2760,12 +2852,15 @@ JS;
         $this->assertNotFalse($filterParamsPos);
         $filterParamsChunk = substr($content, $filterParamsPos, 800);
         $this->assertStringContainsString("without_payout: \$form.find('[name=\"without_payout\"]').is(':checked') ? '1' : ''", $filterParamsChunk);
+        $this->assertStringContainsString('view: currentView', $filterParamsChunk);
         $this->assertStringNotContainsString('without_payout: true', $filterParamsChunk);
         $this->assertStringNotContainsString("without_payout: 'on'", $filterParamsChunk);
 
         $this->assertStringContainsString('function tpShowFieldErrors(xhr)', $content);
         $this->assertStringContainsString("\$form.find('[name=\"' + field + '\"]').addClass('is-invalid')", $content);
-        $this->assertStringContainsString("\$form.find('[data-error-for=\"' + field + '\"]').text(msg).show()", $content);
+        $this->assertStringContainsString("\$form.find('[data-error-for=\"' + field + '\"]')", $content);
+        $this->assertStringContainsString("\$('[data-error-for=\"' + field + '\"]')", $content);
+        $this->assertStringContainsString('$err.text(msg).show()', $content);
 
         $submitPos = strpos($content, '$form.on(\'submit\'');
         $this->assertNotFalse($submitPos);
@@ -3843,6 +3938,8 @@ JS;
         $this->assertStringContainsString("yesterday.turnover == null ? '—' : yesterday.turnover", $content);
         $this->assertStringNotContainsString('toLocaleString', $content);
         $this->assertStringContainsString('countTone(welcome.missing_count)', $content);
+        $this->assertStringContainsString('countTone(till.overdue_payouts)', $content);
+        $this->assertStringContainsString('CONFIRMED без успешной выплаты после задержки автовыплаты партнёра', $content);
         $this->assertStringContainsString("welcome.last_user_id", $content);
         $this->assertStringContainsString("welcome.last_user_id ? ('#' + welcome.last_user_id) : '—'", $content);
         $this->assertStringNotContainsString('welcome.email', $content);
@@ -5828,6 +5925,8 @@ JS;
         $this->assertStringContainsString('kids-dt-scroll-x--has-sticky-bar', $css);
         $this->assertStringContainsString('position: sticky', $css);
         $this->assertStringContainsString('overflow-x: scroll', $css);
+        $this->assertStringContainsString('#payment-intents-table_wrapper .kids-dt-scroll-x {', $css);
+        $this->assertStringContainsString('overflow-y: hidden', $css);
 
         $jsPath = resource_path('js/admin-reports-tables-sticky.js');
         $this->assertFileExists($jsPath);
@@ -5929,6 +6028,8 @@ JS;
         $this->assertStringContainsString('#payment-intents-table_wrapper .kids-dt-sticky-hscroll', $css);
         $this->assertStringContainsString('#fiscal-receipts-table_wrapper .kids-dt-sticky-hscroll', $css);
         $this->assertStringContainsString('#emails-table_wrapper .kids-dt-sticky-hscroll', $css);
+        $this->assertStringContainsString('#payment-intents-table_wrapper .kids-dt-scroll-x {', $css);
+        $this->assertStringContainsString('overflow-y: hidden', $css);
         $this->assertStringNotContainsString('#ltv-user-payments-', $css);
         $this->assertStringNotContainsString('#monthly-payments-', $css);
     }
@@ -5984,6 +6085,12 @@ JS;
             $this->assertLessThan($createPos, $afterStart, $path);
             $afterChunk = substr($content, $afterStart, $createPos - $afterStart);
             $this->assertStringContainsString("KidsCrmReportTableSticky.bind('".$selector."')", $afterChunk, $path);
+
+            if ($selector === '#payment-intents-table') {
+                $this->assertStringNotContainsString('columns.adjust', $content, $path);
+                $this->assertStringContainsString('paymentIntentsLockScrollHost', $content, $path);
+                $this->assertStringContainsString('paymentIntentsLockScrollHost', $afterChunk, $path);
+            }
 
             $pluginPos = strpos($content, 'dataTables.fixedHeader.min.js');
             $this->assertNotFalse($pluginPos, $path);
@@ -7361,6 +7468,107 @@ JS;
             'setEditUserDiscountFields',
             'blade-js-edit-discount'
         );
+    }
+
+    /**
+     * P1: groups.own — оба пути открытия edit-модалки берут team_ids из JSON,
+     * фильтры при пересборке сбрасываются на «все», не на чужой id.
+     */
+    public function test_groups_own_team_filters_and_edit_modal_fill_from_json_on_both_open_paths(): void
+    {
+        $editPath = resource_path('views/includes/modal/editUser.blade.php');
+        $this->assertFileExists($editPath);
+        $edit = (string) file_get_contents($editPath);
+
+        $this->assertStringContainsString('function setEditUserStudentTeamIds(teamIds)', $edit);
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.setValues($select, teamIds || [])', $edit);
+        $this->assertStringContainsString('function syncEditUserTeamFields(roleId, roles, trainerTeamIds, studentTeamIds)', $edit);
+        $this->assertStringContainsString('function editUserLink2()', $edit);
+        $this->assertStringContainsString('function editUserLink()', $edit);
+
+        $fill = <<<'JS'
+                        syncEditUserTeamFields(
+                            response.user.role_id,
+                            editUserRolesCache,
+                            response.user.trainer_team_ids || [],
+                            response.user.team_ids || []
+                        );
+JS;
+        $link2Pos = strpos($edit, 'function editUserLink2()');
+        $linkPos = strpos($edit, 'function editUserLink()');
+        $this->assertNotFalse($link2Pos);
+        $this->assertNotFalse($linkPos);
+        $this->assertStringContainsString($fill, substr($edit, (int) $link2Pos, (int) $linkPos - (int) $link2Pos));
+        $this->assertStringContainsString($fill, substr($edit, (int) $linkPos, 5000));
+        $this->assertGreaterThanOrEqual(2, substr_count($edit, 'response.user.team_ids || []'));
+        $this->assertStringNotContainsString("url: '/admin/teams/data'", $edit);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $editPath,
+            'syncEditUserTeamFields',
+            'blade-js-edit-own-teams'
+        );
+
+        $createPath = resource_path('views/includes/modal/createUser.blade.php');
+        $create = (string) file_get_contents($createPath);
+        $this->assertStringContainsString('e.preventDefault();', $create);
+        $this->assertStringContainsString('$.ajax({', $create);
+        $this->assertStringContainsString('data-error-for="team_ids"', $create);
+        $this->assertStringContainsString("field === 'team_ids' || field.startsWith('team_ids.')", $create);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $createPath,
+            'data-error-for="team_ids"',
+            'blade-js-create-own-teams'
+        );
+
+        $usersPath = resource_path('views/admin/user.blade.php');
+        $users = (string) file_get_contents($usersPath);
+        $this->assertStringContainsString("team_id: $('#filter-team').val() || ''", $users);
+        $this->assertStringContainsString("$('#filter-team').val('');", $users);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $usersPath,
+            "team_id: $('#filter-team').val() || ''",
+            'blade-js-users-filter-team'
+        );
+
+        $chatPath = resource_path('js/chat.js');
+        $chat = (string) file_get_contents($chatPath);
+        $this->assertStringContainsString("document.getElementById('contactsTeamFilter').value = '';", $chat);
+        $this->assertStringContainsString('function resetCreateGroupWizard()', $chat);
+        $this->assertStringContainsString('function openCreateGroupWizard()', $chat);
+        $resetPos = strpos($chat, 'function resetCreateGroupWizard()');
+        $this->assertNotFalse($resetPos);
+        $this->assertStringContainsString("team.value = '';", substr($chat, $resetPos, 900));
+        $this->assertStringContainsString('openCreateGroupWizard();', $chat);
+        $this->assertStringContainsString("fieldError(res.data, 'team_id')", $chat);
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($chatPath).' 2>&1', $output, $exitCode);
+        $this->assertSame(0, $exitCode, "JS syntax error in chat.js:\n".implode("\n", $output));
+
+        $dashPath = resource_path('views/dashboard.blade.php');
+        $dash = (string) file_get_contents($dashPath);
+        $this->assertStringContainsString("url: '/get-team-details'", $dash);
+        $this->assertStringContainsString('function newUpdateSelectUsers()', $dash);
+        $this->assertStringContainsString("$('#single-select-user').empty();", $dash);
+        $this->assertStringContainsString('usersTeam', $dash);
+        $this->assertStringContainsString('userWithoutTeam.concat(usersTeam)', $dash);
+        $this->assertStringContainsString("selectedOption.getAttribute('data-team-id')", $dash);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $dashPath,
+            'function newUpdateSelectUsers()',
+            'blade-js-cabinet-own-teams'
+        );
+
+        $journalJs = public_path('js/schedule-journal.js');
+        $this->assertFileExists($journalJs);
+        $journal = (string) file_get_contents($journalJs);
+        $this->assertStringContainsString("newUrl.searchParams.set('team', $('#filter-team').val());", $journal);
+        $this->assertStringContainsString("window.location.href = newUrl.toString();", $journal);
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($journalJs).' 2>&1', $output, $exitCode);
+        $this->assertSame(0, $exitCode, "JS syntax error in schedule-journal.js:\n".implode("\n", $output));
     }
 
     /**

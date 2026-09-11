@@ -69,8 +69,9 @@ class SchoolLeadController extends AdminBaseController
         $filterTeams = Team::query()
             ->where('partner_id', $partnerId)
             ->where('is_enabled', true)
-            ->orderBy('title')
-            ->get(['id', 'title']);
+            ->orderBy('title');
+        app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery($filterTeams, Auth::user(), $partnerId);
+        $filterTeams = $filterTeams->get(['id', 'title']);
 
         $schoolLeadStatuses = $this->statusesForPartner($partnerId);
         $defaultStatusFilterIds = $schoolLeadStatuses
@@ -130,8 +131,13 @@ class SchoolLeadController extends AdminBaseController
             $viewData['lockStudentRole'] = true;
             $viewData['allTeams'] = Team::query()
                 ->where('partner_id', $partnerId)
-                ->orderBy('order_by')
-                ->get();
+                ->orderBy('order_by');
+            app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery(
+                $viewData['allTeams'],
+                Auth::user(),
+                $partnerId
+            );
+            $viewData['allTeams'] = $viewData['allTeams']->get();
             $viewData['userFieldsPayload'] = $this->buildUserFieldsPayloadForCurrentPartner();
         }
 

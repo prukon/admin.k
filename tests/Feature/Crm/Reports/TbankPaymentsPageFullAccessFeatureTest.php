@@ -270,6 +270,16 @@ final class TbankPaymentsPageFullAccessFeatureTest extends CrmTestCase
                 'url' => route('reports.tbank-payments.data', array_merge($this->baseDataTableParams(), ['without_payout' => 1])),
                 'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
+            [
+                'method' => 'GET',
+                'url' => route('reports.tbank-payments.index', ['view' => 'days']),
+                'headers' => ['HTTP_ACCEPT' => 'text/html'],
+            ],
+            [
+                'method' => 'GET',
+                'url' => route('reports.tbank-payments.data', array_merge($this->baseDataTableParams(), ['view' => 'months'])),
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
+            ],
         ];
     }
 
@@ -291,6 +301,9 @@ final class TbankPaymentsPageFullAccessFeatureTest extends CrmTestCase
             ['created_to' => now()->toDateString()],
             ['without_payout' => 1],
             ['without_payout' => 0],
+            ['view' => 'payments'],
+            ['view' => 'days'],
+            ['view' => 'months'],
             [
                 'status' => 'CONFIRMED',
                 'method' => 'card',

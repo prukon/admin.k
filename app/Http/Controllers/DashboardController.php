@@ -18,6 +18,7 @@ use App\Models\LessonPackage;
 use App\Models\UserPrice;
 use App\Models\Weekday;
 use App\Services\TeamUserSyncService;
+use App\Services\TrainerOwnTeamsScope;
 use App\Services\Users\FamilyStudentContextService;
 use App\Services\Postpay\PostpayMonth;
 use App\Services\Postpay\PostpayUsersPriceSync;
@@ -53,6 +54,7 @@ class DashboardController extends Controller
         $teamsQuery = Team::where('is_enabled', true)
             ->where('partner_id', $partnerId)
             ->orderBy('order_by', 'asc');
+        app(TrainerOwnTeamsScope::class)->restrictTeamsQuery($teamsQuery, auth()->user(), $partnerId);
 
         if (!empty($title)) {
             $teamsQuery->where('title', 'like', '%' . $title . '%');
@@ -132,16 +134,28 @@ class DashboardController extends Controller
     {
         $partnerId = app('current_partner')->id;
         $userId = $request->query('userId');
-        $user = User::where('id', $userId)->first();
-        if (! $user) {
+        $user = User::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->withSystemRoleUser()
+            ->whereKey($userId)
+            ->first();
+        if (
+            ! $user
+            || ! app(TrainerOwnTeamsScope::class)->allowsStudent(auth()->user(), $partnerId, $user)
+        ) {
             return response()->json(['success' => false]);
         }
 
         $user->load([
-            'teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at'),
+            'teams' => function ($q) use ($partnerId) {
+                $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at');
+                app(TrainerOwnTeamsScope::class)->restrictTeamsQuery($q, auth()->user(), $partnerId);
+            },
         ]);
         $userTeam = $user->teams->first();
-        $userTeamsLabel = $this->teamUserSync->teamTitlesLabel($user);
+        $userTeamsLabel = app(TrainerOwnTeamsScope::class)
+            ->visibleTeamTitlesLabel($user, auth()->user(), $partnerId);
         $userPrice = $this->cabinetUserPricesPayload((int) $userId);
         $scheduleUser = $this->cabinetScheduleEntries((int) $userId, $partnerId);
 
@@ -178,21 +192,31 @@ class DashboardController extends Controller
             ]);
         }
 
-        $user = $this->cabinetSelectStudentsQuery($partnerId)
+        $user = User::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->withSystemRoleUser()
             ->whereKey($userId)
             ->first();
 
-        if (!$user) {
+        if (
+            ! $user
+            || ! app(TrainerOwnTeamsScope::class)->allowsStudent(auth()->user(), $partnerId, $user)
+        ) {
             return response()->json([
                 'success' => false,
             ]);
         }
 
         $user->load([
-            'teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at'),
+            'teams' => function ($q) use ($partnerId) {
+                $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at');
+                app(TrainerOwnTeamsScope::class)->restrictTeamsQuery($q, auth()->user(), $partnerId);
+            },
         ]);
         $userTeam = $user->teams->first();
-        $userTeamsLabel = $this->teamUserSync->teamTitlesLabel($user);
+        $userTeamsLabel = app(TrainerOwnTeamsScope::class)
+            ->visibleTeamTitlesLabel($user, auth()->user(), $partnerId);
 
         $userPrice = $this->cabinetUserPricesPayload((int) $user->id);
         $scheduleUser = $this->cabinetScheduleEntries((int) $user->id, $partnerId);
@@ -232,9 +256,10 @@ class DashboardController extends Controller
         $team = Team::where('id', $teamId)->first();
         $teamWeekDayId = [];
 
+        $ownTeams = app(TrainerOwnTeamsScope::class);
+        $actor = auth()->user();
         if ($teamName == 'all') {
-            $usersTeam = User::where('is_enabled', 1)
-                ->where('partner_id', $partnerId)
+            $usersTeam = $this->cabinetSelectStudentsQuery($partnerId)
                 ->orderBy('name', 'asc')
                 ->get();
         } elseif ($teamName == 'withoutTeam') {
@@ -243,6 +268,9 @@ class DashboardController extends Controller
                 ->orderBy('lastname', 'asc')
                 ->get();
         } else {
+            if ($team && ! $ownTeams->allowsTeamId($actor, $partnerId, (int) $team->id)) {
+                $team = null;
+            }
             $usersTeam = $team
                 ? $team->students()
                     ->where('users.partner_id', $partnerId)
@@ -312,7 +340,10 @@ class DashboardController extends Controller
                 ->where('partner_id', $partnerId)
                 ->first();
 
-            if (!$team) {
+            if (
+                ! $team
+                || ! app(TrainerOwnTeamsScope::class)->allowsTeamId(auth()->user(), $partnerId, (int) $team->id)
+            ) {
                 return response()->json([
                     'success' => false,
                 ]);
@@ -429,10 +460,13 @@ class DashboardController extends Controller
      */
     private function cabinetSelectStudentsQuery(int $partnerId)
     {
-        return User::query()
+        $query = User::query()
             ->where('partner_id', $partnerId)
             ->where('is_enabled', true)
             ->withSystemRoleUser();
+        app(TrainerOwnTeamsScope::class)->restrictStudentsQuery($query, auth()->user(), $partnerId);
+
+        return $query;
     }
 
     /**
@@ -440,7 +474,10 @@ class DashboardController extends Controller
      */
     private function studentsWithoutTeamsQuery(int $partnerId)
     {
-        return $this->cabinetSelectStudentsQuery($partnerId)
+        return User::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->withSystemRoleUser()
             ->whereDoesntHave('teams', fn ($q) => $q->where('teams.partner_id', $partnerId));
     }
 

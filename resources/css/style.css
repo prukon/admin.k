@@ -635,6 +635,24 @@ footer .social-networks {
     font-size: 12px;
 }
 
+#right_bar .wrap-users .setting-prices-monthly-clear-btn {
+    min-width: 0;
+    padding: 0 !important;
+    font-size: 12px;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-clear-btn.is-disabled,
+#right_bar .wrap-users .setting-prices-monthly-clear-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-clear-disabled-wrap {
+    display: inline-flex;
+    cursor: help;
+}
+
 #right_bar .wrap-users .setting-prices-monthly-status-view {
     flex-wrap: nowrap;
 }

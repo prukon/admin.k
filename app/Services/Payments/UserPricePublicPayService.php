@@ -12,6 +12,7 @@ use App\Models\TinkoffPayment;
 use App\Models\UserPrice;
 use App\Models\UserPricePublicPayLink;
 use App\Services\PartnerLegalEntities\LegalEntityResolver;
+use App\Services\SettingPrices\FormerMemberMonthChargeService;
 use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Services\Tinkoff\TinkoffApiClient;
 use App\Services\Tinkoff\TinkoffPaymentsService;
@@ -194,6 +195,10 @@ final class UserPricePublicPayService
             return ['ok' => false, 'status' => 404, 'body' => ['Success' => false, 'Message' => 'Payment already completed']];
         }
 
+        if ((int) ($userPrice->price_cents ?? 0) <= 0) {
+            return ['ok' => false, 'status' => 422, 'body' => ['Success' => false, 'Message' => FormerMemberMonthChargeService::ANNULLED_PAY_MESSAGE]];
+        }
+
         if (! $this->partnerTbankConfigured((int) $link->partner_id, (int) $userPrice->team_id)) {
             return ['ok' => false, 'status' => 404, 'body' => ['Success' => false, 'Message' => 'Payment not configured']];
         }
@@ -238,7 +243,7 @@ final class UserPricePublicPayService
      *     serviceProviderTeamTitle: ?string,
      *     serviceProviderLabel: ?string,
      *     showTbankLegalEntityBlock: bool
-     * }|array{kind: 'paid'}|array{kind: 'expired'}|array{kind: 'config'}|array{kind: 'error', message: string}
+     * }|array{kind: 'paid'}|array{kind: 'expired'}|array{kind: 'config'}|array{kind: 'annulled'}|array{kind: 'error', message: string}
      */
     public function resolvePublicShow(UserPricePublicPayLink $link, Request $request): array
     {
@@ -253,6 +258,10 @@ final class UserPricePublicPayService
 
         if ($userPrice->effective_is_paid) {
             return ['kind' => 'paid'];
+        }
+
+        if ((int) ($userPrice->price_cents ?? 0) <= 0) {
+            return ['kind' => 'annulled'];
         }
 
         if (! $this->partnerTbankConfigured((int) $link->partner_id, (int) $userPrice->team_id)) {

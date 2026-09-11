@@ -225,7 +225,10 @@
     <code>userId</code> из <code>data-user-id</code> в <code>GET /get-user-details</code>
     (после пересборки JS <code>.val(user.name)</code>, не id).
     Id админа/тренера/кастомной роли/отключённого дают <code>success=false</code>.
-    Анонс — <a href="/doc#cabinet-fio-select-index">/doc#cabinet-fio-select-index</a>.</p>
+    При праве <code>groups.own</code> селект «Группа» и режим «все» — только группы/ученики тренера
+    (<a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>);
+    ученик без группы по-прежнему открывается в <code>getUserDetails</code>.
+    Анонс селекта ФИО — <a href="/doc#cabinet-fio-select-index">/doc#cabinet-fio-select-index</a>.</p>
 
   <h2 id="team-switcher">5) Селект «Выбор группы» (2+ группы)</h2>
   <div class="ok">
@@ -509,7 +512,15 @@
     целыми рублями без разделителей тысяч. Первый кадр «…» (не цифры из БД);
     <code>0</code> не «—»; сеть / 403 / payload без <code>day</code> сбрасывают leftover.
     Анонс — <a href="/doc#ops-day-kpi-index">/doc#ops-day-kpi-index</a>.
-    Окно 24 ч (просроченные выплаты — без окна;
+    «Касса» без выплаты после задержки —
+    <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>
+    (JSON <code>till.overdue_payouts</code>, scope
+    <code>missingPayoutAfterDelay</code>: <code>CONFIRMED</code>
+    <code>multisplit</code> после <code>auto_payout_delay_hours</code>,
+    не фильтр <code>without_payout</code> и не
+    <code>TinkoffPayout::overdueScheduled()</code>).
+    Окно 24 ч (просроченные отложенные выплаты в «Очередь» — без окна;
+    «Касса» первое число — CONFIRMED без выплаты после задержки партнёра, без окна;
     строка «Вход» — 72 ч). Неизвестный email считается. Истёкший код 2FA в auth не пишется.
     Ховер входа: email / пароль или код 2FA / IP / время из
     <code>auth.recent_logins</code> и <code>auth.recent_2fa</code>
@@ -595,6 +606,7 @@
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAjaxContractFeatureTest.php</code> — JSON 500/шлюзы без email/password/PAN; вход 72 ч, <code>auth.recent_logins</code> с введёнными email/паролем/IP; <code>auth.login_failed</code> без пароля; окно 24 ч остальное, все партнёры, Handler 500 vs 4xx/CSRF, <code>ViewException</code> unwrap / без previous / вложенная / Ignition, ring <code>errors.recent</code> (20, 24 ч, path без query), битый cache не 500, ученик с правом видит recent без PII в 500, cache шлюзов на Http::fake, неизвестный email считается, неверный/истёкший 2FA, welcome без/с письмом и STATUS_FAILED, sent без <code>mailable_class</code> по теме «Доступ в личный кабинет», чужой mailable / другая тема — missing, compact vs full overdue</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsDayFeatureTest.php</code> — строки «Сегодня» / «Вчера»: T‑Bank за календарный день, оборотка / комиссия из правил / счётчик, без офлайна, дни не смешиваются, все партнёры, возврат без комиссии, полночь, min_fixed, disabled rule, failed refund</li>
       <li><code>tests/Unit/Documentation/OpsDayKpiDocumentationContractTest.php</code> — анонс <code>/doc#ops-day-kpi-index</code> не противоречит коду: календарный день, T‑Bank TRIM, комиссия из правил, leftover, 403 без утечки</li>
+      <li><code>tests/Unit/Documentation/OpsTillMissingPayoutDocumentationContractTest.php</code> — анонс <code>/doc#ops-till-missing-payout-index</code> совпадает с <code>till.overdue_payouts</code> после задержки партнёра</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsDayUxFeatureTest.php</code> — первый кадр «…» при платежах в БД; 0 не «—»; без пробелов тысяч; 403/сеть и payload без ключей сбрасывают leftover 150000; login и без права строк нет</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsDayAccessFeatureTest.php</code> — гость / 403 без ключей <code>day</code>/<code>yesterday</code> и без утечки оборотки; оператор/тренер/ученик JSON и native GET целые; мутации не пустой 200</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsWelcomeAccountingFeatureTest.php</code> — ложный «нет письма» у 9 клиентов с <code>sent</code> без типа; реально missing; SMTP sent без <code>notifiable_id</code>; «Имя &lt;email&gt;»; статус sending; last_user_id; чужая школа; create из лида AJAX и native POST → пульт 0; 403/гость без id и email</li>

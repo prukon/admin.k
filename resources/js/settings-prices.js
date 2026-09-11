@@ -803,7 +803,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!$card || !$card.length) {
             return;
         }
-        $card.find('.setting-prices-monthly-package-error, .setting-prices-monthly-price-error, .manual-paid-error')
+        $card.find('.setting-prices-monthly-package-error, .setting-prices-monthly-price-error, .manual-paid-error, .former-clear-error')
             .hide()
             .text('');
         $card.find('.setting-prices-monthly-package-select, .setting-prices-monthly-price-input')
@@ -891,6 +891,32 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<i class="fa fa-edit" aria-hidden="true"></i></button>';
             }
 
+            let trashHtml = '';
+            if (isFormer && !eff && uid) {
+                const canClear = up.can_clear_former_charge === true
+                    || up.can_clear_former_charge === 1
+                    || up.can_clear_former_charge === '1';
+                const blockReason = (up.former_charge_clear_block_reason != null)
+                    ? String(up.former_charge_clear_block_reason).trim()
+                    : '';
+                const trashBtn = '<button type="button" class="btn btn-link btn-sm p-0 text-danger user-price-former-clear setting-prices-monthly-clear-btn'
+                    + (canClear ? '' : ' is-disabled')
+                    + '" data-user-id="' + uid + '"'
+                    + (canClear ? ' title="Удалить начисление"' : ' disabled aria-disabled="true"')
+                    + '>'
+                    + '<i class="fa fa-trash" aria-hidden="true"></i></button>';
+                if (canClear) {
+                    trashHtml = trashBtn;
+                } else {
+                    const reason = blockReason !== '' ? blockReason : 'Нельзя удалить это начисление.';
+                    trashHtml = '<span class="kids-tooltip-hint setting-prices-monthly-clear-disabled-wrap" tabindex="0"'
+                        + ' data-kids-tooltip-hint="1" data-bs-toggle="tooltip" data-bs-placement="top"'
+                        + ' title="' + escapeAttr(reason) + '">'
+                        + trashBtn
+                        + '</span>';
+                }
+            }
+
             const isEditing = !isFormer && uid && editingMonthlyUserId !== null && String(editingMonthlyUserId) === uid;
 
             let statusCellHtml = '';
@@ -924,7 +950,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     paidIconHtml +
                     infoIcon +
                     '</div>' +
-                    '<div class="setting-prices-monthly-edit-wrap">' + pencilHtml + '</div>' +
+                    '<div class="setting-prices-monthly-edit-wrap">' + pencilHtml + trashHtml + '</div>' +
                     '</div>';
             }
 
@@ -1018,6 +1044,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     ${statusCellHtml}
                                 </div>
                             </div>
+                            <div class="former-clear-error small text-danger mt-1" style="display:none"></div>
                         </div>`;
 
             rightBar.append(userBlock);
@@ -1204,6 +1231,87 @@ document.addEventListener('DOMContentLoaded', function () {
 
         editingMonthlyUserId = uid;
         renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
+    });
+
+    $(document).on('click', '#right_bar .wrap-users .user-price-former-clear', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const $btn = $(this);
+        if ($btn.prop('disabled') || $btn.hasClass('is-disabled') || $btn.attr('aria-disabled') === 'true') {
+            return;
+        }
+        const $card = $btn.closest('.setting-prices-user-card');
+        if ($card.attr('data-is-former-member') !== '1') {
+            return;
+        }
+        const uid = $btn.attr('data-user-id') || $card.attr('data-user-id');
+        if (!uid || !lastTeamId) {
+            return;
+        }
+        if (typeof showConfirmDeleteModal !== 'function') {
+            return;
+        }
+
+        const selectedDate = getSelectedMonthLabel();
+        showConfirmDeleteModal(
+            'Удаление начисления',
+            'Удалить начисление за ' + selectedDate + ' в этой группе? Абонемент будет снят. Если уже выдана ссылка на оплату, она перестанет действовать.',
+            function () {
+                const csrf = $('meta[name="csrf-token"]').attr('content');
+                const errorEl = $card.find('.former-clear-error')[0];
+                clearMonthlyCardFieldErrors($card);
+                $.ajax({
+                    url: '/admin/setting-prices/former-month-charge/clear',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json',
+                    },
+                    data: JSON.stringify({
+                        user_id: parseInt(String(uid), 10),
+                        team_id: parseInt(String(lastTeamId), 10),
+                        selectedDate: selectedDate,
+                    }),
+                }).done(function (res) {
+                    if (res && res.success) {
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(res.message || 'Начисление снято.');
+                        }
+                        loadTeamUsersRightColumn(lastTeamId, { keepActiveHighlight: true });
+                        return;
+                    }
+                    if (errorEl) {
+                        errorEl.style.display = 'block';
+                        errorEl.textContent = (res && res.message) ? String(res.message) : 'Не удалось удалить начисление.';
+                    }
+                }).fail(function (xhr) {
+                    let msg = 'Не удалось удалить начисление.';
+                    if (xhr.responseJSON) {
+                        if (xhr.responseJSON.message) {
+                            msg = xhr.responseJSON.message;
+                        }
+                        const errs = xhr.responseJSON.errors;
+                        if (errs) {
+                            if (errs.charge && errs.charge[0]) {
+                                msg = errs.charge[0];
+                            } else if (errs.user_id && errs.user_id[0]) {
+                                msg = errs.user_id[0];
+                            } else if (errs.team_id && errs.team_id[0]) {
+                                msg = errs.team_id[0];
+                            } else if (errs.selectedDate && errs.selectedDate[0]) {
+                                msg = errs.selectedDate[0];
+                            }
+                        }
+                    }
+                    if (errorEl) {
+                        errorEl.style.display = 'block';
+                        errorEl.textContent = msg;
+                    }
+                });
+            }
+        );
     });
 
     function restoreEditingMonthlySnapshot() {

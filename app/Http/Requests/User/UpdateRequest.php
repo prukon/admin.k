@@ -9,6 +9,7 @@ use App\Http\Requests\User\Concerns\ValidatesStudentParent;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Rules\AllowedActorTeam;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
@@ -151,6 +152,7 @@ class UpdateRequest extends FormRequest
             $rules['team_ids.*'] = [
                 'integer',
                 Rule::exists('teams', 'id')->where(fn ($q) => $q->where('partner_id', $partnerId)),
+                new AllowedActorTeam($partnerId),
             ];
         }
 
@@ -187,6 +189,7 @@ class UpdateRequest extends FormRequest
             $rules['team_ids.*'] = [
                 'integer',
                 Rule::exists('teams', 'id')->where(fn ($q) => $q->where('partner_id', $partnerId)),
+                new AllowedActorTeam($partnerId),
             ];
         }
 

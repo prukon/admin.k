@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin\Setting;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
+use App\Http\Requests\Admin\StoreTbankCommissionRuleRequest;
+use App\Http\Requests\Admin\UpdateTbankCommissionRuleRequest;
 use App\Models\Partner;
 use App\Models\Setting;
 use App\Models\TinkoffCommissionRule;
@@ -285,52 +287,38 @@ class TbankCommissionsController extends Controller
         return redirect()->route('admin.setting.tbankCommissions', ['open_create' => 1]);
     }
 
-    public function store(Request $r)
+    public function store(StoreTbankCommissionRuleRequest $r)
     {
-        $data = $this->validateCommissionRulePayload($r);
+        TinkoffCommissionRule::create($r->commissionRulePayload());
 
-        TinkoffCommissionRule::create($data);
+        if ($r->ajax() || $r->expectsJson()) {
+            return response()->json(['message' => 'Правило создано']);
+        }
 
         return redirect()
             ->route('admin.setting.tbankCommissions')
             ->with('status', 'Правило создано');
     }
 
-    public function edit(int $id)
+    public function edit(Request $request, int $id)
     {
         $rule = TinkoffCommissionRule::findOrFail($id);
-        $partners = Partner::orderBy('title')->get(['id', 'title']);
 
-        $rulePartnerId = (int) ($rule->partner_id ?? 0);
-        $autoPayoutStatsByPartnerId = collect();
-        if ($rulePartnerId > 0) {
-            $row = TinkoffPayout::query()
-                ->where('source', 'auto')
-                ->where('partner_id', $rulePartnerId)
-                ->where('created_at', '>=', now()->subDays(30))
-                ->selectRaw('count(*) as cnt, max(created_at) as last_at')
-                ->first();
-            $autoPayoutStatsByPartnerId = collect([$rulePartnerId => [
-                'count' => (int) ($row->cnt ?? 0),
-                'last_at' => isset($row->last_at) && $row->last_at ? Carbon::parse($row->last_at) : null,
-            ]]);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json($this->commissionRuleEditPayload($rule));
         }
 
-        return view('admin.setting.index', [
-            'activeTab' => 'tbankCommissions',
-            'mode' => 'edit',
-            'rule' => $rule,
-            'partners' => $partners,
-            'tbankGloballyConnected' => TbankTerminalConfig::isGloballyActive(),
-            'autoPayoutStatsByPartnerId' => $autoPayoutStatsByPartnerId,
-        ]);
+        return redirect()->route('admin.setting.tbankCommissions', ['edit' => $id]);
     }
 
-    public function update(Request $r, int $id)
+    public function update(UpdateTbankCommissionRuleRequest $r, int $id)
     {
         $rule = TinkoffCommissionRule::findOrFail($id);
-        $data = $this->validateCommissionRulePayload($r);
-        $rule->update($data);
+        $rule->update($r->commissionRulePayload());
+
+        if ($r->ajax() || $r->expectsJson()) {
+            return response()->json(['message' => 'Правило обновлено']);
+        }
 
         return redirect()
             ->route('admin.setting.tbankCommissions')
@@ -347,48 +335,50 @@ class TbankCommissionsController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validateCommissionRulePayload(Request $r): array
+    private function commissionRuleEditPayload(TinkoffCommissionRule $rule): array
     {
-        $rules = [
-            'partner_id' => ['nullable', 'integer'],
-            'method' => ['nullable', Rule::in(['card', 'sbp', 'tpay'])],
-            'acquiring_percent' => ['required', 'numeric', 'min:0'],
-            'acquiring_min_fixed' => ['required', 'numeric', 'min:0'],
-            'payout_percent' => ['required', 'numeric', 'min:0'],
-            'payout_min_fixed' => ['required', 'numeric', 'min:0'],
-            'platform_percent' => ['required', 'numeric', 'min:0'],
-            'platform_min_fixed' => ['required', 'numeric', 'min:0'],
-            'min_fixed' => ['sometimes', 'numeric', 'min:0'],
-            'is_enabled' => ['sometimes', 'boolean'],
-            'auto_payout_enabled' => ['sometimes', 'boolean'],
-            'auto_payout_delay_hours' => ['nullable', 'integer', 'min:0', 'max:720'],
+        $partnerId = (int) ($rule->partner_id ?? 0);
+        $stats = ['count' => 0, 'last_at' => null];
+        if ($partnerId > 0) {
+            $row = TinkoffPayout::query()
+                ->where('source', 'auto')
+                ->where('partner_id', $partnerId)
+                ->where('created_at', '>=', now()->subDays(30))
+                ->selectRaw('count(*) as cnt, max(created_at) as last_at')
+                ->first();
+            $stats = [
+                'count' => (int) ($row->cnt ?? 0),
+                'last_at' => isset($row->last_at) && $row->last_at ? Carbon::parse($row->last_at) : null,
+            ];
+        }
+
+        $lastAt = $stats['last_at'] ?? null;
+
+        $rule->loadMissing('partner');
+
+        return [
+            'id' => (int) $rule->id,
+            'partner_id' => $partnerId > 0 ? $partnerId : null,
+            'partner_title' => $partnerId > 0
+                ? (string) ($rule->partner?->title ?: '#'.$partnerId)
+                : '— Глобально —',
+            'method' => $rule->method,
+            'method_label' => TinkoffCommissionRule::methodFormLabel($rule->method),
+            'acquiring_percent' => (float) ($rule->acquiring_percent ?? 2.49),
+            'acquiring_min_fixed' => (float) ($rule->acquiring_min_fixed ?? 3.49),
+            'payout_percent' => (float) ($rule->payout_percent ?? 0.10),
+            'payout_min_fixed' => (float) ($rule->payout_min_fixed ?? 0.00),
+            'platform_percent' => (float) ($rule->platform_percent ?? $rule->percent ?? 0),
+            'platform_min_fixed' => (float) ($rule->platform_min_fixed ?? $rule->min_fixed ?? 0.00),
+            'is_enabled' => (bool) $rule->is_enabled,
+            'auto_payout_enabled' => (bool) $rule->auto_payout_enabled,
+            'auto_payout_delay_hours' => (int) ($rule->auto_payout_delay_hours ?? 0),
+            'tbank_globally_connected' => TbankTerminalConfig::isGloballyActive(),
+            'payouts_30d_count' => $partnerId > 0 ? (int) ($stats['count'] ?? 0) : null,
+            'payouts_30d_last_at' => $lastAt instanceof Carbon ? $lastAt->format('d.m.Y H:i') : null,
+            'payouts_30d_url' => $partnerId > 0
+                ? url('/admin/tinkoff/payouts?partner_id='.$partnerId.'&source=auto')
+                : null,
         ];
-
-        if ($r->filled('partner_id') && (int) $r->input('partner_id') > 0) {
-            $rules['auto_payout_delay_hours'] = ['required', 'integer', 'min:0', 'max:720'];
-        }
-
-        $data = $r->validate($rules);
-
-        $data['is_enabled'] = $r->boolean('is_enabled');
-        $data['min_fixed'] = (float) ($data['min_fixed'] ?? 0);
-
-        if (! empty($data['partner_id']) && (int) $data['partner_id'] > 0) {
-            $data['auto_payout_enabled'] = $r->boolean('auto_payout_enabled');
-            $data['auto_payout_delay_hours'] = (int) $data['auto_payout_delay_hours'];
-        } else {
-            $data['auto_payout_enabled'] = false;
-            $data['auto_payout_delay_hours'] = 0;
-        }
-
-        if (empty($data['partner_id'])) {
-            $data['partner_id'] = null;
-        }
-
-        if (empty($data['method'])) {
-            $data['method'] = null;
-        }
-
-        return $data;
     }
 }

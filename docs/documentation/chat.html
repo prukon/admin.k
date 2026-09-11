@@ -245,6 +245,8 @@
       <code>none</code> — без групп в <code>team_user</code> (админы, тренеры, ученики без группы);
       id группы — только ученики этой группы (системная роль <code>user</code>, не тренеры).
       При открытии модалки селект сбрасывается вместе с поиском.
+      Право <code>groups.own</code>: в селекте только группы тренера; пустой фильтр — сотрудники школы плюс ученики своих групп
+      (не все ученики школы). См. <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>.
       Ошибки фильтра — <code>#contactsTeamError</code> (<code>errors.team_id</code>), поиска — <code>#contactsError</code>.</li>
     <li>«Создать группу» рядом с «Контакты» на десктопе (<code>#openCreateGroupBtn</code>,
       <code>d-none d-lg-inline-block</code>) и на вкладке «Чаты» (<code>#openCreateGroupMobileBtn</code>).
@@ -1264,7 +1266,9 @@
     ховер 500 / ViewException / ring —
     <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a>,
     Welcome / тип письма —
-    <a href="/doc#ops-welcome-mailable-index">/doc#ops-welcome-mailable-index</a>.
+    <a href="/doc#ops-welcome-mailable-index">/doc#ops-welcome-mailable-index</a>,
+    «Касса» без выплаты после задержки —
+    <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>.
     Не путать с §<a href="#online-users-overlay">5.2</a> (список людей) и §<a href="#reverb-overlay">5.1</a> (бейдж процесса/сокета).</p>
   <ol>
     <li>Стек <code>#system-monitors-stack</code>:
@@ -1283,6 +1287,10 @@
       <code>welcome</code> (<code>missing_count</code>, <code>last_user_id</code>, без email).
       Гость 302/401, без права 403, мутации 405.
       Нативный GET — JSON. Флаг GET не закрывает. Окно 24 ч (вход — 72 ч), все партнёры.
+      Первое число «Касса» (<code>till.overdue_payouts</code>) — CONFIRMED мультисплит
+      без <code>COMPLETED</code> после задержки партнёра, не
+      <code>queue.overdue_payouts</code> и не фильтр <code>without_payout</code>
+      (<a href="/doc#ops-till-missing-payout-index">анонс</a>).
       Неизвестный email считается. Истёкший 2FA не считает. Ховер входа —
       <code>auth.recent_logins</code> / <code>auth.recent_2fa</code>. 4xx/CSRF не в 500.
       Welcome: успех — <code>STATUS_SENT</code> и класс

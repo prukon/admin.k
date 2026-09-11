@@ -276,7 +276,7 @@ final class UserLessonPackagePublicPayService
      *     serviceProviderTeamTitle: ?string,
      *     serviceProviderLabel: ?string,
      *     showTbankLegalEntityBlock: bool
-     * }|array{kind: 'paid'}|array{kind: 'expired'}|array{kind: 'config'}|array{kind: 'error', message: string}
+     * }|array{kind: 'paid'}|array{kind: 'expired'}|array{kind: 'config'}|array{kind: 'annulled'}|array{kind: 'error', message: string}
      */
     public function resolvePublicShow(UserLessonPackagePublicPayLink $link, Request $request): array
     {
@@ -285,7 +285,10 @@ final class UserLessonPackagePublicPayService
         }
 
         $ulp = $link->userLessonPackage()->with(['user:id,partner_id', 'lessonPackage:id,name'])->first();
-        if (! $ulp || (int) $ulp->user->partner_id !== (int) $link->partner_id) {
+        if (! $ulp) {
+            return ['kind' => 'annulled'];
+        }
+        if ((int) $ulp->user->partner_id !== (int) $link->partner_id) {
             return ['kind' => 'error', 'message' => 'Назначение не найдено'];
         }
 

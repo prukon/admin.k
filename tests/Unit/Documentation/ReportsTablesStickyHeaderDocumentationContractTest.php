@@ -70,6 +70,8 @@ final class ReportsTablesStickyHeaderDocumentationContractTest extends TestCase
         $this->assertStringContainsString('test_extra_reports_reopen_with_filters_keeps_pin_and_does_not_uncheck_columns', $chunk);
         $this->assertStringContainsString('test_tbank_invalid_status_does_not_break_sticky_header_or_return_500', $chunk);
         $this->assertStringContainsString('ReportsTablesStickyHeaderDocumentationContractTest', $chunk);
+        $this->assertStringContainsString('columns.adjust', $chunk);
+        $this->assertStringContainsString('overflow-y: hidden', $chunk);
         $this->assertStringContainsString('/doc#reports-tables-sticky-header-index', $html);
     }
 
@@ -89,6 +91,9 @@ final class ReportsTablesStickyHeaderDocumentationContractTest extends TestCase
         $this->assertStringContainsString('header: true, footer: false', $reports);
         $this->assertStringContainsString('KidsCrmReportTableSticky.bind', $reports);
         $this->assertStringContainsString('paymentsAfterApplyVisibleColumns', $reports);
+        $this->assertStringContainsString('paymentIntentsLockScrollHost', $reports);
+        $this->assertStringContainsString('columns.adjust', $reports);
+        $this->assertStringContainsString('overflow-y: hidden', $reports);
         $this->assertStringContainsString('reports.view', $reports);
         $this->assertStringContainsString('getBoundingClientRect', $reports);
         $this->assertStringContainsString('overflow: hidden', $reports);
@@ -138,6 +143,8 @@ final class ReportsTablesStickyHeaderDocumentationContractTest extends TestCase
         $this->assertStringContainsString('overflow: hidden', $css);
         $this->assertStringContainsString('position: sticky', $css);
         $this->assertStringContainsString('overflow-x: scroll', $css);
+        $this->assertStringContainsString('#payment-intents-table_wrapper .kids-dt-scroll-x', $css);
+        $this->assertStringContainsString('overflow-y: hidden', $css);
         $this->assertFileDoesNotExist(dirname(__DIR__, 3).'/public/css/admin-reports-tables.css');
         $this->assertStringContainsString("'resources/css/admin-reports-tables.css'", $vite);
         $this->assertStringContainsString("'resources/js/admin-reports-tables-sticky.js'", $vite);

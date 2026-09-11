@@ -18,6 +18,7 @@ class UserService
         private readonly TeamTrainerSyncService $teamTrainerSync,
         private readonly TeamUserSyncService $teamUserSync,
         private readonly StudentParentSyncService $studentParentSync,
+        private readonly TrainerOwnTeamsScope $ownTeams,
     ) {
     }
 
@@ -39,6 +40,13 @@ class UserService
         }
 
         if ($user->role?->name === 'user') {
+            $partnerIdForTeams = (int) ($user->partner_id ?? 0);
+            $teamIds = $this->ownTeams->mergeSubmittedStudentTeamIds(
+                auth()->user(),
+                $partnerIdForTeams,
+                [],
+                $teamIds,
+            );
             $this->teamUserSync->syncTeamsForStudent($user, $teamIds);
         }
 
@@ -220,6 +228,14 @@ class UserService
                 && $teamIds !== null
                 && $currentUser?->can('users.group.update')
             ) {
+                $partnerIdForTeams = (int) ($user->partner_id ?? 0);
+                $existingTeamIds = $this->teamUserSync->teamIdsForStudent($user);
+                $teamIds = $this->ownTeams->mergeSubmittedStudentTeamIds(
+                    $currentUser,
+                    $partnerIdForTeams,
+                    $existingTeamIds,
+                    $teamIds,
+                );
                 $this->teamUserSync->syncTeamsForStudent($user, $teamIds);
             } elseif (
                 $user->role?->name === 'trainer'
@@ -231,6 +247,17 @@ class UserService
                     ->first();
 
                 if ($profile) {
+                    $partnerIdForTeams = (int) ($user->partner_id ?? 0);
+                    $existingTrainerTeamIds = $profile->teams()
+                        ->pluck('teams.id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+                    $teamIds = $this->ownTeams->mergeSubmittedStudentTeamIds(
+                        $currentUser,
+                        $partnerIdForTeams,
+                        $existingTrainerTeamIds,
+                        $teamIds,
+                    );
                     $this->teamTrainerSync->syncTeamsForTrainer($profile, $teamIds);
                 }
             }

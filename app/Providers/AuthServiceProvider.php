@@ -298,6 +298,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('groups.view');
         });
 
+        // Тренер: только свои группы (не в базовых ролях)
+        Gate::define('groups.own', function (User $user) {
+            return $user->hasPermission('groups.own');
+        });
+
         // Страница "Партнеры"
         Gate::define('partner.view', function (User $user) {
             return $user->hasPermission('partner.view');

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
-use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
+use App\Http\Requests\Admin\Report\TbankPaymentsColumnsSettingsSaveRequest;
 use App\Http\Requests\Admin\Report\TbankPaymentsReportFilterRequest;
 use App\Models\Partner;
 use App\Models\TinkoffCommissionRule;
@@ -13,14 +13,20 @@ use App\Models\TinkoffPayout;
 use App\Models\UserTableSetting;
 use App\Services\PartnerContext;
 use App\Services\Tinkoff\TinkoffPaymentFiscalReceiptResolver;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 
 class TbankPaymentReportController extends AdminBaseController
 {
     public const TABLE_KEY = 'reports_tbank_payments';
+
+    public const TABLE_KEY_BY_DAY = 'reports_tbank_payments_by_day';
+
+    public const TABLE_KEY_BY_MONTH = 'reports_tbank_payments_by_month';
 
     public function __construct(
         PartnerContext $partnerContext,
@@ -48,6 +54,7 @@ class TbankPaymentReportController extends AdminBaseController
             'tpFilterPartner' => $tpFilterPartner,
             'tpCanFilterPartner' => $canFilterPartner,
             'tpHasActiveFilters' => $this->hasActiveFilters($filters, $canFilterPartner),
+            'tpView' => $request->view(),
             'tbankPaymentsPageLength' => UserTableSetting::pageLengthForUser(
                 Auth::id() !== null ? (int) Auth::id() : null,
                 self::TABLE_KEY
@@ -70,6 +77,11 @@ class TbankPaymentReportController extends AdminBaseController
 
     public function data(TbankPaymentsReportFilterRequest $request)
     {
+        $view = $request->view();
+        if ($view === 'days' || $view === 'months') {
+            return $this->summaryData($request, $view);
+        }
+
         $query = TinkoffPayment::query()
             ->with('partner')
             ->select('tinkoff_payments.*')
@@ -192,11 +204,11 @@ class TbankPaymentReportController extends AdminBaseController
         return response()->json(['results' => $results]);
     }
 
-    public function getColumnsSettings()
+    public function getColumnsSettings(TbankPaymentsReportFilterRequest $request)
     {
         $settings = UserTableSetting::query()
             ->where('user_id', (int) Auth::id())
-            ->where('table_key', self::TABLE_KEY)
+            ->where('table_key', $this->tableKeyForView($request->view()))
             ->first();
 
         $columns = $settings?->columns;
@@ -207,22 +219,287 @@ class TbankPaymentReportController extends AdminBaseController
         return response()->json($columns);
     }
 
-    public function saveColumnsSettings(ColumnsSettingsWithPageLengthSaveRequest $request)
+    public function saveColumnsSettings(TbankPaymentsColumnsSettingsSaveRequest $request)
     {
         $payload = $request->persistPayload();
         if ($payload === []) {
             return response()->json(['success' => true]);
         }
 
-        UserTableSetting::query()->updateOrCreate(
-            [
-                'user_id' => (int) Auth::id(),
+        $userId = (int) Auth::id();
+
+        if (array_key_exists('columns', $payload)) {
+            $row = UserTableSetting::query()->firstOrNew([
+                'user_id' => $userId,
+                'table_key' => $this->tableKeyForView($request->view()),
+            ]);
+            $row->columns = $payload['columns'];
+            $row->save();
+        }
+
+        if (array_key_exists('page_length', $payload)) {
+            $row = UserTableSetting::query()->firstOrNew([
+                'user_id' => $userId,
                 'table_key' => self::TABLE_KEY,
-            ],
-            $payload
-        );
+            ]);
+            $row->page_length = $payload['page_length'];
+            $row->save();
+        }
 
         return response()->json(['success' => true]);
+    }
+
+    private function tableKeyForView(string $view): string
+    {
+        return match ($view) {
+            'days' => self::TABLE_KEY_BY_DAY,
+            'months' => self::TABLE_KEY_BY_MONTH,
+            default => self::TABLE_KEY,
+        };
+    }
+
+    /**
+     * Сводка по дням или календарным месяцам created_at. Без детализации строк.
+     *
+     * @param  'days'|'months'  $grain
+     */
+    private function summaryData(TbankPaymentsReportFilterRequest $request, string $grain)
+    {
+        $periodSql = $this->summaryPeriodSql($grain);
+        $payoutSql = '(SELECT COALESCE(tp.net_amount, tp.amount) FROM tinkoff_payouts AS tp'
+            .' WHERE tp.payment_id = tinkoff_payments.id AND tp.status <> \'REJECTED\''
+            .' ORDER BY tp.id DESC LIMIT 1)';
+
+        $query = DB::table('tinkoff_payments')
+            ->selectRaw($periodSql.' as period_key')
+            ->selectRaw('COUNT(*) as payments_count')
+            ->selectRaw('SUM(tinkoff_payments.amount) as amount_cents')
+            ->selectRaw('SUM('.$payoutSql.') as payout_amount_cents')
+            ->whereNotNull('tinkoff_payments.created_at')
+            ->groupByRaw($periodSql);
+
+        $this->applyReportFilters($query, $request);
+
+        if (! $request->has('order')) {
+            $query->orderByDesc('period_key');
+        }
+
+        $commissionRules = TinkoffCommissionRule::query()
+            ->where('is_enabled', true)
+            ->orderByRaw('partner_id is null, method is null')
+            ->get();
+
+        $commissionByPeriod = null;
+        $loadCommissions = function () use (&$commissionByPeriod, $request, $grain, $commissionRules): void {
+            if ($commissionByPeriod !== null) {
+                return;
+            }
+
+            $commissionByPeriod = [];
+            $paymentsQuery = TinkoffPayment::query()->select([
+                'id',
+                'partner_id',
+                'method',
+                'amount',
+                'created_at',
+            ]);
+            $this->applyReportFilters($paymentsQuery, $request);
+            $paymentsQuery->whereNotNull('created_at');
+
+            $paymentsQuery->orderBy('id')->chunk(500, function ($payments) use (&$commissionByPeriod, $grain, $commissionRules): void {
+                foreach ($payments as $payment) {
+                    /** @var TinkoffPayment $payment */
+                    $key = $this->periodKeyFromDate($payment->created_at, $grain);
+                    if ($key === '') {
+                        continue;
+                    }
+                    $cents = (int) round($this->platformCommissionRub($payment, $commissionRules) * 100);
+                    $commissionByPeriod[$key] = ($commissionByPeriod[$key] ?? 0) + $cents;
+                }
+            });
+        };
+
+        return DataTables::of($query)
+            ->filter(function ($query) use ($request, $grain): void {
+                $this->applySummaryDataTableSearch($query, $request, $grain);
+            })
+            ->addColumn('period_title', function ($row) use ($grain) {
+                return $this->formatPeriodTitle((string) ($row->period_key ?? ''), $grain);
+            })
+            ->orderColumn('period_title', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderBy('period_key', $dir);
+            })
+            ->orderColumn('payments_count', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderBy('payments_count', $dir);
+            })
+            ->addColumn('amount', function ($row) {
+                return round(((int) ($row->amount_cents ?? 0)) / 100, 2);
+            })
+            ->orderColumn('amount', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderBy('amount_cents', $dir);
+            })
+            ->addColumn('platform_commission', function ($row) use ($loadCommissions, &$commissionByPeriod) {
+                $loadCommissions();
+                $key = (string) ($row->period_key ?? '');
+                $cents = (int) ($commissionByPeriod[$key] ?? 0);
+
+                return round($cents / 100, 2);
+            })
+            ->addColumn('payout_amount', function ($row) {
+                $cents = $row->payout_amount_cents ?? null;
+                if ($cents === null || $cents === '') {
+                    return null;
+                }
+
+                return round(((int) $cents) / 100, 2);
+            })
+            ->orderColumn('payout_amount', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderBy('payout_amount_cents', $dir);
+            })
+            ->removeColumn('amount_cents')
+            ->removeColumn('payout_amount_cents')
+            ->toJson();
+    }
+
+    /**
+     * @param  'days'|'months'  $grain
+     */
+    private function summaryPeriodSql(string $grain): string
+    {
+        if ($grain === 'days') {
+            return 'DATE(tinkoff_payments.created_at)';
+        }
+
+        return 'DATE_FORMAT(tinkoff_payments.created_at, \'%Y-%m\')';
+    }
+
+    /**
+     * @param  'days'|'months'  $grain
+     */
+    private function periodKeyFromDate(mixed $value, string $grain): string
+    {
+        if (! $value) {
+            return '';
+        }
+
+        try {
+            $date = $value instanceof Carbon ? $value : Carbon::parse($value);
+        } catch (\Throwable) {
+            return '';
+        }
+
+        return $grain === 'days' ? $date->format('Y-m-d') : $date->format('Y-m');
+    }
+
+    /**
+     * @param  'days'|'months'  $grain
+     */
+    private function formatPeriodTitle(string $periodKey, string $grain): string
+    {
+        if ($periodKey === '') {
+            return '';
+        }
+
+        try {
+            if ($grain === 'days') {
+                return Carbon::parse($periodKey)->format('d.m.Y');
+            }
+
+            $date = Carbon::createFromFormat('Y-m', $periodKey)->startOfMonth();
+        } catch (\Throwable) {
+            return $periodKey;
+        }
+
+        $monthNames = [
+            1 => 'Январь',
+            2 => 'Февраль',
+            3 => 'Март',
+            4 => 'Апрель',
+            5 => 'Май',
+            6 => 'Июнь',
+            7 => 'Июль',
+            8 => 'Август',
+            9 => 'Сентябрь',
+            10 => 'Октябрь',
+            11 => 'Ноябрь',
+            12 => 'Декабрь',
+        ];
+
+        $monthName = $monthNames[(int) $date->month] ?? $date->format('m');
+
+        return $monthName.' '.$date->year;
+    }
+
+    /**
+     * @param  \Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
+     * @param  'days'|'months'  $grain
+     */
+    private function applySummaryDataTableSearch($query, Request $request, string $grain): void
+    {
+        $keyword = trim((string) $request->input('search.value', ''));
+        if ($keyword === '') {
+            return;
+        }
+
+        if ($grain === 'days') {
+            if (preg_match('/^(\d{2})\.(\d{2})\.(\d{4})$/', $keyword, $m) === 1) {
+                $query->whereRaw('DATE(tinkoff_payments.created_at) = ?', [$m[3].'-'.$m[2].'-'.$m[1]]);
+
+                return;
+            }
+
+            $like = '%'.addcslashes($keyword, '%_\\').'%';
+            $query->whereRaw('DATE(tinkoff_payments.created_at) LIKE ?', [$like]);
+
+            return;
+        }
+
+        $monthKey = $this->parseMonthSearchKeyword($keyword);
+        if ($monthKey !== null) {
+            $query->whereRaw('DATE_FORMAT(tinkoff_payments.created_at, \'%Y-%m\') = ?', [$monthKey]);
+
+            return;
+        }
+
+        $like = '%'.addcslashes($keyword, '%_\\').'%';
+        $query->whereRaw('DATE_FORMAT(tinkoff_payments.created_at, \'%Y-%m\') LIKE ?', [$like]);
+    }
+
+    private function parseMonthSearchKeyword(string $keyword): ?string
+    {
+        if (preg_match('/^(\d{4})-(\d{2})$/', $keyword, $m) === 1) {
+            return $m[1].'-'.$m[2];
+        }
+
+        $monthNames = [
+            'январь' => '01',
+            'февраль' => '02',
+            'март' => '03',
+            'апрель' => '04',
+            'май' => '05',
+            'июнь' => '06',
+            'июль' => '07',
+            'август' => '08',
+            'сентябрь' => '09',
+            'октябрь' => '10',
+            'ноябрь' => '11',
+            'декабрь' => '12',
+        ];
+
+        if (preg_match('/^([^\s]+)\s+(\d{4})$/u', mb_strtolower($keyword), $m) !== 1) {
+            return null;
+        }
+
+        $month = $monthNames[$m[1]] ?? null;
+        if ($month === null) {
+            return null;
+        }
+
+        return $m[2].'-'.$month;
     }
 
     private function canFilterByPartner(): bool

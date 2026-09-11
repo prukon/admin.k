@@ -182,6 +182,14 @@ final class ReportsTablesStickyHeaderFeatureTest extends CrmTestCase
                 '/drawCallback:\s*function\s*\(\)\s*\{[\s\S]*KidsCrmReportTableSticky\.bind\(\'#'.$tableId.'\'\)/',
                 $html
             );
+            if ($key === 'intents') {
+                $createPos = strpos($html, $createCall);
+                $this->assertNotFalse($createPos, $route);
+                $createChunk = substr($html, $createPos, 4000);
+                $this->assertStringNotContainsString('columns.adjust', $createChunk, $route);
+                $this->assertStringContainsString('paymentIntentsLockScrollHost', $html);
+                $this->assertStringContainsString("overflow-y', 'hidden'", $html);
+            }
         }
 
         $preset = (string) file_get_contents(resource_path('js/kids-datatable.js'));

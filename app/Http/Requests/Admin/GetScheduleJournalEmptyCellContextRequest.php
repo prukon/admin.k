@@ -17,7 +17,7 @@ class GetScheduleJournalEmptyCellContextRequest extends FormRequest
     {
         return [
             'occurrence_date' => ['required', 'date_format:Y-m-d'],
-            'context_team_id' => ['nullable', 'integer', 'exists:teams,id'],
+            'context_team_id' => ['nullable', 'integer', 'exists:teams,id', new \App\Rules\AllowedActorTeam((int) (app(\App\Services\PartnerContext::class)->partnerId() ?? 0))],
         ];
     }
 

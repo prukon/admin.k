@@ -16,6 +16,7 @@ enum AuditEvent: string
     case PricingTeamApply = 'pricing.team_apply';
     case PricingManualMonthPaid = 'pricing.manual_month_paid';
     case PricingMonthProlonged = 'pricing.month_prolonged';
+    case PricingFormerChargeCleared = 'pricing.former_charge_cleared';
 
     // --- user (legacy type 2) ---
     case UserCreated = 'user.created';
@@ -165,6 +166,7 @@ enum AuditEvent: string
             self::PricingTeamApply => 'Изм. цен в одной группе (ок)',
             self::PricingManualMonthPaid => 'Ручная отметка оплаты месяца (users_prices)',
             self::PricingMonthProlonged => 'Пролонгация абонементов на следующий месяц',
+            self::PricingFormerChargeCleared => 'Снятие начисления бывшего участника группы',
 
             self::UserCreated => 'Создание клиента',
             self::UserUpdated => 'Обновление учетной записи клиента',
@@ -337,7 +339,8 @@ enum AuditEvent: string
             self::PricingStudentApply,
             self::PricingTeamApply,
             self::PricingManualMonthPaid,
-            self::PricingMonthProlonged => 'pricing',
+            self::PricingMonthProlonged,
+            self::PricingFormerChargeCleared => 'pricing',
 
             self::UserCreated,
             self::UserUpdated,
@@ -471,6 +474,7 @@ enum AuditEvent: string
             self::PricingTeamApply,
             self::PricingManualMonthPaid,
             self::PricingMonthProlonged,
+            self::PricingFormerChargeCleared,
             self::SettingsUpdated => 1,
 
             self::UserCreated,
@@ -605,6 +609,7 @@ enum AuditEvent: string
             self::PricingTeamApply => 13,
             self::PricingManualMonthPaid => 14,
             self::PricingMonthProlonged => 15,
+            self::PricingFormerChargeCleared => 16,
 
             self::UserCreated => 21,
             self::UserUpdated => 22,
@@ -883,6 +888,7 @@ enum AuditEvent: string
             13 => self::PricingTeamApply,
             14 => self::PricingManualMonthPaid,
             15 => self::PricingMonthProlonged,
+            16 => self::PricingFormerChargeCleared,
 
             21 => self::UserCreated,
             22 => self::UserUpdated,

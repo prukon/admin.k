@@ -23,6 +23,7 @@ final class ScheduleJournalMonthService
 {
     /**
      * @param list<int> $userIds
+     * @param list<int>|null $restrictToTeamIds
      * @return array<string, list<array<string, mixed>>> key = "{userId}_{Y-m-d}"
      */
     public function occurrencesByUserDate(
@@ -31,6 +32,7 @@ final class ScheduleJournalMonthService
         Carbon $startOfMonth,
         Carbon $endOfMonth,
         string|int|null $teamFilter = 'all',
+        ?array $restrictToTeamIds = null,
     ): array {
         if ($userIds === []) {
             return [];
@@ -51,6 +53,15 @@ final class ScheduleJournalMonthService
         if (is_numeric($teamFilter)) {
             $teamId = (int) $teamFilter;
             $query->whereHas('slot', fn ($q) => $q->where('team_id', $teamId));
+        } elseif (is_array($restrictToTeamIds)) {
+            $restrictToTeamIds = array_values(array_unique(array_filter(
+                array_map('intval', $restrictToTeamIds),
+                fn (int $id) => $id > 0
+            )));
+            if ($restrictToTeamIds === []) {
+                return [];
+            }
+            $query->whereHas('slot', fn ($q) => $q->whereIn('team_id', $restrictToTeamIds));
         }
 
         /** @var Collection<int, UserTeamScheduleSlot> $rows */

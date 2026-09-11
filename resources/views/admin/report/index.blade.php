@@ -121,6 +121,8 @@
                         'tpFilterPartner' => $tpFilterPartner ?? null,
                         'tpCanFilterPartner' => $tpCanFilterPartner ?? false,
                         'tpHasActiveFilters' => $tpHasActiveFilters ?? false,
+                        'tpView' => $tpView ?? 'payments',
+                        'tbankPaymentsPageLength' => $tbankPaymentsPageLength ?? 10,
                     ])
                 @elseif($activeTab === 'emails')
                     <!-- Контент вкладки "Исходящие письма" -->

@@ -8,6 +8,7 @@ use App\Models\Location;
 use App\Models\SchoolLead;
 use App\Models\SportType;
 use App\Models\Team;
+use App\Models\TinkoffCommissionRule;
 use App\Models\User;
 use App\Services\PartnerWidgetService;
 use Illuminate\Support\Facades\DB;
@@ -222,5 +223,37 @@ final class DataTableClickableNameLinksFeatureTest extends ContractsFeatureTestC
             ->assertJsonPath('id', $template->id)
             ->assertJsonPath('title', 'Link Template')
             ->assertJsonStructure(['update_url', 'html']);
+    }
+
+    public function test_tbank_commissions_index_renders_clickable_partner_title_and_edit_json_returns_200(): void
+    {
+        $this->grantPermission('settings.commission');
+
+        $rule = TinkoffCommissionRule::create([
+            'partner_id' => $this->partner->id,
+            'method' => 'card',
+            'acquiring_percent' => 2.5,
+            'acquiring_min_fixed' => 0,
+            'payout_percent' => 1.2,
+            'payout_min_fixed' => 0,
+            'platform_percent' => 3.0,
+            'platform_min_fixed' => 0,
+            'min_fixed' => 0,
+            'is_enabled' => true,
+        ]);
+
+        $this->get(route('admin.setting.tbankCommissions'))
+            ->assertOk()
+            ->assertSee("key: 'partner_title'", false)
+            ->assertSee("type: 'link'", false)
+            ->assertSee("linkClass: 'js-tbank-commission-edit'", false)
+            ->assertSee("'.js-tbank-commission-edit'", false)
+            ->assertSee('id="tbankCommissionEditModal"', false);
+
+        $this->getJson(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]))
+            ->assertOk()
+            ->assertJsonPath('id', $rule->id)
+            ->assertJsonPath('partner_id', $this->partner->id)
+            ->assertJsonPath('method', 'card');
     }
 }

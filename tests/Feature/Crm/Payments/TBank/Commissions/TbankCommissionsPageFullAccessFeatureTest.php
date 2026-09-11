@@ -196,8 +196,11 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
         $this->assertNotNull($created);
 
         $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $this->rule->id]))
+            ->assertRedirect(route('admin.setting.tbankCommissions', ['edit' => $this->rule->id]));
+
+        $this->getJson(route('admin.setting.tbankCommissions.edit', ['id' => $this->rule->id]))
             ->assertOk()
-            ->assertViewHas('mode', 'edit');
+            ->assertJsonPath('id', $this->rule->id);
 
         $this->put(route('admin.setting.tbankCommissions.update', ['id' => $this->rule->id]), array_merge(
             $this->validRulePayload(),

@@ -43,8 +43,13 @@ class LocationController extends AdminBaseController
             ? Team::query()
                 ->where('partner_id', $partnerId)
                 ->orderBy('title')
-                ->get(['id', 'title'])
-            : collect();
+            : null;
+        if ($teamOptions) {
+            app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery($teamOptions, auth()->user(), $partnerId);
+            $teamOptions = $teamOptions->get(['id', 'title']);
+        } else {
+            $teamOptions = collect();
+        }
 
         $districtOptions = auth()->user()?->can('locations.view')
             ? District::query()

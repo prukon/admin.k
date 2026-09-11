@@ -125,6 +125,11 @@
   </table>
   <p class="small">Вкладка «Статусы занятий» и CRUD справочника — отдельный Gate <code>lessonOccurrenceStatuses.manage</code> (достаточно <code>lessonPackages.view</code> без <code>schedule.view</code>), см. <a href="#occurrence-statuses">§8</a>.
     Пробное/разовое на пустой ячейке — <strong>AND</strong> middleware <code>can:schedule.view</code> + <code>can:lessonPackages.view</code> (см. <a href="#place-empty-cell">§7.4</a>).</p>
+  <div class="note">
+    Право <code>groups.own</code> (не в базовых ролях): селект групп журнала — только <code>team_trainer</code> актора;
+    режим «Все группы» — только ученики этих групп; чужой <code>?team=</code> — 422 «Выберите группу из списка.»
+    Подробно — <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>.
+  </div>
   <p>
     То же permission дополнительно включает колонку «Расписание» (дни недели группы) на <code>/admin/teams</code> — см.
     <a href="/docs/documentation/admin-teams#schedule-view">Группы: schedule.view</a>.

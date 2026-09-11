@@ -83,6 +83,15 @@ final class TinkoffCommissionRuleAutoPayoutModelTest extends CrmTestCase
         $this->assertFalse($summary[1]['enabled']);
     }
 
+    public function test_method_form_label_matches_create_modal_options(): void
+    {
+        $this->assertSame('Карты', TinkoffCommissionRule::methodFormLabel('card'));
+        $this->assertSame('СБП', TinkoffCommissionRule::methodFormLabel('sbp'));
+        $this->assertSame('T‑Pay', TinkoffCommissionRule::methodFormLabel('tpay'));
+        $this->assertSame('— Для всех —', TinkoffCommissionRule::methodFormLabel(null));
+        $this->assertSame('— Для всех —', TinkoffCommissionRule::methodFormLabel(''));
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>

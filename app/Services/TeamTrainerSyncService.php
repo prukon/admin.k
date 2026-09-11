@@ -84,6 +84,36 @@ class TeamTrainerSyncService
         }
     }
 
+    public function attachTrainerToTeam(Team $team, int $trainerProfileId): void
+    {
+        $partnerId = (int) $team->partner_id;
+        if ($partnerId <= 0 || $trainerProfileId <= 0) {
+            return;
+        }
+
+        $profile = TrainerProfile::query()
+            ->whereKey($trainerProfileId)
+            ->where('partner_id', $partnerId)
+            ->first();
+        if (! $profile) {
+            return;
+        }
+
+        DB::table('team_trainer')->updateOrInsert(
+            [
+                'team_id' => (int) $team->id,
+                'trainer_profile_id' => (int) $profile->id,
+            ],
+            [
+                'partner_id' => $partnerId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        );
+
+        $this->addTrainerToTeamChat($team, $profile);
+    }
+
     /**
      * Привязать тренера к нескольким группам (группа может иметь нескольких тренеров).
      *

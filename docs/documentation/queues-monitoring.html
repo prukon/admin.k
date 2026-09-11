@@ -41,7 +41,10 @@
       Источник JSON — <code>QueueStatusSnapshot::full($partnerId)</code>
       (<code>$partnerId = null</code> у superadmin). Компактный снимок
       <code>QueueStatusSnapshot::compact()</code> (без LIKE по payload и без выборки выплат)
-      кормит оверлей «Пульт»; там просроченные выплаты всегда по всем школам.</li>
+      кормит оверлей «Пульт»; там просроченные отложенные выплаты в «Очередь» всегда по всем школам.
+      Первое число «Касса» (<code>till.overdue_payouts</code>) считает CONFIRMED без выплаты
+      после задержки партнёра — <a href="/doc#ops-till-missing-payout-index">анонс</a>, не этот compact-счётчик
+      и не <code>TinkoffPayout::overdueScheduled()</code>.</li>
   </ul>
 
   <h2>2) Маршруты</h2>
@@ -98,6 +101,11 @@
     <li>Условие совпадает с выборкой в <code>TinkoffRunScheduledPayoutsJob</code>:
       <code>when_to_run &lt;= now()</code>, <code>status = INITIATED</code>, <code>tinkoff_payout_payment_id IS NULL</code>, <code>completed_at IS NULL</code>.</li>
     <li>На странице <code>/admin/tinkoff/payouts</code> выводится тот же блок (до 25 строк) для оперативного реагирования.</li>
+    <li>Это <b>не</b> первое число «Касса» пульта (<code>till.overdue_payouts</code> /
+      <code>TinkoffPayment::missingPayoutAfterDelay()</code>): там CONFIRMED мультисплит
+      без <code>COMPLETED</code> после <code>auto_payout_delay_hours</code>, в том числе
+      платежи без строки выплаты и <code>REJECTED</code>.
+      Анонс — <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>.</li>
   </ul>
 
   <h2>5) Разбивки в UI</h2>
@@ -137,7 +145,10 @@
     <li><code>SystemMonitorsOpsAjaxContractFeatureTest</code> — пульт
       <code>QueueStatusSnapshot::compact()</code> считает просроченные выплаты
       всех школ; вкладка <code>full($partnerId)</code> у admin с текущей школой
-      ту же чужую выплату не показывает.</li>
+      ту же чужую выплату не показывает.
+      <code>till.overdue_payouts</code> — CONFIRMED без выплаты после задержки
+      (не <code>overdueScheduled</code>) —
+      <a href="/doc#ops-till-missing-payout-index">анонс</a>.</li>
   </ul>
 
 </div>

@@ -36,6 +36,9 @@
     <strong>Доступ к странице и ко всем эндпоинтам раздела</strong> — одно право <code>groups.view</code> (middleware <code>can:groups.view</code> в <code>routes/web.php</code>). Без него — <b>403</b>; для гостя — редирект/401.<br>
     Дополнительные права (<code>schedule.view</code>, <code>trainers.view</code>, <code>locations.view</code>, <code>sport_types.view</code>, <code>legal_entities.view</code>) <strong>не открывают</strong> страницу групп и <strong>не заменяют</strong> <code>groups.view</code> — они только включают отдельные элементы UI на этой странице.<br>
     Поле «Тренировочная база» (<code>teams.training_base</code>) и право <code>groups.training_base.view</code> удалены миграцией <code>2026_06_13_150000_drop_training_base_from_teams.php</code>.
+    Право <code>groups.own</code> не открывает страницу: при нём тренер с <code>groups.view</code> видит в таблице только группы из <code>team_trainer</code>
+    (см. <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>).
+    Без <code>groups.own</code> список как раньше — все группы школы.
   </div>
 
   <h2>1) Эндпоинты раздела (все под <code>groups.view</code>)</h2>

@@ -13,6 +13,7 @@ use App\Models\OutgoingEmailLog;
 use App\Models\Partner;
 use App\Models\PaymentIntent;
 use App\Models\SchoolLead;
+use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use App\Models\User;
 use App\Services\CloudKassir\CloudKassirService;
@@ -196,7 +197,7 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->getJson($this->opsUrl(), $this->ajaxHeaders())
             ->assertOk()
             ->assertJsonPath('queue.overdue_payouts', 1)
-            ->assertJsonPath('till.overdue_payouts', 1);
+            ->assertJsonPath('till.overdue_payouts', 0);
     }
 
     public function test_handler_records_reportable_500_and_skips_validation(): void
@@ -935,7 +936,7 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->getJson($this->opsUrl(), $this->ajaxHeaders())
             ->assertOk()
             ->assertJsonPath('queue.overdue_payouts', 1)
-            ->assertJsonPath('till.overdue_payouts', 1);
+            ->assertJsonPath('till.overdue_payouts', 0);
 
         $this->actingAs($this->user)
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
@@ -943,6 +944,145 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.overdue_scheduled_payouts_count', 0);
+    }
+
+    public function test_till_does_not_count_confirmed_payment_before_partner_payout_delay(): void
+    {
+        $this->asSuperadmin();
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'card',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 24,
+        ]);
+        $this->makeConfirmedMultisplitPayment([
+            'confirmed_at' => now()->subHours(2),
+        ]);
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('till.overdue_payouts', 0)
+            ->assertJsonPath('queue.overdue_payouts', 0);
+    }
+
+    public function test_till_counts_confirmed_without_payout_after_partner_delay(): void
+    {
+        $this->asSuperadmin();
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'card',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 24,
+        ]);
+        $this->makeConfirmedMultisplitPayment([
+            'confirmed_at' => now()->subHours(25),
+        ]);
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('till.overdue_payouts', 1)
+            ->assertJsonPath('queue.overdue_payouts', 0);
+    }
+
+    public function test_till_counts_rejected_payout_after_delay_and_skips_completed(): void
+    {
+        $this->asSuperadmin();
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'sbp',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 1,
+        ]);
+        $rejected = $this->makeConfirmedMultisplitPayment([
+            'method' => 'sbp',
+            'confirmed_at' => now()->subHours(3),
+            'deal_id' => 'ops-till-rejected',
+            'order_id' => 'order-ops-till-rejected',
+            'tinkoff_payment_id' => '910000001',
+        ]);
+        TinkoffPayout::query()->create([
+            'payment_id' => $rejected->id,
+            'partner_id' => $rejected->partner_id,
+            'deal_id' => (string) $rejected->deal_id,
+            'amount' => 900,
+            'is_final' => true,
+            'status' => 'REJECTED',
+            'source' => 'auto',
+            'tinkoff_payout_payment_id' => 'payout-rejected',
+            'completed_at' => now()->subHours(2),
+        ]);
+        $ok = $this->makeConfirmedMultisplitPayment([
+            'method' => 'sbp',
+            'confirmed_at' => now()->subHours(3),
+            'deal_id' => 'ops-till-completed',
+            'order_id' => 'order-ops-till-completed',
+            'tinkoff_payment_id' => '910000002',
+        ]);
+        TinkoffPayout::query()->create([
+            'payment_id' => $ok->id,
+            'partner_id' => $ok->partner_id,
+            'deal_id' => (string) $ok->deal_id,
+            'amount' => 900,
+            'is_final' => true,
+            'status' => 'COMPLETED',
+            'source' => 'auto',
+            'tinkoff_payout_payment_id' => 'payout-ok',
+            'completed_at' => now()->subHours(2),
+        ]);
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('till.overdue_payouts', 1);
+    }
+
+    public function test_till_does_not_count_payment_with_future_scheduled_payout(): void
+    {
+        $this->asSuperadmin();
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'card',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 1,
+        ]);
+        $payment = $this->makeConfirmedMultisplitPayment([
+            'confirmed_at' => now()->subHours(3),
+        ]);
+        TinkoffPayout::query()->create([
+            'payment_id' => $payment->id,
+            'partner_id' => $payment->partner_id,
+            'deal_id' => (string) $payment->deal_id,
+            'amount' => 900,
+            'is_final' => true,
+            'status' => 'INITIATED',
+            'source' => 'auto',
+            'when_to_run' => now()->addHour(),
+            'completed_at' => null,
+        ]);
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('till.overdue_payouts', 0)
+            ->assertJsonPath('queue.overdue_payouts', 0);
+    }
+
+    public function test_till_counts_missing_payout_of_other_school(): void
+    {
+        $this->asSuperadmin();
+        $other = Partner::factory()->create();
+        $this->seedTbankCommissionRule((int) $other->id, [
+            'method' => 'card',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 1,
+        ]);
+        $this->makeConfirmedMultisplitPayment([
+            'partner_id' => $other->id,
+            'confirmed_at' => now()->subHours(3),
+        ]);
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('till.overdue_payouts', 1);
     }
 
     public function test_failed_welcome_mail_still_counts_as_missing(): void
@@ -1109,5 +1249,25 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->assertOk()
             ->assertJsonPath('queue.worker.code', 'alive')
             ->assertJsonPath('queue.scheduler.code', 'alive');
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function makeConfirmedMultisplitPayment(array $overrides = []): TinkoffPayment
+    {
+        $suffix = (string) random_int(100000, 999999);
+
+        return TinkoffPayment::query()->create(array_merge([
+            'order_id' => 'order-ops-till-'.$suffix,
+            'partner_id' => $this->partner->id,
+            'amount' => 10000,
+            'method' => 'card',
+            'channel' => TinkoffPayment::CHANNEL_MULTISPLIT,
+            'status' => 'CONFIRMED',
+            'deal_id' => 'deal-ops-till-'.$suffix,
+            'tinkoff_payment_id' => (string) random_int(300_000_000, 2_000_000_000),
+            'confirmed_at' => now()->subHours(25),
+        ], $overrides));
     }
 }

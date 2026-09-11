@@ -215,7 +215,11 @@
     <li>При повторном напоминании тот же <code>short_code</code>, срок <b>продлевается</b>
       (не ротируется). Init T‑Bank — при первом открытии страницы родителем.</li>
     <li>Сумма только из <code>users_prices.price_cents</code>. Смена суммы в админке
-      не ломает код ссылки: при следующем открытии платёж переинициализируется.</li>
+      не ломает код ссылки: при следующем открытии платёж переинициализируется.
+      Если начисление сняли корзиной бывшего (<code>price_cents = 0</code>) —
+      страница «Абонемент аннулирован» (не QR),
+      <a href="/docs/documentation/setting-prices-monthly-users#former-charge-clear">setting-prices-monthly-users §3.2.1</a>,
+      <a href="/doc#setting-prices-monthly-former-charge-clear-index">анонс</a>.</li>
     <li>Гость OK, throttle <code>up-public-pay</code> (40/мин с IP).</li>
     <li>Карточка оплат: <a href="/docs/documentation/payments#up-public-pay">payments §3.1.3</a>.</li>
   </ul>

@@ -157,6 +157,11 @@
       Обёртка <code>ensureTableScrollHost</code> вызывается сразу после <code>DataTable()</code>
       и повторно на <code>init.dt</code> (идемпотентно).
       «Применить» / «Сброс» фильтров — <code>dtApi.reload</code>, таблицу не пересоздают.
+      Intents без <code>columns.adjust()</code> в <code>initComplete</code> / <code>drawCallback</code>
+      (как payments): иначе нативный скролл <code>.kids-dt-scroll-x</code> дублирует липкую полосу.
+      У <code>#payment-intents-table_wrapper .kids-dt-scroll-x</code> ещё
+      <code>overflow-y: hidden</code> (и в <code>paymentIntentsLockScrollHost</code> после bind),
+      чтобы <code>overflow-x: auto</code> не включал внутренний вертикальный скролл рядом с полосой.
       Право страниц payments/monthly/LTV/debts — <code>reports.view</code>
       (гость 302/401, без права 403). Intents / fiscal / tbank / emails — свои права вкладок.</li>
   </ul>
@@ -645,7 +650,7 @@
         <li><code>GET /admin/reports/payment-intents/users-search</code> → <code>{ results: [{id,text}] }</code> (поддерживает <code>partner_id</code>)</li>
       </ul>
     </li>
-    <li>Шапка и горизонтальный скролл — §<a href="#reports-tables-sticky-header">1.3</a> (<code>KidsCrmReportTableSticky.bind('#payment-intents-table')</code>). Без <code>fixedColumns</code>: пресет тогда создаёт <code>.kids-dt-scroll-x</code>, липкая полоса клеится к низу окна.</li>
+    <li>Шапка и горизонтальный скролл — §<a href="#reports-tables-sticky-header">1.3</a> (<code>KidsCrmReportTableSticky.bind('#payment-intents-table')</code>). Без <code>fixedColumns</code>: пресет тогда создаёт <code>.kids-dt-scroll-x</code>, липкая полоса клеится к низу окна. Без <code>columns.adjust()</code> на draw; <code>overflow-y: hidden</code> на обёртке — один скролл, как на «Платежах».</li>
   </ul>
   <div class="note">
     <b>KidsCrmDataTable — типы колонок (2026‑06, эталон миграции с <code>custom</code>)</b>
@@ -839,6 +844,8 @@
       <tr><td>Платежные запросы</td><td><code>reports_payment_intents</code></td><td><code>PaymentIntentReportController</code></td></tr>
       <tr><td>Чеки</td><td><code>reports_fiscal_receipts</code></td><td><code>FiscalReceiptReportController</code></td></tr>
       <tr><td>Платежи T‑Bank</td><td><code>reports_tbank_payments</code></td><td><code>TbankPaymentReportController</code></td></tr>
+      <tr><td>Платежи T‑Bank (по дням)</td><td><code>reports_tbank_payments_by_day</code></td><td><code>TbankPaymentReportController</code> (<code>?view=days</code>)</td></tr>
+      <tr><td>Платежи T‑Bank (по месяцам)</td><td><code>reports_tbank_payments_by_month</code></td><td><code>TbankPaymentReportController</code> (<code>?view=months</code>)</td></tr>
       <tr><td>Исходящие письма</td><td><code>reports_outgoing_emails</code></td><td><code>OutgoingEmailReportController</code></td></tr>
     </tbody>
   </table>
@@ -864,7 +871,9 @@
     Колонки «Чек» и «Комиссия платформы»:
     <a href="/doc#reports-tbank-payments-receipt-commission-index">/doc#reports-tbank-payments-receipt-commission-index</a>.
     Фильтр «Не было выплаты»:
-    <a href="/doc#reports-tbank-payments-without-payout-index">/doc#reports-tbank-payments-without-payout-index</a>.
+    <a href="/doc#reports-tbank-payments-without-payout-index">/doc#reports-tbank-payments-without-payout-index</a>
+    (это не первое число «Касса» пульта —
+    <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>).
   </div>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/tbank-payments</code> (вкладка <code>activeTab=tbank-payments</code> в <code>admin/report/index.blade.php</code>; middleware <code>can:reports.tbank.payments.view</code>)</li>
@@ -876,7 +885,20 @@
     <li><b>Фильтры формы</b>: <code>status</code> (NEW / FORM / CONFIRMED / REJECTED / CANCELED), <code>method</code> (card / sbp / tpay → Карта / СБП / T‑Pay), <code>created_from</code> / <code>created_to</code>, чекбокс <code>without_payout</code> («Не было выплаты», <code>#tp-filter-without-payout</code>). Request: <code>TbankPaymentsReportFilterRequest</code> (ошибки под полями, AJAX → 422; non-AJAX GET → 302 + <code>errors[field]</code>). Sentinel <code>status=all</code> и пустой статус = «все статусы»: фильтры не раскрываются, в селекте выбрано «Все статусы». Sentinel <code>method=all</code> и пустой способ = «все способы»: в селекте «Все способы». <code>without_payout=1</code> — платежи без выплаты или только с <code>REJECTED</code> (как колонка «Выплата» = «—»), статус платежа не сужается; <code>CREDIT_CHECKING</code> и прочие не-<code>REJECTED</code> не входят; чекбокс <code>value="1"</code> (JS шлёт <code>'1'</code>/пусто, не <code>on</code>); пустой / <code>0</code> / <code>without_payout=all</code> = выкл. Невалидный статус / способ / даты / <code>partner_id</code> / <code>without_payout</code> (в т.ч. <code>on</code>/<code>true</code>/<code>yes</code>) — ошибка поля, не 500.</li>
     <li><b>Поиск DataTables</b> (<code>search.value</code>): <code>order_id</code>, <code>deal_id</code>, числовой <code>id</code>, название партнёра. Сумма, комиссия платформы, выплата, статус, способ, чек, дата в SQL не попадают. <code>filter($callback)</code> без второго аргумента <code>true</code>. Шапка total поиск не учитывает.</li>
     <li><b>Колонки</b>: ID, Создан (<code>datetime</code>), Партнер, Order, Сумма (<code>money</code>, рубли в JSON из <code>amount</code> копеек), Комиссия платформы (<code>money</code>, ключ <code>platform_commission</code>, <code>orderable: false</code>: текущие <code>tinkoff_commission_rules</code> как в отчёте «Платежи» — <code>platform_percent</code> / <code>platform_min_fixed</code>, не снимок <code>tinkoff_payouts.platform_fee</code>; без правила — <code>0.00</code>; видна всем с <code>reports.tbank.payments.view</code>, без <code>reports.additional.value.view</code>; в <code>GET …/total</code> не входит), Выплата (<code>money</code>, ключ <code>payout_amount</code>: рубли из <code>COALESCE(net_amount, amount)</code> последней <code>tinkoff_payouts</code> по <code>payment_id</code> со статусом не <code>REJECTED</code>; JSON <code>null</code> и UI «—», если выплаты нет или есть только <code>REJECTED</code>), Способ (<code>text</code>, ключ <code>method</code>, JSON <code>method_label</code> из <code>tinkoff_payments.method</code>: card → Карта, sbp → СБП, tpay → T‑Pay, пусто → «—»), Статус (<code>badge</code>), Deal, Чек (<code>icon</code>, ключ <code>receipt</code>, <code>orderable: false</code>: JSON <code>receipt_url</code> / <code>has_receipt</code> / <code>receipt_hint</code> и поля возврата через <code>TinkoffPaymentFiscalReceiptResolver</code>; UI как в «Платежи» — иконка прихода и возврата, без ветки Robokassa), Действия (<code>actions</code> — ссылка «Открыть» на карточку). Без <code>type: 'custom'</code>.</li>
-    <li><b>columns-settings</b>: <code>table_key = reports_tbank_payments</code>; GET/POST <code>/admin/reports/tbank-payments/columns-settings</code>; «Показать N» — <code>$tbankPaymentsPageLength</code>, <code>persistPageLength: true</code>.</li>
+    <li><b>Вид таблицы</b> (<code>view=payments|days|months</code>, btn-group <code>#tp-view-switch</code>):
+      «Платежи» — одна строка = один платёж (колонки выше).
+      «По дням» / «По месяцам» — сводка по <code>created_at</code> без раскрытия:
+      период, количество, сумма, комиссия платформы, выплата.
+      Невалидный <code>view</code> — ошибка поля «Вид» (422 / 302).
+      <code>view</code> не раскрывает фильтры.
+      Смена вида пересоздаёт DataTable; «Применить»/«Сброс» — <code>dtApi.reload()</code>.
+      Анонс: <a href="/doc#reports-tbank-payments-view-modes-index">/doc#reports-tbank-payments-view-modes-index</a>.
+      Тест: <code>TbankPaymentsViewModesFeatureTest</code>.</li>
+    <li><b>columns-settings</b>: <code>table_key = reports_tbank_payments</code> (вид «Платежи» и «Показать N»);
+      сводка — <code>reports_tbank_payments_by_day</code> / <code>reports_tbank_payments_by_month</code>
+      (GET/POST с <code>?view=days|months</code>);
+      GET/POST <code>/admin/reports/tbank-payments/columns-settings</code>; «Показать N» — <code>$tbankPaymentsPageLength</code>,
+      <code>persistPageLength: true</code>.</li>
     <li><b>Кнопка «Комиссии»</b> в тулбаре вкладки: ссылка на <code>/admin/settings/tbank-commissions</code> (<code>admin.setting.tbankCommissions</code>), рендер <code>@can('settings.commission')</code> (<code>#tp-toolbar-commissions</code>). Без права кнопки нет. Сама страница комиссий остаётся в настройках.</li>
     <li><b>Карточка</b>: <code>GET /admin/tinkoff/payments/{id}</code> — просмотр при <code>reports.tbank.payments.view</code> <b>или</b> <code>manage.payment.method.tbank</code>. Не-superadmin — только свой партнёр (чужой → <b>403</b>). Кнопки «Выплатить сейчас» / «Отложить» — только при <code>manage.payment.method.tbank</code>. «Закрыть сделку» в UI видна при <code>deal_id</code> и без этого права; POST <code>/tinkoff/deals/{deal}/close</code> — <code>can:manage.payment.method.tbank</code> (без права → <b>403</b>).</li>
     <li>Право <code>reports.tbank.payments.view</code>: <code>is_visible = 0</code>, в базовые роли <b>не входит</b>, миграция <code>2026_09_07_073200_add_reports_tbank_payments_view_permission.php</code> не трогает <code>permission_role</code> в <code>up()</code>.</li>
@@ -892,6 +914,7 @@
     <li><code>tests/Feature/Crm/Reports/ReportsPartnerFilterFeatureTest.php</code> — <b>фильтр «Партнер»</b> в emails / fiscal / payment-intents / tbank-payments: UI SA vs admin, soft-scope, isolation (игнор чужого <code>partner_id</code>), partners-search + 422, show foreign</li>
     <li><code>tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b> во всех четырёх отчётах (Платежи, monthly, LTV, debts): логика active/inactive/all, UI, детализация; контроль доступа (guest / без <code>reports.view</code> / admin / superadmin); smoke 200 для всех вариантов <code>status</code>. Назначение абонементов — отдельный файл <code>LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> (см. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages</a>).</li>
     <li><code>tests/Feature/Crm/Reports/TbankPaymentsWithoutPayoutFilterFeatureTest.php</code> — фильтр «Не было выплаты»: гость/403/viewer без <code>tbank.payouts.manage</code>, колонка «—» (нет выплаты / только REJECTED / CREDIT_CHECKING не входит), связка со статусом и поиском, изоляция партнёра, UX первого открытия и повторного открытия (чекбокс не навязывается от method/status, <code>0</code>/<code>all</code> выкл), сохранённый N не сбрасывается, AJAX 422 и non-AJAX 302 с текстом под чекбоксом, PUT/PATCH/DELETE не 500</li>
+    <li><code>tests/Feature/Crm/Reports/TbankPaymentsViewModesFeatureTest.php</code> — вид Платежи/По дням/По месяцам: группировка по created_at, сумма/комиссия/выплата, поиск периода, изоляция, columns-settings table_key, 422/302 по полю «Вид»</li>
     <li><code>tests/Feature/Crm/Reports/TbankPaymentsReportTest.php</code> — отчёт «Платежи T‑Bank»: 403, total, isolation, DataTables (в т.ч. колонка «Выплата»: COMPLETED / INITIATED / REJECTED / retry; колонка «Способ»: Карта / СБП / T‑Pay / «—»; колонка «Чек»: <code>TinkoffPaymentFiscalReceiptResolver</code>; колонка «Комиссия платформы»: текущие правила как в «Платежи», не снимок выплаты, не в total), поиск (order/deal), фильтр <code>method</code> (card/sbp/tpay, <code>method=all</code>, 422), фильтр <code>without_payout</code> (нет выплаты / только REJECTED / все статусы платежа; COMPLETED и INITIATED не входят; <code>0</code>/<code>all</code> не раскрывает панель; 422), карточка по праву отчёта или <code>manage.payment.method.tbank</code>, старый URL списка 404 (в т.ч. гость), кнопка «Комиссии» только при <code>settings.commission</code> (реальная <code>&lt;a href&gt;</code>), вкладка скрыта без права, UX первого открытия (фильтры свёрнуты, все колонки checked, N=10), <code>status=all</code> / <code>method=all</code> не раскрывает фильтры</li>
     <li><code>tests/Feature/Crm/Reports/TbankPaymentsReceiptAndCommissionFeatureTest.php</code> — колонки «Чек» / «Комиссия платформы»: гость/403, разметка без <code>reports.additional.value.view</code>, порядок колонок, повторное открытие с фильтром не сбрасывает чекбоксы, сохранённый <code>false</code> не форсится, старые columns-settings без новых ключей, non-AJAX data JSON, total без комиссии, не снимок <code>tinkoff_payouts.platform_fee</code>, fallback 0% (не 2% <code>pickForPartner</code>), min_fixed, disabled-правило, приоритет partner+method, поиск не матчит URL чека и сумму комиссии, не-receipts.ru / CloudKassir pending, последний income URL</li>
     <li><code>tests/Feature/Crm/Reports/TbankPaymentsPageFullAccessFeatureTest.php</code> — guest / без права / с правом / superadmin на все endpoints вкладки; варианты фильтров 200; PUT/PATCH/DELETE → 404/405</li>
@@ -899,6 +922,8 @@
     <li><code>tests/Unit/Documentation/ReportsTbankPaymentsDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-index">/doc#reports-tbank-payments-index</a> совпадает с routes / Blade / Request / миграцией</li>
     <li><code>tests/Unit/Documentation/ReportsTbankPaymentsReceiptCommissionDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-receipt-commission-index">/doc#reports-tbank-payments-receipt-commission-index</a> совпадает с колонками «Чек» / «Комиссия платформы»</li>
     <li><code>tests/Unit/Documentation/ReportsTbankPaymentsWithoutPayoutDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-without-payout-index">/doc#reports-tbank-payments-without-payout-index</a> совпадает с фильтром «Не было выплаты»</li>
+    <li><code>tests/Unit/Documentation/OpsTillMissingPayoutDocumentationContractTest.php</code> — анонс <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a> совпадает с «Касса» пульта, не с фильтром отчёта</li>
+    <li><code>tests/Unit/Documentation/ReportsTbankPaymentsViewModesDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-view-modes-index">/doc#reports-tbank-payments-view-modes-index</a> совпадает с видом Платежи/По дням/По месяцам</li>
     <li><code>tests/Feature/Crm/Permissions/ReportsTbankPaymentsPermissionCatalogFeatureTest.php</code> — скрытое право, не в базовых ролях</li>
     <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php</code> — §1.1 персональный page_length на payments / monthly / LTV / intents / fiscal / tbank-payments / payouts; UX повторного открытия и открытия с фильтрами; вложенные LTV/monthly остаются на 10 после сохранения N; N одной таблицы не течёт в другую; 422/302 по полям; гость/403; debts/emails без opt-in</li>
     <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFullAccessFeatureTest.php</code> — гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405</li>
@@ -932,6 +957,8 @@
   <pre><code>php artisan test --env=testing tests/Feature/Crm/Reports/ReportsPartnerFilterFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/OutgoingEmailsPageFullAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/TbankPaymentsPageFullAccessFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/TbankPaymentsViewModesFeatureTest.php
+php artisan test --env=testing tests/Unit/Documentation/ReportsTbankPaymentsViewModesDocumentationContractTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/TbankPaymentsReportTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/TbankPaymentsNonAjaxSafetyNetFeatureTest.php
 php artisan test --env=testing tests/Unit/Documentation/ReportsTbankPaymentsDocumentationContractTest.php

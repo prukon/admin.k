@@ -129,6 +129,7 @@ class PermissionSeeder extends Seeder
 
             // group_slug users
             ['name' => 'trainers.view',                  'description' => 'Страница "Тренеры"',                            'group_slug' => 'users',    'is_visible' => 0, 'sort_order' => 41],
+            ['name' => 'groups.own',                     'description' => 'Только свои группы (тренер)',                   'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 42],
             ['name' => 'users.name.update',              'description' => 'Изменение имени',                                'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 0],
             ['name' => 'users.birthdate.update',         'description' => 'Изменение даты рождения',                        'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 0],
             ['name' => 'users.group.update',             'description' => 'Изменение группы',                               'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 0],

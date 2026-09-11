@@ -295,8 +295,9 @@ final class LessonPackageController extends AdminBaseController
 
         $teams = Team::query()
             ->where('partner_id', $partnerId)
-            ->orderBy('title')
-            ->get(['id', 'title', 'location_id']);
+            ->orderBy('title');
+        app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery($teams, Auth::user(), $partnerId);
+        $teams = $teams->get(['id', 'title', 'location_id']);
 
         LessonOccurrenceStatusesSeeder::ensureForPartner($partnerId);
         $schoolCalendarOccurrenceStatuses = LessonOccurrenceStatus::query()

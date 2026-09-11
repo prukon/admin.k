@@ -50,8 +50,9 @@ class ContractsController extends Controller
         $partnerId = $this->partnerId();
 
         $allTeams = Team::where('partner_id', $partnerId)
-            ->orderBy('order_by', 'asc')
-            ->get();
+            ->orderBy('order_by', 'asc');
+        app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery($allTeams, Auth::user(), (int) $partnerId);
+        $allTeams = $allTeams->get();
 
         $createForm = $this->createFormContext($request);
         $shouldOpenCreateModal = $request->boolean('create')

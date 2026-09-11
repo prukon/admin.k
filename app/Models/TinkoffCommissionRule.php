@@ -84,4 +84,14 @@ class TinkoffCommissionRule extends Model
             default => 'все методы',
         };
     }
+
+    public static function methodFormLabel(?string $method): string
+    {
+        return match ($method) {
+            'card' => 'Карты',
+            'sbp' => 'СБП',
+            'tpay' => 'T‑Pay',
+            default => '— Для всех —',
+        };
+    }
 }

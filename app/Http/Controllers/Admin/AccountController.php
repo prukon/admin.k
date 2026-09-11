@@ -67,8 +67,9 @@ class AccountController extends AdminBaseController
     
         // ✅ Берём только команды текущего партнёра
         $allTeams = $this->scopeByPartner(Team::query())
-            ->orderBy('order_by', 'asc')    // опционально, для красоты
-            ->get();
+            ->orderBy('order_by', 'asc');
+        app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery($allTeams, $this->currentUser(), (int) $partnerId);
+        $allTeams = $allTeams->get();
     
         // Лучше для консистентности брать текущего юзера через currentUser()
         $user = $this->currentUser();

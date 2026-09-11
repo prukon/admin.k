@@ -50,7 +50,12 @@ class TbankCommissionsAuthorizedEndpointsTest extends CrmTestCase
         $rule = TinkoffCommissionRule::where('partner_id', $this->partner->id)->first();
         $this->assertNotNull($rule);
 
-        $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]))->assertOk();
+        $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]))
+            ->assertRedirect(route('admin.setting.tbankCommissions', ['edit' => $rule->id]));
+
+        $this->getJson(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]))
+            ->assertOk()
+            ->assertJsonPath('id', $rule->id);
 
         $this->put(route('admin.setting.tbankCommissions.update', ['id' => $rule->id]), array_merge($payload, [
             'method' => 'sbp',

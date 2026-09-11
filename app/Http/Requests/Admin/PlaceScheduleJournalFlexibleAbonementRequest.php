@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Admin;
 
 use App\Http\Requests\Concerns\NormalizesTrainerProfileIds;
+use App\Rules\AllowedActorTeam;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -34,6 +35,7 @@ class PlaceScheduleJournalFlexibleAbonementRequest extends FormRequest
                 Rule::exists('teams', 'id')->where(
                     fn ($q) => $q->where('partner_id', $partnerId)->whereNull('deleted_at')
                 ),
+                new AllowedActorTeam($partnerId),
             ],
             'occurrence_date' => ['required', 'date_format:Y-m-d'],
             'lesson_occurrence_status_id' => [

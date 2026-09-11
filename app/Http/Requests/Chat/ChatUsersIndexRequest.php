@@ -82,6 +82,12 @@ class ChatUsersIndexRequest extends FormRequest
 
                         if (! $exists) {
                             $validator->errors()->add('team_id', 'Выберите группу из списка.');
+                        } elseif (! app(\App\Services\TrainerOwnTeamsScope::class)->allowsTeamId(
+                            $this->user(),
+                            (int) $partnerId,
+                            (int) $teamId
+                        )) {
+                            $validator->errors()->add('team_id', 'Выберите группу из списка.');
                         }
                     }
                 }

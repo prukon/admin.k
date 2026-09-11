@@ -25,6 +25,11 @@ class TbankCommissionsFeatureCoverageTest extends CrmTestCase
         $resp->assertSee('id="tbank-commissions-table"', false);
         $resp->assertSee('id="tbankPayoutSettingsModal"', false);
         $resp->assertSee('id="tbankCommissionCreateModal"', false);
+        $resp->assertSee('id="tbankCommissionEditModal"', false);
+        $resp->assertSee('id="tbank_edit_partner_title"', false);
+        $resp->assertSee('id="tbank_edit_method_label"', false);
+        $resp->assertSee("linkClass: 'js-tbank-commission-edit'", false);
+        $resp->assertSee('js-tbank-commission-edit', false);
         $resp->assertSee('Настройки выплат', false);
         $resp->assertSee('Добавить комиссию', false);
         $resp->assertSee('Колонки', false);

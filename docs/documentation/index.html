@@ -28,6 +28,282 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="groups-own-index">Тренер: только свои группы (<code>groups.own</code>, 2026‑09)</h2>
+  <div class="note">
+    Отдельное видимое право <code>groups.own</code> («Только свои группы (тренер)», группа матрицы <code>users</code>,
+    <code>is_visible=1</code>, не в <code>role_base_permissions</code>).
+    Школа включает его роли <code>trainer</code>, когда тренер должен видеть только группы из <code>team_trainer</code>.
+    Без права поведение как раньше: при <code>users.view</code> / <code>schedule.view</code> / <code>groups.view</code>
+    видны все группы школы.
+    Срабатывает при праве <b>и</b> профиле <code>trainer_profiles</code> (superadmin через <code>Gate::before</code>
+    не режется — профиля нет).
+    Фильтры и справочник групп, журнал/клиенты/консоль в режиме «все» — только ученики своих групп;
+    подписи групп ученика — пересечение; чужой <code>team_id</code> → 422 под полем;
+    сохранение групп ученика не снимает чужие (merge);
+    чат: сотрудники школы остаются, фильтр групп — свой.
+    Сервис <code>App\Services\TrainerOwnTeamsScope</code>, правило <code>AllowedActorTeam</code>.
+    Миграция <code>2026_09_11_021700_add_groups_own_permission.php</code>.
+    Тесты: <code>TrainerOwnTeamsScopeFeatureTest</code>,
+    <code>TrainerOwnTeamsAccessFeatureTest</code>,
+    <code>TrainerOwnTeamsAjaxContractFeatureTest</code>,
+    <code>TrainerOwnTeamsNonAjaxSafetyNetFeatureTest</code>,
+    <code>TrainerOwnTeamsMarkupFeatureTest</code>,
+    <code>TrainerOwnTeamsFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (оба пути edit-модалки + сброс фильтров),
+    <code>TrainerOwnTeamsDocumentationContractTest</code>,
+    <code>PermissionGroupsReorganizationFeatureTest</code> (каталог <code>users</code>).
+    Подробно — <a href="/docs/documentation/groups-own">groups-own</a>,
+    <a href="/docs/documentation/admin-trainers#groups-own">admin-trainers</a>,
+    <a href="/docs/documentation/partners-permissions">partners-permissions §8</a>.
+  </div>
+
+  <h2 id="reports-tbank-payments-view-modes-index">Отчёт «Платежи T‑Bank»: вид Платежи / По дням / По месяцам (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/reports/tbank-payments</code> (право
+    <code>reports.tbank.payments.view</code>, таблица
+    <code>#tbank-payments-table</code>) btn-group
+    <code>#tp-view-switch</code> переключает гранулярность:
+    <b>Платежи</b> (как раньше, одна строка — один
+    <code>tinkoff_payments</code>),
+    <b>По дням</b> и <b>По месяцам</b> — только сводка
+    (без раскрытия до платежей).
+    Группировка строго по <code>tinkoff_payments.created_at</code>
+    (календарный день или <code>YYYY-MM</code>).
+    Это <b>не</b> вкладка «Платежи по месяцам»
+    <code>/admin/reports/payments/monthly</code>
+    и <b>не</b> отчёт «Платежи»
+    <code>/admin/reports/payments</code>.
+    Анонс: <a href="/doc#reports-tbank-payments-view-modes-index">/doc#reports-tbank-payments-view-modes-index</a>.
+    Вкладка целиком —
+    <a href="/doc#reports-tbank-payments-index">/doc#reports-tbank-payments-index</a>.
+    <br><br>
+    1) <b>Query.</b> Параметр <code>view=payments|days|months</code>
+    (пустое = платежи). Request:
+    <code>TbankPaymentsReportFilterRequest</code>
+    (<code>'view' => ['nullable', 'string', 'in:payments,days,months']</code>).
+    Невалидный вид — ошибка поля «Вид»
+    (AJAX <b>422</b>, non-AJAX GET <b>302</b>), текст под переключателем
+    (<code>data-error-for="view"</code>).
+    <code>view</code> <b>не</b> раскрывает панель фильтров
+    (<code>tpHasActiveFilters</code> его не считает).
+    <br>
+    2) <b>Сводка.</b> Колонки: период
+    (<code>07.09.2026</code> / «Сентябрь 2026»),
+    количество платежей, сумма, комиссия платформы
+    (те же текущие <code>tinkoff_commission_rules</code>, что в строке платежа),
+    выплата
+    (<code>SUM</code> последней не-<code>REJECTED</code>
+    <code>COALESCE(net_amount, amount)</code>; если выплат в периоде нет —
+    JSON <code>null</code>, UI «—»).
+    ID, партнёр, Order, способ, статус, Deal, чек, действия — нет.
+    Фильтры формы те же и применяются до группировки.
+    Поиск DataTables — только подпись периода
+    (дата / <code>YYYY-MM</code> / «Сентябрь 2026»), не сумма.
+    Шапка <code>GET …/total</code> не зависит от вида.
+    <br>
+    3) <b>UI.</b> Смена вида пересоздаёт DataTable
+    (<code>destroyTbankPaymentsTable</code> +
+    <code>mountTbankPaymentsTable</code>);
+    «Применить» / «Сброс» по-прежнему
+    <code>e.preventDefault()</code> + <code>dtApi.reload()</code>
+    без recreate (сброс не меняет вид).
+    Кнопки: <code>#tp-view-btn-payments</code> /
+    <code>#tp-view-btn-days</code> /
+    <code>#tp-view-btn-months</code>.
+    <br>
+    4) <b>Колонки / N.</b>
+    <code>table_key</code> сводки:
+    <code>reports_tbank_payments_by_day</code> /
+    <code>reports_tbank_payments_by_month</code>.
+    «Показать N» пишется в канонический
+    <code>reports_tbank_payments</code>.
+    GET/POST <code>/admin/reports/tbank-payments/columns-settings?view=…</code>.
+    Чекбоксы сводки —
+    <code>.tbank-payments-summary-column-toggle</code>
+    (не путать с
+    <code>.tbank-payments-column-toggle</code>).
+    <br><br>
+    Подробно:
+    <a href="/docs/documentation/reports-admin#reports-tbank-payments">reports-admin §9</a>,
+    <a href="/docs/documentation/tbank#payment-show-card">tbank §5.7</a>.
+    Тесты: <code>TbankPaymentsViewModesFeatureTest</code>,
+    <code>TbankPaymentsReportTest</code>,
+    <code>TbankPaymentsPageFullAccessFeatureTest</code>,
+    <code>TbankPaymentsNonAjaxSafetyNetFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate</code>,
+    <code>ReportsTbankPaymentsViewModesDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="ops-till-missing-payout-index">Пульт «Касса»: CONFIRMED без выплаты после задержки партнёра (2026‑09)</h2>
+  <div class="note">
+    Первое число строки <b>Касса</b> в оверлее <b>Пульт</b>
+    (<code>#js-ops-monitors</code>, <code>data-role="till-overdue"</code>, JSON
+    <code>till.overdue_payouts</code>) — не просрочка джобы в «Очередь»
+    и не фильтр «Не было выплаты» на вкладке отчётов.
+    Считает мультисплит, которому уже «пора» выплатить партнёру, а
+    <code>COMPLETED</code> нет. Scope
+    <code>TinkoffPayment::missingPayoutAfterDelay()</code>, снимок
+    <code>OpsMonitor::snapshot()</code>.
+    Родительский оверлей —
+    <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a>.
+    Анонс: <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>.
+    <br><br>
+    1) <b>Что входит.</b>
+    <code>tinkoff_payments.status=CONFIRMED</code>, канал
+    <code>multisplit</code>, <code>confirmed_at</code> не null.
+    С <code>confirmed_at</code> уже прошли часы
+    <code>auto_payout_delay_hours</code> включённого правила
+    <code>TinkoffCommissionRule::pickForPartner</code>
+    (партнёр+метод, иначе партнёр без метода, иначе глобальное;
+    SQL <code>ORDER BY partner_id IS NULL, method IS NULL, id</code>).
+    Нет подходящего правила — <code>COALESCE</code> задержки 0, считает сразу
+    после CONFIRMED. Нет выплаты <code>COMPLETED</code>: нет строки
+    <code>tinkoff_payouts</code> или есть только неуспех
+    (в т.ч. <code>REJECTED</code> после задержки).
+    Просроченный Init без банковского id тоже входит:
+    <code>INITIATED</code>, <code>when_to_run</code> наступил, без
+    <code>tinkoff_payout_payment_id</code>.
+    <code>INITIATED</code> без <code>when_to_run</code> и без банковского id
+    тоже входит (очередь такой Init не считает: у
+    <code>overdueScheduled</code> срок обязателен).
+    Флаг <code>auto_payout_enabled=0</code> каунтер <b>не</b> выключает:
+    вебхук мог не создать выплату, после задержки число растёт.
+    Нет окна 24 ч. Сессия <code>current_partner</code> не режет (все школы).
+    Задержку берёт из <b>текущих</b> правил на момент снимка, не из снимка платежа.
+    <br>
+    2) <b>Что не входит.</b>
+    Обычный эквайринг <code>channel=acquiring</code>.
+    Платёж без <code>confirmed_at</code>. Задержка ещё не истекла.
+    Есть хотя бы одна выплата <code>COMPLETED</code>.
+    Выплата только назначена: <code>INITIATED</code> и
+    <code>when_to_run</code> в будущем.
+    В полёте: <code>NEW</code> / <code>AUTHORIZING</code> /
+    <code>CHECKING</code> / <code>CREDIT_CHECKING</code> /
+    <code>CHECKED</code> / <code>COMPLETING</code>
+    или <code>INITIATED</code> уже с банковским
+    <code>tinkoff_payout_payment_id</code>.
+    Каунтер ничего не выплачивает и не ретраит <code>REJECTED</code>.
+    <br>
+    3) <b>JSON / UX.</b>
+    Ключ <code>till.overdue_payouts</code> (имя как у
+    <code>queue.overdue_payouts</code>, смысл другой).
+    Строка «Очередь» по-прежнему
+    <code>TinkoffPayout::overdueScheduled()</code> (застрявший Init:
+    <code>INITIATED</code>, <code>when_to_run</code> наступил, банковского id нет).
+    Ховер: «CONFIRMED без успешной выплаты после задержки автовыплаты партнёра (все школы)».
+    Число &gt; 0 — <code>countTone</code> → <code>is-bad</code> (красное).
+    Ссылок на отчёт нет. Первый кадр «…»; сбой refresh — «—».
+    <br>
+    4) <b>Не путать.</b>
+    Фильтр отчёта <code>without_payout=1</code>
+    («Не было выплаты») — все статусы платежа, без задержки партнёра,
+    колонка «Выплата» = «—».
+    Анонс фильтра:
+    <a href="/doc#reports-tbank-payments-without-payout-index">/doc#reports-tbank-payments-without-payout-index</a>.
+    Вкладка «Очереди» и блок просроченных на
+    <code>/admin/tinkoff/payouts</code> — это
+    <code>overdueScheduled</code>, не этот scope.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
+    очереди — <a href="/docs/documentation/queues-monitoring">queues-monitoring</a>,
+    чат — <a href="/docs/documentation/chat#ops-monitors-overlay">chat §пульт</a>,
+    T‑Bank — <a href="/docs/documentation/tbank#payout-settings">tbank §5.4–5.5</a>.
+    Тесты: <code>SystemMonitorsOpsAjaxContractFeatureTest</code>
+    (задержка не истекла / истекла / <code>REJECTED</code> vs
+    <code>COMPLETED</code> / будущий <code>when_to_run</code> / чужая школа;
+    сиротский Init: очередь=1, касса=0),
+    <code>BladeInlineJsSyntaxTest</code>
+    (<code>countTone(till.overdue_payouts)</code>, ховер),
+    <code>OpsTillMissingPayoutDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="setting-prices-monthly-former-charge-clear-index">Установка цен: корзина неоплаченного начисления бывшего (2026‑09)</h2>
+  <div class="note">
+    На вкладке <b>«По месяцам»</b> (<code>/admin/setting-prices/monthly</code>)
+    у ученика с бейджем «не в группе» нет карандаша.
+    Если месяц <b>не оплачен</b> (<code>effective_is_paid</code> = нет), справа корзина:
+    снять начисление (обнулить <code>price_cents</code>, снять абонемент и скидку строки,
+    удалить неразложенный неиспользованный ULP). Строка пропадает из списка месяца
+    (бывшие только с <code>price_cents &gt; 0</code>). Оплаченное
+    (авто <code>is_paid</code> или ручная <code>is_manual_paid</code>) — <b>без</b> корзины,
+    не disabled. Это <b>не</b> вкладка «По ученикам»
+    (<code>users.blade.php</code> без monthly Vite-модуля корзины),
+    <b>не</b> ручная оплата, <b>не</b> Apply и <b>не</b> пролонгация месяца.
+    Право — <code>setPrices.view</code> (без <code>setPrices.manualPaid.manage</code>).
+    UI: Vite <code>resources/js/settings-prices.js</code>, класс
+    <code>user-price-former-clear</code>, флаги
+    <code>can_clear_former_charge</code> / <code>former_charge_clear_block_reason</code>
+    в JSON <code>get-team-price</code> (на вкладке «По ученикам» year-prices их нет).
+    <br><br>
+    1) <b>Карточка.</b>
+    Корзина только при <code>is_former_member</code> и неоплаченном месяце.
+    Карандаш — только у текущего члена с абонементом и
+    <code>setPrices.manualPaid.manage</code> (<code>if (!isFormer &amp;&amp; canManage &amp;&amp; uid &amp;&amp; hasAbon)</code>).
+    Можно снять — активная кнопка, <code>title="Удалить начисление"</code>.
+    Нельзя (постоплата с посещениями, ULP уже в журнале, по абонементу уже были занятия) —
+    кнопка <code>disabled</code> + обёртка
+    <code>kids-tooltip-hint setting-prices-monthly-clear-disabled-wrap</code>, ховер с причиной.
+    Клик по disabled не открывает confirm и не шлёт AJAX.
+    Подтверждение — <code>showConfirmDeleteModal</code>: заголовок «Удаление начисления»,
+    текст «Удалить начисление за {месяц} в этой группе? Абонемент будет снят. Если уже выдана ссылка на оплату, она перестанет действовать.».
+    Vite шлёт <code>POST</code> JSON
+    (<code>Content-Type: application/json</code>, <code>Accept: application/json</code>,
+    <code>JSON.stringify</code>; без <code>X-Requested-With</code>).
+    Успех — toast <code>message</code> («Начисление снято.») и
+    <code>loadTeamUsersRightColumn(lastTeamId, { keepActiveHighlight: true })</code>,
+    без <code>location.reload</code>. Ошибка — текст под карточкой
+    <code>.former-clear-error</code> (в т.ч. <code>errors.charge</code>), строку не пересобирать.
+    <br>
+    2) <b>Сервер.</b>
+    <code>FormerMemberMonthChargeService::clear</code>:
+    <code>price_cents=0</code>, <code>lesson_package_id=null</code>,
+    <code>discount_percent</code> / <code>discount_comment</code> = null, затем sync ULP.
+    Строка <code>users_prices</code> остаётся (ссылка <code>/pm/{code}</code> жива).
+    Страница оплаты: заголовок «Абонемент аннулирован», текст
+    «Этот абонемент был аннулирован. Если у вас остались вопросы, свяжитесь с клубом.»;
+    QR AJAX той же ссылки — <b>422</b> с тем же текстом.
+    Если сняли неразложенный ULP, ссылка абонемента <code>/p/{code}</code> —
+    тот же статус <code>kind=annulled</code> (ULP уже нет).
+    Аудит <code>pricing.former_charge_cleared</code> (подписи «Снятие начисления бывшего участника группы»,
+    legacy action 16). Постоплата без посещений — корзина активна, если строка ещё видна.
+    <br>
+    3) <b>HTTP.</b>
+    POST <code>/admin/setting-prices/former-month-charge/clear</code>
+    (<code>ClearFormerMemberMonthChargeRequest</code>: <code>user_id</code>, <code>team_id</code>,
+    <code>selectedDate</code>; «Не указан ученик.», «Выберите группу.», «Укажите месяц.»).
+    JSON (<code>ajax()</code> или <code>wantsJson()</code>) успех — <b>200</b>
+    <code>{ success: true, message: "Начисление снято." }</code>, не пустой 200.
+    Ошибки — <b>422</b> <code>errors.charge</code> /
+    <code>errors.user_id</code> / <code>errors.team_id</code> / <code>errors.selectedDate</code>:
+    «Нельзя удалить: начисление уже оплачено.»,
+    «Нельзя удалить: по постоплате уже есть посещения.»,
+    «Нельзя удалить: связанные занятия уже стоят в расписании.»,
+    «Нельзя удалить: по абонементу уже были занятия.»,
+    «Снять начисление корзиной можно только у ученика, который больше не состоит в этой группе.»,
+    «Нет начисления за выбранный месяц, которое можно снять.».
+    Non-AJAX HTML успех — <b>302</b> на monthly, запись снимается; валидация — 302 + session errors, без записи.
+    Чужой ученик / группа — <b>404</b>
+    («Ученик не найден или недоступен в контексте текущего партнёра.» /
+    «Группа не найдена.»). Гость / без view → 302/401/403.
+    GET/PATCH/PUT/DELETE на POST-руте → 404/405.
+    <br>
+    4) <b>Тесты.</b>
+    <code>SettingPricesMonthlyFormerChargeClearFeatureTest</code>,
+    <code>SettingPricesMonthlyFormerChargeClearAccessFeatureTest</code>,
+    <code>SettingPricesMonthlyFormerChargeClearAjaxContractFeatureTest</code>,
+    <code>SettingPricesMonthlyFormerChargeClearNonAjaxSafetyNetFeatureTest</code>,
+    <code>SettingPricesMonthlyFormerChargeClearMarkupFeatureTest</code>,
+    <code>SettingPricesMonthlyFormerChargeClearJsContractTest</code>,
+    <code>SettingPricesMonthlyFormerChargeClearDocumentationContractTest</code>,
+    <code>UserPricePublicPayFeatureTest</code> (аннулированная ссылка),
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_former_charge_clear_ux_contract</code>.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/setting-prices-monthly-users#former-charge-clear">setting-prices-monthly-users §3.2.1</a>.
+    Анонс: <a href="/doc#setting-prices-monthly-former-charge-clear-index">/doc#setting-prices-monthly-former-charge-clear-index</a>.
+  </div>
+
   <h2 id="reports-tbank-payments-without-payout-index">Отчёт «Платежи T‑Bank»: фильтр «Не было выплаты» (2026‑09)</h2>
   <div class="note">
     На <code>/admin/reports/tbank-payments</code> (право
@@ -44,6 +320,10 @@
     <b>не</b> кнопки «Выплатить сейчас» / «Отложить» на карточке
     (там <code>manage.payment.method.tbank</code>)
     и <b>не</b> фильтр статуса платежа.
+    Это <b>не</b> первое число «Касса» пульта
+    (<code>till.overdue_payouts</code>: только <code>CONFIRMED</code>
+    мультисплит после <code>auto_payout_delay_hours</code> —
+    <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>).
     Вкладка целиком —
     <a href="/doc#reports-tbank-payments-index">/doc#reports-tbank-payments-index</a>.
     Анонс: <a href="/doc#reports-tbank-payments-without-payout-index">/doc#reports-tbank-payments-without-payout-index</a>.
@@ -696,6 +976,8 @@
     Не пресет <code>KidsCrmDataTable</code>.
     Intents и fiscal без <code>fixedColumns</code> (иначе <code>ensureTableScrollHost</code>
     не создаёт <code>.kids-dt-scroll-x</code> и полоса не клеится к низу окна).
+    Intents без <code>columns.adjust()</code> на draw; у обёртки
+    <code>overflow-y: hidden</code> — один скролл, как на «Платежах».
     Вложенные таблицы LTV и monthly (<code>$('#…').DataTable</code>) без закрепления.
     Стили и скрипт — Vite
     <code>resources/css/admin-reports-tables.css</code> и
@@ -1174,12 +1456,13 @@
     <code>/admin/reports/tbank-payments</code> не подставляются.
     Общий каталог — <a href="#datatable-page-length-index">анонс «Показать N»</a>.
     <br>
-    4) <b>Что не сбрасывает вид.</b> Query-фильтры партнёра/метода и
-    <code>?open_create=1</code> не убирают toolbar и не сбрасывают N.
+    4) <b>Что не сбрасывает вид.</b> Query-фильтры партнёра/метода,
+    <code>?open_create=1</code> и <code>?edit={id}</code> не убирают toolbar и не сбрасывают N.
     «Применить» — <code>e.preventDefault()</code> + <code>dtApi.reload({ keepPage: true })</code>;
     «Сброс» — <code>dtApi.reload()</code>. Таблицу не пересоздают.
-    Без query-фильтров блок фильтров свёрнут. Страница правки правила
-    (<code>…/{id}/edit</code>) dropdown и persist N не рендерит.
+    Без query-фильтров блок фильтров свёрнут. Отдельной HTML-страницы правки нет:
+    <code>GET …/{id}/edit</code> без AJAX редиректит на список с <code>?edit={id}</code>
+    и открывает модалку.
     <br>
     5) <b>Доступ и ошибки.</b> С правом — HTML списка <b>200</b>, AJAX save <b>200</b>
     <code>{success: true}</code>. Без <code>settings.commission</code> → <b>403</b>.
@@ -1291,6 +1574,8 @@
     Поиск DataTables: Order, Deal, id, название партнёра (не сумма / комиссия платформы / статус / способ / чек / дата).
     «Применить» / «Сброс»: <code>e.preventDefault()</code> + <code>dtApi.reload()</code>,
     таблицу не пересоздают (иначе сбросится «Показать N»).
+    Вид Платежи / По дням / По месяцам — <a href="/doc#reports-tbank-payments-view-modes-index">/doc#reports-tbank-payments-view-modes-index</a>
+    (смена вида пересоздаёт таблицу; фильтры — reload).
     <br>
     7) <b>«Показать N» / «Колонки».</b>
     <code>table_key = reports_tbank_payments</code>,
@@ -3689,6 +3974,8 @@
     <code>can(settings.systemMonitors.view)</code>, что у онлайна.
     Инкремент строк «Сегодня» / «Вчера» —
     <a href="/doc#ops-day-kpi-index">/doc#ops-day-kpi-index</a>.
+    Инкремент «Касса» без выплаты после задержки —
+    <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>.
     Superadmin — <code>Gate::before</code>. Сессия <code>current_partner</code>
     снимок <b>не</b> режет (все школы). JSON-оверлея диагностики на
     <code>/cabinet</code> нет. Не парсим <code>laravel.log</code>.
@@ -3696,7 +3983,15 @@
     1) <b>Окно.</b> 24 часа для Init <code>failed</code>, чеков
     <code>error</code>, 500, лида без welcome.
     Строка «Вход» (неверный пароль / неизвестный email / неверный 2FA) — 72 часа.
-    Просроченные выплаты T‑Bank — «уже просрочены», без окна.
+    Строка «Очередь»: просроченные отложенные выплаты T‑Bank
+    (<code>INITIATED</code>, <code>when_to_run</code> наступил, банковского PaymentId нет) —
+    «уже просрочены», без окна.
+    Строка «Касса» первое число (<code>till.overdue_payouts</code>):
+    <code>CONFIRMED</code> мультисплит без <code>COMPLETED</code> после
+    <code>auto_payout_delay_hours</code> партнёра; назначенная на будущее выплата не входит.
+    Без окна. Не фильтр <code>without_payout</code> и не
+    <code>TinkoffPayout::overdueScheduled()</code>.
+    Подробно — <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>.
     Строка «Сегодня» — текущий календарный день Europe/Moscow.
     Строка «Вчера» — предыдущий календарный день.
     <br>
@@ -3715,9 +4010,11 @@
     Сбой <code>refresh()</code> (сеть / 403) и payload без ключей <code>day</code>/<code>yesterday</code>
     сбрасывают leftover цифры в «—». Без права строки в разметке нет.
     Очередь: воркер / cron / <code>jobs</code> /
-    <code>failed_jobs</code> / просроченные выплаты
+    <code>failed_jobs</code> / просроченные отложенные выплаты
     (<code>QueueStatusSnapshot::compact()</code>, без LIKE по payload).
-    Касса: просроченные выплаты, <code>payment_intents.status=failed</code>
+    Касса: первое число — <code>CONFIRMED</code> без выплаты после задержки партнёра
+    (<a href="/doc#ops-till-missing-payout-index">анонс</a>),
+    <code>payment_intents.status=failed</code>
     за 24 ч, <code>fiscal_receipts.status=error</code> за 24 ч.
     500: reportable-исключения в cache из <code>Handler::report</code>
     (не <code>my_logs</code>): count, last_class, top_class;
@@ -3799,6 +4096,7 @@
     <code>LogOutgoingEmailMailableClassFeatureTest</code>,
     <code>OpsWelcomeMailableDocumentationContractTest</code>,
     <code>OpsDayKpiDocumentationContractTest</code>,
+    <code>OpsTillMissingPayoutDocumentationContractTest</code>,
     <code>BladeInlineJsSyntaxTest</code>.
   </div>
 
@@ -8136,10 +8434,10 @@
     <li><a href="/docs/documentation/dev-seed-data"><strong>Dev-фикстуры (SEED_DEV_DATA)</strong>: цепочка Dev*-сидеров, юр. лица/справочники/T‑Bank/history, GuardsDevSeedData, ограничения prod</a></li>
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank; только СБП — без «Других способов» и без «Выберите ниже», <a href="/doc#payment-vitrina-sbp-only-index">анонс</a>), публичная СБП месяца из писем уведомлений (<code>/pm/{code}</code>, <a href="/doc#payment-notifications-sbp-link-index">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
-    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>), <b>абонемент и сумма из карточки при ручной оплате</b> (<a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>), <b>плашка группы только вместе со списком учеников</b> (<a href="/doc#setting-prices-monthly-team-select-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, <b>корзина неоплаченного начисления бывшего</b> (<a href="/doc#setting-prices-monthly-former-charge-clear-index">анонс</a>), apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>), <b>абонемент и сумма из карточки при ручной оплате</b> (<a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>), <b>плашка группы только вместе со списком учеников</b> (<a href="/doc#setting-prices-monthly-team-select-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, автособытия «ученик добавил группу» (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer) и <b>«договор подписан»</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>, только admin школы, 7 суток), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
-    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>карточка чужой школы</b> (<a href="/doc#chat-peer-card-cross-partner-index">анонс</a>: superadmin при живом общем треде, 403 <code>errors.user</code> по-русски), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>название партнёра в модалках</b> (<a href="/doc#chat-partner-name-index">анонс</a>: под ФИО в «Контакт» и под именем в «Группа», не вкладка «Аккаунт», не шапка), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>удаление своих сообщений</b> (<a href="/doc#chat-own-message-delete-index">анонс</a>: скрытое <code>messages.own.delete</code>, только автор, подтверждение), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
+    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>оверлей «Пульт»</b> («Касса» — <a href="/doc#ops-till-missing-payout-index">анонс</a>), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>карточка чужой школы</b> (<a href="/doc#chat-peer-card-cross-partner-index">анонс</a>: superadmin при живом общем треде, 403 <code>errors.user</code> по-русски), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>название партнёра в модалках</b> (<a href="/doc#chat-partner-name-index">анонс</a>: под ФИО в «Контакт» и под именем в «Группа», не вкладка «Аккаунт», не шапка), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>удаление своих сообщений</b> (<a href="/doc#chat-own-message-delete-index">анонс</a>: скрытое <code>messages.own.delete</code>, только автор, подтверждение), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, ссылка СБП <code>/pm/{code}</code> и автоблок «Оплатить через СБП», право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-permissions"><strong>Права lessonPackages.type.*</strong>: выбор типа шаблона (фиксированный / предоплата / разовое / постоплата); скрытые; не в базовых ролях; UI + store/update + «Установка цен» + уведомления; <a href="/doc#lesson-packages-type-permissions-index">анонс</a></a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»; с 2026‑09 — общий контур type.* (<a href="/doc#lesson-packages-type-permissions-index">анонс</a>, <a href="/doc#lesson-packages-type-postpay-index">анонс 2026‑08</a>)</a></li>
@@ -8156,11 +8454,11 @@
     <li><a href="/docs/documentation/settings-permission-groups">Матрица прав: группы permissions (permission_groups), аккордеон на «Права и роли», группа «Расписание школы» (<a href="/doc#school-schedule-permission-group-index">анонс</a>), группа «Оплата платформы» (<a href="/doc#platform-payments-methods-index">анонс</a>), ховер возможностей (<a href="/doc#permission-capability-hints-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/audit-my-logs">Аудит CRM (my_logs): AuditEvent, AuditLogger, колонки event/level</a></li>
     <li><a href="/docs/documentation/settings-logs">Настройки → Логи: вкладка журнала, фильтры, доступ, SUPERADMIN_ALL_OR_FILTER</a></li>
-    <li><a href="/docs/documentation/tbank">T‑Bank (мультирасчёты): глобальный терминал, комиссии (<b>«Колонки»</b> / persist N на <code>/admin/settings/tbank-commissions</code> — <a href="/doc#tbank-commissions-columns-index">анонс</a>), автовыплата per метод, карточка платежа (организация, timeline; просмотр ещё по <code>reports.tbank.payments.view</code>), вкладка отчётов <a href="/doc#reports-tbank-payments-index">«Платежи T‑Bank»</a> (колонки «Чек» / «Комиссия платформы» — <a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>, фильтр «Не было выплаты» — <a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>), workflow. Кошелёк и абонплата CRM — <a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a>, не этот терминал</a></li>
+    <li><a href="/docs/documentation/tbank">T‑Bank (мультирасчёты): глобальный терминал, комиссии (<b>«Колонки»</b> / persist N на <code>/admin/settings/tbank-commissions</code> — <a href="/doc#tbank-commissions-columns-index">анонс</a>), автовыплата per метод, карточка платежа (организация, timeline; просмотр ещё по <code>reports.tbank.payments.view</code>), вкладка отчётов <a href="/doc#reports-tbank-payments-index">«Платежи T‑Bank»</a> (колонки «Чек» / «Комиссия платформы» — <a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>, фильтр «Не было выплаты» — <a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>), пульт «Касса» без выплаты после задержки — <a href="/doc#ops-till-missing-payout-index">анонс</a>, workflow. Кошелёк и абонплата CRM — <a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a>, не этот терминал</a></li>
     <li><a href="/docs/documentation/tbank-admin-payouts">T‑Bank: админка выплат (список, DataTables, колонка «Организация», <b>«Показать N»</b> / <code>page_length</code>, карточка, изоляция по партнёру)</a></li>
     <li><a href="/docs/documentation/tbank-refunds-payout-cancel">T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты</a></li>
     <li><a href="/docs/documentation/tbank#sbp-qr-ui">T‑Bank: СБП (QR) в интерфейсе — GetQr/Data, страница <code>/tinkoff/qr/…</code>, доступы</a></li>
-    <li><a href="/docs/documentation/queues-monitoring">Очереди в админке: мониторинг, доступы, queue.log, restart worker</a></li>
+    <li><a href="/docs/documentation/queues-monitoring">Очереди в админке: мониторинг, доступы, queue.log, restart worker; просроченный Init <code>overdueScheduled</code> ≠ «Касса» пульта — <a href="/doc#ops-till-missing-payout-index">анонс</a></a></li>
     <li><a href="/docs/documentation/tbank#payout-settings">T‑Bank: интервал джобы отложенных выплат, автовыплаты в правилах комиссий, защита от дублей</a></li>
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, <b>«Показать N»</b> (<code>page_length</code>), <b>шапка и горизонтальный скролл на экране</b> (§3.1, <a href="/doc#reports-tables-sticky-header-index">анонс</a>), <b>поиск DataTables</b> только ФИО и группа (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>), права, история T‑Bank; вкладка T‑Bank «Чек» / комиссия без <code>reports.additional.value.view</code> (<a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>), фильтр «Не было выплаты» (<a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>); ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
@@ -8180,9 +8478,10 @@
     <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>manage</code> / <code>sm_register</code>, модалки CRUD, <b>корр. счёт</b> (<code>bank_corr_account</code>, CRM-only + плейсхолдер договоров), <b>API-ключ Подпислона</b> (только superadmin, не <code>.env</code> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), карточка sm-register, ShopCode T‑Bank, guardrails, <code>LegalEntityResolver</code></a></li>
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, <b>create/edit/delete без «OK» и без F5</b> (<a href="/doc#teams-create-edit-toast-index">анонс</a>, §1.2, toast <code>#kidsMainToast</code>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: сайдбар/h4 «Пользователи»; вкладка <b>«Клиенты»</b> (<code>/admin/users</code>, роль <code>user</code>, label «Клиент»); <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок — <a href="/doc#users-client-naming-index">анонс нейминга</a></a></li>
-    <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
+    <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>только свои группы (<code>groups.own</code>)</b> — <a href="/doc#groups-own-index">анонс</a> / <a href="/docs/documentation/groups-own">groups-own</a>, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
+    <li><a href="/docs/documentation/groups-own">Право <code>groups.own</code>: тренер видит только свои группы (<code>team_trainer</code>), учеников своих групп в журнале/клиентах/консоли, merge чужих групп ученика; не в базовых ролях — <a href="/doc#groups-own-index">анонс</a></a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>«Мои документы» активного ребёнка</b> и ссылка из письма <code>?student=&amp;fill=</code> (<a href="/doc#account-documents-family-link-index">анонс</a>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
-    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «ФИО» (<code>users.view</code>) — только активные ученики <code>role=user</code> (<a href="/doc#cabinet-fio-select-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата)</a></li>
+    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «ФИО» (<code>users.view</code>) — только активные ученики <code>role=user</code> (<a href="/doc#cabinet-fio-select-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>оверлей «Пульт»</b> (<a href="/doc#ops-monitors-overlay-index">анонс</a>, «Касса» без выплаты после задержки — <a href="/doc#ops-till-missing-payout-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>колонка «Договор»</b> — иконка PDF при <code>signed_pdf_path</code>, скачать в новой вкладке (<a href="/doc#contract-list-signed-file-index">анонс</a>), <b>колонка «Обновлён»</b> — последнее событие журнала (<a href="/doc#contract-list-updated-at-index">анонс</a>), <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<code>provider_signing_url</code>, <a href="/doc#contract-podpislon-signing-url-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <b>«По умолчанию» → <code>{{documents_url}}</code></b> (<a href="/doc#contract-template-email-default-link-index">анонс</a>), <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<a href="/doc#contract-podpislon-signing-url-index">анонс</a>, §1.3), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>семейная ссылка из письма на нужного ребёнка</b> (<a href="/doc#account-documents-family-link-index">анонс</a>, §1.2), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на email ученика и родителя</b> (§6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>

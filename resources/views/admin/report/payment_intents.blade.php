@@ -563,10 +563,15 @@
                 }
             }
 
+            function paymentIntentsLockScrollHost() {
+                $('#payment-intents-table').closest('.kids-dt-scroll-x').css('overflow-y', 'hidden');
+            }
+
             function paymentIntentsAfterApplyVisibleColumns() {
                 if (window.KidsCrmReportTableSticky) {
                     window.KidsCrmReportTableSticky.bind('#payment-intents-table');
                 }
+                paymentIntentsLockScrollHost();
             }
 
             var dtApi = KidsCrmDataTable.create('#payment-intents-table', {
@@ -612,14 +617,11 @@
                     }
                 },
                     columnDefs: [],
-                    initComplete: function () {
-                        this.api().columns.adjust();
-                    },
                     drawCallback: function () {
-                        this.api().columns.adjust();
                         if (window.KidsCrmReportTableSticky) {
                             window.KidsCrmReportTableSticky.bind('#payment-intents-table');
                         }
+                        paymentIntentsLockScrollHost();
                     },
                     order: [[0, 'desc']],
                     language: @include('partials.datatables.ru'),

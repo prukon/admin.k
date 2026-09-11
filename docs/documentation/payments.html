@@ -395,6 +395,13 @@
     <br><b>Открытие:</b> <code>GET /pm/{code}</code> → Init <code>monthly_fee</code> + СБП,
     та же QR-витрина <code>payment/ulp-public-pay.blade.php</code> (группа + «Поставщик услуг»).
     Смена <code>price_cents</code> в админке: код ссылки живой, платёж переинициализируется.
+    Если начисление сняли корзиной бывшего (<code>price_cents = 0</code>) — статус
+    <code>kind=annulled</code>: заголовок «Абонемент аннулирован», текст
+    «Этот абонемент был аннулирован. Если у вас остались вопросы, свяжитесь с клубом.»;
+    QR AJAX — <b>422</b> с тем же текстом. Код ссылки живой, строка
+    <code>users_prices</code> не удаляется.
+    (<a href="/docs/documentation/setting-prices-monthly-users#former-charge-clear">setting-prices-monthly-users §3.2.1</a>,
+    <a href="/doc#setting-prices-monthly-former-charge-clear-index">анонс</a>).
     Карточка уведомлений —
     <a href="/docs/documentation/setting-prices-payment-notifications#sbp-pay-link">setting-prices-payment-notifications §6.1</a>.
   </div>
@@ -403,7 +410,8 @@
     Тесты: <code>UserPricePublicPayFeatureTest</code>
     (в т.ч. HTML QR ходит на <code>/pay/up/{token}/qr/*</code>, а не на
     <code>/pay/ulp/</code>; GET 200 для гостя и без права СБП; чужие методы не 500;
-    ручная оплата / T‑Bank выключен после выдачи ссылки),
+    ручная оплата / T‑Bank выключен после выдачи ссылки;
+    после <code>price_cents = 0</code> — «Этот абонемент был аннулирован…»),
     <code>PaymentNotificationsFeatureTest</code> (автоблок / пустая ссылка без T‑Bank).</p>
 
   <h3 id="payment-checkout-service-provider">3.1.2 Блок «Поставщик услуг» на витрине оплаты (2026‑07)</h3>
@@ -634,7 +642,9 @@
     Право назначений — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>.
     <br><b>Открытие страницы:</b> <code>GET /p/{code}</code> (<code>showShort</code>) или <code>GET /pay/ulp/{token}</code> (<code>show</code>) → <code>UserLessonPackagePublicPayService::resolvePublicShow()</code>.
     QR AJAX остаётся на <code>/pay/ulp/{token}/qr/*</code> (в шаблон передаётся 64-hex <code>token</code>).
-    При успехе — шаблон <code>payment/ulp-public-pay.blade.php</code> (<code>kind=qr</code>); иначе статусные view (<code>paid</code>, <code>expired</code>, <code>config</code>, <code>error</code>) без блока «Поставщик услуг».
+    При успехе — шаблон <code>payment/ulp-public-pay.blade.php</code> (<code>kind=qr</code>); иначе статусные view (<code>paid</code>, <code>annulled</code>, <code>expired</code>, <code>config</code>, <code>error</code>) без блока «Поставщик услуг».
+    <code>kind=annulled</code> — ULP уже нет (в т.ч. после корзины неоплаченного месяца бывшего, когда неразложенный ULP удалили): заголовок «Абонемент аннулирован», тот же текст, что у <code>/pm/{code}</code>
+    (<a href="/docs/documentation/setting-prices-monthly-users#former-charge-clear">§3.2.1</a>).
     <b>SMS со ссылкой:</b> колонка «Отправить» на той же вкладке шлёт короткий URL в SMS
     текстом <code>Оплатите абонемент {сумма} руб: {ссылка}</code> (до 99 999 ₽ — 1 Unicode SMS;
     тариф 70 ₽ с баланса кабинета) —

@@ -172,7 +172,7 @@
     <li>Перенести ключи из любой рабочей per-partner строки в глобальную.</li>
     <li>Выставить <code>is_enabled</code> и при необходимости <code>test_mode</code>.</li>
     <li>Удалить устаревшие <code>payment_systems(name=tbank, partner_id IS NOT NULL)</code>.</li>
-    <li>Для каждого партнёра настроить автовыплату в правилах комиссий (<code>/admin/settings/tbank-commissions/{id}/edit</code>).</li>
+    <li>Для каждого партнёра настроить автовыплату в правилах комиссий на <code>/admin/settings/tbank-commissions</code> (модалка редактирования).</li>
     <li>Убедиться, что у партнёра зарегистрировано хотя бы одно активное юр. лицо с ShopCode в справочнике <a href="/docs/documentation/admin-legal-entities">«Юр. лица»</a> (см. <a href="/docs/documentation/account-partner-organization">account-partner-organization</a>).</li>
   </ol>
   <p class="small">Автоматической миграции данных в релизе нет — по решению владельца платформы.</p>

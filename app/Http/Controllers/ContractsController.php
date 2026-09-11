@@ -47,8 +47,9 @@ class ContractsController extends Controller
 
         // Все группы партнёра для фильтра по группе
         $allTeams = Team::where('partner_id', $partnerId)
-            ->orderBy('order_by', 'asc')
-            ->get();
+            ->orderBy('order_by', 'asc');
+        app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery($allTeams, Auth::user(), (int) $partnerId);
+        $allTeams = $allTeams->get();
 
         return view('contracts.index', compact('allTeams'));
     }

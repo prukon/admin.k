@@ -85,6 +85,7 @@ final class ReportsAndPayoutsPageLengthFullAccessFeatureTest extends CrmTestCase
             'table_key'   => 'reports_tbank_payments',
             'view_var'    => 'tbankPaymentsPageLength',
             'create'      => "KidsCrmDataTable.create('#tbank-payments-table'",
+            'page_length_var' => 'currentPageLength',
         ]];
         yield 'tinkoff_payouts' => [[
             'permission'  => 'tbank.payouts.manage',
@@ -155,7 +156,12 @@ final class ReportsAndPayoutsPageLengthFullAccessFeatureTest extends CrmTestCase
             ->getContent();
 
         $this->assertStringContainsString('persistPageLength: true', $html);
-        $this->assertMatchesRegularExpression('/pageLength:\s*50\b/', $html);
+        if (($case['page_length_var'] ?? '') === 'currentPageLength') {
+            $this->assertMatchesRegularExpression('/var currentPageLength\s*=\s*50\b/', $html);
+            $this->assertMatchesRegularExpression('/pageLength:\s*currentPageLength\b/', $html);
+        } else {
+            $this->assertMatchesRegularExpression('/pageLength:\s*50\b/', $html);
+        }
 
         $payload = $this->getJson($case['get_url'])->assertOk()->json();
         $this->assertArrayNotHasKey('page_length', $payload);

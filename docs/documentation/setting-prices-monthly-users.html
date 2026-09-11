@@ -35,7 +35,11 @@
   <div class="note">
     <b>Кратко.</b> Раздел задаёт и показывает месячные начисления <code>users_prices</code> в разрезе группы
     (<code>team_id</code>). С 2026‑08 обе вкладки умеют <b>показывать историю учеников, которых уже нет в группе</b>
-    (бывшие участники), но <b>не дают их редактировать</b>. Источник истины по членству — pivot
+    (бывшие участники), но <b>не дают менять абонемент и цену</b>.
+    На «По месяцам» неоплаченное начисление бывшего снимается корзиной
+    (<a href="#former-charge-clear">§3.2.1</a>,
+    <a href="/doc#setting-prices-monthly-former-charge-clear-index">анонс</a>).
+    Источник истины по членству — pivot
     <code>team_user</code> (<a href="/docs/documentation/student-team-membership">student-team-membership</a>);
     модель данных начислений — <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>.
     <br><br>
@@ -75,6 +79,14 @@
     справа «Загрузка…»). Анонс —
     <a href="/doc#setting-prices-monthly-team-select-index">/doc</a>, подробно —
     <a href="#team-select">§3.2</a>.
+    <br><br>
+    <b>Корзина бывшего на «По месяцам»:</b> вместо карандаша — снять неоплаченное
+    начисление (обнулить сумму, снять абонемент, ULP если не разложен).
+    Оплаченное без корзины. Право <code>setPrices.view</code>, не
+    <code>manualPaid.manage</code>. Вкладка «По ученикам» корзины не показывает.
+    Анонс —
+    <a href="/doc#setting-prices-monthly-former-charge-clear-index">/doc</a>, подробно —
+    <a href="#former-charge-clear">§3.2.1</a>.
     <br><br>
     <b>Ручная пролонгация месяца:</b> на «По месяцам» кнопка копирует абонементы M → M+1
     по всем группам партнёра (превью, затем подтверждение). Это не classic-автопролонг
@@ -232,7 +244,9 @@
     <li><b>Текущие:</b> активные ученики группы → <code>UserPrice::firstOrCreate</code> по <code>(user_id, team_id, new_month)</code>, флаг <code>is_former_member=false</code>.</li>
     <li><b>Бывшие:</b> существующие строки за <b>этот же месяц</b> с <code>price_cents &gt; 0</code>, <code>user_id</code> не в pivot группы; <code>firstOrCreate</code> <b>не</b> вызывается; флаг <code>is_former_member=true</code> и в <code>usersTeam</code>, и в <code>usersPrice</code>.</li>
     <li><b>Порядок:</b> сначала текущие (ФИО), затем бывшие (ФИО).</li>
-    <li><b>UI:</b> бейдж «не в группе», поля абонемента/цены disabled+readonly, без карандаша; «Применить» справа не отправляет бывших в payload (сервер всё равно пропускает не-членов через <code>studentBelongsToTeam</code>). Успех карандаша одного ученика («Изменения сохранены.») и «Применить» справа («Цены ученикам в выбранной группе успешно обновлены.») — toast <code>window.showToast</code> в Vite-модуле <code>resources/js/settings-prices.js</code> (вкладка его подключает через <code>@vite</code>; <code>public/js/settings-prices.js</code> вкладка не грузит). «Применить» слева (всем группам) по-прежнему модалка успеха с reload. Анонс — <a href="/doc#success-toast-instead-of-modal-index">/doc</a>.</li>
+    <li><b>UI:</b> бейдж «не в группе», поля абонемента/цены disabled+readonly, без карандаша.
+      Неоплаченное начисление — корзина (§<a href="#former-charge-clear">3.2.1</a>).
+      «Применить» справа не отправляет бывших в payload (сервер всё равно пропускает не-членов через <code>studentBelongsToTeam</code>). Успех карандаша одного ученика («Изменения сохранены.») и «Применить» справа («Цены ученикам в выбранной группе успешно обновлены.») — toast <code>window.showToast</code> в Vite-модуле <code>resources/js/settings-prices.js</code> (вкладка его подключает через <code>@vite</code>; <code>public/js/settings-prices.js</code> вкладка не грузит). «Применить» слева (всем группам) по-прежнему модалка успеха с reload. Анонс — <a href="/doc#success-toast-instead-of-modal-index">/doc</a>.</li>
     <li><b>Пустая группа:</b> если текущих нет, но есть бывшие с <code>price_cents &gt; 0</code> за месяц → <code>success: true</code> (раньше было <code>false</code>).</li>
   </ul>
   <div class="warn">
@@ -240,8 +254,69 @@
     <code>setTeamPrice</code> / <code>setPriceAllTeams</code> (снимок только по <code>$team-&gt;students()</code>),
     <code>setPriceAllUsers</code> (skip без членства),
     <code>setManualPaid</code> (<b>422</b> без членства).
-    Non-AJAX варианты apply → <b>302</b> на monthly, запись бывшего в БД не меняется.
+    Снять неоплаченное начисление бывшего можно только корзиной §<a href="#former-charge-clear">3.2.1</a>
+    (не Apply). Non-AJAX варианты apply → <b>302</b> на monthly, запись бывшего в БД не меняется.
   </div>
+
+  <h3 id="former-charge-clear">3.2.1) Корзина неоплаченного начисления бывшего</h3>
+  <div class="ok">
+    Только вкладка «По месяцам» (<code>/admin/setting-prices/monthly</code>).
+    У бывшего вместо карандаша — корзина, если месяц <b>не</b> оплачен
+    (<code>effective_is_paid</code> = нет, ни авто <code>is_paid</code>, ни
+    <code>is_manual_paid</code>). Оплаченное — <b>без</b> корзины (не disabled).
+    Карандаш у бывшего не рисуется. Право — <code>setPrices.view</code>
+    (как у раздела), не <code>manualPaid.manage</code>.
+    Вкладка «По ученикам» корзины <b>не</b> показывает
+    (<code>users.blade.php</code> без monthly Vite-модуля;
+    <code>user-year-prices</code> без флагов <code>can_clear_former_charge</code> /
+    <code>former_charge_clear_block_reason</code>).
+    Анонс — <a href="/doc#setting-prices-monthly-former-charge-clear-index">/doc</a>.
+  </div>
+  <ul>
+    <li><b>Снятие:</b> <code>price_cents=0</code>, <code>lesson_package_id=null</code>,
+      <code>discount_percent</code> / <code>discount_comment</code> = null,
+      затем <code>UsersPriceLessonPackageSync</code> (неразложенный неиспользованный ULP удаляется).
+      Строка <code>users_prices</code> остаётся. Из списка месяца пропадает
+      (бывшие только с <code>price_cents &gt; 0</code>).</li>
+    <li><b>Нельзя снять</b> (корзина disabled, ховер
+      <code>kids-tooltip-hint setting-prices-monthly-clear-disabled-wrap</code>):
+      «Нельзя удалить: начисление уже оплачено.» (в JSON; в UI у оплаченных корзины нет);
+      «Нельзя удалить: по постоплате уже есть посещения.»;
+      «Нельзя удалить: связанные занятия уже стоят в расписании.»;
+      «Нельзя удалить: по абонементу уже были занятия.».
+      Постоплата без посещений (если строка ещё видна) — корзина активна.
+      Клик по disabled не открывает confirm и не шлёт POST.</li>
+    <li><b>UI:</b> класс <code>user-price-former-clear</code>,
+      активная кнопка <code>title="Удалить начисление"</code>.
+      Подтверждение — <code>showConfirmDeleteModal</code>
+      («Удаление начисления» / «Удалить начисление за {месяц} в этой группе? …»).
+      Успех — toast «Начисление снято.» +
+      <code>loadTeamUsersRightColumn(..., { keepActiveHighlight: true })</code>,
+      без <code>location.reload</code>.
+      Ошибки — <code>.former-clear-error</code> (поле <code>errors.charge</code> и др.).
+      Vite: <code>resources/js/settings-prices.js</code>,
+      POST JSON <code>JSON.stringify</code> + <code>Accept: application/json</code>
+      (без <code>X-Requested-With</code>).</li>
+    <li><b>HTTP:</b> POST <code>/admin/setting-prices/former-month-charge/clear</code>
+      (<code>ClearFormerMemberMonthChargeRequest</code>: <code>user_id</code>,
+      <code>team_id</code>, <code>selectedDate</code>;
+      «Не указан ученик.», «Выберите группу.», «Укажите месяц.»).
+      JSON (<code>ajax()</code> или <code>wantsJson()</code>) — <b>200</b>
+      <code>{ success: true, message: "Начисление снято." }</code>
+      или <b>422</b> <code>errors.charge</code> / поля Request.
+      Текущий член → 422 «Снять начисление корзиной можно только у ученика, который больше не состоит в этой группе.».
+      Нет положительного начисления → 422 «Нет начисления за выбранный месяц, которое можно снять.».
+      Чужой ученик / группа → <b>404</b>.
+      Non-AJAX HTML успех → <b>302</b> на monthly, запись снимается.
+      GET/PATCH/PUT/DELETE на POST-руте → <b>404/405</b>.
+      Гость / без view → 302/401/403. Достаточно <code>setPrices.view</code>.</li>
+    <li><b>Оплата после снятия:</b> <code>/pm/{code}</code> (и длинный
+      <code>/pay/up/{token}</code>) — заголовок «Абонемент аннулирован»,
+      «Этот абонемент был аннулирован. Если у вас остались вопросы, свяжитесь с клубом.»;
+      QR — <b>422</b> с тем же текстом.
+      Если удалён связанный ULP — <code>/p/{code}</code> тоже <code>kind=annulled</code>.
+      Аудит <code>pricing.former_charge_cleared</code>.</li>
+  </ul>
 
   <h3 id="former-users">3.3) Вкладка «По ученикам»</h3>
   <ul>
@@ -333,6 +408,17 @@
           Пишет <code>is_manual_paid</code> / note / by / at, <b>не</b> трогает авто <code>is_paid</code>.
           Опционально <code>lesson_package_id</code> и <code>price</code> — см. §<a href="#manual-paid-card">manual-paid карточка</a>.
           См. §<a href="#manual-paid-debts">manual-paid → задолженности</a></td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/former-month-charge/clear</code></td>
+        <td><code>setting-prices.former-month-charge.clear</code></td>
+        <td>Только бывший + неоплаченное начисление. JSON 200
+          <code>message</code> «Начисление снято.» / non-AJAX <b>302</b> → monthly.
+          422 <code>errors.charge</code> / поля Request. 404 чужой ученик/группа.
+          GET/PATCH/PUT/DELETE → 404/405. Право <code>setPrices.view</code>
+          (без <code>manualPaid.manage</code>).
+          См. §<a href="#former-charge-clear">3.2.1</a></td>
       </tr>
     </tbody>
   </table>
@@ -428,7 +514,9 @@
 
   <h2 id="code">5) Ключевые файлы</h2>
   <ul>
-    <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>getTeamPrice</code>, <code>formerMemberPricesForTeamMonth</code>, <code>usersForPricesUsersTab</code>, <code>userYearPrices</code>, apply/save/manual, <code>applyUnpaidUserPriceRow</code>, <code>previewMonthProlong</code> / <code>applyMonthProlong</code></li>
+    <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>getTeamPrice</code>, <code>formerMemberPricesForTeamMonth</code>, <code>clearFormerMemberMonthCharge</code>, <code>usersForPricesUsersTab</code>, <code>userYearPrices</code>, apply/save/manual, <code>applyUnpaidUserPriceRow</code>, <code>previewMonthProlong</code> / <code>applyMonthProlong</code></li>
+    <li><code>app/Http/Requests/Admin/ClearFormerMemberMonthChargeRequest.php</code> — снятие начисления бывшего</li>
+    <li><code>app/Services/SettingPrices/FormerMemberMonthChargeService.php</code> — can_clear / причины / clear</li>
     <li><code>app/Http/Requests/Admin/SetManualUserPricePaidRequest.php</code> — ручная отметка оплаты месяца (+ опционально абонемент/цена карточки)</li>
     <li><code>app/Services/SettingPrices/MonthlyPricesProlongService.php</code> — превью и запись пролонгации месяца</li>
     <li><code>app/Services/SettingPrices/UsersPriceLessonPackageSync.php</code> — create/update/delete ULP из начисления</li>
@@ -446,6 +534,16 @@
     <li><code>SettingPricesUsersPriceUlpSyncFeatureTest</code> — create/update/clear ULP, postpay без ULP, block при laid out, reapply/ends_at</li>
     <li><code>SettingPricesUsersPriceUlpSyncContractsFeatureTest</code> — AJAX/non-AJAX, guest/403, year-prices sync</li>
     <li><code>SettingPricesMonthlyFormerMembersFeatureTest</code> — список, флаги, apply не трогает бывших, нет auto-create нулей</li>
+    <li><code>SettingPricesMonthlyFormerChargeClearFeatureTest</code> — корзина: снятие, 422 paid/postpay/laid out/текущий член/ручная оплата, флаги JSON; вкладка «По ученикам» year-prices <b>без</b> <code>can_clear_former_charge</code></li>
+    <li><code>SettingPricesMonthlyFormerChargeClearAccessFeatureTest</code> — guest/403/404, AJAX 200/422, non-AJAX 302, GET/PATCH/PUT/DELETE 404/405, view без <code>manualPaid.manage</code>, чужой партнёр, без partner_id</li>
+    <li><code>SettingPricesMonthlyFormerChargeClearAjaxContractFeatureTest</code> — JSON с <code>X-Requested-With</code> и JSON-body как Vite; 422 <code>errors.user_id</code> / <code>team_id</code> / <code>selectedDate</code> / <code>charge</code> с текстами Request</li>
+    <li><code>SettingPricesMonthlyFormerChargeClearNonAjaxSafetyNetFeatureTest</code> — HTML POST без AJAX: 302 + БД; невалидный месяц/текущий член/оплачено — 302 + session errors; Accept JSON без AJAX-заголовка — JSON 200</li>
+    <li><code>SettingPricesMonthlyFormerChargeClearMarkupFeatureTest</code> — первый HTML monthly без корзины (карточки рисует JS); confirm-модалка в layout; вкладка «По ученикам» без Vite-корзины</li>
+    <li><code>SettingPricesMonthlyFormerChargeClearJsContractTest</code> — UX-баг: корзина только у бывшего unpaid, карандаш только у текущего, disabled+ховер, confirm, POST JSON, ошибки под <code>.former-clear-error</code> без reload</li>
+    <li><code>SettingPricesMonthlyFormerChargeClearDocumentationContractTest</code> — §3.2.1 и анонс <code>/doc#setting-prices-monthly-former-charge-clear-index</code></li>
+    <li><code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_former_charge_clear_ux_contract</code> — <code>node --check</code> + UX: disabled до confirm/ajax, вкладка users без корзины</li>
+    <li><code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_vite_module_former_members_ajax_handlers_have_valid_javascript_syntax</code> — <code>user-price-former-clear</code>, <code>can_clear_former_charge</code>, <code>showConfirmDeleteModal</code></li>
+    <li><code>UserPricePublicPayFeatureTest</code> — после <code>price_cents = 0</code> ссылка <code>/pm/{code}</code> показывает «Этот абонемент был аннулирован…»</li>
     <li><code>SettingPricesMonthlyManualPaidAppliesPackageFeatureTest</code> — UX-баг: смена абонемента в селекте
       без Apply, затем «оплачено» сохраняет ромашку+сумму; без полей — только статус;
       <code>mode=unpaid</code> пакет игнорирует; 422 на пакет/цену/разложенный ULP не ставит оплату;
@@ -513,6 +611,13 @@
   tests/Feature/Crm/SettingPrices/SettingPricesUsersPriceUlpSyncContractsFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersAccessFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerChargeClearFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerChargeClearAccessFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerChargeClearAjaxContractFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerChargeClearNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerChargeClearMarkupFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerChargeClearJsContractTest.php \
+  tests/Unit/Documentation/SettingPricesMonthlyFormerChargeClearDocumentationContractTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyManualPaidAppliesPackageFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyManualPaidPackageAccessFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyManualPaidPackageAjaxContractFeatureTest.php \

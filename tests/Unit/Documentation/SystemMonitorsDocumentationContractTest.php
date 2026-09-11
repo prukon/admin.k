@@ -188,6 +188,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
         $this->assertStringContainsString('/doc#ops-day-kpi-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-till-missing-payout-index', $chunk);
         $this->assertStringContainsString('last_message', $chunk);
         $this->assertStringContainsString('innerHTML', $chunk);
         $this->assertStringContainsString('leftover', $chunk);
@@ -215,6 +216,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOpsDayUxFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsDayAccessFeatureTest', $chunk);
         $this->assertStringContainsString('OpsDayKpiDocumentationContractTest', $chunk);
+        $this->assertStringContainsString('OpsTillMissingPayoutDocumentationContractTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingUxFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest', $chunk);
@@ -265,6 +267,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
         $this->assertStringContainsString('/doc#ops-day-kpi-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-till-missing-payout-index', $chunk);
         $this->assertStringContainsString('KidsCrmTooltip', $chunk);
         $this->assertStringContainsString('/doc#kids-tooltip-contrast-index', $chunk);
         $this->assertStringContainsString('STATUS_FAILED', $chunk);
@@ -390,6 +393,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
         $this->assertStringContainsString('/doc#ops-day-kpi-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-till-missing-payout-index', $chunk);
     }
 
     private function docFile(string $name): string

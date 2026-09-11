@@ -192,18 +192,24 @@ final class TbankCommissionsColumnsSettingsFeatureTest extends CrmTestCase
         $this->assertStringContainsString('fromCreateRoute = true', $html);
     }
 
-    public function test_edit_page_does_not_render_columns_dropdown_or_persist_show_by(): void
+    public function test_edit_query_flag_does_not_drop_columns_toolbar_or_show_by(): void
     {
+        $this->postJson(route('admin.setting.tbankCommissions.columns-settings.save'), [
+            'page_length' => 20,
+        ])->assertOk();
+
         $rule = $this->seedTbankCommissionRule((int) $this->partner->id);
 
-        $html = $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]))
+        $html = $this->get(route('admin.setting.tbankCommissions', ['edit' => $rule->id]))
             ->assertOk()
+            ->assertViewHas('tbankCommissionsPageLength', 20)
             ->getContent();
 
-        $this->assertStringNotContainsString('id="tbankCommissionsColumnsDropdown"', $html);
-        $this->assertStringNotContainsString('persistPageLength: true', $html);
-        $this->assertStringNotContainsString("KidsCrmDataTable.create('#tbank-commissions-table'", $html);
-        $this->assertStringContainsString('Правка правила #'.$rule->id, $html);
+        $this->assertStringContainsString('id="tbankCommissionsColumnsDropdown"', $html);
+        $this->assertStringContainsString('persistPageLength: true', $html);
+        $this->assertMatchesRegularExpression('/pageLength:\s*20\b/', $this->createChunk($html));
+        $this->assertSame(1, substr_count($html, "KidsCrmDataTable.create('#tbank-commissions-table'"));
+        $this->assertStringContainsString('id="tbankCommissionEditModal"', $html);
     }
 
     public function test_filter_submit_and_reset_reload_table_instead_of_recreating_it(): void

@@ -123,26 +123,68 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
         $resp->assertSessionHasErrors(['method']);
     }
 
-    public function test_edit_opens_for_existing_rule(): void
+    public function test_edit_non_ajax_redirects_to_list_with_edit_query(): void
     {
         $rule = TinkoffCommissionRule::create($this->validPayload([
             'partner_id' => $this->partner->id,
             'method' => 'card',
         ]));
 
-        $resp = $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]));
-        $resp->assertStatus(200);
-
-        $resp->assertViewIs('admin.setting.index');
-        $resp->assertViewHas('activeTab', 'tbankCommissions');
-        $resp->assertViewHas('mode', 'edit');
-        $resp->assertViewHas('rule');
-        $resp->assertViewHas('partners');
-        $resp->assertViewHas('tbankGloballyConnected');
-        $resp->assertViewHas('autoPayoutStatsByPartnerId');
+        $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]))
+            ->assertStatus(302)
+            ->assertRedirect(route('admin.setting.tbankCommissions', ['edit' => $rule->id]));
     }
 
-    public function test_update_updates_rule_when_partner_id_null_and_does_not_require_auto_payout_field(): void
+    public function test_edit_ajax_returns_json_payload(): void
+    {
+        $rule = TinkoffCommissionRule::create($this->validPayload([
+            'partner_id' => $this->partner->id,
+            'method' => 'card',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 12,
+            'platform_percent' => 4.5,
+        ]));
+
+        $this->getJson(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]))
+            ->assertOk()
+            ->assertJsonPath('id', $rule->id)
+            ->assertJsonPath('partner_id', $this->partner->id)
+            ->assertJsonPath('partner_title', $this->partner->title)
+            ->assertJsonPath('method', 'card')
+            ->assertJsonPath('method_label', 'Карты')
+            ->assertJsonPath('platform_percent', 4.5)
+            ->assertJsonPath('auto_payout_enabled', true)
+            ->assertJsonPath('auto_payout_delay_hours', 12)
+            ->assertJsonStructure([
+                'acquiring_percent',
+                'acquiring_min_fixed',
+                'payout_percent',
+                'payout_min_fixed',
+                'platform_min_fixed',
+                'is_enabled',
+                'tbank_globally_connected',
+                'payouts_30d_count',
+                'payouts_30d_last_at',
+                'payouts_30d_url',
+            ]);
+    }
+
+    public function test_update_ajax_validation_returns_422_with_field_errors(): void
+    {
+        $rule = TinkoffCommissionRule::create($this->validPayload([
+            'partner_id' => $this->partner->id,
+            'method' => 'card',
+        ]));
+
+        $payload = $this->validPayload();
+        unset($payload['auto_payout_delay_hours']);
+
+        $this->putJson(route('admin.setting.tbankCommissions.update', ['id' => $rule->id]), $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['auto_payout_delay_hours']);
+    }
+
+    public function test_update_ajax_succeeds_and_returns_json(): void
     {
         $rule = TinkoffCommissionRule::create($this->validPayload([
             'partner_id' => $this->partner->id,
@@ -150,15 +192,38 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
             'platform_percent' => 3.0,
         ]));
 
+        $this->putJson(route('admin.setting.tbankCommissions.update', ['id' => $rule->id]), $this->validPayload([
+            'method' => 'sbp',
+            'platform_percent' => 8.1,
+            'auto_payout_delay_hours' => 6,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('message', 'Правило обновлено');
+
+        $rule->refresh();
+        $this->assertSame('card', $rule->method);
+        $this->assertSame((int) $this->partner->id, (int) $rule->partner_id);
+        $this->assertSame(8.1, (float) $rule->platform_percent);
+    }
+
+    public function test_update_keeps_scope_of_global_rule_and_does_not_require_auto_payout_field(): void
+    {
+        $rule = TinkoffCommissionRule::create($this->validPayload([
+            'partner_id' => null,
+            'method' => null,
+            'platform_percent' => 3.0,
+            'auto_payout_enabled' => false,
+            'auto_payout_delay_hours' => 0,
+        ]));
+
         $payload = $this->validPayload([
-            'partner_id' => null, // блок автоплаты не должен выполняться
+            'partner_id' => $this->partner->id,
             'method' => 'tpay',
             'platform_percent' => 9.9,
             'is_enabled' => 0,
         ]);
-
-        // auto_payout_enabled не отправляем специально
         unset($payload['auto_payout_enabled']);
+        unset($payload['auto_payout_delay_hours']);
 
         $resp = $this->put(route('admin.setting.tbankCommissions.update', ['id' => $rule->id]), $payload);
 
@@ -167,9 +232,33 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
         $resp->assertSessionHas('status', 'Правило обновлено');
 
         $rule->refresh();
-        $this->assertSame('tpay', $rule->method);
-        $this->assertSame(9.9, (float)$rule->platform_percent);
-        $this->assertFalse((bool)$rule->is_enabled);
+        $this->assertNull($rule->partner_id);
+        $this->assertNull($rule->method);
+        $this->assertSame(9.9, (float) $rule->platform_percent);
+        $this->assertFalse((bool) $rule->is_enabled);
+        $this->assertFalse((bool) $rule->auto_payout_enabled);
+    }
+
+    public function test_update_ignores_spoofed_partner_id_and_method(): void
+    {
+        $rule = TinkoffCommissionRule::create($this->validPayload([
+            'partner_id' => $this->partner->id,
+            'method' => 'card',
+            'platform_percent' => 3.0,
+        ]));
+
+        $this->put(route('admin.setting.tbankCommissions.update', ['id' => $rule->id]), $this->validPayload([
+            'partner_id' => $this->foreignPartner->id,
+            'method' => 'tpay',
+            'platform_percent' => 5.5,
+            'auto_payout_delay_hours' => 3,
+        ]))
+            ->assertRedirect(route('admin.setting.tbankCommissions'));
+
+        $rule->refresh();
+        $this->assertSame((int) $this->partner->id, (int) $rule->partner_id);
+        $this->assertSame('card', $rule->method);
+        $this->assertSame(5.5, (float) $rule->platform_percent);
     }
 
     public function test_destroy_deletes_rule(): void

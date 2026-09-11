@@ -158,12 +158,19 @@ final class JournalEmptyCellPlacementContextService
             return [];
         }
 
-        return Team::query()
+        $query = Team::query()
             ->where('partner_id', $partnerId)
             ->whereNull('deleted_at')
             ->whereIn('id', $teamIds)
             ->orderBy('order_by')
-            ->orderBy('title')
+            ->orderBy('title');
+        app(\App\Services\TrainerOwnTeamsScope::class)->restrictTeamsQuery(
+            $query,
+            auth()->user(),
+            $partnerId
+        );
+
+        return $query
             ->get(['id', 'title'])
             ->map(static fn (Team $team): array => [
                 'id' => (int) $team->id,

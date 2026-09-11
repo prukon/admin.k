@@ -39,6 +39,7 @@ use App\Services\Schedule\JournalSingleLessonPlacementService;
 use App\Services\Schedule\JournalTrialLessonPlacementService;
 use App\Services\Schedule\ScheduleJournalMonthService;
 use App\Services\TeamUserSyncService;
+use App\Services\TrainerOwnTeamsScope;
 use App\Services\Postpay\PostpayJournalService;
 use App\Services\Postpay\PostpayUsersPriceSync;
 use App\Support\BuildsLogTable;
@@ -75,6 +76,7 @@ class ScheduleController extends AdminBaseController
         private readonly PostpayJournalService $postpayJournal,
         private readonly PostpayUsersPriceSync $postpaySync,
         private readonly JournalMonthlyPaymentStatusService $journalMonthlyPaymentStatus,
+        private readonly TrainerOwnTeamsScope $ownTeams,
     ) {
         parent::__construct($partnerContext);
     }
@@ -106,8 +108,19 @@ class ScheduleController extends AdminBaseController
             ->where('is_enabled', 1)
             ->withSystemRoleUser();
 
+        $actor = $request->user();
+        if ($team_id !== 'all' && $team_id !== 'none' && ctype_digit($team_id)) {
+            if (! $this->ownTeams->allowsTeamId($actor, $partnerId, (int) $team_id)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'team' => ['Выберите группу из списка.'],
+                ]);
+            }
+        }
+
         if ($team_id !== 'all') {
             $usersQuery->filterByStudentTeam($partnerId, $team_id);
+        } else {
+            $this->ownTeams->restrictStudentsQuery($usersQuery, $actor, $partnerId);
         }
 
         if ($searchQ !== '') {
@@ -123,7 +136,10 @@ class ScheduleController extends AdminBaseController
         }
 
         $users = $usersQuery
-            ->with(['teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)])
+            ->with(['teams' => function ($q) use ($partnerId, $actor) {
+                $q->where('teams.partner_id', $partnerId);
+                $this->ownTeams->restrictTeamsQuery($q, $actor, $partnerId);
+            }])
             ->orderBy('lastname')
             ->orderBy('name')
             ->orderBy('id')
@@ -138,6 +154,7 @@ class ScheduleController extends AdminBaseController
             $startOfMonth,
             $endOfMonth,
             $team_id,
+            $this->ownTeams->allowedTeamIds($actor, $partnerId),
         );
 
         $journalAssignments = $this->journalMonthService->fixedAssignmentsByUser($partnerId, $userIds);
@@ -174,8 +191,9 @@ class ScheduleController extends AdminBaseController
 
         $teams = Team::where('partner_id', $partnerId)
             ->where('is_enabled', 1)
-            ->orderBy('order_by')
-            ->get();
+            ->orderBy('order_by');
+        $this->ownTeams->restrictTeamsQuery($teams, $actor, $partnerId);
+        $teams = $teams->get();
 
         $teamWeekdays = [];
         if ($team_id !== 'all' && $team_id !== 'none' && is_numeric($team_id)) {
@@ -1379,6 +1397,13 @@ class ScheduleController extends AdminBaseController
         $this->assertScheduleStudent($user, $partnerId);
 
         $teamIds = $request->validated()['team_ids'] ?? [];
+        $existingTeamIds = $this->teamUserSync->teamIdsForStudent($user);
+        $teamIds = $this->ownTeams->mergeSubmittedStudentTeamIds(
+            $request->user(),
+            $partnerId,
+            $existingTeamIds,
+            $teamIds,
+        );
 
         DB::transaction(function () use ($teamIds, $user) {
             $this->teamUserSync->syncTeamsForStudent($user, $teamIds);
@@ -1492,6 +1517,9 @@ class ScheduleController extends AdminBaseController
     private function resolveScheduleContextTeamId(User $user, ?int $preferredTeamId = null): ?int
     {
         $teamIds = $this->teamUserSync->teamIdsForStudent($user);
+        $actor = auth()->user();
+        $partnerId = (int) ($user->partner_id ?? 0);
+        $teamIds = $this->ownTeams->visibleTeamIds($teamIds, $actor, $partnerId);
         if ($teamIds === []) {
             return null;
         }

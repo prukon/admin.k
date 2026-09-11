@@ -50,6 +50,9 @@ final class TbankCommissionsToolbarFeatureTest extends CrmTestCase
 
         $this->assertStringContainsString('id="tbankPayoutSettingsModal"', $html);
         $this->assertStringContainsString('id="tbankCommissionCreateModal"', $html);
+        $this->assertStringContainsString('id="tbankCommissionEditModal"', $html);
+        $this->assertStringContainsString("linkClass: 'js-tbank-commission-edit'", $html);
+        $this->assertStringContainsString("'.js-tbank-commission-edit'", $html);
         $this->assertStringContainsString('id="tbank-commissions-table"', $html);
         $this->assertStringContainsString('KidsCrmDataTable.create', $html);
         $this->assertStringContainsString('id="tbankCommissionsFiltersCollapse"', $html);
@@ -95,17 +98,40 @@ final class TbankCommissionsToolbarFeatureTest extends CrmTestCase
             ->assertSee('id="tbankCommissionCreateModal"', false);
     }
 
-    public function test_edit_page_does_not_render_list_toolbar(): void
+    public function test_edit_route_redirects_to_index_with_edit_flag(): void
     {
         $rule = TinkoffCommissionRule::create($this->rulePayload());
 
-        $html = $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]))
+        $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]))
+            ->assertRedirect(route('admin.setting.tbankCommissions', ['edit' => $rule->id]));
+
+        $html = $this->get(route('admin.setting.tbankCommissions', ['edit' => $rule->id]))
             ->assertOk()
-            ->assertViewHas('mode', 'edit')
+            ->assertViewHas('mode', 'list')
             ->getContent();
 
-        $this->assertStringNotContainsString('payments-report-toolbar-actions--many', $html);
-        $this->assertStringContainsString('Правка правила #' . $rule->id, $html);
+        $this->assertStringContainsString('payments-report-toolbar-actions--many', $html);
+        $this->assertStringContainsString('id="tbankCommissionEditModal"', $html);
+        $this->assertStringContainsString('#tbankCommissionEditModal .modal-dialog', $html);
+        $this->assertStringContainsString('max-width: min(720px, 96vw)', $html);
+        $editModalPos = strpos($html, 'id="tbankCommissionEditModal" tabindex');
+        $this->assertNotFalse($editModalPos);
+        $editDialogChunk = substr($html, $editModalPos, 400);
+        $this->assertStringContainsString('class="modal-dialog"', $editDialogChunk);
+        $this->assertStringNotContainsString('modal-lg', $editDialogChunk);
+        $this->assertStringContainsString('fromEditRoute =', $html);
+        $this->assertStringContainsString('Редактирование правила комиссии', $html);
+        $this->assertStringContainsString('id="tbank_edit_partner_title"', $html);
+        $this->assertStringContainsString('id="tbank_edit_method_label"', $html);
+
+        $editModalHtml = substr($html, $editModalPos);
+        $createModalPos = strpos($html, 'id="tbankCommissionCreateModal"');
+        $this->assertNotFalse($createModalPos);
+        $createModalHtml = substr($html, $createModalPos, $editModalPos > $createModalPos ? $editModalPos - $createModalPos : 8000);
+        $this->assertStringContainsString('Партнёр (опционально)', $createModalHtml);
+        $this->assertStringNotContainsString('Партнёр (опционально)', $editModalHtml);
+        $this->assertStringNotContainsString('<select name="partner_id"', $editModalHtml);
+        $this->assertStringNotContainsString('<select name="method"', $editModalHtml);
     }
 
     /**

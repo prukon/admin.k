@@ -142,6 +142,11 @@
     <li><b>Список групп</b> — на <code>/admin/teams</code> при <code>trainers.view</code> колонка «Тренер» (<code>trainer_label</code> — ФИО через запятую в JSON <code>/admin/teams/data</code>, настройка в «Поля списка»). Без права колонка скрыта, но поле в JSON остаётся. См. <a href="/docs/documentation/admin-teams">Группы (админка)</a>.</li>
   </ul>
   <p>UI: чекбоксы групп — <code>resources/views/admin/trainers/_teams_checkboxes.blade.php</code>; в модалках групп — мультиселект тренеров при <code>@can('trainers.view')</code>.</p>
+  <div class="note" id="groups-own">
+    Право <code>groups.own</code> режет фильтры и списки групп по <code>team_trainer</code> текущего тренера
+    (журнал, клиенты, консоль, чат, справочник групп). Не в базовых ролях.
+    См. <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>.
+  </div>
 
   <h2>5) Редактирование пользователя с ролью «Тренер»</h2>
   <div class="note">
