@@ -174,7 +174,7 @@ final class SettingPricesUsersYearPackageFeatureTest extends CrmTestCase
         $this->assertSame('2024-05-31', $ulp->ends_at?->format('Y-m-d'));
     }
 
-    public function test_save_skips_effective_paid_month(): void
+    public function test_save_rejects_assigning_package_to_paid_month_without_prepaid(): void
     {
         UserPrice::forceCreate([
             'user_id' => $this->student->id,
@@ -196,7 +196,9 @@ final class SettingPricesUsersYearPackageFeatureTest extends CrmTestCase
                     'lesson_package_id' => $this->package->id,
                 ],
             ],
-        ])->assertOk();
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['prices.0.lesson_package_id']);
 
         $this->assertDatabaseHas('users_prices', [
             'user_id' => $this->student->id,

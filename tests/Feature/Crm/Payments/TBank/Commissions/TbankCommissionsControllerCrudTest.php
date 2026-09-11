@@ -285,7 +285,7 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
         $this->put(route('admin.setting.tbankCommissions.update', ['id' => 999999]), $payload)->assertStatus(404);
 
         $this->delete(route('admin.setting.tbankCommissions.destroy', ['id' => 999999]))
-            ->assertStatus(302);
+            ->assertStatus(404);
     }
 }
 

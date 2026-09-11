@@ -967,13 +967,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const priceForInput = isPostpay
                 ? payableRubAfterUserDiscount(grossPostpay, appliedPct || userPct)
                 : up.price;
-            // Бывшие: всегда disabled. Текущие: абонемент всегда (если не оплачено);
-            // сумма открыта при первичной установке (нет абона), иначе — через карандаш.
-            // Postpay: цена только расчётная — инпут всегда readonly.
+            // Бывшие: всегда disabled. Текущие: селект абонемента доступен и у оплаченного
+            // (замена предоплаты, сумма заморожена). Сумма открыта при первичной установке
+            // (нет абона), иначе — через карандаш. Postpay: цена только расчётная — readonly.
             let packageSelectDisabled = 'disabled';
             let priceInputDisabled = 'disabled';
             if (!isFormer) {
-                packageSelectDisabled = eff ? 'disabled' : '';
+                packageSelectDisabled = '';
                 if (isPostpay) {
                     priceInputDisabled = 'disabled';
                 } else if (isEditing && !eff) {
@@ -996,6 +996,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const formerCardClass = isFormer ? ' setting-prices-user-card--former' : '';
             const formerDataAttr = isFormer ? ' data-is-former-member="1"' : '';
+            const paidDataAttr = ' data-effective-paid="' + (eff ? '1' : '0') + '"';
             const abonEstablishedAttr = ' data-abon-established="' + (hasAbon ? '1' : '0') + '"';
             const postpayVisitsHtml = isPostpay ? buildPostpayVisitsHtml(postpayVisits) : '';
             const postpayPriceHintAttrs = isPostpay
@@ -1022,7 +1023,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 : priceInputHtml;
 
             const userBlock = `
-                        <div class="setting-prices-user-card mb-2 pb-2 border-bottom${formerCardClass}" data-user-id="${uid}"${formerDataAttr}${abonEstablishedAttr} data-is-postpay="${isPostpay ? '1' : '0'}">
+                        <div class="setting-prices-user-card mb-2 pb-2 border-bottom${formerCardClass}" data-user-id="${uid}"${formerDataAttr}${paidDataAttr}${abonEstablishedAttr} data-is-postpay="${isPostpay ? '1' : '0'}">
                             <div class="setting-prices-monthly-row d-flex align-items-center gap-1 flex-nowrap w-100 min-w-0">
                                 <div class="setting-prices-monthly-name-col min-w-0">
                                     <span id="${uid}" class="user-name setting-prices-monthly-name-host d-flex flex-column min-w-0 w-100">${nameHtml}${formerBadgeHtml}</span>
@@ -1108,7 +1109,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         } else {
             $visits.remove();
-            if (pkg) {
+            const isPaid = $card.attr('data-effective-paid') === '1'
+                || (known ? effectivePaidFromUserPrice(known) : false);
+            if (pkg && !isPaid) {
                 $priceInput.val(formatPriceValue(payableRubAfterUserDiscount(pkg.price, previewPct)));
             }
             $priceInput.prop('readonly', false);
@@ -1142,6 +1145,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const abonEstablished = $card.attr('data-abon-established') === '1';
         if (isPostpay) {
             $priceInput.prop('disabled', true).prop('readonly', true);
+        } else if ($card.attr('data-effective-paid') === '1') {
+            $priceInput.prop('disabled', true);
         } else if (inEditMode) {
             $priceInput.prop('disabled', false);
         } else if (lastCanManageManualPaid && abonEstablished) {
@@ -1748,23 +1753,38 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     error: function (xhr, status, error) {
                         console.log('Error:', error);
-                        let msg = 'Не удалось сохранить цены.';
-                        if (xhr.responseJSON) {
-                            if (xhr.responseJSON.message) {
-                                msg = xhr.responseJSON.message;
+                        const payload = xhr.responseJSON || {};
+                        const errs = payload.errors || {};
+                        const cards = document.querySelectorAll('#right_bar .wrap-users .setting-prices-user-card:not([data-is-former-member="1"])');
+                        let fieldShown = false;
+                        Object.keys(errs).forEach(function (key) {
+                            const m = String(key).match(/^usersPrice\.(\d+)\.lesson_package_id$/);
+                            if (!m || !errs[key] || !errs[key][0]) {
+                                return;
                             }
-                            const errs = xhr.responseJSON.errors;
-                            if (errs) {
-                                const firstKey = Object.keys(errs)[0];
-                                if (firstKey && errs[firstKey] && errs[firstKey][0]) {
-                                    msg = errs[firstKey][0];
-                                }
+                            const idx = parseInt(m[1], 10);
+                            const card = cards[idx];
+                            if (!card) {
+                                return;
+                            }
+                            showMonthlyCardFieldError($(card), 'lesson_package_id', errs[key][0]);
+                            fieldShown = true;
+                        });
+                        let msg = 'Не удалось сохранить цены.';
+                        if (payload.message) {
+                            msg = payload.message;
+                        } else {
+                            const firstKey = Object.keys(errs)[0];
+                            if (firstKey && errs[firstKey] && errs[firstKey][0]) {
+                                msg = errs[firstKey][0];
                             }
                         }
-                        if (typeof showErrorModal === 'function') {
+                        if (!fieldShown && typeof showErrorModal === 'function') {
                             showErrorModal('Ошибка', msg);
-                        } else {
+                        } else if (!fieldShown) {
                             alert(msg);
+                        } else if (typeof window.showToast === 'function') {
+                            window.showToast(msg, true);
                         }
                     }
                 });

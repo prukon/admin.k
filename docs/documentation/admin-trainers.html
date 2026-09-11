@@ -144,7 +144,8 @@
   <p>UI: чекбоксы групп — <code>resources/views/admin/trainers/_teams_checkboxes.blade.php</code>; в модалках групп — мультиселект тренеров при <code>@can('trainers.view')</code>.</p>
   <div class="note" id="groups-own">
     Право <code>groups.own</code> режет фильтры и списки групп по <code>team_trainer</code> текущего тренера
-    (журнал, клиенты, консоль, чат, справочник групп). Не в базовых ролях.
+    (журнал, клиенты, консоль, чат, справочник групп и прочие селекты групп). Не в базовых ролях.
+    Нет привязок — пустые списки, не все группы школы. Create группы авто-attach’ит профиль.
     См. <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>.
   </div>
 

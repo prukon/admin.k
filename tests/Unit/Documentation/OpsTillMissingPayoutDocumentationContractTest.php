@@ -50,6 +50,9 @@ final class OpsTillMissingPayoutDocumentationContractTest extends TestCase
         $this->assertStringContainsString('without_payout', $chunk);
         $this->assertStringContainsString('countTone', $chunk);
         $this->assertStringContainsString('BladeInlineJsSyntaxTest', $chunk);
+        $this->assertStringContainsString('refunds.status', $chunk);
+        $this->assertStringContainsString('succeeded', $chunk);
+        $this->assertStringContainsString('cancelled_by_refund', $chunk);
     }
 
     public function test_live_code_matches_announced_till_missing_payout_contract(): void
@@ -61,6 +64,7 @@ final class OpsTillMissingPayoutDocumentationContractTest extends TestCase
         $this->assertStringContainsString("where('tinkoff_payouts.status', 'COMPLETED')", $model);
         $this->assertStringContainsString("where('tinkoff_payouts.status', 'INITIATED')", $model);
         $this->assertStringContainsString('when_to_run', $model);
+        $this->assertStringContainsString("where('refunds.status', 'succeeded')", $model);
         $this->assertStringNotContainsString('auto_payout_enabled', $model);
 
         $ops = (string) file_get_contents(dirname(__DIR__, 3).'/app/Support/OpsMonitor.php');
@@ -70,6 +74,7 @@ final class OpsTillMissingPayoutDocumentationContractTest extends TestCase
         $blade = (string) file_get_contents(dirname(__DIR__, 3).'/resources/views/includes/system_monitors/ops.blade.php');
         $this->assertStringContainsString('data-role="till-overdue"', $blade);
         $this->assertStringContainsString('CONFIRMED без успешной выплаты после задержки автовыплаты партнёра', $blade);
+        $this->assertStringContainsString('успешный возврат не считается', $blade);
         $this->assertStringContainsString("countTone(till.overdue_payouts)", $blade);
     }
 
@@ -93,6 +98,10 @@ final class OpsTillMissingPayoutDocumentationContractTest extends TestCase
 
         $payouts = $this->docFile('tbank-admin-payouts.html');
         $this->assertStringContainsString('/doc#ops-till-missing-payout-index', $payouts);
+
+        $refunds = $this->docFile('tbank-refunds-payout-cancel.html');
+        $this->assertStringContainsString('/doc#ops-till-missing-payout-index', $refunds);
+        $this->assertStringContainsString('refunds.status=succeeded', $refunds);
     }
 
     private function docFile(string $name): string

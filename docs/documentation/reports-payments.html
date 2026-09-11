@@ -49,6 +49,9 @@
         <li>платёж попадает, если <code>payments.team_id = выбранная группа</code>;</li>
         <li><b>или</b> (<code>payments.team_id IS NULL</code> <i>и</i> ученик состоит в выбранной группе по pivot) — для старых записей без снимка;</li>
         <li>реализация: <code>UserTeamQuery::applyPaymentLedgerTeamFilters</code> (отличается от LTV/monthly, где фильтр только по pivot — <code>applyReportTeamFilters</code>).</li>
+        <li>право <code>groups.own</code>: Select2 <code>GET …/payments/teams-search</code> отдаёт только группы тренера;
+            без выбранной группы строки отчёта не сужаются. Чужой <code>filter_team_id</code> игнорируется (как «все»), не 422.
+            См. <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>.</li>
       </ul>
     </li>
     <li><b>Текстовый поиск</b> по колонке «Группа» (<code>team_title</code> в query): совпадение по снимку <code>payments.team_title</code>, названию <code>teams</code> для <code>payments.team_id</code> или любой группе ученика в pivot.</li>

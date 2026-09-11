@@ -986,6 +986,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:settings.commission')->group(function () {
         Route::get('admin/settings/tbank-commissions', [TbankCommissionsController::class, 'index'])->name('admin.setting.tbankCommissions');
         Route::get('admin/settings/tbank-commissions/data', [TbankCommissionsController::class, 'data'])->name('admin.setting.tbankCommissions.data');
+        Route::get('admin/settings/tbank-commissions/logs-data', [TbankCommissionsController::class, 'log'])->name('logs.data.tbank-commission');
         Route::get('admin/settings/tbank-commissions/columns-settings', [TbankCommissionsController::class, 'getColumnsSettings'])->name('admin.setting.tbankCommissions.columns-settings.get');
         Route::post('admin/settings/tbank-commissions/columns-settings', [TbankCommissionsController::class, 'saveColumnsSettings'])->name('admin.setting.tbankCommissions.columns-settings.save');
         Route::post('admin/settings/tbank-commissions/payout-settings', [TbankCommissionsController::class, 'updatePayoutSettings'])->name('admin.setting.tbankCommissions.payoutSettings');

@@ -441,6 +441,11 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     Сброс: <code>KidsCrmGenericMultiselectSelect2.reset</code>.
     Без <code>locations.view</code> блок объекта не рендерится, <code>location_ids</code> на data не применяется.
   </p>
+  <div class="note">
+    Право <code>groups.own</code>: опции <code>#sl-filter-team</code> / <code>#leadTeam</code> — только группы из <code>team_trainer</code>
+    (<code>SchoolLeadController</code> + <code>restrictTeamsQuery</code>). Список заявок без выбранной секции этим правом не режется.
+    Подробно — <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>.
+  </div>
   <p>
     В модалке «Редактирование лида» поля <b>группа</b> (<code>#leadTeam</code>, один <code>team_id</code>)
     и <b>объект</b> (<code>#leadLocation</code>, один <code>location_id</code>) — Select2 single

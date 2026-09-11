@@ -69,7 +69,7 @@ final class TbankPaymentsReceiptAndCommissionFeatureTest extends CrmTestCase
         $html = $this->get(route('reports.tbank-payments.index'))->assertOk()->getContent();
 
         $this->assertMatchesRegularExpression(
-            '/<th>Сумма<\/th>\s*<th>Комиссия платформы<\/th>\s*<th>Выплата<\/th>/',
+            '/<th>Сумма<\/th>\s*<th>Комиссия платформы<\/th>\s*<th>Выплата<\/th>\s*<th>Статус выплаты<\/th>/',
             $html
         );
         $this->assertMatchesRegularExpression(

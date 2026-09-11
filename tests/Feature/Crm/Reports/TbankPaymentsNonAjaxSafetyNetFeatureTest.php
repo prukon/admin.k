@@ -314,5 +314,51 @@ final class TbankPaymentsNonAjaxSafetyNetFeatureTest extends CrmTestCase
 
         $this->getJson(route('reports.tbank-payments.total'))
             ->assertStatus(401);
+
+        $this->get(route('reports.tbank-payments.index', ['view' => 'days']), ['HTTP_ACCEPT' => 'text/html'])
+            ->assertRedirect();
+
+        $this->getJson(route('reports.tbank-payments.total', ['view' => 'months']))
+            ->assertStatus(401);
+    }
+
+    public function test_non_ajax_data_with_days_view_returns_json_not_empty_html(): void
+    {
+        $response = $this->get(route('reports.tbank-payments.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'view' => 'days',
+        ]), [
+            'HTTP_ACCEPT' => 'text/html',
+        ]);
+
+        $response->assertOk();
+        $this->assertNotSame('', trim((string) $response->getContent()));
+        $json = $response->json();
+        $this->assertIsArray($json);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('recordsFiltered', $json);
+    }
+
+    public function test_invalid_view_non_ajax_redirects_back_with_view_field_error(): void
+    {
+        $this->from(route('reports.tbank-payments.index'))
+            ->get(route('reports.tbank-payments.index', ['view' => 'weeks']))
+            ->assertStatus(302)
+            ->assertSessionHasErrors(['view']);
+
+        $this->from(route('reports.tbank-payments.index'))
+            ->get(route('reports.tbank-payments.total', ['view' => 'weeks']))
+            ->assertStatus(302)
+            ->assertSessionHasErrors(['view']);
+
+        $this->from(route('reports.tbank-payments.index'))
+            ->post('/admin/reports/tbank-payments/columns-settings', [
+                'view' => 'weeks',
+                'columns' => ['amount' => true],
+            ], ['HTTP_ACCEPT' => 'text/html'])
+            ->assertStatus(302)
+            ->assertSessionHasErrors(['view']);
     }
 }

@@ -70,6 +70,26 @@ final class UserPricePublicPayService
     }
 
     /**
+     * Отменить активный T‑Bank QR месяца (ссылка /pm/{code} остаётся, при открытии — новый Init).
+     */
+    public function invalidateActivePaymentAfterAmountChange(UserPrice $row): void
+    {
+        if ($row->effective_is_paid) {
+            return;
+        }
+
+        $link = UserPricePublicPayLink::query()
+            ->where('users_price_id', (int) $row->id)
+            ->first();
+
+        if (! $link || (string) ($link->tinkoff_payment_id ?? '') === '') {
+            return;
+        }
+
+        $this->invalidateActivePublicPayPayment($link);
+    }
+
+    /**
      * HTTPS-ссылка для письма. Пустая строка, если СБП сейчас недоступна
      * (нет T‑Bank, сумма вне диапазона, постоплата ещё закрыта, уже оплачено).
      * Init банка не выполняется.

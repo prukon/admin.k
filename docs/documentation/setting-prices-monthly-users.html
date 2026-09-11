@@ -49,6 +49,9 @@
     Для остальных типов (<code>fixed</code> / <code>flexible</code> / <code>no_schedule</code>) при сохранении
     <code>users_prices.lesson_package_id</code> сервис <code>UsersPriceLessonPackageSync</code> создаёт/обновляет
     связанный ULP — подробно в <a href="#ulp-sync">§ ULP sync</a>.
+    Предоплату можно заменить на другую предоплату даже если месяц разложен в журнале
+    или уже оплачен (сумма оплаченного заморожена) —
+    <a href="/doc#setting-prices-flexible-replace-index">анонс</a>.
     На вкладке «по месяцам»: слева при postpay цена группы скрыта (иконка <code>i</code> с подсказкой),
     справа сумма только расчётная (0 при 0 посещений). Кнопка «Применить» слева назначает шаблон.
     Без права новые postpay в каталоге скрыты (уже назначенные остаются для отображения);
@@ -126,12 +129,26 @@
   <ul>
     <li>Смена суммы при неразложенном / даже разложенном ULP (если месяц и ULP не оплачены) →
       синхронизация <code>fee_amount_cents</code> (из рублей UI через <code>Money</code>).</li>
-    <li>Смена шаблона при <b>уже разложенном</b> ULP (<code>isLaidOutInSchedule</code>) → <b>422</b>
-      на поле пакета (текст про раскладку в расписание).</li>
+    <li>Смена шаблона при <b>уже разложенном</b> ULP (<code>isLaidOutInSchedule</code>):
+      <b>предоплата → предоплата</b> (тот же месяц/группа, та же строка ULP) разрешена:
+      объём и остаток пересчитываются (<code>consumed = max(ledger, события consumes_lesson)</code>,
+      ячейки «Запись» не считаются);
+      новый объём &lt; списанного → <b>422</b> на поле пакета, ничего не пишем;
+      журнал сами не дополняем.
+      Иные типы (fixed / разовое / postpay) при раскладке → <b>422</b>
+      (текст про раскладку в расписание).
+      Анонс — <a href="/doc#setting-prices-flexible-replace-index">/doc#setting-prices-flexible-replace-index</a>.</li>
     <li>Смена шаблона при неразложенном → обновление ULP (объём/пакет).</li>
     <li>Снятие пакета / уход на postpay → физическое удаление <b>неразложенного</b> ULP;
       если разложен → <b>422</b>.</li>
-    <li>Оплаченный месяц (<code>effective_is_paid</code>) — sync не создаёт и не меняет ULP.</li>
+    <li>Оплаченный месяц (<code>users_prices.effective_is_paid</code> или оплаченный ULP):
+      сумму не переписываем; шаблон можно сменить только предоплата → предоплата.
+      Иная смена (в т.ч. снять пакет / поставить пакет в оплаченный месяц без предоплаты) →
+      <b>422</b> на поле пакета. Снимок тарифа слева оплаченный не-prepaid по-прежнему пропускает молча.</li>
+    <li>Неоплаченная замена с новой суммой: отмена активного T‑Bank QR месяца
+      (<code>/pm/{code}</code> живой) и перевыпуск SMS <code>/p/{code}</code>
+      (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>,
+      <a href="/docs/documentation/payments#up-public-pay">§3.1.3</a>).</li>
     <li><b>Автопролонгация:</b> если у ученика есть ULP с <code>auto_prolong_enabled</code>, создание
       нового месячного ULP через sync → ошибка с
       <code>UserLessonPackageAutoProlongGuard::BLOCK_REASON</code>
@@ -358,7 +375,10 @@
         <td><code>/admin/setting-prices/set-team-price</code></td>
         <td><code>setTeamPrice</code></td>
         <td>AJAX JSON / non-AJAX <b>302</b> → monthly. Снимок тарифа только текущим ученикам;
-          assignable-пакет → sync ULP (§ <a href="#ulp-sync">0</a>)</td>
+          assignable-пакет → sync ULP (§ <a href="#ulp-sync">0</a>).
+          Оплаченный prepaid: замена шаблона, сумма ученика заморожена;
+          оплаченный не-prepaid — пропуск молча.
+          Объём &lt; списанного → <b>422</b> <code>errors.lesson_package_id</code></td>
       </tr>
       <tr>
         <td>POST</td>
@@ -371,7 +391,10 @@
         <td><code>/admin/setting-prices/set-price-all-users</code></td>
         <td><code>setPriceAllUsers</code></td>
         <td>AJAX JSON / non-AJAX <b>302</b>. Skip без <code>studentBelongsToTeam</code>;
-          sync ULP; смена пакета при разложенном ULP → <b>422</b> на поле пакета</td>
+          sync ULP; смена пакета при разложенном ULP → <b>422</b>, кроме предоплата→предоплата
+          (§ <a href="#ulp-sync">0.2</a>); частичный save + ошибки
+          <code>usersPrice.{i}.lesson_package_id</code>
+          (AJAX JSON / non-AJAX <b>302</b> + session errors)</td>
       </tr>
       <tr>
         <td>POST</td>
@@ -398,7 +421,10 @@
         <td><code>/admin/setting-prices/user-year-prices/save</code></td>
         <td><code>setting-prices.user-year-prices.save</code></td>
         <td>AJAX JSON / non-AJAX <b>302</b> на users при успехе. Без членства → <b>422</b> JSON (в т.ч. non-AJAX);
-          assignable → sync ULP (в т.ч. идемпотентный догон)</td>
+          assignable → sync ULP (в т.ч. идемпотентный догон).
+          Замена предоплаты как справа: оплаченный месяц — сумма заморожена;
+          объём &lt; списанного → <b>422</b> <code>errors.prices.{i}.lesson_package_id</code>
+          (фронт рисует под селектом)</td>
       </tr>
       <tr>
         <td>POST</td>
@@ -431,12 +457,15 @@
     Бэкенд в одной транзакции вызывает <code>applyUnpaidUserPriceRow</code>
     (те же правила, что Apply справа: ULP sync, postpay, права типа шаблона)
     <b>до флажка оплаты</b>, затем пишет <code>is_manual_paid</code>.
-    Если apply даёт <b>422</b> (в т.ч. <code>errors.lesson_package_id</code> / <code>errors.price</code>) —
+    Если apply даёт <b>422</b> (в т.ч. <code>errors.lesson_package_id</code> / <code>errors.price</code>,
+    разложенный не-prepaid, объём предоплаты меньше списанного) —
     статус не ставится. Фронт показывает тексты под селектом абонемента
     (<code>setting-prices-monthly-package-error</code>) и полем цены
     (<code>setting-prices-monthly-price-error</code>);
     <code>errors.comment</code> / <code>errors.record</code> — в <code>.manual-paid-error</code>.
-    <code>mode=unpaid</code> поля карточки игнорирует (селект абонемента у оплаченного месяца disabled).
+    <code>mode=unpaid</code> поля карточки игнорирует (снятие оплаты не применяет абонемент/сумму).
+    Селект абонемента у оплаченного месяца на Apply остаётся доступным
+    (замена предоплаты — <a href="/doc#setting-prices-flexible-replace-index">анонс</a>).
     Если месяц уже эффективно оплачен, <code>applyUnpaidUserPriceRow</code> поля карточки не применяет.
     Без этих полей контракт прежний: только ручная отметка.
     Фронт читает селект/цену из DOM карточки (<code>JSON.stringify(payload)</code> после
@@ -531,7 +560,25 @@
 
   <h2 id="tests">6) Feature-тесты</h2>
   <ul>
-    <li><code>SettingPricesUsersPriceUlpSyncFeatureTest</code> — create/update/clear ULP, postpay без ULP, block при laid out, reapply/ends_at</li>
+    <li><code>SettingPricesUsersPriceUlpSyncFeatureTest</code> — create/update/clear ULP, postpay без ULP, block при laid out, reapply/ends_at;
+      замена разложенной/оплаченной предоплаты, объём &lt; списанного, массовый частичный save, ротация SMS</li>
+    <li><code>SettingPricesFlexibleReplaceFeatureTest</code> — UX: оплаченный месяц меняет шаблон и не переписывает сумму;
+      объём &lt; списанного → 422 на поле пакета; массовый частичный save; year-save и снимок группы</li>
+    <li><code>SettingPricesFlexibleReplaceAccessFeatureTest</code> — гость 302/401, без <code>setPrices.view</code> → 403,
+      GET/PATCH/DELETE → 404/405, чужая группа/ученик → 404</li>
+    <li><code>SettingPricesFlexibleReplaceAjaxContractFeatureTest</code> — JSON с <code>X-Requested-With</code>:
+      200 frozen price, 422 <code>errors.usersPrice.N.lesson_package_id</code> / <code>prices.N.lesson_package_id</code>
+      / <code>lesson_package_id</code>, частичный save отдаёт <code>usersPrice</code> сохранённого</li>
+    <li><code>SettingPricesFlexibleReplaceNonAjaxSafetyNetFeatureTest</code> — HTML POST без AJAX: 302 + БД;
+      объём/неизвестный пакет → 302 + session errors по полю</li>
+    <li><code>SettingPricesFlexibleReplaceMarkupFeatureTest</code> — первый HTML monthly без карточек (рисует Vite);
+      вкладка «По ученикам»: селект оплаченного не disabled, ошибка под селектом</li>
+    <li><code>SettingPricesFlexibleReplaceJsContractTest</code> — UX-баг: <code>packageSelectDisabled = ''</code>,
+      <code>if (pkg &amp;&amp; !isPaid)</code>, оба пути save на «По ученикам» шлют пакет у оплаченного</li>
+    <li><code>BladeInlineJsSyntaxTest::test_setting_prices_flexible_replace_paid_select_ux_contract</code> —
+      <code>node --check</code> Vite + inline users, те же UX-строки</li>
+    <li><code>SettingPricesFlexibleReplaceDocumentationContractTest</code> — §ulp-sync и анонс
+      <code>/doc#setting-prices-flexible-replace-index</code></li>
     <li><code>SettingPricesUsersPriceUlpSyncContractsFeatureTest</code> — AJAX/non-AJAX, guest/403, year-prices sync</li>
     <li><code>SettingPricesMonthlyFormerMembersFeatureTest</code> — список, флаги, apply не трогает бывших, нет auto-create нулей</li>
     <li><code>SettingPricesMonthlyFormerChargeClearFeatureTest</code> — корзина: снятие, 422 paid/postpay/laid out/текущий член/ручная оплата, флаги JSON; вкладка «По ученикам» year-prices <b>без</b> <code>can_clear_former_charge</code></li>

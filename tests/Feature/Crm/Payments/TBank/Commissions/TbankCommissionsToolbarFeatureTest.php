@@ -36,8 +36,11 @@ final class TbankCommissionsToolbarFeatureTest extends CrmTestCase
 
         $this->assertStringContainsString('>Настройки выплат</span>', $html);
         $this->assertStringContainsString('>Добавить комиссию</span>', $html);
+        $this->assertStringContainsString('>История</span>', $html);
         $this->assertStringContainsString('>Фильтры</span>', $html);
         $this->assertStringContainsString('>Колонки</span>', $html);
+        $this->assertStringContainsString('data-bs-target="#historyModal"', $html);
+        $this->assertStringContainsString('fa-clock-rotate-left payments-report-toolbar-icon', $html);
         $this->assertStringContainsString('data-bs-target="#tbankPayoutSettingsModal"', $html);
         $this->assertStringContainsString('data-bs-target="#tbankCommissionCreateModal"', $html);
         $this->assertStringContainsString('data-bs-target="#tbankCommissionsFiltersCollapse"', $html);
@@ -62,14 +65,17 @@ final class TbankCommissionsToolbarFeatureTest extends CrmTestCase
 
         $payoutPos = strpos($html, '>Настройки выплат</span>');
         $addPos = strpos($html, '>Добавить комиссию</span>');
+        $historyPos = strpos($html, '>История</span>');
         $filtersPos = strpos($html, '>Фильтры</span>');
         $columnsPos = strpos($html, '>Колонки</span>');
         $this->assertNotFalse($payoutPos);
         $this->assertNotFalse($addPos);
+        $this->assertNotFalse($historyPos);
         $this->assertNotFalse($filtersPos);
         $this->assertNotFalse($columnsPos);
         $this->assertLessThan($addPos, $payoutPos);
-        $this->assertLessThan($filtersPos, $addPos);
+        $this->assertLessThan($historyPos, $addPos);
+        $this->assertLessThan($filtersPos, $historyPos);
         $this->assertLessThan($columnsPos, $filtersPos);
     }
 

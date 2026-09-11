@@ -75,7 +75,8 @@ final class SettingPricesMonthlyManualPaidPackageJsContractTest extends TestCase
         $js = $this->settingsPricesJs();
         $this->assertStringContainsString('setting-prices-monthly-package-error', $js);
         $this->assertStringContainsString('setting-prices-monthly-price-error', $js);
-        $this->assertStringContainsString("packageSelectDisabled = eff ? 'disabled' : ''", $js);
+        $this->assertStringContainsString("packageSelectDisabled = ''", $js);
+        $this->assertStringNotContainsString("packageSelectDisabled = eff ? 'disabled' : ''", $js);
     }
 
     public function test_success_replaces_row_from_server_user_price_after_paid(): void

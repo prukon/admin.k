@@ -38,9 +38,17 @@ final class ReportsTbankPaymentsViewModesDocumentationContractTest extends TestC
         $this->assertStringContainsString("'view' => ['nullable', 'string', 'in:payments,days,months']", $chunk);
         $this->assertStringContainsString('data-error-for="view"', $chunk);
         $this->assertStringContainsString('tpHasActiveFilters', $chunk);
+        $this->assertStringContainsString('CONFIRMED', $chunk);
+        $this->assertStringContainsString('status=all', $chunk);
+        $this->assertStringContainsString('tpStatusDefaulted', $chunk);
+        $this->assertStringContainsString('tpApplyConfirmedDefault', $chunk);
+        $this->assertStringContainsString('tpClearConfirmedDefaultIfNeeded', $chunk);
+        $this->assertStringContainsString('statusAutoDefaulted', $chunk);
         $this->assertStringContainsString('destroyTbankPaymentsTable', $chunk);
         $this->assertStringContainsString('mountTbankPaymentsTable', $chunk);
         $this->assertStringContainsString('dtApi.reload()', $chunk);
+        $this->assertStringContainsString('kids-dt-scroll-x', $chunk);
+        $this->assertStringContainsString('tpView', $chunk);
         $this->assertStringContainsString('reports_tbank_payments_by_day', $chunk);
         $this->assertStringContainsString('reports_tbank_payments_by_month', $chunk);
         $this->assertStringContainsString('tbank-payments-summary-column-toggle', $chunk);
@@ -48,6 +56,7 @@ final class ReportsTbankPaymentsViewModesDocumentationContractTest extends TestC
         $this->assertStringContainsString('ReportsTbankPaymentsViewModesDocumentationContractTest', $chunk);
         $this->assertStringContainsString('/docs/documentation/reports-admin#reports-tbank-payments', $chunk);
         $this->assertStringContainsString('/doc#reports-tbank-payments-view-modes-index', $chunk);
+        $this->assertStringContainsString('/doc#reports-tbank-payments-summary-confirmed-default-index', $chunk);
         $this->assertStringContainsString('/doc#reports-tbank-payments-index', $chunk);
         $this->assertStringNotContainsString('/admin/reports/payments?', $chunk);
     }
@@ -85,6 +94,7 @@ final class ReportsTbankPaymentsViewModesDocumentationContractTest extends TestC
         $this->assertStringContainsString('DATE(tinkoff_payments.created_at)', $controller);
         $this->assertStringContainsString("DATE_FORMAT(tinkoff_payments.created_at, \\'%Y-%m\\')", $controller);
         $this->assertStringContainsString("'tpView' => \$request->view()", $controller);
+        $this->assertStringContainsString("'tpStatusDefaulted' => \$request->shouldDefaultConfirmedStatus()", $controller);
 
         $this->assertStringContainsString('id="tp-view-switch"', $blade);
         $this->assertStringContainsString('id="tp-view-btn-payments"', $blade);
@@ -93,14 +103,25 @@ final class ReportsTbankPaymentsViewModesDocumentationContractTest extends TestC
         $this->assertStringContainsString('data-error-for="view"', $blade);
         $this->assertStringContainsString('function mountTbankPaymentsTable()', $blade);
         $this->assertStringContainsString('function destroyTbankPaymentsTable()', $blade);
+        $this->assertStringContainsString('function tpApplyConfirmedDefault()', $blade);
+        $this->assertStringContainsString('function tpClearConfirmedDefaultIfNeeded()', $blade);
+        $this->assertStringContainsString('var statusAutoDefaulted', $blade);
         $this->assertStringContainsString('tbank-payments-summary-column-toggle', $blade);
         $this->assertStringContainsString('view: currentView', $blade);
         $this->assertStringContainsString('dtApi.reload();', $blade);
+        $unwrapPos = strpos($blade, "if (\$table.parent().hasClass('kids-dt-scroll-x'))");
+        $destroyCallPos = strpos($blade, 'dtApi.table.destroy()');
+        $this->assertNotFalse($unwrapPos);
+        $this->assertNotFalse($destroyCallPos);
+        $this->assertLessThan($destroyCallPos, $unwrapPos);
+        $this->assertStringContainsString("\$table.find('tbody').remove()", $blade);
 
         $this->assertStringContainsString("'tpView' => \$tpView ?? 'payments'", $tabs);
+        $this->assertStringContainsString("'tpStatusDefaulted' => \$tpStatusDefaulted ?? false", $tabs);
         $this->assertStringContainsString("'tbankPaymentsPageLength' => \$tbankPaymentsPageLength ?? 10", $tabs);
 
         $this->assertStringContainsString("public const VIEWS = ['payments', 'days', 'months']", $request);
+        $this->assertStringContainsString('function shouldDefaultConfirmedStatus()', $request);
         $this->assertStringContainsString("'view' => ['nullable', 'string', 'in:'.implode(',', self::VIEWS)]", $request);
         $this->assertStringContainsString("'view' => 'Вид'", $request);
         $this->assertStringContainsString("'view.in' => 'Поле «:attribute» содержит недопустимое значение.'", $request);

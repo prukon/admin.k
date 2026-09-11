@@ -7,8 +7,10 @@ namespace App\Services\SettingPrices;
 use App\Models\LessonPackage;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
-use App\Services\UserLessonPackageAssignmentDeletionService;
 use App\Services\LessonPackages\UserLessonPackageAutoProlongGuard;
+use App\Services\Payments\UserLessonPackagePublicPayService;
+use App\Services\Payments\UserPricePublicPayService;
+use App\Services\UserLessonPackageAssignmentDeletionService;
 use Carbon\Carbon;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -17,13 +19,49 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *
  * Postpay → ULP не создаём; при уходе с assignable на postpay/пусто — удаляем неразложенный ULP.
  * Assignable (fixed/flexible/no_schedule) → create/update ULP + FK + billing_month.
+ * Месячная предоплата → предоплата: шаблон можно сменить даже если уже разложено / оплачено
+ * (цена оплаченного месяца не переписывается).
  */
 final class UsersPriceLessonPackageSync
 {
     public function __construct(
         private readonly UserLessonPackageAssignmentDeletionService $deletionService,
         private readonly UserLessonPackageAutoProlongGuard $autoProlongGuard,
+        private readonly UserLessonPackagePublicPayService $ulpPublicPay,
+        private readonly UserPricePublicPayService $userPricePublicPay,
     ) {
+    }
+
+    /**
+     * Можно ли заменить шаблон на месячную предоплату (в т.ч. разложенную/оплаченную).
+     */
+    public function isFlexibleReplaceAllowed(UserPrice $row, LessonPackage $newPackage): bool
+    {
+        if (! $newPackage->isFlexible()) {
+            return false;
+        }
+
+        $linked = $this->resolveLinkedUlp($row);
+        if ($linked !== null) {
+            if (! $linked->isFromSettingPrices()) {
+                return false;
+            }
+
+            $linked->loadMissing('lessonPackage:id,schedule_type');
+
+            return $linked->lessonPackage !== null && $linked->lessonPackage->isFlexible();
+        }
+
+        $oldId = $row->lesson_package_id !== null ? (int) $row->lesson_package_id : 0;
+        if ($oldId < 1) {
+            return false;
+        }
+
+        $old = $row->relationLoaded('lessonPackage') && $row->lessonPackage
+            ? $row->lessonPackage
+            : LessonPackage::query()->find($oldId);
+
+        return $old !== null && $old->isFlexible();
     }
 
     /**
@@ -73,7 +111,7 @@ final class UsersPriceLessonPackageSync
         $billingMonthEnd = Carbon::parse($billingMonth)->endOfMonth()->format('Y-m-d');
         $feeAmountCents = (int) $row->price_cents;
         $lessons = max(0, (int) $package->lessons_count);
-        $isFlexible = (string) $package->schedule_type === LessonPackage::SCHEDULE_TYPE_FLEXIBLE;
+        $isFlexible = $package->isFlexible();
         // Гибкий из установки цен: период сразу на весь месяц (занятия ставят «на лету»).
         // Fixed / no_schedule: starts_at = null до раскладки; ends_at = конец месяца.
         $createStartsAt = $isFlexible ? $billingMonthStart : null;
@@ -101,7 +139,7 @@ final class UsersPriceLessonPackageSync
                 'discount_comment' => $row->discount_comment !== null && trim((string) $row->discount_comment) !== ''
                     ? (string) $row->discount_comment
                     : null,
-                'is_paid' => false,
+                'is_paid' => (bool) $row->effective_is_paid,
                 'created_by' => $actorId,
             ]);
 
@@ -113,8 +151,9 @@ final class UsersPriceLessonPackageSync
 
         $packageChanged = (int) $linked->lesson_package_id !== (int) $package->id;
         $placed = $linked->isLaidOutInSchedule();
+        $flexibleReplace = $packageChanged && $this->isLinkedFlexibleMonthly($linked) && $isFlexible;
 
-        if ($packageChanged && $placed) {
+        if ($packageChanged && $placed && ! $flexibleReplace) {
             throw new UsersPriceLessonPackageSyncException(
                 'lesson_package_id',
                 'Нельзя сменить абонемент: назначение уже разложено в расписание. Сначала отмените раскладку или удалите занятия.'
@@ -122,12 +161,26 @@ final class UsersPriceLessonPackageSync
         }
 
         $payload = [];
+        $feeWasCents = (int) $linked->fee_amount_cents;
 
         if ($packageChanged) {
             $payload['lesson_package_id'] = (int) $package->id;
-            // Неразложенный ULP: объём как у нового шаблона (полный остаток).
-            $payload['lessons_total'] = $lessons;
-            $payload['lessons_remaining'] = $lessons;
+            if ($placed && $flexibleReplace) {
+                $consumed = $linked->consumedLessonsCount();
+                if ($lessons < $consumed) {
+                    throw new UsersPriceLessonPackageSyncException(
+                        'lesson_package_id',
+                        'Нельзя сменить абонемент: уже списано '.$consumed
+                        .' занятий, в выбранном абонементе только '.$lessons.'.'
+                    );
+                }
+                $payload['lessons_total'] = $lessons;
+                $payload['lessons_remaining'] = $lessons - $consumed;
+            } else {
+                // Неразложенный ULP: объём как у нового шаблона (полный остаток).
+                $payload['lessons_total'] = $lessons;
+                $payload['lessons_remaining'] = $lessons;
+            }
         }
 
         if ($linked->billing_month === null
@@ -153,8 +206,10 @@ final class UsersPriceLessonPackageSync
             $payload['team_id'] = (int) $row->team_id;
         }
 
+        $moneyUnlocked = ! $row->effective_is_paid && ! $linked->effective_is_paid;
+
         // Сумма: синхронизируем, если начисление и ULP не оплачены.
-        if (! $row->effective_is_paid && ! $linked->effective_is_paid) {
+        if ($moneyUnlocked) {
             if ((int) $linked->fee_amount_cents !== $feeAmountCents) {
                 $payload['fee_amount_cents'] = $feeAmountCents;
             }
@@ -172,6 +227,10 @@ final class UsersPriceLessonPackageSync
             }
         }
 
+        $feeWillChange = $moneyUnlocked
+            && array_key_exists('fee_amount_cents', $payload)
+            && (int) $payload['fee_amount_cents'] !== $feeWasCents;
+
         if ($payload !== []) {
             $linked->update($payload);
         }
@@ -180,6 +239,49 @@ final class UsersPriceLessonPackageSync
             $row->user_lesson_package_id = (int) $linked->id;
             $row->save();
         }
+
+        if ($feeWillChange) {
+            $this->invalidatePublicPayAfterFeeChange($linked->fresh() ?? $linked, $row->fresh() ?? $row);
+        }
+    }
+
+    /**
+     * Оплаченный месяц: можно сменить только шаблон предоплата → предоплата, сумма не трогается.
+     */
+    public function assertPaidFlexibleReplaceOrFail(UserPrice $row, ?LessonPackage $newPackage, string $field): void
+    {
+        if ($newPackage === null) {
+            throw new UsersPriceLessonPackageSyncException(
+                $field,
+                'Нельзя снять абонемент у оплаченного месяца.'
+            );
+        }
+
+        if (! $this->isFlexibleReplaceAllowed($row, $newPackage)) {
+            throw new UsersPriceLessonPackageSyncException(
+                $field,
+                'Сменить оплаченный абонемент можно только на другой абонемент предоплаты.'
+            );
+        }
+    }
+
+    private function isLinkedFlexibleMonthly(UserLessonPackage $linked): bool
+    {
+        if (! $linked->isFromSettingPrices()) {
+            return false;
+        }
+
+        $linked->loadMissing('lessonPackage:id,schedule_type');
+
+        return $linked->lessonPackage !== null && $linked->lessonPackage->isFlexible();
+    }
+
+    private function invalidatePublicPayAfterFeeChange(UserLessonPackage $ulp, UserPrice $priceRow): void
+    {
+        // Сразу: DB-правки ссылок в той же транзакции, что и смена суммы
+        // (откат вместе с apply). T‑Bank Cancel вне БД — повторный Init при открытии.
+        $this->ulpPublicPay->resetPublicPayAfterFeeChange($ulp);
+        $this->userPricePublicPay->invalidateActivePaymentAfterAmountChange($priceRow);
     }
 
     private function resolveLinkedUlp(UserPrice $row): ?UserLessonPackage

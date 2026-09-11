@@ -160,6 +160,20 @@ class AuditEventTest extends TestCase
     }
 
     #[Test]
+    public function category_tbank_commission_excludes_settings_event(): void
+    {
+        $events = AuditEvent::eventValuesForCategory('tbank_commission');
+
+        $this->assertContains(AuditEvent::TbankCommissionCreated->value, $events);
+        $this->assertContains(AuditEvent::TbankCommissionUpdated->value, $events);
+        $this->assertContains(AuditEvent::TbankCommissionDeleted->value, $events);
+        $this->assertContains(AuditEvent::TbankCommissionPayoutSettingsUpdated->value, $events);
+        $this->assertNotContains(AuditEvent::SettingsUpdated->value, $events);
+        $this->assertSame(AuditLevel::Security, AuditEvent::TbankCommissionDeleted->level());
+        $this->assertSame(95, AuditEvent::TbankCommissionCreated->legacyType());
+    }
+
+    #[Test]
     public function legacy_type_and_action_match_design_for_user_updated(): void
     {
         $event = AuditEvent::UserUpdated;

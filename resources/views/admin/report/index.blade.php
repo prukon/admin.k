@@ -122,6 +122,7 @@
                         'tpCanFilterPartner' => $tpCanFilterPartner ?? false,
                         'tpHasActiveFilters' => $tpHasActiveFilters ?? false,
                         'tpView' => $tpView ?? 'payments',
+                        'tpStatusDefaulted' => $tpStatusDefaulted ?? false,
                         'tbankPaymentsPageLength' => $tbankPaymentsPageLength ?? 10,
                     ])
                 @elseif($activeTab === 'emails')

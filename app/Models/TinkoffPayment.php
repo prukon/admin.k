@@ -52,6 +52,7 @@ class TinkoffPayment extends Model
      * CONFIRMED мультисплит без успешной выплаты, когда задержка автовыплаты партнёра уже прошла.
      * Не считает платежи, у которых выплата ещё только назначена (when_to_run в будущем)
      * или уже ушла в банк и не финальна.
+     * Успешный возврат (refunds.status=succeeded) — выплата не предполагается, в каунтер не входит.
      */
     public function scopeMissingPayoutAfterDelay(Builder $q, ?\DateTimeInterface $at = null): Builder
     {
@@ -99,6 +100,31 @@ class TinkoffPayment extends Model
                                 $sent->where('tinkoff_payouts.status', 'INITIATED')
                                     ->whereNotNull('tinkoff_payouts.tinkoff_payout_payment_id');
                             });
+                    });
+            })
+            ->whereNotExists(function ($sub): void {
+                $sub->selectRaw('1')
+                    ->from('refunds')
+                    ->where('refunds.status', 'succeeded')
+                    ->where(function ($match): void {
+                        $match->whereExists(function ($payments): void {
+                            $payments->selectRaw('1')
+                                ->from('payments')
+                                ->whereColumn('payments.id', 'refunds.payment_id')
+                                ->where(function ($link): void {
+                                    $link->whereColumn('payments.payment_id', 'tinkoff_payments.tinkoff_payment_id')
+                                        ->orWhereColumn('payments.payment_number', 'tinkoff_payments.tinkoff_payment_id')
+                                        ->orWhere(function ($deal): void {
+                                            $deal->whereNotNull('payments.deal_id')
+                                                ->whereRaw("TRIM(payments.deal_id) <> ''")
+                                                ->whereNotNull('tinkoff_payments.deal_id')
+                                                ->whereRaw("TRIM(tinkoff_payments.deal_id) <> ''")
+                                                ->whereColumn('payments.deal_id', 'tinkoff_payments.deal_id');
+                                        });
+                                });
+                        })->orWhereRaw(
+                            "CAST(JSON_UNQUOTE(JSON_EXTRACT(refunds.meta, '$.tbank_payment_id')) AS CHAR) = CAST(tinkoff_payments.tinkoff_payment_id AS CHAR)"
+                        );
                     });
             });
     }

@@ -127,7 +127,9 @@
     Пробное/разовое на пустой ячейке — <strong>AND</strong> middleware <code>can:schedule.view</code> + <code>can:lessonPackages.view</code> (см. <a href="#place-empty-cell">§7.4</a>).</p>
   <div class="note">
     Право <code>groups.own</code> (не в базовых ролях): селект групп журнала — только <code>team_trainer</code> актора;
-    режим «Все группы» — только ученики этих групп; чужой <code>?team=</code> — 422 «Выберите группу из списка.»
+    режим «Все группы» — только ученики этих групп; «Без группы» (<code>team=none</code>) — ученики без pivot, не режется правом.
+    Чужой <code>?team=</code>: AJAX/JSON — 422 «Выберите группу из списка.»; native GET — 302 + <code>errors.team</code>
+    (не 200 с чужими учениками). Sync групп ученика в журнале — тот же merge скрытых <code>team_ids</code>.
     Подробно — <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>.
   </div>
   <p>
@@ -922,7 +924,12 @@
     <li><code>UsersPriceLessonPackageSync</code>: <code>starts_at</code> = 1-е число <code>billing_month</code>,
       <code>ends_at</code> = последний день. Админ может ставить занятия в любом порядке дат внутри месяца.</li>
     <li><code>isLaidOutInSchedule()</code> для месячного flexible = наличие хотя бы одного UTSS
-      (полный период при создании <b>не</b> означает раскладку; сменить пакет в установке цен можно, пока нет UTSS).</li>
+      (полный период при создании <b>не</b> означает раскладку).
+      Смена шаблона в установке цен: <b>предоплата → предоплата</b> разрешена и после UTSS
+      (остаток = новый объём − статусы <code>consumes_lesson</code>, ячейки журнала сами не добавляются) —
+      <a href="/doc#setting-prices-flexible-replace-index">анонс</a>,
+      <a href="/docs/documentation/setting-prices-monthly-users#ulp-sync">setting-prices-monthly-users §ulp-sync</a>.
+      Иные типы при UTSS → <b>422</b>.</li>
   </ul>
   <h4>7.3.2) UI</h4>
   <ul>

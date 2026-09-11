@@ -44,6 +44,17 @@
                         <span class="payments-report-toolbar-label d-none d-sm-inline">Добавить комиссию</span>
                     </button>
 
+                    <button type="button"
+                            class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                            data-bs-toggle="modal"
+                            data-bs-target="#historyModal"
+                            title="История изменений">
+                        <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                            <i class="fas fa-clock-rotate-left payments-report-toolbar-icon"></i>
+                        </span>
+                        <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
+                    </button>
+
                     <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
                             type="button"
                             data-bs-toggle="collapse"
@@ -269,6 +280,8 @@
         </div>
     </div>
 </div>
+
+@include('includes.logModal')
 
 @push('scripts')
     <script type="text/javascript">
@@ -755,6 +768,8 @@
             }
 
             openModalsIfNeeded();
+
+            showLogModal(@json(route('logs.data.tbank-commission')));
         });
     </script>
 @endpush

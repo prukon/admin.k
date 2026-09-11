@@ -31,6 +31,9 @@ final class TrainerOwnTeamsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Gate::before', $chunk);
         $this->assertStringContainsString('ученики своих групп', $chunk);
         $this->assertStringContainsString('422', $chunk);
+        $this->assertStringContainsString('302', $chunk);
+        $this->assertStringContainsString('404', $chunk);
+        $this->assertStringContainsString('не сужаются', $chunk);
         $this->assertStringContainsString('merge', $chunk);
         $this->assertStringContainsString('TrainerOwnTeamsScope', $chunk);
         $this->assertStringContainsString('AllowedActorTeam', $chunk);
@@ -67,6 +70,8 @@ final class TrainerOwnTeamsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('TrainerOwnTeamsMarkupFeatureTest', $page);
         $this->assertStringContainsString('TrainerOwnTeamsFullAccessFeatureTest', $page);
         $this->assertStringContainsString('test_groups_own_team_filters_and_edit_modal_fill_from_json_on_both_open_paths', $page);
+        $this->assertStringContainsString('id="http"', $page);
+        $this->assertStringContainsString('success: false', $page);
         $this->assertStringContainsString('/doc#groups-own-index', $page);
 
         $this->assertStringContainsString('href="/docs/documentation/groups-own"', $index);
@@ -94,6 +99,15 @@ final class TrainerOwnTeamsDocumentationContractTest extends TestCase
 
         $cabinet = $this->docFile('dashboard-cabinet.html');
         $this->assertStringContainsString('groups.own', $cabinet);
+
+        $leads = $this->docFile('school-leads-widget.html');
+        $this->assertStringContainsString('groups.own', $leads);
+
+        $payments = $this->docFile('reports-payments.html');
+        $this->assertStringContainsString('groups.own', $payments);
+
+        $contracts = $this->docFile('contracts.html');
+        $this->assertStringContainsString('groups.own', $contracts);
     }
 
     public function test_live_code_matches_documented_groups_own(): void

@@ -66,11 +66,14 @@
     <tbody>
       <tr>
         <td>Селекты / фильтры групп, <code>/admin/teams</code></td>
-        <td>Только группы из <code>team_trainer</code>. Чужой id в URL/API — 422 или 403 (карточка группы).</td>
+        <td>Только группы из <code>team_trainer</code>. Карточка/update/delete чужой группы <b>той же школы</b> — 403.
+            Группа другого партнёра — 404 (<code>where('partner_id')</code> + <code>firstOrFail</code>).</td>
       </tr>
       <tr>
-        <td>Клиенты <code>/admin/users</code>, журнал <code>/schedule</code>, консоль «все»</td>
-        <td>Только ученики своих групп. Чужой <code>team_id</code> / <code>?team=</code> — 422 под полем.</td>
+        <td>Клиенты <code>/admin/users</code>, журнал <code>/schedule</code></td>
+        <td>Режим «все» — только ученики своих групп. Чужой <code>team_id</code> / <code>?team=</code>:
+            AJAX/JSON — 422 под полем «Выберите группу из списка.»;
+            native GET журнала — 302 + <code>errors.team</code> (не 200 с чужими учениками).</td>
       </tr>
       <tr>
         <td>Подписи и чекбоксы групп ученика</td>
@@ -78,31 +81,65 @@
       </tr>
       <tr>
         <td>Сохранение <code>team_ids</code> ученика</td>
-        <td>Merge: чужие группы не снимаются. <code>TrainerOwnTeamsScope::mergeSubmittedStudentTeamIds</code>.</td>
+        <td>Merge: чужие группы не снимаются. <code>TrainerOwnTeamsScope::mergeSubmittedStudentTeamIds</code>
+            (CRM update и <code>POST /schedule/user/{user}/sync-teams</code>).
+            Create: <code>StoreRequest</code> принимает <code>team_ids</code> без <code>users.group.update</code>
+            (модалка create передаёт <code>canEditTeams=true</code>); edit без этого права — select disabled.</td>
       </tr>
       <tr>
         <td>Чат</td>
-        <td>Фильтр контактов — только свои группы. Без фильтра: сотрудники школы видны, ученики — только своих групп.</td>
+        <td>Оба селекта (<code>#contactsTeamFilter</code>, <code>#createGroupMembersTeamFilter</code>) — только свои группы.
+            Пустой фильтр: сотрудники школы видны, ученики — только своих групп.
+            <code>team_id=none</code> — люди без строк в <code>team_user</code> (в т.ч. сотрудники без групп).</td>
+      </tr>
+      <tr>
+        <td>Консоль</td>
+        <td>First-paint «Все группы» и <code>getTeamDetails?teamName=all</code> — ученики своих групп, без чужих и без «без группы».
+            «Без группы» (<code>withoutTeam</code>) — все ученики школы без pivot (строки не режутся правом).
+            Карточка своего / без группы — <code>getUserDetails</code> <code>success: true</code>;
+            чужой ученик / чужая группа — 200 JSON <code>success: false</code> (не 422).</td>
       </tr>
       <tr>
         <td>Создание группы</td>
-        <td><code>TeamController@store</code> авто-attach’ит профиль актора в <code>team_trainer</code>, иначе он свою новую группу не увидит.</td>
+        <td><code>TeamController@store</code> авто-attach’ит профиль актора в <code>team_trainer</code>, иначе он свою новую группу не увидит.
+            AJAX — JSON 200 <code>{message, team:{id,title}}</code>; native POST — 302 на index + запись.</td>
       </tr>
+      <tr>
+        <td>Прочие селекты групп</td>
+        <td><code>restrictTeamsQuery</code>: заявки с сайта, договоры, отчёты (в т.ч. <code>GET …/payments/teams-search</code>),
+            установка цен, карточка тренера, объекты, шаблоны абонементов, ЛК аккаунта.
+            Список <b>строк</b> заявок/договоров/ЗП/нагрузки/отчётов без выбранной группы этим правом не режется.
+            Чужой <code>filter_team_id</code> в отчёте платежей игнорируется (как «все»), не 422.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="http">2.1) HTTP-коды (ожидаемые)</h2>
+  <table>
+    <thead>
+      <tr><th>Запрос</th><th>Код</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>AJAX/JSON чужой <code>team_id</code> / <code>?team=</code> / <code>team_ids.*</code> своей школы</td><td>422, <code>errors[поле]</code> «Выберите группу из списка.»</td></tr>
+      <tr><td>Native GET <code>/schedule?team=чужая</code></td><td>302, session <code>errors.team</code></td></tr>
+      <tr><td>GET/PATCH/DELETE карточки чужой группы своей школы</td><td>403</td></tr>
+      <tr><td>Карточка группы другого партнёра</td><td>404</td></tr>
+      <tr><td>Консоль: чужой ученик / чужая группа в details</td><td>200 JSON <code>success: false</code></td></tr>
+      <tr><td>Нет строк в <code>team_trainer</code></td><td>200, пустые списки групп и учеников «всех групп»</td></tr>
     </tbody>
   </table>
 
   <h2 id="not-cut">3) Что не режется этим правом</h2>
   <ul>
-    <li>Заявки с сайта, договоры, ЗП, нагрузка других тренеров — отдельные права.</li>
-    <li>Ученики без группы — отдельный фильтр «Без группы» / <code>none</code> / <code>withoutTeam</code>; в консоли карточка такого ученика открывается.</li>
-    <li>Строки отчётов без выбранной группы не сужаются; сужается только dropdown групп.</li>
+    <li>Строки заявок с сайта, договоров, ЗП, нагрузки других тренеров, отчётов — отдельные права раздела; без выбранной группы список не сужается до «своих учеников».</li>
+    <li>Ученики без группы — отдельный фильтр «Без группы» / <code>none</code> / <code>withoutTeam</code>; в консоли карточка такого ученика открывается (<code>allowsStudent(..., allowWithoutTeam: true)</code>).</li>
     <li>Публичный лендинг, регистрация, «Моя группа» клиента.</li>
   </ul>
 
   <h2 id="tests">4) Тесты</h2>
   <ul>
     <li><code>TrainerOwnTeamsScopeFeatureTest</code> — ядро: гость 302, без рабочих прав 403, без <code>groups.own</code> видны все группы, с правом — только свои; ученики «всех групп»; 422 чужого <code>team_id</code>; merge; чат; админ без профиля не режется; право не в base roles; консоль.</li>
-    <li><code>TrainerOwnTeamsAccessFeatureTest</code> — гость HTML 302 / JSON не 200, без view 403 на GET/POST/PATCH/DELETE, с view без права страницы открываются, без <code>team_trainer</code> пустые списки (не все группы школы), чужой партнёр 422/403, без организации logout и <code>errors.email</code> «Ваша организация недоступна.», неверные методы не 500.</li>
+    <li><code>TrainerOwnTeamsAccessFeatureTest</code> — гость HTML 302 / JSON не 200, без view 403 на GET/POST/PATCH/DELETE, с view без права страницы открываются, без <code>team_trainer</code> пустые списки (не все группы школы), чужой партнёр 422/404, без организации logout и <code>errors.email</code> «Ваша организация недоступна.», неверные методы не 500.</li>
     <li><code>TrainerOwnTeamsAjaxContractFeatureTest</code> — <code>postJson</code>/<code>patchJson</code>/<code>getJson</code> с <code>X-Requested-With</code>: 422 <code>errors.team_id</code> / <code>errors.team</code> / <code>errors.team_ids.0</code> «Выберите группу из списка.»; store ученика/группы JSON 200; auto-attach <code>team_trainer</code>; пустой <code>team_ids</code> merge; фильтр <code>none</code>; sync журнала; поиск групп отчёта платежей.</li>
     <li><code>TrainerOwnTeamsNonAjaxSafetyNetFeatureTest</code> — native POST группы → 302 + attach; native POST/PATCH ученика → 302 + merge; native GET <code>/schedule?team=чужая</code> → 302 + <code>errors.team</code> (не 200 с чужими учениками); native users/data и chat users — не пустой 200; консоль JSON без HTML.</li>
     <li><code>TrainerOwnTeamsMarkupFeatureTest</code> — первый HTML: «Все группы» / «Без группы» / своя опция, чужой title нет; журнал <code>selected</code> на all / own / none; оба фильтра чата; консоль first-paint без чужого ученика; без права чужая опция есть; без <code>users.group.update</code> edit-select disabled (create остаётся редактируемым — <code>StoreRequest</code> принимает <code>team_ids</code>); заявки с сайта — dropdown без чужой группы.</li>
@@ -120,6 +157,10 @@
     <a href="/docs/documentation/schedule-journal">schedule-journal</a>,
     <a href="/docs/documentation/chat">chat</a>,
     <a href="/docs/documentation/dashboard-cabinet#fio-select-students">консоль</a>,
+    <a href="/docs/documentation/school-leads-widget#school-leads-filter-select2">заявки (фильтр секции)</a>,
+    <a href="/docs/documentation/contracts">договоры</a>,
+    <a href="/docs/documentation/reports-payments#team-filter">отчёт платежи</a>,
+    <a href="/docs/documentation/student-team-membership">ученик ↔ группы</a>,
     <a href="/docs/documentation/partners-permissions">partners-permissions §8</a>,
     <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
   </p>

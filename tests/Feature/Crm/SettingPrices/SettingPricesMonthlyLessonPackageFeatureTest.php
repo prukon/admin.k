@@ -329,7 +329,9 @@ final class SettingPricesMonthlyLessonPackageFeatureTest extends CrmTestCase
                     'user' => ['name' => $missingRow->name],
                 ],
             ],
-        ])->assertOk();
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['usersPrice.1.lesson_package_id']);
 
         $this->assertDatabaseHas('users_prices', [
             'user_id' => $this->student->id,

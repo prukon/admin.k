@@ -27,6 +27,12 @@ class TbankCommissionsAuthorizedEndpointsTest extends CrmTestCase
             'length' => 10,
         ]))->assertOk()->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
 
+        $this->getJson(route('logs.data.tbank-commission', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]))->assertOk()->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+
         $this->getJson(route('admin.setting.tbankCommissions.columns-settings.get'))
             ->assertOk()
             ->assertExactJson([]);
@@ -96,6 +102,11 @@ class TbankCommissionsAuthorizedEndpointsTest extends CrmTestCase
         ]))->assertOk();
 
         $this->getJson(route('admin.setting.tbankCommissions.columns-settings.get'))->assertOk();
+        $this->getJson(route('logs.data.tbank-commission', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 5,
+        ]))->assertOk();
         $this->postJson(route('admin.setting.tbankCommissions.columns-settings.save'), [
             'page_length' => 20,
         ])->assertOk()->assertExactJson(['success' => true]);

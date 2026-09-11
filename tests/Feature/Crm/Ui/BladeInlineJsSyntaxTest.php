@@ -2244,7 +2244,64 @@ JS;
 
         $this->assertStringContainsString('setting-prices-monthly-package-error', $content);
         $this->assertStringContainsString('setting-prices-monthly-price-error', $content);
-        $this->assertStringContainsString("packageSelectDisabled = eff ? 'disabled' : ''", $content);
+        $this->assertStringContainsString("packageSelectDisabled = ''", $content);
+        $this->assertStringNotContainsString("packageSelectDisabled = eff ? 'disabled' : ''", $content);
+        $this->assertStringContainsString('if (pkg && !isPaid)', $content);
+    }
+
+    /**
+     * P1: замена предоплаты у оплаченного месяца — селект доступен, цена не сбрасывается,
+     * 422 под селектом. Два JS-пути: Vite «По месяцам» и inline «По ученикам».
+     */
+    public function test_setting_prices_flexible_replace_paid_select_ux_contract(): void
+    {
+        $vitePath = resource_path('js/settings-prices.js');
+        $this->assertFileExists($vitePath);
+        $js = (string) file_get_contents($vitePath);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($vitePath).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/settings-prices.js (flexible replace):\n".implode("\n", $output)
+        );
+
+        $this->assertStringContainsString("packageSelectDisabled = ''", $js);
+        $this->assertStringNotContainsString("packageSelectDisabled = eff ? 'disabled' : ''", $js);
+        $this->assertStringContainsString('if (pkg && !isPaid)', $js);
+        $this->assertStringContainsString('/^usersPrice\\.(\\d+)\\.lesson_package_id$/', $js);
+        $this->assertStringContainsString('setting-prices-monthly-package-error', $js);
+        $this->assertStringContainsString("} else if (\$card.attr('data-effective-paid') === '1')", $js);
+
+        $applyStart = strpos($js, "$('#set-price-all-users').on('click'");
+        $this->assertNotFalse($applyStart);
+        $applyEnd = strpos($js, '(function initMonthProlong()');
+        $this->assertNotFalse($applyEnd);
+        $apply = substr($js, $applyStart, $applyEnd - $applyStart);
+        $errorPos = strpos($apply, 'error: function');
+        $this->assertNotFalse($errorPos);
+        $errorChunk = substr($apply, $errorPos);
+        $this->assertStringContainsString("showMonthlyCardFieldError($(card), 'lesson_package_id'", $errorChunk);
+        $this->assertStringNotContainsString('loadTeamUsersRightColumn', $errorChunk);
+        $this->assertStringNotContainsString('renderUsersRightColumn', $errorChunk);
+
+        $usersPath = resource_path('views/admin/SettingPrices/users.blade.php');
+        $this->assertFileExists($usersPath);
+        $blade = (string) file_get_contents($usersPath);
+        $this->assertStringContainsString("const packageDisabledAttr = isFormer ? 'disabled' : ''", $blade);
+        $this->assertStringNotContainsString("effectivePaid ? 'disabled'", $blade);
+        $this->assertStringContainsString('if (!isPaid && select.value && pkgPrice != null && pkgPrice !== \'\')', $blade);
+        $this->assertStringContainsString("errs['prices.0.lesson_package_id']", $blade);
+        $this->assertStringContainsString("prices.' + i + '.lesson_package_id", $blade);
+        $this->assertStringContainsString('setting-prices-monthly-package-error', $blade);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $usersPath,
+            'packageDisabledAttr',
+            'blade-js-setting-prices-flexible-replace'
+        );
     }
 
     /**
@@ -2766,6 +2823,9 @@ JS;
         $this->assertStringContainsString('id="tp-view-btn-months"', $content);
         $this->assertStringContainsString('function mountTbankPaymentsTable()', $content);
         $this->assertStringContainsString('function destroyTbankPaymentsTable()', $content);
+        $this->assertStringContainsString('function tpApplyConfirmedDefault()', $content);
+        $this->assertStringContainsString('function tpClearConfirmedDefaultIfNeeded()', $content);
+        $this->assertStringContainsString('var statusAutoDefaulted', $content);
         $destroyPos = strpos($content, 'function destroyTbankPaymentsTable()');
         $this->assertNotFalse($destroyPos);
         $destroyChunk = substr($content, $destroyPos, 2200);
@@ -2777,6 +2837,27 @@ JS;
         $this->assertStringContainsString('$table.find(\'tbody\').remove()', $destroyChunk);
         $this->assertStringContainsString('$table.append(\'<tbody></tbody>\')', $destroyChunk);
         $this->assertStringContainsString('tbankPaymentsTheadHtml(currentView)', $destroyChunk);
+        $this->assertStringContainsString('currentPageLength = dtApi.table.page.len()', $destroyChunk);
+
+        $clickPos = strpos($content, '$(\'.js-tbank-view-btn\').on(\'click\'');
+        $this->assertNotFalse($clickPos);
+        $this->assertSame(1, substr_count($content, '$(\'.js-tbank-view-btn\').on(\'click\''));
+        $clickChunk = substr($content, $clickPos, 1800);
+        $this->assertStringContainsString('if (view === currentView)', $clickChunk);
+        $this->assertStringContainsString('tpApplyConfirmedDefault()', $clickChunk);
+        $this->assertStringContainsString('tpClearConfirmedDefaultIfNeeded()', $clickChunk);
+        $this->assertStringContainsString('destroyTbankPaymentsTable()', $clickChunk);
+        $this->assertStringContainsString('mountTbankPaymentsTable()', $clickChunk);
+        $this->assertStringNotContainsString('dtApi.reload()', $clickChunk);
+
+        $resetPos = strpos($content, '$(\'#tbankPaymentsResetBtn\').on(\'click\'');
+        $this->assertNotFalse($resetPos);
+        $resetChunk = substr($content, $resetPos, 1200);
+        $this->assertStringContainsString('var keepView = currentView', $resetChunk);
+        $this->assertStringContainsString('currentView = keepView', $resetChunk);
+        $this->assertStringContainsString("tpStatusSelect().val('CONFIRMED')", $resetChunk);
+        $this->assertStringContainsString('dtApi.reload();', $resetChunk);
+        $this->assertStringNotContainsString('destroyTbankPaymentsTable()', $resetChunk);
 
         $createPos = strpos($content, "KidsCrmDataTable.create('#tbank-payments-table'");
         $this->assertNotFalse($createPos);
@@ -2789,6 +2870,7 @@ JS;
             'amount: true',
             'platform_commission: true',
             'payout_amount: true',
+            'payout_status: true',
             'method: true',
             'status: true',
             'deal_id: true',
@@ -2820,16 +2902,24 @@ JS;
         $amountPos = strpos($content, "key: 'amount', type: 'money'");
         $commissionPos = strpos($content, "key: 'platform_commission'");
         $payoutPos = strpos($content, "key: 'payout_amount', type: 'money'");
+        $payoutStatusPos = strpos($content, "key: 'payout_status'");
         $dealPos = strpos($content, "key: 'deal_id'");
         $receiptPos = strpos($content, "key: 'receipt'");
         $actionsPos = strpos($content, "key: 'actions'");
         $this->assertNotFalse($amountPos);
         $this->assertNotFalse($commissionPos);
         $this->assertNotFalse($payoutPos);
+        $this->assertNotFalse($payoutStatusPos);
         $this->assertGreaterThan($amountPos, $commissionPos);
         $this->assertGreaterThan($commissionPos, $payoutPos);
+        $this->assertGreaterThan($payoutPos, $payoutStatusPos);
         $this->assertGreaterThan($dealPos, $receiptPos);
         $this->assertGreaterThan($receiptPos, $actionsPos);
+
+        $payoutStatusChunk = substr($content, $payoutStatusPos, 500);
+        $this->assertStringContainsString("type: 'badge'", $payoutStatusChunk);
+        $this->assertStringContainsString('searchable: false', $payoutStatusChunk);
+        $this->assertStringContainsString('render: renderPayoutStatusCell', $payoutStatusChunk);
 
         $commissionChunk = substr($content, $commissionPos, 400);
         $this->assertStringContainsString('orderable: false', $commissionChunk);
@@ -2873,7 +2963,7 @@ JS;
 
         $resetPos = strpos($content, '$(\'#tbankPaymentsResetBtn\').on(\'click\'');
         $this->assertNotFalse($resetPos);
-        $resetChunk = substr($content, $resetPos, 500);
+        $resetChunk = substr($content, $resetPos, 1200);
         $this->assertStringContainsString('$form[0].reset()', $resetChunk);
         $this->assertStringContainsString('refreshTbankPaymentsTotal()', $resetChunk);
         $this->assertStringContainsString('dtApi.reload();', $resetChunk);
@@ -2889,6 +2979,89 @@ JS;
             $path,
             '$(\'#tbankPaymentsResetBtn\').on(\'click\'',
             'blade-js-tbank-payments-filter-reset'
+        );
+    }
+
+    public function test_tbank_payments_payout_status_cell_and_view_switch_thead_contract(): void
+    {
+        $path = resource_path('views/admin/report/tbank_payments.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $fnPos = strpos($content, 'function tbankPaymentsTheadHtml(view)');
+        $this->assertNotFalse($fnPos);
+        $fnChunk = substr($content, $fnPos, 1200);
+        preg_match_all("/return '<tr>'[\\s\\S]*?<\\/tr>';/", $fnChunk, $returns);
+        $this->assertCount(2, $returns[0], $fnChunk);
+        $paymentsThead = $returns[0][0];
+        $summaryThead = $returns[0][1];
+        $this->assertStringContainsString('<th>Выплата</th><th>Статус выплаты</th><th>Способ</th>', $paymentsThead);
+        $this->assertStringNotContainsString('Статус выплаты', $summaryThead);
+        $this->assertStringContainsString('<th>Период</th>', $summaryThead);
+        $this->assertStringContainsString('<th>Выплата</th>', $summaryThead);
+
+        $destroyPos = strpos($content, 'function destroyTbankPaymentsTable()');
+        $this->assertNotFalse($destroyPos);
+        $destroyChunk = substr($content, $destroyPos, 2200);
+        $this->assertStringContainsString('tbankPaymentsTheadHtml(currentView)', $destroyChunk);
+
+        $clickPos = strpos($content, '$(\'.js-tbank-view-btn\').on(\'click\'');
+        $this->assertNotFalse($clickPos);
+        $clickChunk = substr($content, $clickPos, 1800);
+        $this->assertStringContainsString('destroyTbankPaymentsTable()', $clickChunk);
+        $this->assertStringContainsString('mountTbankPaymentsTable()', $clickChunk);
+        $this->assertStringContainsString('tpApplyConfirmedDefault()', $clickChunk);
+        $this->assertStringNotContainsString('dtApi.reload()', $clickChunk);
+
+        $submitPos = strpos($content, '$form.on(\'submit\'');
+        $this->assertNotFalse($submitPos);
+        $submitChunk = substr($content, $submitPos, 400);
+        $this->assertStringContainsString('e.preventDefault()', $submitChunk);
+        $this->assertStringContainsString('dtApi.reload();', $submitChunk);
+        $this->assertStringNotContainsString('destroyTbankPaymentsTable()', $submitChunk);
+        $this->assertStringNotContainsString('KidsCrmDataTable.create', $submitChunk);
+
+        $resetPos = strpos($content, '$(\'#tbankPaymentsResetBtn\').on(\'click\'');
+        $this->assertNotFalse($resetPos);
+        $resetChunk = substr($content, $resetPos, 1200);
+        $this->assertStringContainsString('dtApi.reload();', $resetChunk);
+        $this->assertStringNotContainsString('destroyTbankPaymentsTable()', $resetChunk);
+
+        $renderPos = strpos($content, 'function renderPayoutStatusCell(data, type, row)');
+        $this->assertNotFalse($renderPos);
+        $renderChunk = substr($content, $renderPos, 1400);
+        $this->assertStringContainsString("if (type !== 'display')", $renderChunk);
+        $this->assertStringContainsString("return '<span class=\"dt-cell-empty text-muted\">—</span>'", $renderChunk);
+        $this->assertStringContainsString('COMPLETED: \'bg-success\'', $renderChunk);
+        $this->assertStringContainsString('REJECTED: \'bg-danger\'', $renderChunk);
+        $this->assertStringContainsString('INITIATED: \'bg-secondary\'', $renderChunk);
+        $this->assertStringContainsString('CREDIT_CHECKING: \'bg-info text-dark\'', $renderChunk);
+        $this->assertStringContainsString('KidsCrmTooltip.escapeHtml(s)', $renderChunk);
+        $this->assertStringContainsString('row.payout_status_at', $renderChunk);
+        $this->assertStringContainsString("var at = row.payout_status_at || ''", $renderChunk);
+        $this->assertStringContainsString('<div class="small text-muted mt-1">', $renderChunk);
+        $this->assertStringContainsString('KidsCrmTooltip.escapeHtml(String(at))', $renderChunk);
+        $this->assertStringNotContainsString("type: 'custom'", $renderChunk);
+
+        $this->assertStringContainsString('id="tpColPayoutStatus"', $content);
+        $this->assertStringContainsString('payout_status: true', $content);
+        $this->assertStringContainsString("key: 'payout_status'", $content);
+
+        $defaultsPos = strpos($content, 'defaults: {');
+        $this->assertNotFalse($defaultsPos);
+        $defaultsChunk = substr($content, $defaultsPos, 500);
+        $this->assertStringContainsString('payout_status: true', $defaultsChunk);
+        $this->assertStringNotContainsString('payout_status: false', $defaultsChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'function renderPayoutStatusCell(data, type, row)',
+            'blade-js-tbank-payments-payout-status-cell'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'function tbankPaymentsTheadHtml(view)',
+            'blade-js-tbank-payments-payout-status-thead'
         );
     }
 
@@ -3940,6 +4113,7 @@ JS;
         $this->assertStringContainsString('countTone(welcome.missing_count)', $content);
         $this->assertStringContainsString('countTone(till.overdue_payouts)', $content);
         $this->assertStringContainsString('CONFIRMED без успешной выплаты после задержки автовыплаты партнёра', $content);
+        $this->assertStringContainsString('успешный возврат не считается', $content);
         $this->assertStringContainsString("welcome.last_user_id", $content);
         $this->assertStringContainsString("welcome.last_user_id ? ('#' + welcome.last_user_id) : '—'", $content);
         $this->assertStringNotContainsString('welcome.email', $content);

@@ -394,7 +394,12 @@
     Нет T‑Bank — письмо без ссылки (автоблок не добавляется).
     <br><b>Открытие:</b> <code>GET /pm/{code}</code> → Init <code>monthly_fee</code> + СБП,
     та же QR-витрина <code>payment/ulp-public-pay.blade.php</code> (группа + «Поставщик услуг»).
-    Смена <code>price_cents</code> в админке: код ссылки живой, платёж переинициализируется.
+    Смена <code>price_cents</code> в админке: код ссылки живой, платёж переинициализируется
+    (активный QR отменяется). То же при неоплаченной замене абонемента предоплаты
+    с новой суммой в «Установке цен»
+    (<a href="/docs/documentation/setting-prices-monthly-users#ulp-sync">setting-prices-monthly-users §ulp-sync</a>,
+    <a href="/doc#setting-prices-flexible-replace-index">анонс</a>):
+    <code>/pm/{code}</code> не ротируется.
     Если начисление сняли корзиной бывшего (<code>price_cents = 0</code>) — статус
     <code>kind=annulled</code>: заголовок «Абонемент аннулирован», текст
     «Этот абонемент был аннулирован. Если у вас остались вопросы, свяжитесь с клубом.»;
@@ -714,7 +719,8 @@
     <li>В <code>DATA</code> Init: <code>user_lesson_package_id</code>, <code>team_id</code>, <code>ulp_public_pay=1</code> — как у оплаты из кабинета.</li>
     <li>QR/payload/state endpoint'ы работают только после Init (обычно сразу после первого открытия QR-страницы по <code>/p/{code}</code> или <code>/pay/ulp/{token}</code>).</li>
     <li>Webhook и пометка <code>user_lesson_packages.is_paid</code> — общий pipeline T‑Bank (§3.3 «Оплата через T‑Bank»).</li>
-    <li><b>Смена суммы в админке:</b> источник истины — <code>user_lesson_packages.fee_amount_cents</code> (в запросе — <code>fee_amount</code> рубли). При <code>PUT …/assignments/{id}</code> активный T‑Bank-платёж отменяется (<code>/v2/Cancel</code>), payables/intents → <code>cancelled</code>, привязка на ссылке сбрасывается, выпускаются <b>новый token и новый short_code</b>. Старые <code>/p/{code}</code> и <code>/pay/ulp/{token}</code> → <b>404</b>; в JSON ответа update может быть <code>public_pay_url_rotated</code> и новый короткий URL. Нужно снова скопировать ссылку / отправить SMS.</li>
+    <li><b>Смена суммы в админке:</b> источник истины — <code>user_lesson_packages.fee_amount_cents</code> (в запросе — <code>fee_amount</code> рубли). При <code>PUT …/assignments/{id}</code> и при неоплаченной замене предоплаты с новой ценой в «Установке цен» активный T‑Bank-платёж отменяется (<code>/v2/Cancel</code>), payables/intents → <code>cancelled</code>, привязка на ссылке сбрасывается, выпускаются <b>новый token и новый short_code</b>. Старые <code>/p/{code}</code> и <code>/pay/ulp/{token}</code> → <b>404</b>; в JSON ответа update назначения может быть <code>public_pay_url_rotated</code> и новый короткий URL. Нужно снова скопировать ссылку / отправить SMS.
+      Анонс замены в установке цен — <a href="/doc#setting-prices-flexible-replace-index">/doc#setting-prices-flexible-replace-index</a>.</li>
     <li><b>Расхождение суммы без смены ссылки:</b> если страница уже открыта, а сумма в БД не совпадает с payable (без админского reset) — платёж сбрасывается и при следующем открытии того же URL делается новый Init. <code>token</code> / <code>short_code</code> в этом случае не меняются.</li>
   </ol>
 

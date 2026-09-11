@@ -1411,7 +1411,78 @@ class SettingPricesController extends AdminBaseController
     }
 
     /**
-     * Применить абонемент/цену к неоплаченной строке users_prices (как «Применить» справа для одной записи).
+     * Оплаченный месяц: только смена шаблона предоплата → предоплата, сумма не меняется.
+     *
+     * @param  array{price?: mixed, lesson_package_id?: mixed, user?: array{name?: string}}  $priceData
+     *
+     * @throws ValidationException
+     */
+    protected function applyPaidUserPricePackageChange(
+        UserPrice $userPriceRecord,
+        array $priceData,
+        User $user,
+        Team $team,
+        string $selectedDateString,
+        string $ulpErrorField,
+        bool $packageKeyPresent,
+        ?int $newPackageId,
+        ?LessonPackage $resolvedPackage
+    ): void {
+        if (! $packageKeyPresent) {
+            return;
+        }
+
+        $oldPackageId = $userPriceRecord->lesson_package_id !== null
+            ? (int) $userPriceRecord->lesson_package_id
+            : 0;
+        $nextPackageId = $newPackageId !== null ? (int) $newPackageId : 0;
+        if ($oldPackageId === $nextPackageId) {
+            return;
+        }
+
+        try {
+            $this->usersPriceLessonPackageSync->assertPaidFlexibleReplaceOrFail(
+                $userPriceRecord,
+                $resolvedPackage,
+                $ulpErrorField
+            );
+        } catch (UsersPriceLessonPackageSyncException $e) {
+            throw ValidationException::withMessages([
+                $ulpErrorField => [$e->getMessage()],
+            ]);
+        }
+
+        $frozenCents = (int) $userPriceRecord->price_cents;
+        $userPriceRecord->update([
+            'lesson_package_id' => $nextPackageId,
+        ]);
+        if ($resolvedPackage) {
+            $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
+        }
+        $this->syncUserPriceLessonPackage($userPriceRecord, $ulpErrorField);
+
+        $userPriceRecord->refresh();
+        if ((int) $userPriceRecord->price_cents !== $frozenCents) {
+            $userPriceRecord->price_cents = $frozenCents;
+            $userPriceRecord->save();
+        }
+
+        $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
+        $this->auditLogger->record(
+            AuditEvent::PricingStudentApply,
+            AuditContext::make(
+                'Заменён абонемент предоплаты: #'.$oldPackageId.' → #'.$nextPackageId
+                .'. Сумма не изменена (оплачено). Период: '.$selectedDateString.'. Группа: '.$team->title.'.'
+            )
+                ->withUserId((int) $user->id)
+                ->withTargetReference('App\Models\UserPrice', (int) $user->id, $userName)
+                ->withCreatedAt(now())
+        );
+    }
+
+    /**
+     * Применить абонемент/цену к строке users_prices (как «Применить» справа для одной записи).
+     * Оплаченный месяц: только предоплата → предоплата, цена заморожена.
      *
      * @param  array{price?: mixed, lesson_package_id?: mixed, user?: array{name?: string}}  $priceData
      *
@@ -1426,10 +1497,6 @@ class SettingPricesController extends AdminBaseController
         string $selectedDateString,
         string $ulpErrorField
     ): void {
-        if ($userPriceRecord->effective_is_paid) {
-            return;
-        }
-
         $packageKeyPresent = array_key_exists('lesson_package_id', $priceData);
         $newPackageId = $packageKeyPresent
             ? ($priceData['lesson_package_id'] !== null ? (int) $priceData['lesson_package_id'] : null)
@@ -1447,6 +1514,22 @@ class SettingPricesController extends AdminBaseController
         }
 
         $userId = (int) $user->id;
+
+        if ($userPriceRecord->effective_is_paid) {
+            $this->applyPaidUserPricePackageChange(
+                $userPriceRecord,
+                $priceData,
+                $user,
+                $team,
+                $selectedDateString,
+                $ulpErrorField,
+                $packageKeyPresent,
+                $newPackageId,
+                $resolvedPackage
+            );
+
+            return;
+        }
 
         // Postpay: сумма только из журнала, ручной price из UI игнорируем.
         if ($resolvedPackage && $resolvedPackage->isPostpay()) {
@@ -1546,10 +1629,10 @@ class SettingPricesController extends AdminBaseController
 
     /**
      * Применить снимок тарифа ко всем активным ученикам группы за месяц.
-     * Не трогает записи с effective_is_paid = true.
-     * Для postpay цена = посещения × цена занятия (не цена шаблона как фиксированный месяц).
+     * Оплаченные: только предоплата → предоплата, сумма заморожена.
+     * Ошибки по ученикам собираются (остальные сохраняются).
      *
-     * @throws ValidationException
+     * @return array<string, list<string>>
      */
     protected function applyPackageSnapshotToTeamStudents(
         Team $team,
@@ -1557,85 +1640,111 @@ class SettingPricesController extends AdminBaseController
         int $priceCents,
         int $lessonPackageId,
         ?LessonPackage $package = null
-    ): void {
+    ): array {
         $package = $package ?? LessonPackage::query()->find($lessonPackageId);
         $isPostpay = $package && $package->isPostpay();
+        $errors = [];
 
         $users = $team->students()
             ->where('is_enabled', 1)
             ->get();
 
         foreach ($users as $user) {
-            $userId = (int) $user->id;
-            $snap = UserPercentDiscount::snapshotFromUser($user);
-            $payableCents = UserPercentDiscount::payableCentsForUser($priceCents, $user);
+            try {
+                DB::transaction(function () use ($user, $team, $monthDate, $priceCents, $lessonPackageId, $package, $isPostpay) {
+                    $userId = (int) $user->id;
+                    $snap = UserPercentDiscount::snapshotFromUser($user);
+                    $payableCents = UserPercentDiscount::payableCentsForUser($priceCents, $user);
 
-            /** @var UserPrice|null $userPrice */
-            $userPrice = UserPrice::query()
-                ->where('user_id', $userId)
-                ->where('team_id', $team->id)
-                ->where('new_month', $monthDate)
-                ->first();
+                    /** @var UserPrice|null $userPrice */
+                    $userPrice = UserPrice::query()
+                        ->where('user_id', $userId)
+                        ->where('team_id', $team->id)
+                        ->where('new_month', $monthDate)
+                        ->first();
 
-            if ($userPrice) {
-                if ($userPrice->effective_is_paid) {
-                    continue;
-                }
+                    if ($userPrice) {
+                        if ($userPrice->effective_is_paid) {
+                            if ($package === null
+                                || ! $this->usersPriceLessonPackageSync->isFlexibleReplaceAllowed($userPrice, $package)
+                            ) {
+                                return;
+                            }
 
-                if ($isPostpay && $package) {
-                    $userPrice->fill($snap);
-                    $this->postpaySync->applyPackageToRow($userPrice, $package);
-                    $this->syncUserPriceLessonPackage(
-                        $userPrice,
-                        'lesson_package_id'
-                    );
-                } else {
-                    $userPrice->update([
-                        'price_cents' => $payableCents,
-                        'lesson_package_id' => $lessonPackageId,
-                        'discount_percent' => $snap['discount_percent'],
-                        'discount_comment' => $snap['discount_comment'],
-                    ]);
-                    if ($package) {
-                        $userPrice->setRelation('lessonPackage', $package);
+                            if ((int) ($userPrice->lesson_package_id ?? 0) === $lessonPackageId) {
+                                return;
+                            }
+
+                            $userPrice->update(['lesson_package_id' => $lessonPackageId]);
+                            $userPrice->setRelation('lessonPackage', $package);
+                            $this->syncUserPriceLessonPackage($userPrice, 'lesson_package_id');
+
+                            return;
+                        }
+
+                        if ($isPostpay && $package) {
+                            $userPrice->fill($snap);
+                            $this->postpaySync->applyPackageToRow($userPrice, $package);
+                            $this->syncUserPriceLessonPackage(
+                                $userPrice,
+                                'lesson_package_id'
+                            );
+                        } else {
+                            $userPrice->update([
+                                'price_cents' => $payableCents,
+                                'lesson_package_id' => $lessonPackageId,
+                                'discount_percent' => $snap['discount_percent'],
+                                'discount_comment' => $snap['discount_comment'],
+                            ]);
+                            if ($package) {
+                                $userPrice->setRelation('lessonPackage', $package);
+                            }
+                            $this->syncUserPriceLessonPackage($userPrice, 'lesson_package_id');
+                        }
+
+                        return;
                     }
-                    $this->syncUserPriceLessonPackage($userPrice, 'lesson_package_id');
-                }
 
-                continue;
-            }
-
-            if ($isPostpay && $package) {
-                $created = UserPrice::create([
-                    'user_id' => $userId,
-                    'team_id' => $team->id,
-                    'new_month' => $monthDate,
-                    'price_cents' => 0,
-                    'lesson_package_id' => $lessonPackageId,
-                    'is_paid' => false,
-                    'discount_percent' => $snap['discount_percent'],
-                    'discount_comment' => $snap['discount_comment'],
-                ]);
-                $created->setRelation('lessonPackage', $package);
-                $this->postpaySync->syncRow($created);
-                $this->syncUserPriceLessonPackage($created, 'lesson_package_id');
-            } else {
-                $created = UserPrice::create([
-                    'user_id' => $userId,
-                    'team_id' => $team->id,
-                    'new_month' => $monthDate,
-                    'price_cents' => $payableCents,
-                    'lesson_package_id' => $lessonPackageId,
-                    'is_paid' => false,
-                    'discount_percent' => $snap['discount_percent'],
-                    'discount_comment' => $snap['discount_comment'],
-                ]);
-                if ($package) {
-                    $created->setRelation('lessonPackage', $package);
-                }
-                $this->syncUserPriceLessonPackage($created, 'lesson_package_id');
+                    if ($isPostpay && $package) {
+                        $created = UserPrice::create([
+                            'user_id' => $userId,
+                            'team_id' => $team->id,
+                            'new_month' => $monthDate,
+                            'price_cents' => 0,
+                            'lesson_package_id' => $lessonPackageId,
+                            'is_paid' => false,
+                            'discount_percent' => $snap['discount_percent'],
+                            'discount_comment' => $snap['discount_comment'],
+                        ]);
+                        $created->setRelation('lessonPackage', $package);
+                        $this->postpaySync->syncRow($created);
+                        $this->syncUserPriceLessonPackage($created, 'lesson_package_id');
+                    } else {
+                        $created = UserPrice::create([
+                            'user_id' => $userId,
+                            'team_id' => $team->id,
+                            'new_month' => $monthDate,
+                            'price_cents' => $payableCents,
+                            'lesson_package_id' => $lessonPackageId,
+                            'is_paid' => false,
+                            'discount_percent' => $snap['discount_percent'],
+                            'discount_comment' => $snap['discount_comment'],
+                        ]);
+                        if ($package) {
+                            $created->setRelation('lessonPackage', $package);
+                        }
+                        $this->syncUserPriceLessonPackage($created, 'lesson_package_id');
+                    }
+                });
+            } catch (ValidationException $e) {
+                $first = collect($e->errors())->flatten()->filter()->first();
+                $name = trim((string) ($user->lastname ?? '').' '.(string) ($user->name ?? ''));
+                $label = $name !== '' ? $name : ('ученик #'.(int) $user->id);
+                $errors['lesson_package_id'][] = $label.': '.(is_string($first) ? $first : 'Нельзя сменить абонемент.');
             }
         }
+
+        return $errors;
     }
 
     public function setTeamPrice(SetTeamPriceRequest $request)
@@ -1675,7 +1784,8 @@ class SettingPricesController extends AdminBaseController
         $package = $resolved['package'];
         $selectedDate = $this->formatedDate($selectedDateString);
 
-        DB::transaction(function () use ($team, $selectedDate, $priceCents, $lessonPackageId, $selectedDateString, $package) {
+        $studentErrors = [];
+        DB::transaction(function () use ($team, $selectedDate, $priceCents, $lessonPackageId, $selectedDateString, $package, &$studentErrors) {
             TeamPrice::updateOrCreate(
                 [
                     'team_id' => $team->id,
@@ -1696,8 +1806,12 @@ class SettingPricesController extends AdminBaseController
                     ->withCreatedAt(now())
             );
 
-            $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $priceCents, $lessonPackageId, $package);
+            $studentErrors = $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $priceCents, $lessonPackageId, $package);
         });
+
+        if ($studentErrors !== []) {
+            throw ValidationException::withMessages($studentErrors);
+        }
 
         return $this->settingPricesMonthlyJsonOrRedirect($request, [
             'success' => true,
@@ -1718,7 +1832,8 @@ class SettingPricesController extends AdminBaseController
         $teamsData = $data['teamsData'] ?? [];
         $selectedDate = $this->formatedDate($selectedDateString);
 
-        DB::transaction(function () use ($selectedDate, $selectedDateString, $teamsData, $partnerId) {
+        $studentErrors = [];
+        DB::transaction(function () use ($selectedDate, $selectedDateString, $teamsData, $partnerId, &$studentErrors) {
             foreach ($teamsData as $teamData) {
                 $teamId = (int) ($teamData['teamId'] ?? 0);
                 $lessonPackageId = (int) ($teamData['lesson_package_id'] ?? 0);
@@ -1772,9 +1887,18 @@ class SettingPricesController extends AdminBaseController
                         ->withCreatedAt(now())
                 );
 
-                $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $priceCents, $lessonPackageId, $package);
+                $chunk = $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $priceCents, $lessonPackageId, $package);
+                foreach ($chunk as $field => $messages) {
+                    foreach ($messages as $message) {
+                        $studentErrors[$field][] = $team->title.': '.$message;
+                    }
+                }
             }
         });
+
+        if ($studentErrors !== []) {
+            throw ValidationException::withMessages($studentErrors);
+        }
 
         return $this->settingPricesMonthlyJsonOrRedirect($request, [
             'success' => true,
@@ -1918,44 +2042,52 @@ class SettingPricesController extends AdminBaseController
 
         $selectedDate = $this->formatedDate($selectedDateString);
 
-        DB::transaction(function () use ($selectedDate, $selectedDateString, $usersPrice, $teamId, $team, $partnerId) {
-            foreach ($usersPrice as $index => $priceData) {
-                $userId = (int) ($priceData['user_id'] ?? 0);
-                if ($userId <= 0) {
-                    continue;
-                }
-
-                $user = $this->findPartnerStudent($userId, $partnerId);
-                if (! $user || ! UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId)) {
-                    continue;
-                }
-
-                /** @var UserPrice|null $userPriceRecord */
-                $userPriceRecord = UserPrice::where('user_id', $userId)
-                    ->where('team_id', $teamId)
-                    ->where('new_month', $selectedDate)
-                    ->first();
-
-                // Нет записи — не создаём (обратная совместимость тестов и UX «Подробно» → firstOrCreate)
-                if (! $userPriceRecord) {
-                    continue;
-                }
-
-                if ($userPriceRecord->effective_is_paid) {
-                    continue;
-                }
-
-                $this->applyUnpaidUserPriceRow(
-                    $userPriceRecord,
-                    $priceData,
-                    $user,
-                    $team,
-                    $partnerId,
-                    $selectedDateString,
-                    'usersPrice.'.$index.'.lesson_package_id'
-                );
+        $errors = [];
+        foreach ($usersPrice as $index => $priceData) {
+            $userId = (int) ($priceData['user_id'] ?? 0);
+            if ($userId <= 0) {
+                continue;
             }
-        });
+
+            $user = $this->findPartnerStudent($userId, $partnerId);
+            if (! $user || ! UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId)) {
+                continue;
+            }
+
+            /** @var UserPrice|null $userPriceRecord */
+            $userPriceRecord = UserPrice::where('user_id', $userId)
+                ->where('team_id', $teamId)
+                ->where('new_month', $selectedDate)
+                ->first();
+
+            // Нет записи — не создаём (обратная совместимость тестов и UX «Подробно» → firstOrCreate)
+            if (! $userPriceRecord) {
+                continue;
+            }
+
+            $field = 'usersPrice.'.$index.'.lesson_package_id';
+            try {
+                DB::transaction(function () use ($userPriceRecord, $priceData, $user, $team, $partnerId, $selectedDateString, $field) {
+                    $this->applyUnpaidUserPriceRow(
+                        $userPriceRecord,
+                        $priceData,
+                        $user,
+                        $team,
+                        $partnerId,
+                        $selectedDateString,
+                        $field
+                    );
+                });
+            } catch (ValidationException $e) {
+                foreach ($e->errors() as $errField => $messages) {
+                    $errors[$errField] = $messages;
+                }
+                if (! isset($errors[$field])) {
+                    $first = collect($e->errors())->flatten()->filter()->first();
+                    $errors[$field] = [is_string($first) ? $first : 'Нельзя сменить абонемент.'];
+                }
+            }
+        }
 
         $userIds = collect($usersPrice)
             ->pluck('user_id')
@@ -1989,6 +2121,24 @@ class SettingPricesController extends AdminBaseController
         }
 
         $freshUsersPrice = $this->decorateUsersPricesForMonthlyUi($freshUsersPrice->all());
+
+        if ($errors !== []) {
+            $first = collect($errors)->flatten()->filter()->first();
+            $message = is_string($first) ? $first : 'Нельзя сменить абонемент.';
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                    'errors' => $errors,
+                    'usersPrice' => $freshUsersPrice,
+                    'selectedDate' => $selectedDate,
+                    'lessonPackages' => $this->lessonPackagesForPartnerSelect($partnerId),
+                ], 422);
+            }
+
+            throw ValidationException::withMessages($errors);
+        }
 
         return $this->settingPricesMonthlyJsonOrRedirect($request, [
             'success' => true,
@@ -2133,8 +2283,8 @@ class SettingPricesController extends AdminBaseController
 
         $authorId = auth()->id();
 
-        DB::transaction(function () use ($items, $userId, $teamId, $year, $authorId, $team, $user) {
-            foreach ($items as $item) {
+        DB::transaction(function () use ($items, $userId, $teamId, $year, $authorId, $team, $user, $partnerId) {
+            foreach ($items as $index => $item) {
                 $newMonth = $item['new_month'];
                 $price = round((float) $item['price'], 2);
                 $priceCents = Money::toCentsOrFail($item['price'] ?? 0);
@@ -2161,6 +2311,17 @@ class SettingPricesController extends AdminBaseController
 
                 if ($userPrice) {
                     if ($userPrice->effective_is_paid) {
+                        $this->applyUnpaidUserPriceRow(
+                            $userPrice,
+                            array_merge($item, [
+                                'user' => ['name' => $user->name ?? 'Пользователь'],
+                            ]),
+                            $user,
+                            $team,
+                            $partnerId,
+                            $monthLabel,
+                            'prices.'.$index.'.lesson_package_id'
+                        );
                         continue;
                     }
 
@@ -2185,7 +2346,7 @@ class SettingPricesController extends AdminBaseController
                         }
                         $userPrice->setRelation('lessonPackage', $resolvedPackage);
                         $this->postpaySync->syncRow($userPrice);
-                        $this->syncUserPriceLessonPackage($userPrice, 'prices.lesson_package_id');
+                        $this->syncUserPriceLessonPackage($userPrice, 'prices.'.$index.'.lesson_package_id');
 
                         $this->auditLogger->record(
                             AuditEvent::PricingStudentApply,
@@ -2206,7 +2367,7 @@ class SettingPricesController extends AdminBaseController
                             && in_array((string) $resolvedPackage->schedule_type, LessonPackage::ASSIGNMENT_SCHEDULE_TYPES, true)
                         ) {
                             $userPrice->setRelation('lessonPackage', $resolvedPackage);
-                            $this->syncUserPriceLessonPackage($userPrice, 'prices.lesson_package_id');
+                            $this->syncUserPriceLessonPackage($userPrice, 'prices.'.$index.'.lesson_package_id');
                         }
                         continue;
                     }
@@ -2238,7 +2399,7 @@ class SettingPricesController extends AdminBaseController
                     }
                     $this->syncUserPriceLessonPackage(
                         $userPrice,
-                        'prices.lesson_package_id'
+                        'prices.'.$index.'.lesson_package_id'
                     );
 
                     $packageNote = $resolvedPackageId
@@ -2283,7 +2444,7 @@ class SettingPricesController extends AdminBaseController
                     }
                     $this->syncUserPriceLessonPackage(
                         $created,
-                        'prices.lesson_package_id'
+                        'prices.'.$index.'.lesson_package_id'
                     );
 
                     $packageNote = ($packageKeyPresent && $newPackageId)

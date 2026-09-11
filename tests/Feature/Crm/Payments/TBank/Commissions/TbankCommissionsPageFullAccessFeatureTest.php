@@ -51,6 +51,7 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('payments-report-toolbar', false)
             ->assertSee('>Настройки выплат</span>', false)
             ->assertSee('>Добавить комиссию</span>', false)
+            ->assertSee('>История</span>', false)
             ->assertSee('>Фильтры</span>', false)
             ->assertSee('>Колонки</span>', false)
             ->assertSee('id="tbank-commissions-table"', false);
@@ -82,6 +83,7 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.setting.tbankCommissions'))->assertForbidden();
         $this->getJson(route('admin.setting.tbankCommissions.data', ['draw' => 1]))->assertForbidden();
         $this->get(route('admin.setting.tbankCommissions.columns-settings.get'))->assertForbidden();
+        $this->getJson(route('logs.data.tbank-commission', ['draw' => 1]))->assertForbidden();
         $this->postJson(route('admin.setting.tbankCommissions.columns-settings.save'), [
             'columns' => ['partner_title' => true],
         ])->assertForbidden();
@@ -112,6 +114,7 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
             fn () => $this->get(route('admin.setting.tbankCommissions')),
             fn () => $this->getJson(route('admin.setting.tbankCommissions.data', ['draw' => 1])),
             fn () => $this->get(route('admin.setting.tbankCommissions.columns-settings.get')),
+            fn () => $this->getJson(route('logs.data.tbank-commission', ['draw' => 1, 'start' => 0, 'length' => 10])),
             fn () => $this->postJson(route('admin.setting.tbankCommissions.columns-settings.save'), [
                 'columns' => ['partner_title' => true],
             ]),
@@ -155,6 +158,14 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
             'filter_partner_id' => $this->partner->id,
             'filter_method' => 'card',
         ]))->assertOk();
+
+        $this->getJson(route('logs.data.tbank-commission', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
 
         $this->getJson(route('admin.setting.tbankCommissions.columns-settings.get'))
             ->assertOk()

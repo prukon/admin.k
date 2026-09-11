@@ -482,7 +482,7 @@ class TbankPaymentsReportTest extends CrmTestCase
         $this->assertStringContainsString('<option value="" selected>Все способы</option>', $html);
         $this->assertSame(1, preg_match('/<input\b[^>]*\bid="tp-filter-without-payout"[^>]*>/', $html, $checkboxTag));
         $this->assertStringNotContainsString('checked', $checkboxTag[0]);
-        foreach (['created_at', 'partner', 'order_id', 'amount', 'platform_commission', 'payout_amount', 'method', 'status', 'deal_id', 'receipt', 'actions'] as $key) {
+        foreach (['created_at', 'partner', 'order_id', 'amount', 'platform_commission', 'payout_amount', 'payout_status', 'method', 'status', 'deal_id', 'receipt', 'actions'] as $key) {
             $this->assertMatchesRegularExpression(
                 '/class="form-check-input tbank-payments-column-toggle"[^>]*data-column-key="'.$key.'"[^>]*checked/',
                 $html

@@ -527,8 +527,8 @@
                     const hasRow = !!item.has_price_row;
                     const packageId = item.lesson_package_id != null ? item.lesson_package_id : '';
                     const hasAbon = packageId !== '';
-                    // Абонемент: бывшие и оплаченные — только просмотр; иначе всегда можно менять.
-                    const packageDisabledAttr = (isFormer || effectivePaid) ? 'disabled' : '';
+                    // Абонемент: бывшие — только просмотр; оплаченные можно сменить (цена заморожена).
+                    const packageDisabledAttr = isFormer ? 'disabled' : '';
                     // Сумма: при первичной установке (ещё нет абона) — открыта;
                     // после установки абона — только через карандаш (если есть право).
                     let priceDisabledAttr = 'disabled';
@@ -585,6 +585,7 @@
                         packageDisabledAttr + ' aria-label="Абонемент">' +
                         buildPackageSelectOptions(packageId) +
                         '</select>';
+                    html += '<div class="setting-prices-monthly-package-error small text-danger mt-1" style="display:none"></div>';
                     html += '</div>';
                     html += '<div class="setting-prices-monthly-price flex-shrink-0">';
                     const priceInputHtml = '<input type="number" step="0.01" min="0" class="form-control form-control-sm user-price-input setting-prices-monthly-price-input" ' +
@@ -678,19 +679,14 @@
 
                 const $input = $card.find('.user-price-input');
                 const newMonth = $input.data('new-month') || $card.data('new-month');
-                const effPaid = Number($input.data('effective-paid')) === 1;
 
                 if (!newMonth) {
                     return;
                 }
 
-                // Для оплаченного месяца сумма не меняется — только выход из режима.
-                if (effPaid) {
-                    editingNewMonth = null;
-                    loadUserYearPrices();
-                    return;
-                }
+                $card.find('.setting-prices-monthly-package-error').hide().text('');
 
+                // Для оплаченного месяца сумму не меняем, но абонемент предоплаты можно заменить.
                 const year = $('#user-year-select').val();
                 const token = $('meta[name="csrf-token"]').attr('content');
                 const price = Number($input.val()) || 0;
@@ -725,19 +721,30 @@
                     },
                     error: function (xhr) {
                         let msg = 'Ошибка при сохранении изменений.';
+                        let fieldShown = false;
                         if (xhr.responseJSON) {
                             if (xhr.responseJSON.message) {
                                 msg = xhr.responseJSON.message;
                             }
                             const errs = xhr.responseJSON.errors;
                             if (errs) {
-                                const firstKey = Object.keys(errs)[0];
-                                if (firstKey && errs[firstKey] && errs[firstKey][0]) {
-                                    msg = errs[firstKey][0];
+                                const pkgErr = errs['prices.0.lesson_package_id']
+                                    || errs.lesson_package_id;
+                                if (pkgErr && pkgErr[0]) {
+                                    $card.find('.setting-prices-monthly-package-error').text(pkgErr[0]).show();
+                                    fieldShown = true;
+                                    msg = pkgErr[0];
+                                } else {
+                                    const firstKey = Object.keys(errs)[0];
+                                    if (firstKey && errs[firstKey] && errs[firstKey][0]) {
+                                        msg = errs[firstKey][0];
+                                    }
                                 }
                             }
                         }
-                        showToast(msg, true);
+                        if (!fieldShown) {
+                            showToast(msg, true);
+                        }
                         $btn.prop('disabled', false);
                     }
                 });
@@ -870,18 +877,19 @@
                     if (!$input.length) {
                         return;
                     }
+                    const isPaid = Number($input.data('effective-paid')) === 1;
                     const api = window.KidsCrmUserDiscount;
                     const $wrap = $input.closest('.kids-user-discount-price-wrap');
                     const pct = yearUserDiscountPercent();
                     const comment = lastYearUserDiscount.comment || '';
-                    // Подставляем цену абонемента (со скидкой ученика) даже если сумма ещё locked (до карандаша).
-                    if (select.value && pkgPrice != null && pkgPrice !== '') {
+                    // Подставляем цену абонемента (со скидкой ученика), кроме оплаченного месяца.
+                    if (!isPaid && select.value && pkgPrice != null && pkgPrice !== '') {
                         $input.val(formatPriceValue(payableRubAfterUserDiscount(pkgPrice, pct)));
                         if (api && $wrap.length) {
                             api.showBadge($wrap.get(0), pct, comment);
                             api.initHint($wrap.get(0));
                         }
-                    } else if (api && $wrap.length) {
+                    } else if (api && $wrap.length && !isPaid) {
                         api.hideBadge($wrap.get(0));
                     }
                 });
@@ -1037,13 +1045,12 @@
                     const payload = [];
                     $('#user-prices-table-wrapper .user-price-input').each(function () {
                         const input = $(this);
-                        const effPaid = Number(input.data('effective-paid')) === 1;
                         const newMonth = input.data('new-month');
                         const price = Number(input.val()) || 0;
                         const $card = input.closest('.setting-prices-user-card');
                         const pkgVal = $card.find('.setting-prices-monthly-package-select').val();
 
-                        if (newMonth && !effPaid) {
+                        if (newMonth) {
                             payload.push({
                                 new_month: newMonth,
                                 price: price,
@@ -1083,8 +1090,23 @@
                                         showToast(response.message || 'Не удалось сохранить изменения.', true);
                                     }
                                 },
-                                error: function () {
-                                    showToast('Ошибка при сохранении изменений.', true);
+                                error: function (xhr) {
+                                    let msg = 'Ошибка при сохранении изменений.';
+                                    const errs = xhr.responseJSON && xhr.responseJSON.errors ? xhr.responseJSON.errors : {};
+                                    $('#user-prices-table-wrapper .setting-prices-user-card').each(function (i) {
+                                        const key = 'prices.' + i + '.lesson_package_id';
+                                        const $err = $(this).find('.setting-prices-monthly-package-error');
+                                        if (errs[key] && errs[key][0]) {
+                                            $err.text(errs[key][0]).show();
+                                            msg = errs[key][0];
+                                        } else {
+                                            $err.hide().text('');
+                                        }
+                                    });
+                                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                                        msg = xhr.responseJSON.message;
+                                    }
+                                    showToast(msg, true);
                                 },
                                 complete: function () {
                                     $saveBtn.prop('disabled', false);

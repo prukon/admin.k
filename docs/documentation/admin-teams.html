@@ -38,6 +38,7 @@
     Поле «Тренировочная база» (<code>teams.training_base</code>) и право <code>groups.training_base.view</code> удалены миграцией <code>2026_06_13_150000_drop_training_base_from_teams.php</code>.
     Право <code>groups.own</code> не открывает страницу: при нём тренер с <code>groups.view</code> видит в таблице только группы из <code>team_trainer</code>
     (см. <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>).
+    Карточка чужой группы той же школы — 403; другой организации — 404. <code>POST /admin/teams</code> при праве авто-attach’ит профиль актора в <code>team_trainer</code>.
     Без <code>groups.own</code> список как раньше — все группы школы.
   </div>
 

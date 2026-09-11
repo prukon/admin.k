@@ -81,6 +81,7 @@ final class TbankCommissionsColumnsDocumentationContractTest extends TestCase
         $this->assertStringContainsString("admin/settings/tbank-commissions/columns-settings", $routes);
         $this->assertStringContainsString("->name('admin.setting.tbankCommissions.columns-settings.get')", $routes);
         $this->assertStringContainsString("->name('admin.setting.tbankCommissions.columns-settings.save')", $routes);
+        $this->assertStringContainsString("->name('logs.data.tbank-commission')", $routes);
         $this->assertStringContainsString("->whereNumber('id')", $routes);
 
         $this->assertStringContainsString("private const TABLE_KEY = 'tbank_commissions_index'", $controller);

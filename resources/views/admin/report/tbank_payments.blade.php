@@ -111,6 +111,10 @@
                                 <label class="form-check-label" for="tpColPayoutAmount">Выплата</label>
                             </div>
                             <div class="form-check">
+                                <input class="form-check-input tbank-payments-column-toggle" type="checkbox" data-column-key="payout_status" id="tpColPayoutStatus" checked>
+                                <label class="form-check-label" for="tpColPayoutStatus">Статус выплаты</label>
+                            </div>
+                            <div class="form-check">
                                 <input class="form-check-input tbank-payments-column-toggle" type="checkbox" data-column-key="method" id="tpColMethod" checked>
                                 <label class="form-check-label" for="tpColMethod">Способ</label>
                             </div>
@@ -242,6 +246,7 @@
             <th>Сумма</th>
             <th>Комиссия платформы</th>
             <th>Выплата</th>
+            <th>Статус выплаты</th>
             <th>Способ</th>
             <th>Статус</th>
             <th>Deal</th>
@@ -380,6 +385,7 @@
             }
 
             var currentView = @json($tpView);
+            var statusAutoDefaulted = @json((bool) ($tpStatusDefaulted ?? false));
             var currentPageLength = @json((int) ($tbankPaymentsPageLength ?? 10));
             var dtApi = null;
 
@@ -394,6 +400,62 @@
                     view: currentView
                 };
             }
+
+            function tpStatusSelect() {
+                return $form.find('[name="status"]');
+            }
+
+            function tpHasUiActiveFilters() {
+                if (tpStatusSelect().val()) {
+                    return true;
+                }
+                if ($form.find('[name="method"]').val()) {
+                    return true;
+                }
+                if ($form.find('[name="partner_id"]').val()) {
+                    return true;
+                }
+                if ($form.find('[name="created_from"]').val()) {
+                    return true;
+                }
+                if ($form.find('[name="created_to"]').val()) {
+                    return true;
+                }
+                if ($form.find('[name="without_payout"]').is(':checked')) {
+                    return true;
+                }
+                return false;
+            }
+
+            function tpSyncFiltersPanel() {
+                var open = tpHasUiActiveFilters();
+                $('#tbankPaymentsFiltersCollapse').toggleClass('show', open);
+                $('#tbankPaymentsFiltersToggle').attr('aria-expanded', open ? 'true' : 'false');
+            }
+
+            function tpApplyConfirmedDefault() {
+                if (tpStatusSelect().val()) {
+                    return;
+                }
+                tpStatusSelect().val('CONFIRMED');
+                statusAutoDefaulted = true;
+                tpSyncFiltersPanel();
+            }
+
+            function tpClearConfirmedDefaultIfNeeded() {
+                if (!statusAutoDefaulted) {
+                    return;
+                }
+                if (tpStatusSelect().val() === 'CONFIRMED') {
+                    tpStatusSelect().val('');
+                }
+                statusAutoDefaulted = false;
+                tpSyncFiltersPanel();
+            }
+
+            tpStatusSelect().on('change', function () {
+                statusAutoDefaulted = false;
+            });
 
             function tpClearFieldErrors() {
                 $form.find('[data-error-for]').text('').hide();
@@ -444,6 +506,7 @@
                             amount: true,
                             platform_commission: true,
                             payout_amount: true,
+                            payout_status: true,
                             method: true,
                             status: true,
                             deal_id: true,
@@ -497,6 +560,15 @@
                             searchable: false
                         },
                         { key: 'payout_amount', type: 'money', data: 'payout_amount', name: 'payout_amount', searchable: false },
+                        {
+                            key: 'payout_status',
+                            type: 'badge',
+                            data: 'payout_status',
+                            name: 'payout_status',
+                            searchable: false,
+                            className: 'dt-col-badge text-center',
+                            render: renderPayoutStatusCell
+                        },
                         {
                             key: 'method',
                             type: 'text',
@@ -567,7 +639,7 @@
                 if (view === 'payments') {
                     return '<tr>'
                         + '<th>ID</th><th>Создан</th><th>Партнер</th><th>Order</th><th>Сумма</th>'
-                        + '<th>Комиссия платформы</th><th>Выплата</th><th>Способ</th><th>Статус</th>'
+                        + '<th>Комиссия платформы</th><th>Выплата</th><th>Статус выплаты</th><th>Способ</th><th>Статус</th>'
                         + '<th>Deal</th><th>Чек</th><th></th>'
                         + '</tr>';
                 }
@@ -669,6 +741,30 @@
                 return '<span class="badge ' + cls + '">' + $('<div/>').text(s).html() + '</span>';
             }
 
+            function renderPayoutStatusCell(data, type, row) {
+                if (type !== 'display') {
+                    return data || '';
+                }
+                if (!data) {
+                    return '<span class="dt-cell-empty text-muted">—</span>';
+                }
+                var s = String(data);
+                var map = {
+                    COMPLETED: 'bg-success',
+                    REJECTED: 'bg-danger',
+                    INITIATED: 'bg-secondary',
+                    CREDIT_CHECKING: 'bg-info text-dark'
+                };
+                var cls = map[s] || 'bg-secondary';
+                var badge = '<span class="badge ' + cls + '">' + KidsCrmTooltip.escapeHtml(s) + '</span>';
+                var at = row.payout_status_at || '';
+                if (!at) {
+                    return badge;
+                }
+
+                return badge + '<div class="small text-muted mt-1">' + KidsCrmTooltip.escapeHtml(String(at)) + '</div>';
+            }
+
             function renderTbankReceiptCell(data, type, row) {
                 if (type !== 'display') {
                     return row.has_receipt ? 1 : 0;
@@ -762,6 +858,13 @@
                 $tpFilterPartner.val(null).trigger('change');
                 @endif
                 tpClearFieldErrors();
+                if (keepView === 'days' || keepView === 'months') {
+                    tpStatusSelect().val('CONFIRMED');
+                    statusAutoDefaulted = true;
+                } else {
+                    statusAutoDefaulted = false;
+                }
+                tpSyncFiltersPanel();
                 refreshTbankPaymentsTotal();
                 dtApi.reload();
             });
@@ -774,10 +877,16 @@
                 if (view === currentView) {
                     return;
                 }
+                var previousView = currentView;
                 currentView = view;
                 $('#tp-view-hidden').val(currentView);
                 $('.js-tbank-view-btn').removeClass('active');
                 $(this).addClass('active');
+                if (view === 'days' || view === 'months') {
+                    tpApplyConfirmedDefault();
+                } else if (previousView === 'days' || previousView === 'months') {
+                    tpClearConfirmedDefaultIfNeeded();
+                }
                 tbankPaymentsSyncColumnsPanels(currentView);
                 destroyTbankPaymentsTable();
                 tpSyncViewInUrl();

@@ -968,7 +968,9 @@
   <table>
     <thead><tr><th>Место</th><th>Поведение</th></tr></thead>
     <tbody>
-      <tr><td>Модалки create/edit</td><td>Multiselect <code>team_ids[]</code> (<code>_student_teams_multiselect.blade.php</code>); право записи — <code>users.group.update</code></td></tr>
+      <tr><td>Модалки create/edit</td><td>Multiselect <code>team_ids[]</code> (<code>_student_teams_multiselect.blade.php</code>).
+        Create: селект редактируемый без <code>users.group.update</code> (<code>canEditTeams=true</code>, <code>StoreRequest</code> принимает <code>team_ids</code>).
+        Edit: disabled без <code>users.group.update</code>. При <code>groups.own</code> в опциях только группы тренера</td></tr>
       <tr><td>Колонка «Группы»</td><td>Названия через запятую. При праве <code>groups.own</code> у тренера — только его группы (<a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>); полное описание — <code>TrainerOwnTeamsScope::visibleTeamTitlesLabel</code></td></tr>
       <tr><td>Фильтр «Группа»</td><td><code>team_id</code> / <code>none</code> — по pivot; ученик с двумя группами попадает в фильтр по любой из них. При <code>groups.own</code> в селекте только группы тренера; пустой фильтр («все») — только ученики этих групп, не вся школа</td></tr>
       <tr><td>JSON edit</td><td><code>user.team_ids</code> — массив id из pivot; при <code>groups.own</code> — только видимые. Сохранение merge’ит скрытые группы, не снимает их</td></tr>

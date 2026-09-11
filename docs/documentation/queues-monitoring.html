@@ -104,7 +104,8 @@
     <li>Это <b>не</b> первое число «Касса» пульта (<code>till.overdue_payouts</code> /
       <code>TinkoffPayment::missingPayoutAfterDelay()</code>): там CONFIRMED мультисплит
       без <code>COMPLETED</code> после <code>auto_payout_delay_hours</code>, в том числе
-      платежи без строки выплаты и <code>REJECTED</code>.
+      платежи без строки выплаты и <code>REJECTED</code>; успешный возврат
+      (<code>refunds.status=succeeded</code>) не входит.
       Анонс — <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>.</li>
   </ul>
 

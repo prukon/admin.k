@@ -58,6 +58,11 @@ class LessonPackage extends Model
         return (string) $this->schedule_type === self::SCHEDULE_TYPE_POSTPAY;
     }
 
+    public function isFlexible(): bool
+    {
+        return (string) $this->schedule_type === self::SCHEDULE_TYPE_FLEXIBLE;
+    }
+
     public function priceRub(): float
     {
         return (float) Money::fromCents((int) $this->price_cents);

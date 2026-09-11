@@ -49,7 +49,7 @@
   <ul>
     <li><b>Значение</b> — канонический <code>event</code>, например <code>user.updated</code>, <code>schedule.user_range_updated</code>.</li>
     <li><b>Уровень</b> — <code>AuditLevel</code>: <code>info</code> (изменения в CRM), <code>security</code> (входы), <code>integration</code> (платежи, webhook, подписание).</li>
-    <li><code>location</code> — домен для модалок «История изменений»: <code>pricing</code>, <code>user</code>, <code>team</code>, <code>location</code>, <code>district</code>, <code>sport_type</code>, <code>lesson_package</code>, <code>user_lesson_package</code>, <code>lesson_occurrence_status</code>, <code>school_lead</code>, <code>contract_template</code>, <code>schedule</code>, <code>role</code>, <code>partner</code>, <code>settings</code>, <code>payment</code>, <code>auth</code>, <code>contract</code> и др.</li>
+    <li><code>location</code> — домен для модалок «История изменений»: <code>pricing</code>, <code>user</code>, <code>team</code>, <code>location</code>, <code>district</code>, <code>sport_type</code>, <code>lesson_package</code>, <code>user_lesson_package</code>, <code>lesson_occurrence_status</code>, <code>school_lead</code>, <code>contract_template</code>, <code>schedule</code>, <code>role</code>, <code>partner</code>, <code>tbank_commission</code>, <code>settings</code>, <code>payment</code>, <code>auth</code>, <code>contract</code> и др.</li>
     <li><b>Методы <code>legacyType()</code> / <code>legacyAction()</code> / <code>fromLegacy()</code></b> — только для миграций backfill и unit-тестов реестра, не для HTTP/UI.</li>
   </ul>
   <p>Примеры событий расписания (вместо старых «type=6, action=60» в документации):</p>
@@ -124,6 +124,7 @@
       <tr><td>Цены → История</td><td><code>GET /admin/setting-prices/logs-data</code></td><td><code>pricing</code></td><td><code>setPrices.view</code></td></tr>
       <tr><td>Права и роли → История</td><td><code>GET /admin/setting/rules/logs-data</code></td><td><code>role</code></td><td><code>settings.roles.view</code></td></tr>
       <tr><td>Партнёры → История</td><td><code>GET /admin/partner/logs-data</code></td><td><code>partner</code></td><td><code>partner.view</code></td></tr>
+      <tr><td>Комиссии Т‑Банк → История (<a href="/doc#tbank-commissions-history-index">анонс</a>)</td><td><code>GET /admin/settings/tbank-commissions/logs-data</code></td><td><code>tbank_commission</code></td><td><code>settings.commission</code></td></tr>
     </tbody>
   </table>
 
@@ -139,8 +140,8 @@
     <code>applyCategoryScope()</code> — только события одного домена, без legacy <code>type</code>/<code>action</code>.
   </div>
   <ul>
-    <li><b>Права</b> — endpoint <code>logs-data</code> находится в той же middleware-группе, что и index страницы (например <code>contracts.view</code>, <code>districts.view</code>). Без права — 403; гость — 302/401.</li>
-    <li><b>Partner-scope</b> — строки только текущего партнёра (<code>partner_id</code> из <code>current_partner</code>).</li>
+    <li><b>Права</b> — endpoint <code>logs-data</code> находится в той же middleware-группе, что и index страницы (например <code>contracts.view</code>, <code>districts.view</code>). Без права — 403; гость — 302/401/403/419.</li>
+    <li><b>Partner-scope</b> — по умолчанию строки текущего партнёра (<code>partner_id</code> из <code>current_partner</code>). Superadmin видит все строки категории, если контроллер передаёт <code>SUPERADMIN_ALL_OR_FILTER</code> (Настройки → Логи; <a href="/docs/documentation/tbank#commissions-history">Комиссии Т‑Банк</a>).</li>
     <li><b>Запись без изменений</b> — для update-событий лог не пишется, если diff пустой (справочники, шаблоны, заявки).</li>
     <li><b>Удаление</b> — события delete обычно с <code>level = security</code>; при блокировке удаления (422) лог не создаётся.</li>
   </ul>
@@ -211,6 +212,12 @@
         <td><code>lesson_occurrence_status.created</code>, <code>lesson_occurrence_status.updated</code>, <code>lesson_occurrence_status.deleted</code></td>
         <td><code>LessonOccurrenceStatusesToolbarFeatureTest</code>, <code>LessonOccurrenceStatusesAjaxContractFeatureTest</code>, <code>LessonOccurrenceStatusesPageFullAccessFeatureTest</code></td>
       </tr>
+      <tr>
+        <td><a href="/docs/documentation/tbank#commissions-history">/admin/settings/tbank-commissions</a> (<a href="/doc#tbank-commissions-history-index">анонс</a>)</td>
+        <td><code>logs.data.tbank-commission</code></td>
+        <td><code>tbank_commission.created</code>, <code>tbank_commission.updated</code> (пустое diff не пишется), <code>tbank_commission.deleted</code>, <code>tbank_commission.payout_settings_updated</code>; «Колонки» не логируются</td>
+        <td><code>TbankCommissionsAuditLogsFeatureTest</code>, <code>TbankCommissionsPageFullAccessFeatureTest</code>, <code>TbankCommissionsHistoryDocumentationContractTest</code></td>
+      </tr>
     </tbody>
   </table>
   <p class="small">Фильтрация категорий в HTTP — <code>tests/Feature/Crm/Audit/AuditLogsEventOnlyFeatureTest.php</code>
@@ -244,6 +251,7 @@
     <li><code>LocationsAuditLogsFeatureTest</code> + <code>LocationsPageFullAccessFeatureTest</code></li>
     <li><code>DistrictsAuditLogsFeatureTest</code> + <code>DistrictsPageFullAccessFeatureTest</code></li>
     <li><code>SportTypesAuditLogsFeatureTest</code> + <code>SportTypesPageFullAccessFeatureTest</code></li>
+    <li><code>TbankCommissionsAuditLogsFeatureTest</code> + <code>TbankCommissionsPageFullAccessFeatureTest</code></li>
   </ul>
   <p class="small">Типовой сценарий в <code>*AuditLogsFeatureTest</code>: logs-data 200/403, UI «История», запись при mutation, diff полей, наличие записи в ответе logs-data. В <code>*PageFullAccessFeatureTest</code>: гость/403, 200 всех endpoint'ов раздела при нужном permission.</p>
 
@@ -257,7 +265,8 @@
     <li><a href="/docs/documentation/contracts">Договоры</a> · <a href="/docs/documentation/contract-templates">Шаблоны</a> ·
       <a href="/docs/documentation/school-leads-widget">Заявки</a> · <a href="/docs/documentation/school-schedule-calendar">Расписание школы</a> ·
       <a href="/docs/documentation/admin-locations">Объекты</a> · <a href="/docs/documentation/admin-districts">Районы</a> ·
-      <a href="/docs/documentation/admin-sport-types">Виды спорта</a></li>
+      <a href="/docs/documentation/admin-sport-types">Виды спорта</a> ·
+      <a href="/docs/documentation/tbank#commissions-ui">Комиссии Т‑Банк</a></li>
   </ul>
 
   <p class="small"><a href="/doc">← К оглавлению</a></p>

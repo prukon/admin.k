@@ -13,6 +13,8 @@ class TbankPaymentsReportFilterRequest extends FormRequest
 
     public const VIEWS = ['payments', 'days', 'months'];
 
+    private bool $statusPresentInRequest = false;
+
     public function authorize(): bool
     {
         return true;
@@ -20,6 +22,8 @@ class TbankPaymentsReportFilterRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $this->statusPresentInRequest = $this->exists('status');
+
         $status = $this->input('status');
         if ($status === 'all' || $status === '') {
             $this->merge(['status' => null]);
@@ -91,10 +95,16 @@ class TbankPaymentsReportFilterRequest extends FormRequest
 
         $partnerId = $data['partner_id'] ?? null;
 
+        $status = isset($data['status']) && $data['status'] !== '' && $data['status'] !== 'all'
+            ? (string) $data['status']
+            : null;
+
+        if ($status === null && $this->shouldDefaultConfirmedStatus()) {
+            $status = 'CONFIRMED';
+        }
+
         return [
-            'status' => isset($data['status']) && $data['status'] !== '' && $data['status'] !== 'all'
-                ? (string) $data['status']
-                : null,
+            'status' => $status,
             'method' => isset($data['method']) && $data['method'] !== '' && $data['method'] !== 'all'
                 ? (string) $data['method']
                 : null,
@@ -114,5 +124,20 @@ class TbankPaymentsReportFilterRequest extends FormRequest
         }
 
         return 'payments';
+    }
+
+    /**
+     * Для вида «По дням» / «По месяцам» без ключа status в запросе
+     * подставляется CONFIRMED. Явные all / пустой status / другой статус
+     * и вид «Платежи» дефолта не получают.
+     */
+    public function shouldDefaultConfirmedStatus(): bool
+    {
+        $view = $this->view();
+        if ($view !== 'days' && $view !== 'months') {
+            return false;
+        }
+
+        return ! $this->statusPresentInRequest;
     }
 }

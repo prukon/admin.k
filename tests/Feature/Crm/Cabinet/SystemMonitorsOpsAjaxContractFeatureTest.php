@@ -11,7 +11,10 @@ use App\Models\FiscalReceipt;
 use App\Models\MyLog;
 use App\Models\OutgoingEmailLog;
 use App\Models\Partner;
+use App\Models\Payable;
+use App\Models\Payment;
 use App\Models\PaymentIntent;
+use App\Models\Refund;
 use App\Models\SchoolLead;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
@@ -1085,6 +1088,80 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->assertJsonPath('till.overdue_payouts', 1);
     }
 
+    public function test_till_does_not_count_confirmed_payment_after_succeeded_refund(): void
+    {
+        $this->asSuperadmin();
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'card',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 1,
+        ]);
+        $payment = $this->makeConfirmedMultisplitPayment([
+            'confirmed_at' => now()->subHours(3),
+        ]);
+        $this->makeRefundForTinkoffPayment($payment, 'succeeded');
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('till.overdue_payouts', 0)
+            ->assertJsonPath('queue.overdue_payouts', 0);
+    }
+
+    public function test_till_does_not_count_rejected_payout_cancelled_by_succeeded_refund(): void
+    {
+        $this->asSuperadmin();
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'card',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 1,
+        ]);
+        $payment = $this->makeConfirmedMultisplitPayment([
+            'confirmed_at' => now()->subHours(3),
+        ]);
+        $crmPayment = $this->makeRefundForTinkoffPayment($payment, 'succeeded');
+        TinkoffPayout::query()->create([
+            'payment_id' => $payment->id,
+            'partner_id' => $payment->partner_id,
+            'deal_id' => (string) $payment->deal_id,
+            'amount' => 900,
+            'is_final' => true,
+            'status' => 'REJECTED',
+            'source' => 'auto',
+            'when_to_run' => null,
+            'completed_at' => now()->subHour(),
+            'payload_state' => [
+                'cancelled_by_refund' => [
+                    'refund_payment_id' => $crmPayment->id,
+                ],
+            ],
+        ]);
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('till.overdue_payouts', 0);
+    }
+
+    public function test_till_still_counts_missing_payout_when_refund_failed(): void
+    {
+        $this->asSuperadmin();
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'card',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 1,
+        ]);
+        $payment = $this->makeConfirmedMultisplitPayment([
+            'confirmed_at' => now()->subHours(3),
+        ]);
+        $this->makeRefundForTinkoffPayment($payment, 'failed');
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('till.overdue_payouts', 1);
+    }
+
     public function test_failed_welcome_mail_still_counts_as_missing(): void
     {
         $this->asSuperadmin();
@@ -1269,5 +1346,40 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             'tinkoff_payment_id' => (string) random_int(300_000_000, 2_000_000_000),
             'confirmed_at' => now()->subHours(25),
         ], $overrides));
+    }
+
+    private function makeRefundForTinkoffPayment(TinkoffPayment $tinkoffPayment, string $status): Payment
+    {
+        $student = $this->createUserWithRole('user', Partner::query()->findOrFail((int) $tinkoffPayment->partner_id));
+        $crmPayment = Payment::factory()->forUser($student)->create([
+            'partner_id' => $tinkoffPayment->partner_id,
+            'deal_id' => $tinkoffPayment->deal_id,
+            'payment_id' => (string) $tinkoffPayment->tinkoff_payment_id,
+            'payment_number' => (string) $tinkoffPayment->tinkoff_payment_id,
+            'payment_status' => 'CONFIRMED',
+            'summ_cents' => (int) $tinkoffPayment->amount,
+        ]);
+        $payable = Payable::factory()->create([
+            'partner_id' => $tinkoffPayment->partner_id,
+            'user_id' => $student->id,
+            'status' => 'paid',
+            'amount_cents' => (int) $tinkoffPayment->amount,
+        ]);
+        Refund::query()->create([
+            'partner_id' => $tinkoffPayment->partner_id,
+            'user_id' => $student->id,
+            'payable_id' => $payable->id,
+            'payment_id' => $crmPayment->id,
+            'amount_cents' => (int) $tinkoffPayment->amount,
+            'currency' => 'RUB',
+            'status' => $status,
+            'provider' => 'tbank',
+            'processed_at' => $status === 'pending' ? null : now()->subHour(),
+            'meta' => [
+                'tbank_payment_id' => (int) $tinkoffPayment->tinkoff_payment_id,
+            ],
+        ]);
+
+        return $crmPayment;
     }
 }

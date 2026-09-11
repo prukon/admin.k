@@ -175,7 +175,9 @@ final class TbankPaymentsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('Комиссия платформы', false)
             ->assertSee('data-column-key="platform_commission"', false)
             ->assertSee('data-column-key="receipt"', false)
-            ->assertSee('<th>Чек</th>', false);
+            ->assertSee('<th>Чек</th>', false)
+            ->assertSee('data-column-key="payout_status"', false)
+            ->assertSee('<th>Статус выплаты</th>', false);
 
         if ($isSuperadmin) {
             $index->assertSee('tp-filter-partner', false);
@@ -277,7 +279,21 @@ final class TbankPaymentsPageFullAccessFeatureTest extends CrmTestCase
             ],
             [
                 'method' => 'GET',
-                'url' => route('reports.tbank-payments.data', array_merge($this->baseDataTableParams(), ['view' => 'months'])),
+                'url' => route('reports.tbank-payments.total', ['view' => 'days']),
+            ],
+            [
+                'method' => 'GET',
+                'url' => '/admin/reports/tbank-payments/columns-settings?view=days',
+            ],
+            [
+                'method' => 'POST',
+                'url' => '/admin/reports/tbank-payments/columns-settings?view=months',
+                'data' => ['columns' => ['period' => true]],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
+            ],
+            [
+                'method' => 'GET',
+                'url' => route('reports.tbank-payments.data', array_merge($this->baseDataTableParams(), ['view' => 'days'])),
                 'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
         ];
@@ -311,6 +327,11 @@ final class TbankPaymentsPageFullAccessFeatureTest extends CrmTestCase
                 'created_from' => now()->subMonth()->toDateString(),
                 'created_to' => now()->toDateString(),
                 'without_payout' => 1,
+                'view' => 'days',
+            ],
+            [
+                'view' => 'months',
+                'status' => 'CONFIRMED',
             ],
         ];
     }

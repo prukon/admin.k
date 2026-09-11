@@ -155,6 +155,12 @@ enum AuditEvent: string
     case PartnerUpdatedBySuperadmin = 'partner.updated_by_superadmin';
     case PartnerDeleted = 'partner.deleted';
 
+    // --- tbank_commission (legacy type 95) ---
+    case TbankCommissionCreated = 'tbank_commission.created';
+    case TbankCommissionUpdated = 'tbank_commission.updated';
+    case TbankCommissionDeleted = 'tbank_commission.deleted';
+    case TbankCommissionPayoutSettingsUpdated = 'tbank_commission.payout_settings_updated';
+
     // --- in-app notifications ---
     case InAppNotificationCreated = 'in_app_notification.created';
 
@@ -285,6 +291,11 @@ enum AuditEvent: string
             self::PartnerUpdatedBySuperadmin => 'Изменение партнера суперадмином',
             self::PartnerDeleted => 'Удаление партнера',
 
+            self::TbankCommissionCreated => 'Создание правила комиссии Т‑Банк',
+            self::TbankCommissionUpdated => 'Изменение правила комиссии Т‑Банк',
+            self::TbankCommissionDeleted => 'Удаление правила комиссии Т‑Банк',
+            self::TbankCommissionPayoutSettingsUpdated => 'Изменение интервала джобы выплат Т‑Банк',
+
             self::InAppNotificationCreated => 'Создание in-app уведомления',
         };
     }
@@ -316,7 +327,8 @@ enum AuditEvent: string
             self::PartnerUpdated,
             self::PartnerCreated,
             self::PartnerUpdatedBySuperadmin,
-            self::PartnerDeleted => AuditLevel::Security,
+            self::PartnerDeleted,
+            self::TbankCommissionDeleted => AuditLevel::Security,
 
             self::PaymentReceived,
             self::PaymentPayoutScheduleChanged,
@@ -457,6 +469,11 @@ enum AuditEvent: string
             self::PartnerUpdatedBySuperadmin,
             self::PartnerDeleted => 'partner',
 
+            self::TbankCommissionCreated,
+            self::TbankCommissionUpdated,
+            self::TbankCommissionDeleted,
+            self::TbankCommissionPayoutSettingsUpdated => 'tbank_commission',
+
             self::InAppNotificationCreated => 'in_app_notification',
         };
     }
@@ -574,6 +591,11 @@ enum AuditEvent: string
             self::PartnerDeleted => 80,
 
             self::InAppNotificationCreated => 94,
+
+            self::TbankCommissionCreated,
+            self::TbankCommissionUpdated,
+            self::TbankCommissionDeleted,
+            self::TbankCommissionPayoutSettingsUpdated => 95,
 
             self::ContractCreated,
             self::ContractSignRequestCreated,
@@ -715,6 +737,11 @@ enum AuditEvent: string
             self::PartnerDeleted => 83,
 
             self::InAppNotificationCreated => 940,
+
+            self::TbankCommissionCreated => 951,
+            self::TbankCommissionUpdated => 952,
+            self::TbankCommissionDeleted => 953,
+            self::TbankCommissionPayoutSettingsUpdated => 954,
 
             self::ContractCreated => 500,
             self::ContractSignRequestCreated => 510,
@@ -993,6 +1020,11 @@ enum AuditEvent: string
             81 => self::PartnerCreated,
             82 => self::PartnerUpdatedBySuperadmin,
             83 => self::PartnerDeleted,
+
+            951 => self::TbankCommissionCreated,
+            952 => self::TbankCommissionUpdated,
+            953 => self::TbankCommissionDeleted,
+            954 => self::TbankCommissionPayoutSettingsUpdated,
 
             500 => self::ContractCreated,
             510 => self::ContractSignRequestCreated,

@@ -62,6 +62,9 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('TbankPaymentsWithoutPayoutFilterFeatureTest', $chunk);
         $this->assertStringContainsString('TbankPaymentsPageFullAccessFeatureTest', $chunk);
         $this->assertStringContainsString('TbankPaymentsNonAjaxSafetyNetFeatureTest', $chunk);
+        $this->assertStringContainsString('TbankPaymentsPayoutStatusFeatureTest', $chunk);
+        $this->assertStringContainsString('TbankPaymentsPayoutStatusFullAccessFeatureTest', $chunk);
+        $this->assertStringContainsString('TbankPaymentsPayoutStatusNonAjaxSafetyNetFeatureTest', $chunk);
         $this->assertStringContainsString('ReportsTbankPaymentsPermissionCatalogFeatureTest', $chunk);
         $this->assertStringContainsString('ReportsTbankPaymentsDocumentationContractTest', $chunk);
         $this->assertStringContainsString('/docs/documentation/reports-admin#reports-tbank-payments', $chunk);
@@ -70,6 +73,8 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#reports-tbank-payments-index', $chunk);
         $this->assertStringContainsString('/doc#reports-tbank-payments-receipt-commission-index', $chunk);
         $this->assertStringContainsString('/doc#reports-tbank-payments-without-payout-index', $chunk);
+        $this->assertStringContainsString('/doc#reports-tbank-payments-payout-status-index', $chunk);
+        $this->assertStringContainsString('/doc#reports-tbank-payments-summary-confirmed-default-index', $chunk);
         $this->assertStringContainsString('ReportsTbankPaymentsWithoutPayoutDocumentationContractTest', $chunk);
 
         $this->assertStringNotContainsString('tbank_commissions_index', $chunk);
@@ -91,8 +96,11 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('TbankPaymentsWithoutPayoutFilterFeatureTest', $reports);
         $this->assertStringContainsString('/doc#reports-tbank-payments-receipt-commission-index', $reports);
         $this->assertStringContainsString('/doc#reports-tbank-payments-without-payout-index', $reports);
+        $this->assertStringContainsString('/doc#reports-tbank-payments-payout-status-index', $reports);
+        $this->assertStringContainsString('/doc#reports-tbank-payments-summary-confirmed-default-index', $reports);
         $this->assertStringContainsString('ReportsTbankPaymentsWithoutPayoutDocumentationContractTest', $reports);
         $this->assertStringContainsString('payout_amount', $reports);
+        $this->assertStringContainsString('payout_status', $reports);
         $this->assertStringContainsString('Выплата', $reports);
         $this->assertStringContainsString('without_payout', $reports);
         $this->assertStringContainsString('Не было выплаты', $reports);
@@ -113,6 +121,8 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('TbankPaymentsReceiptAndCommissionFeatureTest', $tbank);
         $this->assertStringContainsString('/doc#reports-tbank-payments-receipt-commission-index', $tbank);
         $this->assertStringContainsString('/doc#reports-tbank-payments-without-payout-index', $tbank);
+        $this->assertStringContainsString('/doc#reports-tbank-payments-payout-status-index', $tbank);
+        $this->assertStringContainsString('/doc#reports-tbank-payments-summary-confirmed-default-index', $tbank);
 
         $this->assertStringContainsString('/doc#reports-tbank-payments-index', $groups);
         $this->assertStringContainsString('2026_09_07_073200_add_reports_tbank_payments_view_permission.php', $groups);
@@ -159,6 +169,8 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('platformCommissionRub', $controller);
         $this->assertStringContainsString('TinkoffPaymentFiscalReceiptResolver', $controller);
         $this->assertStringContainsString("addColumn('has_receipt'", $controller);
+        $this->assertStringContainsString("addColumn('payout_status_at'", $controller);
+        $this->assertStringContainsString('function latestPayoutSubquery', $controller);
         $this->assertStringNotContainsString('reports.additional.value.view', $controller);
 
         $this->assertStringContainsString("Gate::allows('reports.tbank.payments.view')", $show);
@@ -173,6 +185,10 @@ final class ReportsTbankPaymentsDocumentationContractTest extends TestCase
         $this->assertStringContainsString("key: 'payout_amount'", $blade);
         $this->assertStringContainsString('data-column-key="payout_amount"', $blade);
         $this->assertStringContainsString('payout_amount: true', $blade);
+        $this->assertStringContainsString("key: 'payout_status'", $blade);
+        $this->assertStringContainsString('data-column-key="payout_status"', $blade);
+        $this->assertStringContainsString('payout_status: true', $blade);
+        $this->assertStringContainsString('renderPayoutStatusCell', $blade);
         $this->assertStringContainsString("key: 'method'", $blade);
         $this->assertStringContainsString('data-column-key="method"', $blade);
         $this->assertStringContainsString('method: true', $blade);

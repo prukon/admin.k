@@ -401,4 +401,20 @@ final class AuditLogsEventOnlyFeatureTest extends CrmTestCase
         $this->assertContains('partner-modal-event', $descriptions);
         $this->assertNotContains('team-not-in-partner-modal', $descriptions);
     }
+
+    public function test_tbank_commission_logs_data_filters_by_tbank_commission_category_event(): void
+    {
+        $this->grantPermissionToRoleOnPartner('settings.commission', (int) $this->user->role_id);
+
+        $this->createEventLog(AuditEvent::TbankCommissionCreated, 'tbank-commission-modal-event');
+        $this->createEventLog(AuditEvent::SettingsUpdated, 'settings-not-in-tbank-commission-modal');
+        $this->createLegacyOnlyLog(95, 951, 'legacy-tbank-commission-modal');
+
+        $descriptions = collect($this->getJson(route('logs.data.tbank-commission', $this->auditLogsDataTableParams()))
+            ->json('data'))->pluck('description')->all();
+
+        $this->assertContains('tbank-commission-modal-event', $descriptions);
+        $this->assertNotContains('settings-not-in-tbank-commission-modal', $descriptions);
+        $this->assertNotContains('legacy-tbank-commission-modal', $descriptions);
+    }
 }

@@ -278,6 +278,7 @@ final class KidsCrmDataTableColumnsMigrationIter1Iter2Test extends CrmTestCase
         $this->assertColumnBlockUsesType($html, 'platform_commission', 'money');
         $this->assertColumnBlockUsesType($html, 'created_at', 'datetime');
         $this->assertColumnBlockUsesType($html, 'receipt', 'icon');
+        $this->assertColumnBlockUsesType($html, 'payout_status', 'badge');
         $this->assertColumnBlockUsesType($html, 'actions', 'actions');
         $this->assertStringNotContainsString("type: 'custom'", $html);
     }

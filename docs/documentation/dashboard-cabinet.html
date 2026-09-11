@@ -227,7 +227,10 @@
     Id админа/тренера/кастомной роли/отключённого дают <code>success=false</code>.
     При праве <code>groups.own</code> селект «Группа» и режим «все» — только группы/ученики тренера
     (<a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>);
-    ученик без группы по-прежнему открывается в <code>getUserDetails</code>.
+    first-paint ФИО не содержит учеников чужих групп и не содержит «без группы».
+    Режим «Без группы» (<code>withoutTeam</code>) отдаёт всех учеников школы без pivot (строки не режутся).
+    Ученик без группы по-прежнему открывается в <code>getUserDetails</code> (<code>success: true</code>);
+    чужой ученик / чужая группа — 200 JSON <code>success: false</code>.
     Анонс селекта ФИО — <a href="/doc#cabinet-fio-select-index">/doc#cabinet-fio-select-index</a>.</p>
 
   <h2 id="team-switcher">5) Селект «Выбор группы» (2+ группы)</h2>
@@ -518,7 +521,8 @@
     <code>missingPayoutAfterDelay</code>: <code>CONFIRMED</code>
     <code>multisplit</code> после <code>auto_payout_delay_hours</code>,
     не фильтр <code>without_payout</code> и не
-    <code>TinkoffPayout::overdueScheduled()</code>).
+    <code>TinkoffPayout::overdueScheduled()</code>;
+    успешный возврат не входит).
     Окно 24 ч (просроченные отложенные выплаты в «Очередь» — без окна;
     «Касса» первое число — CONFIRMED без выплаты после задержки партнёра, без окна;
     строка «Вход» — 72 ч). Неизвестный email считается. Истёкший код 2FA в auth не пишется.
@@ -603,7 +607,7 @@
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersNonAjaxSafetyNetFeatureTest.php</code> — нативный GET JSON не HTML-страница, POST/PATCH/DELETE HTML и JSON 405</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersUxFeatureTest.php</code> — первый кадр с пустым списком (и при выкл. флаге); cabinet/чат/настройки; XSS-экранирование ФИО; ошибка fetch / 403 снимает людей; повторное включение не плодит второй poller</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsFeatureTest.php</code> — GET пульта: гость/403/200, стек над онлайном и Reverb, опрос только при включённом флаге</li>
-      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAjaxContractFeatureTest.php</code> — JSON 500/шлюзы без email/password/PAN; вход 72 ч, <code>auth.recent_logins</code> с введёнными email/паролем/IP; <code>auth.login_failed</code> без пароля; окно 24 ч остальное, все партнёры, Handler 500 vs 4xx/CSRF, <code>ViewException</code> unwrap / без previous / вложенная / Ignition, ring <code>errors.recent</code> (20, 24 ч, path без query), битый cache не 500, ученик с правом видит recent без PII в 500, cache шлюзов на Http::fake, неизвестный email считается, неверный/истёкший 2FA, welcome без/с письмом и STATUS_FAILED, sent без <code>mailable_class</code> по теме «Доступ в личный кабинет», чужой mailable / другая тема — missing, compact vs full overdue</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAjaxContractFeatureTest.php</code> — JSON 500/шлюзы без email/password/PAN; вход 72 ч, <code>auth.recent_logins</code> с введёнными email/паролем/IP; <code>auth.login_failed</code> без пароля; окно 24 ч остальное, все партнёры, Handler 500 vs 4xx/CSRF, <code>ViewException</code> unwrap / без previous / вложенная / Ignition, ring <code>errors.recent</code> (20, 24 ч, path без query), битый cache не 500, ученик с правом видит recent без PII в 500, cache шлюзов на Http::fake, неизвестный email считается, неверный/истёкший 2FA, welcome без/с письмом и STATUS_FAILED, sent без <code>mailable_class</code> по теме «Доступ в личный кабинет», чужой mailable / другая тема — missing, compact vs full overdue, <code>till.overdue_payouts</code> после задержки / <code>REJECTED</code> / чужая школа / успешный возврат не считает</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsDayFeatureTest.php</code> — строки «Сегодня» / «Вчера»: T‑Bank за календарный день, оборотка / комиссия из правил / счётчик, без офлайна, дни не смешиваются, все партнёры, возврат без комиссии, полночь, min_fixed, disabled rule, failed refund</li>
       <li><code>tests/Unit/Documentation/OpsDayKpiDocumentationContractTest.php</code> — анонс <code>/doc#ops-day-kpi-index</code> не противоречит коду: календарный день, T‑Bank TRIM, комиссия из правил, leftover, 403 без утечки</li>
       <li><code>tests/Unit/Documentation/OpsTillMissingPayoutDocumentationContractTest.php</code> — анонс <code>/doc#ops-till-missing-payout-index</code> совпадает с <code>till.overdue_payouts</code> после задержки партнёра</li>

@@ -63,7 +63,7 @@ final class SettingPricesMonthlyManualPaidPackageMarkupFeatureTest extends CrmTe
         $this->assertStringContainsString("@include('includes.modal.manualUserPricePaidModal')", $blade);
         $this->assertStringContainsString("@vite(['resources/js/setting-prices-manual-paid-modal.js'])", $blade);
         $this->assertStringNotContainsString('resources/js/settings-prices.js', $blade);
-        $this->assertStringNotContainsString('setting-prices-monthly-package-error', $blade);
+        $this->assertStringContainsString('setting-prices-monthly-package-error', $blade);
         $this->assertStringNotContainsString('payload.lesson_package_id', $blade);
     }
 

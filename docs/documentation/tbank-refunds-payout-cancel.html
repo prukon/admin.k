@@ -64,6 +64,9 @@
   <ul>
     <li><code>TinkoffRunScheduledPayoutsJob</code> перед <code>runPayout</code> берёт строку выплаты в транзакции с <code>lockForUpdate</code> и проверяет, что она всё ещё <code>INITIATED</code>, без <code>tinkoff_payout_payment_id</code>, с наступившим <code>when_to_run</code>.</li>
     <li>После успешного возврата выплата становится <code>REJECTED</code> и не попадает в выборку джобы — повторный <code>Init</code> в банк по отменённой записи не выполняется.</li>
+    <li>Оверлей «Пульт» / первое число «Касса» (<code>till.overdue_payouts</code>) после
+      <code>refunds.status=succeeded</code> платёж <b>не</b> считает: выплата не предполагается, ошибки нет.
+      Анонс — <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>.</li>
   </ul>
 
   <h2>6) UI отчёта «Платежи»</h2>
@@ -86,7 +89,7 @@
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/Refunds/TbankRefundRestrictionsTest.php</code> — базовые сценарии запрета/разрешения, отмена <code>INITIATED</code>, без <code>deal_id</code> в отчёте, смешанные строки выплат.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Refunds/TbankRefundPayoutFeatureTest.php</code> — доступ 200/403, DataTables <code>refund_action</code>, две <code>INITIATED</code> на одну оплату, сирота, fallback по <code>order_id</code>, отсутствие HTTP к банку после возврата при прогоне джобы, идемпотентность повторного POST, блокировка при активной выплате с банковским id рядом с <code>INITIATED</code>.</li>
-    <li><code>tests/Feature/Jobs/TinkoffRunScheduledPayoutsJobQueueTest.php</code> — отбор отложенных выплат и пропуск будущих.</li>
+    <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAjaxContractFeatureTest.php</code> — пульт «Касса» не считает <code>refunds.status=succeeded</code>.</li>
   </ul>
   <pre><code>php artisan test --env=testing tests/Feature/Crm/Payments/TBank/Refunds/</code></pre>
 </div>

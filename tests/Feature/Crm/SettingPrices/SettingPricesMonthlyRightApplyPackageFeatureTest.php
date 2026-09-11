@@ -276,9 +276,9 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
     }
 
     /**
-     * Оплаченный месяц: смена абонемента в payload игнорируется.
+     * Оплаченный месяц предоплаты: шаблон меняется, сумма заморожена.
      */
-    public function test_right_apply_does_not_change_package_for_paid_student(): void
+    public function test_right_apply_replaces_paid_flexible_and_keeps_price(): void
     {
         UserPrice::forceCreate([
             'user_id' => $this->studentA->id,
@@ -301,7 +301,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'user_id' => $this->studentA->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
-            'lesson_package_id' => $this->packageA->id,
+            'lesson_package_id' => $this->packageB->id,
             'price_cents' => 500000,
             'is_paid' => 1,
         ]);

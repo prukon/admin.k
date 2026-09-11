@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers\Admin\Setting;
 
+use App\Enums\AuditEvent;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Http\Requests\Admin\StoreTbankCommissionRuleRequest;
 use App\Http\Requests\Admin\UpdateTbankCommissionRuleRequest;
+use App\Http\Requests\Team\FilterRequest;
 use App\Models\Partner;
 use App\Models\Setting;
 use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayout;
 use App\Models\UserTableSetting;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\Tinkoff\TbankTerminalConfig;
+use App\Support\BuildsLogTable;
+use App\Support\PartnerScopeMode;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +25,14 @@ use Illuminate\Validation\Rule;
 
 class TbankCommissionsController extends Controller
 {
+    use BuildsLogTable;
+
     private const TABLE_KEY = 'tbank_commissions_index';
+
+    public function __construct(
+        private readonly AuditLogger $auditLogger,
+    ) {
+    }
 
     public function index()
     {
@@ -275,7 +288,19 @@ class TbankCommissionsController extends Controller
             'payout_scheduled_interval_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
         ]);
 
-        Setting::setTinkoffPayoutScheduledIntervalMinutes((int) $validated['payout_scheduled_interval_minutes']);
+        $oldMinutes = Setting::getTinkoffPayoutScheduledIntervalMinutes();
+        $newMinutes = (int) $validated['payout_scheduled_interval_minutes'];
+
+        Setting::setTinkoffPayoutScheduledIntervalMinutes($newMinutes);
+
+        if ($oldMinutes !== $newMinutes) {
+            $this->auditLogger->record(
+                AuditEvent::TbankCommissionPayoutSettingsUpdated,
+                AuditContext::make("Интервал запуска джобы (мин): {$oldMinutes} → {$newMinutes}")
+                    ->withAuthorId($r->user()?->id)
+                    ->withCreatedAt(now())
+            );
+        }
 
         return redirect()
             ->route('admin.setting.tbankCommissions')
@@ -289,7 +314,13 @@ class TbankCommissionsController extends Controller
 
     public function store(StoreTbankCommissionRuleRequest $r)
     {
-        TinkoffCommissionRule::create($r->commissionRulePayload());
+        $rule = TinkoffCommissionRule::create($r->commissionRulePayload());
+        $rule->loadMissing('partner');
+        $this->recordCommissionAudit(
+            AuditEvent::TbankCommissionCreated,
+            $rule,
+            $this->formatCommissionSnapshotDescription($rule),
+        );
 
         if ($r->ajax() || $r->expectsJson()) {
             return response()->json(['message' => 'Правило создано']);
@@ -314,7 +345,20 @@ class TbankCommissionsController extends Controller
     public function update(UpdateTbankCommissionRuleRequest $r, int $id)
     {
         $rule = TinkoffCommissionRule::findOrFail($id);
+        $rule->loadMissing('partner');
+        $before = $this->commissionAuditSnapshot($rule);
+
         $rule->update($r->commissionRulePayload());
+        $rule->refresh()->loadMissing('partner');
+
+        $changes = $this->diffCommissionAuditSnapshots($before, $this->commissionAuditSnapshot($rule));
+        if ($changes !== []) {
+            $this->recordCommissionAudit(
+                AuditEvent::TbankCommissionUpdated,
+                $rule,
+                implode("\n", $changes),
+            );
+        }
 
         if ($r->ajax() || $r->expectsJson()) {
             return response()->json(['message' => 'Правило обновлено']);
@@ -327,9 +371,21 @@ class TbankCommissionsController extends Controller
 
     public function destroy(int $id)
     {
-        TinkoffCommissionRule::whereKey($id)->delete();
+        $rule = TinkoffCommissionRule::findOrFail($id);
+        $rule->loadMissing('partner');
+        $this->recordCommissionAudit(
+            AuditEvent::TbankCommissionDeleted,
+            $rule,
+            "Правило удалено.\n".$this->formatCommissionSnapshotDescription($rule),
+        );
+        $rule->delete();
 
         return back()->with('status', 'Правило удалено');
+    }
+
+    public function log(FilterRequest $request)
+    {
+        return $this->buildLogDataTable('tbank_commission', PartnerScopeMode::SUPERADMIN_ALL_OR_FILTER);
     }
 
     /**
@@ -380,5 +436,115 @@ class TbankCommissionsController extends Controller
                 ? url('/admin/tinkoff/payouts?partner_id='.$partnerId.'&source=auto')
                 : null,
         ];
+    }
+
+    private function recordCommissionAudit(AuditEvent $event, TinkoffCommissionRule $rule, string $description): void
+    {
+        $context = AuditContext::make($description)
+            ->withTarget($rule, $this->commissionTargetLabel($rule))
+            ->withAuthorId(Auth::id())
+            ->withCreatedAt(now());
+
+        $partnerId = (int) ($rule->partner_id ?? 0);
+        if ($partnerId > 0) {
+            $context = $context->withPartnerId($partnerId);
+        }
+
+        $this->auditLogger->record($event, $context);
+    }
+
+    private function commissionTargetLabel(TinkoffCommissionRule $rule): string
+    {
+        $snapshot = $this->commissionAuditSnapshot($rule);
+
+        return $snapshot['partner'].' / '.$snapshot['method'];
+    }
+
+    /**
+     * @return array{partner: string, method: string, acquiring: string, payout: string, platform: string, auto_payout: string, is_enabled: string}
+     */
+    private function commissionAuditSnapshot(TinkoffCommissionRule $rule): array
+    {
+        $partnerId = (int) ($rule->partner_id ?? 0);
+        $partnerTitle = $partnerId > 0
+            ? (string) ($rule->partner?->title ?: '#'.$partnerId)
+            : 'глобально';
+
+        $autoPayout = 'нет';
+        if ($partnerId > 0) {
+            $autoPayout = (bool) $rule->auto_payout_enabled
+                ? ('да, '.(int) ($rule->auto_payout_delay_hours ?? 0).' ч')
+                : 'нет';
+        }
+
+        return [
+            'partner' => $partnerTitle,
+            'method' => TinkoffCommissionRule::methodFormLabel($rule->method),
+            'acquiring' => $this->formatCommissionPair($rule->acquiring_percent, $rule->acquiring_min_fixed),
+            'payout' => $this->formatCommissionPair($rule->payout_percent, $rule->payout_min_fixed),
+            'platform' => $this->formatCommissionPair(
+                $rule->platform_percent ?? $rule->percent,
+                $rule->platform_min_fixed ?? $rule->min_fixed
+            ),
+            'auto_payout' => $autoPayout,
+            'is_enabled' => $rule->is_enabled ? 'да' : 'нет',
+        ];
+    }
+
+    private function formatCommissionSnapshotDescription(TinkoffCommissionRule $rule): string
+    {
+        $snapshot = $this->commissionAuditSnapshot($rule);
+
+        return implode("\n", [
+            'Партнёр: '.$snapshot['partner'],
+            'Метод: '.$snapshot['method'],
+            'Эквайринг: '.$snapshot['acquiring'],
+            'Выплата банка: '.$snapshot['payout'],
+            'Комиссия платформы: '.$snapshot['platform'],
+            'Автовыплата: '.$snapshot['auto_payout'],
+            'Активность: '.$snapshot['is_enabled'],
+        ]);
+    }
+
+    /**
+     * @param  array<string, string>  $before
+     * @param  array<string, string>  $after
+     * @return list<string>
+     */
+    private function diffCommissionAuditSnapshots(array $before, array $after): array
+    {
+        $labels = [
+            'partner' => 'Партнёр',
+            'method' => 'Метод',
+            'acquiring' => 'Эквайринг',
+            'payout' => 'Выплата банка',
+            'platform' => 'Комиссия платформы',
+            'auto_payout' => 'Автовыплата',
+            'is_enabled' => 'Активность',
+        ];
+
+        $changes = [];
+        foreach ($labels as $key => $label) {
+            $from = (string) ($before[$key] ?? '');
+            $to = (string) ($after[$key] ?? '');
+            if ($from !== $to) {
+                $changes[] = $label.': '.$from.' → '.$to;
+            }
+        }
+
+        return $changes;
+    }
+
+    private function formatCommissionPair(mixed $percent, mixed $minFixed): string
+    {
+        return $this->formatCommissionNumber($percent).'% / мин. '.$this->formatCommissionNumber($minFixed);
+    }
+
+    private function formatCommissionNumber(mixed $value): string
+    {
+        $formatted = number_format((float) $value, 2, '.', '');
+        $trimmed = rtrim(rtrim($formatted, '0'), '.');
+
+        return $trimmed !== '' ? $trimmed : '0';
     }
 }

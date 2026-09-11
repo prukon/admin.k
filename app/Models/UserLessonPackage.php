@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class UserLessonPackage extends Model
 {
@@ -195,6 +196,46 @@ class UserLessonPackage extends Model
     public function isJournalPlaceable(): bool
     {
         return ! $this->isLaidOutInSchedule() && (int) $this->lessons_total > 0;
+    }
+
+    /**
+     * Сколько занятий уже списано (статусы consumes_lesson), не считая ячейки «Запись».
+     */
+    public function consumedLessonsCount(): int
+    {
+        $ledger = max(0, (int) $this->lessons_total - (int) $this->lessons_remaining);
+        $fromEvents = $this->countConsumingOccurrenceEvents();
+
+        return max($ledger, $fromEvents);
+    }
+
+    private function countConsumingOccurrenceEvents(): int
+    {
+        $id = (int) $this->id;
+        if ($id < 1) {
+            return 0;
+        }
+
+        $latestIds = DB::table('user_lesson_occurrence_status_events as e')
+            ->where('e.user_lesson_package_id', $id)
+            ->groupBy(
+                'e.user_id',
+                'e.team_schedule_slot_id',
+                'e.occurrence_date',
+                'e.user_lesson_package_id'
+            )
+            ->selectRaw('MAX(e.id) as id')
+            ->pluck('id');
+
+        if ($latestIds->isEmpty()) {
+            return 0;
+        }
+
+        return (int) DB::table('user_lesson_occurrence_status_events as e')
+            ->join('lesson_occurrence_statuses as s', 's.id', '=', 'e.lesson_occurrence_status_id')
+            ->whereIn('e.id', $latestIds->all())
+            ->where('s.consumes_lesson', true)
+            ->count();
     }
 
     /**

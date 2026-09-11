@@ -55,6 +55,7 @@ class TbankPaymentReportController extends AdminBaseController
             'tpCanFilterPartner' => $canFilterPartner,
             'tpHasActiveFilters' => $this->hasActiveFilters($filters, $canFilterPartner),
             'tpView' => $request->view(),
+            'tpStatusDefaulted' => $request->shouldDefaultConfirmedStatus(),
             'tbankPaymentsPageLength' => UserTableSetting::pageLengthForUser(
                 Auth::id() !== null ? (int) Auth::id() : null,
                 self::TABLE_KEY
@@ -92,6 +93,11 @@ class TbankPaymentReportController extends AdminBaseController
                     ->where('tinkoff_payouts.status', '<>', 'REJECTED')
                     ->orderByDesc('tinkoff_payouts.id')
                     ->limit(1),
+                'payout_status' => $this->latestPayoutSubquery('tinkoff_payouts.status'),
+                'payout_status_at_raw' => $this->latestPayoutSubquery(
+                    "CASE WHEN tinkoff_payouts.status = 'COMPLETED' AND tinkoff_payouts.completed_at IS NOT NULL"
+                    .' THEN tinkoff_payouts.completed_at ELSE tinkoff_payouts.updated_at END'
+                ),
             ]);
 
         $this->applyReportFilters($query, $request);
@@ -151,6 +157,23 @@ class TbankPaymentReportController extends AdminBaseController
                     ['REJECTED']
                 );
             })
+            ->editColumn('payout_status', function (TinkoffPayment $payment) {
+                $status = $payment->getAttribute('payout_status');
+                if ($status === null || $status === '') {
+                    return null;
+                }
+
+                return (string) $status;
+            })
+            ->orderColumn('payout_status', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderByRaw(
+                    '(SELECT tp.status FROM tinkoff_payouts AS tp WHERE tp.payment_id = tinkoff_payments.id ORDER BY tp.id DESC LIMIT 1) '.$dir
+                );
+            })
+            ->addColumn('payout_status_at', function (TinkoffPayment $payment) {
+                return self::formatPayoutStatusAt($payment->getAttribute('payout_status_at_raw'));
+            })
             ->addColumn('show_url', function (TinkoffPayment $payment) {
                 return url('/admin/tinkoff/payments/'.$payment->id);
             })
@@ -179,6 +202,7 @@ class TbankPaymentReportController extends AdminBaseController
                 return self::formatReportDateTime($payment->created_at);
             })
             ->removeColumn('payout_amount_cents')
+            ->removeColumn('payout_status_at_raw')
             ->toJson();
     }
 
@@ -583,6 +607,35 @@ class TbankPaymentReportController extends AdminBaseController
         }
 
         return $value->format('Y-m-d H:i:s');
+    }
+
+    private static function formatPayoutStatusAt(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            $date = $value instanceof Carbon ? $value : Carbon::parse($value);
+        } catch (\Throwable) {
+            return is_string($value) ? $value : null;
+        }
+
+        return $date->format('d.m.Y H:i');
+    }
+
+    /**
+     * Последняя выплата по платежу (включая REJECTED).
+     *
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    private function latestPayoutSubquery(string $columnSql)
+    {
+        return TinkoffPayout::query()
+            ->selectRaw($columnSql)
+            ->whereColumn('tinkoff_payouts.payment_id', 'tinkoff_payments.id')
+            ->orderByDesc('tinkoff_payouts.id')
+            ->limit(1);
     }
 
     /**
