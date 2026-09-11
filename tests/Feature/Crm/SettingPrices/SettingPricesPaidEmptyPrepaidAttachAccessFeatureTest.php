@@ -10,9 +10,11 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Доступ к apply/save замены предоплаты: гость, без права, с правом, чужой партнёр, чужие методы.
+ * Доступ к постановке предоплаты на оплаченный месяц без абона.
+ *
+ * @see TeamControllerTest::test_store_non_ajax_redirects_and_creates_team
  */
-final class SettingPricesFlexibleReplaceAccessFeatureTest extends SettingPricesFlexibleReplaceTestCase
+final class SettingPricesPaidEmptyPrepaidAttachAccessFeatureTest extends SettingPricesPaidEmptyPrepaidAttachTestCase
 {
     public function test_guest_is_redirected_from_setting_prices_pages(): void
     {
@@ -29,12 +31,12 @@ final class SettingPricesFlexibleReplaceAccessFeatureTest extends SettingPricesF
         }
     }
 
-    public function test_guest_cannot_replace_paid_prepaid(): void
+    /**
+     * @return list<array{url:string,data:array<string,mixed>}>
+     */
+    private function attachRequests(): array
     {
-        $seed = $this->seedLaidOutPrepaid(remaining: 5, paid: true);
-        Auth::logout();
-
-        $payloads = [
+        return [
             [
                 'url' => route('setPriceAllUsers'),
                 'data' => [
@@ -66,85 +68,72 @@ final class SettingPricesFlexibleReplaceAccessFeatureTest extends SettingPricesF
                     'lesson_package_id' => $this->to->id,
                 ],
             ],
+            [
+                'url' => route('setPriceAllTeams'),
+                'data' => [
+                    'selectedDate' => self::MONTH_LABEL,
+                    'teamsData' => [[
+                        'teamId' => $this->team->id,
+                        'lesson_package_id' => $this->to->id,
+                    ]],
+                ],
+            ],
         ];
+    }
 
-        foreach ($payloads as $item) {
+    public function test_guest_cannot_attach_prepaid_to_paid_empty_month(): void
+    {
+        $row = $this->seedPaidEmptyMonth();
+        Auth::logout();
+
+        foreach ($this->attachRequests() as $item) {
             $json = $this->withHeaders($this->ajaxHeaders())->postJson($item['url'], $item['data']);
-            $this->assertContains($json->getStatusCode(), [302, 401, 403]);
+            $this->assertContains($json->getStatusCode(), [302, 401, 403], $item['url'].' JSON '.$json->getStatusCode());
             $this->assertNotSame(500, $json->getStatusCode());
+            $this->assertNotSame(200, $json->getStatusCode());
 
             $html = $this->from(route('admin.settingPrices.indexMenu'))
                 ->post($item['url'], $item['data']);
-            $this->assertContains($html->getStatusCode(), [302, 401, 403, 419]);
+            $this->assertContains($html->getStatusCode(), [302, 401, 403, 419], $item['url'].' HTML '.$html->getStatusCode());
             $this->assertNotSame(500, $html->getStatusCode());
             $this->assertNotSame(200, $html->getStatusCode());
         }
 
-        $seed['row']->refresh();
-        $this->assertSame((int) $this->from->id, (int) $seed['row']->lesson_package_id);
-        $this->assertSame(500000, (int) $seed['row']->price_cents);
+        $row->refresh();
+        $this->assertNull($row->lesson_package_id);
+        $this->assertNull($row->user_lesson_package_id);
+        $this->assertSame(500000, (int) $row->price_cents);
     }
 
-    public function test_user_without_set_prices_view_gets_403(): void
+    public function test_user_without_set_prices_view_gets_403_and_row_stays_empty(): void
     {
-        $seed = $this->seedLaidOutPrepaid(remaining: 5, paid: true);
+        $row = $this->seedPaidEmptyMonth();
         $actor = $this->createUserWithoutPermission('setPrices.view', $this->partner);
         $this->actingAs($actor);
 
         $this->get(route('admin.settingPrices.indexMenu'))->assertForbidden();
         $this->get(route('admin.settingPrices.users'))->assertForbidden();
 
-        $this->withHeaders($this->ajaxHeaders())
-            ->postJson(route('setPriceAllUsers'), [
-                'selectedDate' => self::MONTH_LABEL,
-                'teamId' => $this->team->id,
-                'usersPrice' => [
-                    $this->rightPayload($this->student, 8000.0, (int) $this->to->id),
-                ],
-            ])
-            ->assertForbidden();
+        foreach ($this->attachRequests() as $item) {
+            $this->withHeaders($this->ajaxHeaders())
+                ->postJson($item['url'], $item['data'])
+                ->assertForbidden();
 
-        $this->withHeaders($this->ajaxHeaders())
-            ->postJson(route('setting-prices.user-year-prices.save'), [
-                'user_id' => $this->student->id,
-                'team_id' => $this->team->id,
-                'year' => self::YEAR,
-                'prices' => [[
-                    'new_month' => self::MONTH_DATE,
-                    'price' => 8000,
-                    'lesson_package_id' => (int) $this->to->id,
-                ]],
-            ])
-            ->assertForbidden();
+            $this->from(route('admin.settingPrices.indexMenu'))
+                ->post($item['url'], $item['data'])
+                ->assertForbidden();
+        }
 
-        $this->withHeaders($this->ajaxHeaders())
-            ->postJson(route('setTeamPrice'), [
-                'selectedDate' => self::MONTH_LABEL,
-                'teamId' => $this->team->id,
-                'lesson_package_id' => $this->to->id,
-            ])
-            ->assertForbidden();
-
-        $this->from(route('admin.settingPrices.indexMenu'))
-            ->post(route('setPriceAllUsers'), [
-                'selectedDate' => self::MONTH_LABEL,
-                'teamId' => $this->team->id,
-                'usersPrice' => [
-                    $this->rightPayload($this->student, 8000.0, (int) $this->to->id),
-                ],
-            ])
-            ->assertForbidden();
-
-        $seed['row']->refresh();
-        $this->assertSame((int) $this->from->id, (int) $seed['row']->lesson_package_id);
+        $row->refresh();
+        $this->assertNull($row->lesson_package_id);
     }
 
-    public function test_manager_with_view_can_replace_paid_prepaid(): void
+    public function test_manager_with_view_can_open_pages_and_attach_prepaid(): void
     {
         $this->get(route('admin.settingPrices.indexMenu'))->assertOk();
         $this->get(route('admin.settingPrices.users'))->assertOk();
 
-        $seed = $this->seedLaidOutPrepaid(remaining: 5, paid: true);
+        $row = $this->seedPaidEmptyMonth();
 
         $this->withHeaders($this->ajaxHeaders())
             ->postJson(route('setPriceAllUsers'), [
@@ -157,18 +146,19 @@ final class SettingPricesFlexibleReplaceAccessFeatureTest extends SettingPricesF
             ->assertOk()
             ->assertJsonPath('success', true);
 
-        $seed['row']->refresh();
-        $this->assertSame((int) $this->to->id, (int) $seed['row']->lesson_package_id);
-        $this->assertSame(500000, (int) $seed['row']->price_cents);
+        $row->refresh();
+        $this->assertSame((int) $this->to->id, (int) $row->lesson_package_id);
+        $this->assertSame(500000, (int) $row->price_cents);
     }
 
-    public function test_get_patch_delete_on_replace_routes_are_method_not_allowed(): void
+    public function test_get_patch_delete_on_attach_routes_are_not_allowed(): void
     {
-        $seed = $this->seedLaidOutPrepaid(remaining: 5, paid: true);
+        $row = $this->seedPaidEmptyMonth();
         $urls = [
             route('setPriceAllUsers'),
             route('setting-prices.user-year-prices.save'),
             route('setTeamPrice'),
+            route('setPriceAllTeams'),
         ];
 
         foreach ($urls as $url) {
@@ -193,14 +183,13 @@ final class SettingPricesFlexibleReplaceAccessFeatureTest extends SettingPricesF
             }
         }
 
-        $seed['row']->refresh();
-        $this->assertSame((int) $this->from->id, (int) $seed['row']->lesson_package_id);
+        $row->refresh();
+        $this->assertNull($row->lesson_package_id);
     }
 
-    public function test_foreign_team_returns_404_and_does_not_write(): void
+    public function test_foreign_team_returns_404_and_does_not_attach(): void
     {
-        $seed = $this->seedLaidOutPrepaid(remaining: 5, paid: true);
-
+        $row = $this->seedPaidEmptyMonth();
         $foreignPartner = Partner::factory()->create();
         $foreignTeam = Team::factory()->create([
             'partner_id' => $foreignPartner->id,
@@ -225,13 +214,13 @@ final class SettingPricesFlexibleReplaceAccessFeatureTest extends SettingPricesF
             ])
             ->assertStatus(404);
 
-        $seed['row']->refresh();
-        $this->assertSame((int) $this->from->id, (int) $seed['row']->lesson_package_id);
+        $row->refresh();
+        $this->assertNull($row->lesson_package_id);
     }
 
     public function test_foreign_student_year_save_returns_404(): void
     {
-        $seed = $this->seedLaidOutPrepaid(remaining: 5, paid: true);
+        $row = $this->seedPaidEmptyMonth();
         $foreignPartner = Partner::factory()->create();
         $foreignTeam = Team::factory()->create([
             'partner_id' => $foreignPartner->id,
@@ -256,35 +245,7 @@ final class SettingPricesFlexibleReplaceAccessFeatureTest extends SettingPricesF
             ])
             ->assertStatus(404);
 
-        $seed['row']->refresh();
-        $this->assertSame((int) $this->from->id, (int) $seed['row']->lesson_package_id);
-    }
-
-    public function test_guest_cannot_attach_prepaid_to_paid_empty(): void
-    {
-        $row = $this->seedPaidEmptyMonth();
-        Auth::logout();
-
-        $json = $this->withHeaders($this->ajaxHeaders())->postJson(route('setPriceAllUsers'), [
-            'selectedDate' => self::MONTH_LABEL,
-            'teamId' => $this->team->id,
-            'usersPrice' => [
-                $this->rightPayload($this->student, 8000.0, (int) $this->to->id),
-            ],
-        ]);
-        $this->assertContains($json->getStatusCode(), [302, 401, 403]);
-        $this->assertNotSame(500, $json->getStatusCode());
-
-        $this->withHeaders($this->ajaxHeaders())
-            ->postJson(route('setTeamPrice'), [
-                'selectedDate' => self::MONTH_LABEL,
-                'teamId' => $this->team->id,
-                'lesson_package_id' => $this->to->id,
-            ]);
-
         $row->refresh();
         $this->assertNull($row->lesson_package_id);
-        $this->assertNull($row->user_lesson_package_id);
-        $this->assertSame(500000, (int) $row->price_cents);
     }
 }

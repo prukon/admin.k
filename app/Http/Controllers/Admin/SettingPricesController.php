@@ -1411,7 +1411,7 @@ class SettingPricesController extends AdminBaseController
     }
 
     /**
-     * Оплаченный месяц: только смена шаблона предоплата → предоплата, сумма не меняется.
+     * Оплаченный месяц: пусто → предоплата или предоплата → предоплата; сумма не меняется.
      *
      * @param  array{price?: mixed, lesson_package_id?: mixed, user?: array{name?: string}}  $priceData
      *
@@ -1468,12 +1468,14 @@ class SettingPricesController extends AdminBaseController
         }
 
         $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
+        $auditText = $oldPackageId < 1
+            ? 'Назначен абонемент предоплаты: #'.$nextPackageId
+                .'. Сумма не изменена (оплачено). Период: '.$selectedDateString.'. Группа: '.$team->title.'.'
+            : 'Заменён абонемент предоплаты: #'.$oldPackageId.' → #'.$nextPackageId
+                .'. Сумма не изменена (оплачено). Период: '.$selectedDateString.'. Группа: '.$team->title.'.';
         $this->auditLogger->record(
             AuditEvent::PricingStudentApply,
-            AuditContext::make(
-                'Заменён абонемент предоплаты: #'.$oldPackageId.' → #'.$nextPackageId
-                .'. Сумма не изменена (оплачено). Период: '.$selectedDateString.'. Группа: '.$team->title.'.'
-            )
+            AuditContext::make($auditText)
                 ->withUserId((int) $user->id)
                 ->withTargetReference('App\Models\UserPrice', (int) $user->id, $userName)
                 ->withCreatedAt(now())
@@ -1482,7 +1484,7 @@ class SettingPricesController extends AdminBaseController
 
     /**
      * Применить абонемент/цену к строке users_prices (как «Применить» справа для одной записи).
-     * Оплаченный месяц: только предоплата → предоплата, цена заморожена.
+     * Оплаченный месяц: пусто → предоплата или предоплата → предоплата; цена заморожена.
      *
      * @param  array{price?: mixed, lesson_package_id?: mixed, user?: array{name?: string}}  $priceData
      *
@@ -1629,7 +1631,7 @@ class SettingPricesController extends AdminBaseController
 
     /**
      * Применить снимок тарифа ко всем активным ученикам группы за месяц.
-     * Оплаченные: только предоплата → предоплата, сумма заморожена.
+     * Оплаченные: пусто → предоплата или предоплата → предоплата; сумма заморожена.
      * Ошибки по ученикам собираются (остальные сохраняются).
      *
      * @return array<string, list<string>>

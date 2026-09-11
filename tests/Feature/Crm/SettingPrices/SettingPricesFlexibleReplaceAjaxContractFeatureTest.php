@@ -226,4 +226,52 @@ final class SettingPricesFlexibleReplaceAjaxContractFeatureTest extends SettingP
         $okRow->refresh();
         $this->assertSame((int) $this->small->id, (int) $okRow->lesson_package_id);
     }
+
+    public function test_ajax_paid_empty_attach_returns_json_users_price_with_frozen_amount(): void
+    {
+        $this->seedPaidEmptyMonth(500000);
+
+        $response = $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('setPriceAllUsers'), [
+                'selectedDate' => self::MONTH_LABEL,
+                'teamId' => $this->team->id,
+                'usersPrice' => [
+                    $this->rightPayload($this->student, 8000.0, (int) $this->to->id),
+                ],
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure([
+                'success',
+                'usersPrice',
+                'selectedDate',
+                'lessonPackages',
+            ]);
+        $this->assertSame(5000, (int) $response->json('usersPrice.0.price'));
+        $this->assertSame((int) $this->to->id, (int) $response->json('usersPrice.0.lesson_package_id'));
+    }
+
+    public function test_ajax_paid_empty_fixed_returns_422_on_package_field(): void
+    {
+        $this->seedPaidEmptyMonth();
+
+        $response = $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('setPriceAllUsers'), [
+                'selectedDate' => self::MONTH_LABEL,
+                'teamId' => $this->team->id,
+                'usersPrice' => [
+                    $this->rightPayload($this->student, 9000.0, (int) $this->fixed->id),
+                ],
+            ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['usersPrice.0.lesson_package_id']);
+        $this->assertStringContainsString(
+            'только абонемент предоплаты',
+            $this->jsonFieldError($response, 'usersPrice.0.lesson_package_id')
+        );
+    }
 }

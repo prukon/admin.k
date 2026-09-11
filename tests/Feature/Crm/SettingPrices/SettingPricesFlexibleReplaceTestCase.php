@@ -111,6 +111,47 @@ abstract class SettingPricesFlexibleReplaceTestCase extends CrmTestCase
         ];
     }
 
+    protected function seedPaidEmptyMonth(int $priceCents = 500000, bool $manualPaid = false): UserPrice
+    {
+        return UserPrice::forceCreate([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => self::MONTH_DATE,
+            'price_cents' => $priceCents,
+            'is_paid' => $manualPaid ? 0 : 1,
+            'is_manual_paid' => $manualPaid ? true : null,
+            'lesson_package_id' => null,
+        ]);
+    }
+
+    protected function createTrialUtss(string $date = '2026-03-04'): UserTeamScheduleSlot
+    {
+        $slot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $this->team->id,
+            'weekday' => 3,
+            'time_start' => sprintf('15:%02d:00', 10 + $this->layoutSlotSeq),
+            'time_end' => sprintf('16:%02d:00', 10 + $this->layoutSlotSeq),
+            'date_start' => '2020-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+        $this->layoutSlotSeq++;
+
+        return UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->student->id,
+            'user_lesson_package_id' => null,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => $date,
+            'ends_at' => $date,
+            'is_trial_lesson' => true,
+            'trial_lessons_total' => 1,
+            'trial_lessons_remaining' => 1,
+            'created_by' => $this->user->id,
+        ]);
+    }
+
     protected function assignFromPackage(?User $student = null, float $price = 5000.0): UserPrice
     {
         $student = $student ?? $this->student;

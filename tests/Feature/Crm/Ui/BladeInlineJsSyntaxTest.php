@@ -2305,6 +2305,72 @@ JS;
     }
 
     /**
+     * P1: предоплата на оплаченный месяц без абона — селект доступен и без hasAbon,
+     * каталожная цена не подставляется, payload шлёт пакет, 422 под селектом.
+     * Два JS-пути: Vite «По месяцам» и inline «По ученикам».
+     */
+    public function test_setting_prices_paid_empty_prepaid_attach_ux_contract(): void
+    {
+        $vitePath = resource_path('js/settings-prices.js');
+        $this->assertFileExists($vitePath);
+        $js = (string) file_get_contents($vitePath);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($vitePath).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/settings-prices.js (paid empty attach):\n".implode("\n", $output)
+        );
+
+        $renderPos = strpos($js, 'function renderUsersRightColumn');
+        $this->assertNotFalse($renderPos);
+        $changePos = strpos($js, "$(document).on('change', '#right_bar .wrap-users .setting-prices-monthly-package-select'");
+        $this->assertNotFalse($changePos);
+        $render = substr($js, $renderPos, $changePos - $renderPos);
+        $formerPos = strpos($render, 'if (!isFormer)');
+        $this->assertNotFalse($formerPos);
+        $afterFormer = substr($render, $formerPos, 400);
+        $enablePos = strpos($afterFormer, "packageSelectDisabled = ''");
+        $this->assertNotFalse($enablePos);
+        $this->assertStringNotContainsString('hasAbon', substr($afterFormer, 0, $enablePos));
+        $this->assertStringContainsString('} else if (!eff && (!canManage || !hasAbon))', $render);
+        $this->assertStringContainsString('if (pkg && !isPaid)', $js);
+
+        $payloadStart = strpos($js, 'function buildRightApplyPayloadFromDom');
+        $this->assertNotFalse($payloadStart);
+        $payloadEnd = strpos($js, 'function postManualPaid');
+        $this->assertNotFalse($payloadEnd);
+        $payload = substr($js, $payloadStart, $payloadEnd - $payloadStart);
+        $this->assertStringContainsString('lesson_package_id: lessonPackageId', $payload);
+        $this->assertStringNotContainsString('data-effective-paid', $payload);
+
+        $applyStart = strpos($js, "$('#set-price-all-users').on('click'");
+        $this->assertNotFalse($applyStart);
+        $applyEnd = strpos($js, '(function initMonthProlong()');
+        $this->assertNotFalse($applyEnd);
+        $apply = substr($js, $applyStart, $applyEnd - $applyStart);
+        $this->assertStringContainsString('/^usersPrice\\.(\\d+)\\.lesson_package_id$/', $apply);
+        $this->assertStringContainsString("showMonthlyCardFieldError($(card), 'lesson_package_id'", $apply);
+
+        $usersPath = resource_path('views/admin/SettingPrices/users.blade.php');
+        $this->assertFileExists($usersPath);
+        $blade = (string) file_get_contents($usersPath);
+        $this->assertStringContainsString("const packageDisabledAttr = isFormer ? 'disabled' : ''", $blade);
+        $this->assertStringContainsString('if (!isPaid && select.value && pkgPrice != null && pkgPrice !== \'\')', $blade);
+        $this->assertStringContainsString("errs['prices.0.lesson_package_id']", $blade);
+        $this->assertStringContainsString("prices.' + i + '.lesson_package_id", $blade);
+        $this->assertStringContainsString('if (!isFormer && !effectivePaid && (!canManual || !hasAbon))', $blade);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $usersPath,
+            'packageDisabledAttr',
+            'blade-js-setting-prices-paid-empty-prepaid-attach'
+        );
+    }
+
+    /**
      * P1: модалка пролонгации месяца — UX-контракт Vite-модуля (не только syntax-check).
      * Ловит: плашка summary в модалке, reload, смешанный count, иконка после цифры, группы в «Пропущено».
      */

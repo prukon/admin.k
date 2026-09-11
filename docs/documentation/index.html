@@ -28,6 +28,75 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="setting-prices-paid-empty-prepaid-attach-index">Установка цен: абонемент предоплаты на оплаченный месяц без абонемента (2026‑09)</h2>
+  <div class="note">
+    На вкладках <b>«По месяцам»</b> (<code>/admin/setting-prices/monthly</code>)
+    и <b>«По ученикам»</b> (<code>/admin/setting-prices/users</code>)
+    на уже оплаченный месяц <b>без абонемента</b> можно поставить абонемент
+    <b>предоплаты</b> (<code>schedule_type=flexible</code>).
+    Это не новая продажа и не замена шаблона
+    (<a href="/doc#setting-prices-flexible-replace-index">анонс замены предоплаты</a>):
+    создаётся месячное назначение на закрытом начислении, сумма не меняется.
+    Фиксированный / разовое / постоплата — по-прежнему <b>422</b>
+    («На оплаченный месяц без абонемента можно поставить только абонемент предоплаты.»).
+    Снять абонемент с оплаченного месяца нельзя
+    («Нельзя снять абонемент у оплаченного месяца.»).
+    Право — <code>setPrices.view</code> (плюс <code>lessonPackages.type.flexible</code> на новый id).
+    <br><br>
+    1) <b>Правила.</b>
+    Только <code>пусто → flexible</code>, та же группа и месяц.
+    Сумма заморожена: и онлайн (<code>users_prices.is_paid</code>), и ручная отметка
+    (<code>is_manual_paid</code> / <code>effective_is_paid</code>), и оплаченный ULP.
+    Неоплаченный месяц без абона по-прежнему берёт цену из каталога (и скидки карточки).
+    ULP создаётся сразу <code>is_paid=true</code>,
+    <code>fee_amount_cents</code> = сумма месяца, полный объём шаблона
+    (<code>lessons_remaining = lessons_total</code>),
+    <code>starts_at</code> = 1-е число месяца, <code>ends_at</code> = последний день.
+    Журнал не трогаем: пробные и разовые ячейки остаются своими,
+    к новому абону не привязываются, занятия сами не добавляются.
+    Нового платежа, чека и смены QR нет (сумма не меняется — ссылки
+    <code>/pm/{code}</code> / <code>/p/{code}</code> не ротируются).
+    Если у ученика включена автопролонгация классического ULP, создание месячного
+    назначения → ошибка <code>UserLessonPackageAutoProlongGuard::BLOCK_REASON</code>.
+    Повтор того же абона ничего не меняет.
+    Бывший участник группы справа пропускается, селект у него только просмотр.
+    <br>
+    2) <b>UI и HTTP.</b>
+    Селект абонемента у оплаченного без абона доступен (сумма — нет, каталог не подставляется).
+    Точечно справа, save года и массово слева одинаково: снимок тарифа группы
+    (<code>POST …/set-team-price</code> и <code>POST …/set-price-all-teams</code>)
+    тоже ставит выбранную предоплату оплаченным без абона.
+    Оплаченный фиксированный / разовое / постоплата слева по-прежнему пропускается молча;
+    справа / save года → <b>422</b> на поле пакета.
+    Apply справа / save года: кого можно — сохраняем;
+    недопустимая смена — <b>422</b>
+    <code>errors.usersPrice.N.lesson_package_id</code> /
+    <code>errors.prices.N.lesson_package_id</code> /
+    <code>errors.lesson_package_id</code>
+    (текст под селектом <code>setting-prices-monthly-package-error</code>).
+    Без права типа предоплаты — <b>422</b> с текстом
+    <code>LessonPackageTypePermission::denyPackageMessage('flexible')</code>.
+    AJAX — JSON 200/422; HTML POST без <code>X-Requested-With</code> — <b>302</b> и запись в БД.
+    Гость — 302/401/403; без <code>setPrices.view</code> — 403; чужая группа/ученик — 404.
+    GET/PATCH/DELETE на POST-рутах — 404/405.
+    <br>
+    3) <b>Тесты.</b>
+    <code>SettingPricesPaidEmptyPrepaidAttachFeatureTest</code>,
+    <code>SettingPricesPaidEmptyPrepaidAttachAccessFeatureTest</code>,
+    <code>SettingPricesPaidEmptyPrepaidAttachAjaxContractFeatureTest</code>,
+    <code>SettingPricesPaidEmptyPrepaidAttachNonAjaxSafetyNetFeatureTest</code>,
+    <code>SettingPricesPaidEmptyPrepaidAttachMarkupFeatureTest</code>,
+    <code>SettingPricesPaidEmptyPrepaidAttachJsContractTest</code>,
+    <code>SettingPricesPaidEmptyPrepaidAttachDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_paid_empty_prepaid_attach_ux_contract</code>,
+    <code>SettingPricesUsersPriceUlpSyncFeatureTest</code>,
+    <code>SettingPricesFlexibleReplaceFeatureTest</code>.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/setting-prices-monthly-users#ulp-sync">setting-prices-monthly-users §ulp-sync</a>.
+    Анонс: <a href="/doc#setting-prices-paid-empty-prepaid-attach-index">/doc#setting-prices-paid-empty-prepaid-attach-index</a>.
+  </div>
+
   <h2 id="reports-tbank-payments-summary-confirmed-default-index">Отчёт «Платежи T‑Bank»: по умолчанию CONFIRMED в виде По дням / По месяцам (2026‑09)</h2>
   <div class="note">
     На <code>/admin/reports/tbank-payments?view=days</code> и
@@ -153,7 +222,9 @@
     абонемент <b>предоплаты</b> (<code>schedule_type=flexible</code>) можно сменить
     на другой абонемент предоплаты той же группы и месяца, даже если занятия уже
     стоят в журнале и даже если месяц оплачен.
-    Это <b>не</b> смена фиксированного / разового / постоплаты
+    Это <b>не</b> смена фиксированного / разового / постоплаты,
+    <b>не</b> постановка абонемента на оплаченный месяц без пакета
+    (<a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>)
     и <b>не</b> автодобавление ячеек журнала.
     Право — <code>setPrices.view</code> (плюс право типа шаблона на новый id).
     <br><br>
@@ -180,8 +251,10 @@
     <code>setting-prices-monthly-package-error</code>).
     AJAX — JSON 200/422; HTML POST без <code>X-Requested-With</code> — <b>302</b> и запись в БД
     (не пустой 200). Гость — 302/401; без <code>setPrices.view</code> — 403.
-    Оплаченный <b>не</b>-prepaid в payload Apply справа → 422, строка не меняется.
-    Снимок тарифа слева оплаченный не-prepaid по-прежнему пропускает молча.
+    Оплаченный фиксированный / разовое / постоплата в payload Apply справа → 422, строка не меняется.
+    Снимок тарифа слева: оплаченный фиксированный / постоплата пропускается молча;
+    оплаченный без абона + предоплата ставится
+    (<a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>).
     <br>
     3) <b>Оплата.</b>
     Неоплаченная замена с новой суммой: активный T‑Bank QR месяца отменяется
@@ -1181,7 +1254,9 @@
     <code>mode</code> и комментарий: «рубин» в БД оставался, хотя в селекте уже была «ромашка».
     После отметки «оплачено» сумма Apply справа <b>не</b> меняется
     (<code>effective_is_paid</code>); шаблон предоплаты после оплаты меняется
-    отдельно — <a href="/doc#setting-prices-flexible-replace-index">анонс замены предоплаты</a>.
+    отдельно — <a href="/doc#setting-prices-flexible-replace-index">анонс замены предоплаты</a>;
+    на оплаченный месяц без абонемента можно поставить предоплату —
+    <a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>.
     Это <b>не</b> вкладка «По ученикам» (там свой JS года), <b>не</b> доп. платежи
     (<code>POST …/custom-payments/{id}/manual-paid</code>) и <b>не</b> пролонгация месяца
     (<a href="/doc#setting-prices-month-prolong-index">анонс</a>).
@@ -8763,7 +8838,7 @@
     <li><a href="/docs/documentation/dev-seed-data"><strong>Dev-фикстуры (SEED_DEV_DATA)</strong>: цепочка Dev*-сидеров, юр. лица/справочники/T‑Bank/history, GuardsDevSeedData, ограничения prod</a></li>
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank; только СБП — без «Других способов» и без «Выберите ниже», <a href="/doc#payment-vitrina-sbp-only-index">анонс</a>), публичная СБП месяца из писем уведомлений (<code>/pm/{code}</code>, <a href="/doc#payment-notifications-sbp-link-index">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
-    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, <b>корзина неоплаченного начисления бывшего</b> (<a href="/doc#setting-prices-monthly-former-charge-clear-index">анонс</a>), apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>), <b>абонемент и сумма из карточки при ручной оплате</b> (<a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>), <b>замена предоплаты в разложенном/оплаченном месяце</b> (<a href="/doc#setting-prices-flexible-replace-index">анонс</a>), <b>плашка группы только вместе со списком учеников</b> (<a href="/doc#setting-prices-monthly-team-select-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, <b>корзина неоплаченного начисления бывшего</b> (<a href="/doc#setting-prices-monthly-former-charge-clear-index">анонс</a>), apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>), <b>абонемент и сумма из карточки при ручной оплате</b> (<a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>), <b>замена предоплаты в разложенном/оплаченном месяце</b> (<a href="/doc#setting-prices-flexible-replace-index">анонс</a>), <b>предоплата на оплаченный месяц без абонемента</b> (<a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>), <b>плашка группы только вместе со списком учеников</b> (<a href="/doc#setting-prices-monthly-team-select-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, автособытия «ученик добавил группу» (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer) и <b>«договор подписан»</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>, только admin школы, 7 суток), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
     <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>оверлей «Пульт»</b> («Касса» — <a href="/doc#ops-till-missing-payout-index">анонс</a>), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>карточка чужой школы</b> (<a href="/doc#chat-peer-card-cross-partner-index">анонс</a>: superadmin при живом общем треде, 403 <code>errors.user</code> по-русски), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>название партнёра в модалках</b> (<a href="/doc#chat-partner-name-index">анонс</a>: под ФИО в «Контакт» и под именем в «Группа», не вкладка «Аккаунт», не шапка), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>удаление своих сообщений</b> (<a href="/doc#chat-own-message-delete-index">анонс</a>: скрытое <code>messages.own.delete</code>, только автор, подтверждение), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>

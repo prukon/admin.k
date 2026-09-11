@@ -132,4 +132,46 @@ final class SettingPricesFlexibleReplaceNonAjaxSafetyNetFeatureTest extends Sett
         $this->assertSame((int) $this->to->id, (int) $seed['row']->lesson_package_id);
         $this->assertSame(500000, (int) $seed['row']->price_cents);
     }
+
+    public function test_non_ajax_right_apply_paid_empty_attach_redirects_and_keeps_price(): void
+    {
+        $row = $this->seedPaidEmptyMonth();
+
+        $response = $this->from(route('admin.settingPrices.indexMenu'))
+            ->post(route('setPriceAllUsers'), [
+                'selectedDate' => self::MONTH_LABEL,
+                'teamId' => $this->team->id,
+                'usersPrice' => [
+                    $this->rightPayload($this->student, 8000.0, (int) $this->to->id),
+                ],
+            ]);
+
+        $response->assertRedirect(route('admin.settingPrices.indexMenu'));
+        $this->assertNotSame(200, $response->getStatusCode());
+        $this->assertNotSame(500, $response->getStatusCode());
+
+        $row->refresh();
+        $this->assertSame((int) $this->to->id, (int) $row->lesson_package_id);
+        $this->assertSame(500000, (int) $row->price_cents);
+        $this->assertNotNull($row->user_lesson_package_id);
+    }
+
+    public function test_non_ajax_team_snapshot_paid_empty_attach_redirects_and_keeps_price(): void
+    {
+        $row = $this->seedPaidEmptyMonth(350000);
+
+        $response = $this->from(route('admin.settingPrices.indexMenu'))
+            ->post(route('setTeamPrice'), [
+                'selectedDate' => self::MONTH_LABEL,
+                'teamId' => $this->team->id,
+                'lesson_package_id' => $this->to->id,
+            ]);
+
+        $response->assertRedirect(route('admin.settingPrices.indexMenu'));
+        $this->assertNotSame(200, $response->getStatusCode());
+
+        $row->refresh();
+        $this->assertSame((int) $this->to->id, (int) $row->lesson_package_id);
+        $this->assertSame(350000, (int) $row->price_cents);
+    }
 }

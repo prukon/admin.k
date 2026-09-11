@@ -19,7 +19,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *
  * Postpay → ULP не создаём; при уходе с assignable на postpay/пусто — удаляем неразложенный ULP.
  * Assignable (fixed/flexible/no_schedule) → create/update ULP + FK + billing_month.
- * Месячная предоплата → предоплата: шаблон можно сменить даже если уже разложено / оплачено
+ * Месячная предоплата: шаблон можно сменить (предоплата → предоплата) или назначить
+ * на оплаченный месяц без абонемента (пусто → предоплата), даже если уже разложено / оплачено
  * (цена оплаченного месяца не переписывается).
  */
 final class UsersPriceLessonPackageSync
@@ -33,7 +34,8 @@ final class UsersPriceLessonPackageSync
     }
 
     /**
-     * Можно ли заменить шаблон на месячную предоплату (в т.ч. разложенную/оплаченную).
+     * Можно ли поставить или заменить шаблон на месячную предоплату
+     * (пусто → предоплата, предоплата → предоплата; в т.ч. разложенную/оплаченную).
      */
     public function isFlexibleReplaceAllowed(UserPrice $row, LessonPackage $newPackage): bool
     {
@@ -54,7 +56,7 @@ final class UsersPriceLessonPackageSync
 
         $oldId = $row->lesson_package_id !== null ? (int) $row->lesson_package_id : 0;
         if ($oldId < 1) {
-            return false;
+            return true;
         }
 
         $old = $row->relationLoaded('lessonPackage') && $row->lessonPackage
@@ -246,7 +248,7 @@ final class UsersPriceLessonPackageSync
     }
 
     /**
-     * Оплаченный месяц: можно сменить только шаблон предоплата → предоплата, сумма не трогается.
+     * Оплаченный месяц: пусто → предоплата или предоплата → предоплата; сумму не трогаем.
      */
     public function assertPaidFlexibleReplaceOrFail(UserPrice $row, ?LessonPackage $newPackage, string $field): void
     {
@@ -257,12 +259,30 @@ final class UsersPriceLessonPackageSync
             );
         }
 
-        if (! $this->isFlexibleReplaceAllowed($row, $newPackage)) {
+        if ($this->isFlexibleReplaceAllowed($row, $newPackage)) {
+            return;
+        }
+
+        if ($this->isEmptyOfMonthlyPackage($row)) {
             throw new UsersPriceLessonPackageSyncException(
                 $field,
-                'Сменить оплаченный абонемент можно только на другой абонемент предоплаты.'
+                'На оплаченный месяц без абонемента можно поставить только абонемент предоплаты.'
             );
         }
+
+        throw new UsersPriceLessonPackageSyncException(
+            $field,
+            'Сменить оплаченный абонемент можно только на другой абонемент предоплаты.'
+        );
+    }
+
+    private function isEmptyOfMonthlyPackage(UserPrice $row): bool
+    {
+        if ($this->resolveLinkedUlp($row) !== null) {
+            return false;
+        }
+
+        return ($row->lesson_package_id !== null ? (int) $row->lesson_package_id : 0) < 1;
     }
 
     private function isLinkedFlexibleMonthly(UserLessonPackage $linked): bool

@@ -927,7 +927,10 @@
       (полный период при создании <b>не</b> означает раскладку).
       Смена шаблона в установке цен: <b>предоплата → предоплата</b> разрешена и после UTSS
       (остаток = новый объём − статусы <code>consumes_lesson</code>, ячейки журнала сами не добавляются) —
-      <a href="/doc#setting-prices-flexible-replace-index">анонс</a>,
+      <a href="/doc#setting-prices-flexible-replace-index">анонс</a>.
+      Постановка предоплаты на оплаченный месяц без абонемента создаёт ULP с полным объёмом;
+      уже стоящие пробные и разовые ячейки остаются своими, к новому абону не привязываются —
+      <a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>,
       <a href="/docs/documentation/setting-prices-monthly-users#ulp-sync">setting-prices-monthly-users §ulp-sync</a>.
       Иные типы при UTSS → <b>422</b>.</li>
   </ul>

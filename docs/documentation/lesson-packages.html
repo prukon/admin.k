@@ -135,9 +135,14 @@
     <code>2026_08_05_190000_add_user_lesson_package_id_to_users_prices_table.php</code>).
     С 2026‑09 разложенную/оплаченную <b>предоплату</b> в установке цен можно сменить на другую предоплату
     того же месяца и группы (та же строка ULP, журнал сами не дополняем) —
-    <a href="/doc#setting-prices-flexible-replace-index">анонс</a>,
+    <a href="/doc#setting-prices-flexible-replace-index">анонс</a>.
+    На уже оплаченный месяц <b>без</b> абонемента можно поставить предоплату:
+    создаётся оплаченный месячный ULP на закрытом начислении (полный объём шаблона,
+    сумма не меняется, существующие ячейки журнала не привязываются) —
+    <a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>,
     <a href="/docs/documentation/setting-prices-monthly-users#ulp-sync">setting-prices-monthly-users §ulp-sync</a>.
     Иные типы при раскладке по-прежнему → <b>422</b>.
+    Фиксированный / разовое / постоплата на оплаченный месяц без абона → <b>422</b>.
     Модалка раскладки журнала (fixed): для месячных ULP дата начала обязательна и пустая по умолчанию
     (только внутри <code>billing_month</code>), окончание — readonly; HTML5 <code>min</code>/<code>max</code>/<code>required</code>
     не используются — ошибки Laravel под полями.

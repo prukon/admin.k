@@ -43,6 +43,7 @@ final class SettingPricesMonthlyLessonPackageFeatureTest extends CrmTestCase
         $this->package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
             'name' => 'Тариф Стандарт',
             'price_cents' => 450000,
+            'schedule_type' => 'fixed',
             'is_active' => true,
         ]);
     }

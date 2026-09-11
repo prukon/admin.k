@@ -40,6 +40,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
         $this->package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
             'name' => 'Групповой тариф',
             'price_cents' => 550000,
+            'schedule_type' => 'fixed',
         ]);
 
         $this->unpaid = User::factory()->create([

@@ -33,8 +33,11 @@ final class SettingPricesFlexibleReplaceDocumentationContractTest extends TestCa
         $this->assertStringContainsString('/pm/{code}', $html);
         $this->assertStringContainsString('usersPrice.{i}.lesson_package_id', $html);
         $this->assertStringContainsString('остаётся доступным', $html);
+        $this->assertStringContainsString('пусто → предоплата', $html);
+        $this->assertStringContainsString('/doc#setting-prices-paid-empty-prepaid-attach-index', $html);
         $this->assertStringNotContainsString('селект абонемента у оплаченного месяца disabled', $html);
         $this->assertStringNotContainsString('Оплаченный месяц (<code>effective_is_paid</code>) — sync не создаёт и не меняет ULP', $html);
+        $this->assertStringNotContainsString('поставить пакет в оплаченный месяц без предоплаты', $html);
     }
 
     public function test_doc_index_announces_flexible_replace_without_contradicting_live_ux(): void
@@ -75,6 +78,30 @@ final class SettingPricesFlexibleReplaceDocumentationContractTest extends TestCa
         $this->assertStringContainsString('только просмотр', $chunk);
 
         $this->assertStringContainsString('замена предоплаты в разложенном/оплаченном месяце', $html);
+        $this->assertStringContainsString('предоплата на оплаченный месяц без абонемента', $html);
+    }
+
+    public function test_doc_index_announces_paid_empty_prepaid_attach(): void
+    {
+        $html = $this->docFile('index.html');
+
+        $this->assertStringContainsString('id="setting-prices-paid-empty-prepaid-attach-index"', $html);
+        $start = strpos($html, 'id="setting-prices-paid-empty-prepaid-attach-index"');
+        $this->assertNotFalse($start);
+        $end = strpos($html, 'id="reports-tbank-payments-summary-confirmed-default-index"');
+        $this->assertNotFalse($end);
+        $this->assertGreaterThan($start, $end);
+        $chunk = substr($html, $start, $end - $start);
+
+        $this->assertStringContainsString('пусто → flexible', $chunk);
+        $this->assertStringContainsString('effective_is_paid', $chunk);
+        $this->assertStringContainsString('lessons_remaining = lessons_total', $chunk);
+        $this->assertStringContainsString('setting-prices-monthly-package-error', $chunk);
+        $this->assertStringContainsString('X-Requested-With', $chunk);
+        $this->assertStringContainsString('SettingPricesFlexibleReplaceFeatureTest', $chunk);
+        $this->assertStringContainsString('SettingPricesUsersPriceUlpSyncFeatureTest', $chunk);
+        $this->assertStringNotContainsString('npm run build', $chunk);
+        $this->assertStringContainsString('setting-prices-monthly-users#ulp-sync', $chunk);
     }
 
     public function test_payments_and_controller_link_announcement(): void
@@ -88,8 +115,13 @@ final class SettingPricesFlexibleReplaceDocumentationContractTest extends TestCa
         $this->assertStringContainsString('/doc#setting-prices-flexible-replace-index', $payments);
         $this->assertStringContainsString('/doc#setting-prices-flexible-replace-index', $journal);
         $this->assertStringContainsString('/doc#setting-prices-flexible-replace-index', $packages);
+        $this->assertStringContainsString('/doc#setting-prices-paid-empty-prepaid-attach-index', $payments);
+        $this->assertStringContainsString('/doc#setting-prices-paid-empty-prepaid-attach-index', $journal);
+        $this->assertStringContainsString('/doc#setting-prices-paid-empty-prepaid-attach-index', $packages);
         $this->assertStringNotContainsString('сменить пакет в установке цен можно, пока нет UTSS', $journal);
+        $this->assertStringNotContainsString('Снимок тарифа слева оплаченный не-prepaid по-прежнему пропускает молча', $this->docFile('index.html'));
         $this->assertStringContainsString('замена предоплаты в разложенном/оплаченном месяце', $controller);
+        $this->assertStringContainsString('предоплата на оплаченный месяц без абонемента', $controller);
         $this->assertStringContainsString("packageSelectDisabled = ''", $js);
         $this->assertStringContainsString('if (pkg && !isPaid)', $js);
         $this->assertStringNotContainsString("packageSelectDisabled = eff ? 'disabled' : ''", $js);

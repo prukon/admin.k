@@ -330,6 +330,42 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
         $this->assertSame(0, UserLessonPackage::query()->where('user_id', $this->student->id)->count());
     }
 
+    public function test_paid_empty_month_attaches_prepaid_and_creates_paid_ulp_with_full_volume(): void
+    {
+        UserPrice::forceCreate([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2025-11-01',
+            'price_cents' => 420000,
+            'is_paid' => 1,
+            'lesson_package_id' => null,
+        ]);
+
+        $this->postJson(route('setPriceAllUsers'), [
+            'selectedDate' => 'Ноябрь 2025',
+            'teamId' => $this->team->id,
+            'usersPrice' => [
+                $this->payload($this->student, 9000.0, (int) $this->flexible->id),
+            ],
+        ])->assertOk();
+
+        $row = UserPrice::query()
+            ->where('user_id', $this->student->id)
+            ->where('team_id', $this->team->id)
+            ->where('new_month', '2025-11-01')
+            ->first();
+        $this->assertNotNull($row);
+        $this->assertSame((int) $this->flexible->id, (int) $row->lesson_package_id);
+        $this->assertSame(420000, (int) $row->price_cents);
+        $this->assertNotNull($row->user_lesson_package_id);
+        $ulp = UserLessonPackage::query()->findOrFail($row->user_lesson_package_id);
+        $this->assertTrue((bool) $ulp->is_paid);
+        $this->assertSame(420000, (int) $ulp->fee_amount_cents);
+        $this->assertSame(6, (int) $ulp->lessons_total);
+        $this->assertSame(6, (int) $ulp->lessons_remaining);
+        $this->assertSame('2025-11-01', $ulp->billing_month?->format('Y-m-d'));
+    }
+
     public function test_placed_flexible_package_replace_updates_volume_and_price_when_unpaid(): void
     {
         [$from, $to] = $this->makeFlexiblePair(8, 5000.0, 12, 8000.0);
