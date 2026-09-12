@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Concerns;
 
+use App\Rules\EmailHasDomainDot;
 use App\Services\PartnerContext;
 use Illuminate\Validation\Rule;
 
@@ -82,7 +83,7 @@ trait ValidatesStudentParent
             'parent_passport_issued' => ['nullable', 'string', 'max:500'],
             'parent_address'    => ['nullable', 'string', 'max:1000'],
             'parent_phone'      => ['nullable', 'string', 'max:32'],
-            'parent_email'      => ['nullable', 'email', 'max:255'],
+            'parent_email'      => ['nullable', 'email', 'max:255', new EmailHasDomainDot],
         ];
 
         if ($partnerId) {

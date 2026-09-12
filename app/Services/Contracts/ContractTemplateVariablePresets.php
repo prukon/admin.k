@@ -3,6 +3,7 @@
 namespace App\Services\Contracts;
 
 use App\Models\SchoolLead;
+use App\Support\RuPhone;
 use Carbon\Carbon;
 
 /**
@@ -611,8 +612,10 @@ class ContractTemplateVariablePresets
     }
 
     /**
-     * @param array<string, string> $values
-     * @return array<string, string>
+     * Собирает ФИО из частей и форматирует телефонные поля для DOCX/PDF.
+     *
+     * @param array<string, mixed> $values
+     * @return array<string, mixed>
      */
     public static function composeNameFieldsForPdf(array $values): array
     {
@@ -631,6 +634,30 @@ class ContractTemplateVariablePresets
         );
         if ($childFull !== '') {
             $values[ContractTemplatePrefillSources::CHILD_FULL_NAME] = $childFull;
+        }
+
+        return self::formatPhoneFieldsForPdf($values);
+    }
+
+    /**
+     * Маска как в UI: +7 (999) 999-99-99. Ключи phone/tel/mobile, включая кастомные из DOCX.
+     *
+     * @param array<string, mixed> $values
+     * @return array<string, mixed>
+     */
+    public static function formatPhoneFieldsForPdf(array $values): array
+    {
+        foreach ($values as $key => $value) {
+            if (!is_string($key) || !self::isFillFormPhoneField($key)) {
+                continue;
+            }
+
+            $raw = trim((string) $value);
+            if ($raw === '') {
+                continue;
+            }
+
+            $values[$key] = RuPhone::formatForInput($raw);
         }
 
         return $values;
@@ -993,6 +1020,15 @@ class ContractTemplateVariablePresets
         return str_contains($key, 'birthday')
             || str_contains($key, 'birth_date')
             || str_contains($key, 'date_of_birth');
+    }
+
+    public static function isFillFormPhoneField(string $key): bool
+    {
+        $key = self::canonicalFieldKey($key);
+
+        return str_contains($key, 'phone')
+            || str_contains($key, 'tel')
+            || str_contains($key, 'mobile');
     }
 
     public static function dateValueForFillInput(?string $value): string

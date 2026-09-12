@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Users;
 
 use App\Mail\ClientWelcomeCredentialsMail;
 use App\Models\User;
+use App\Rules\EmailHasDomainDot;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Tests\Feature\Crm\CrmTestCase;
@@ -148,5 +149,90 @@ final class UserCreateWelcomeCredentialsFeatureTest extends CrmTestCase
             'email' => 'fail-student@example.com',
             'partner_id' => $this->partner->id,
         ]);
+    }
+
+    public function test_store_email_without_domain_dot_returns_422_under_email_field(): void
+    {
+        Mail::fake();
+
+        $this->asAdmin();
+        $this->grantUsersView($this->user);
+
+        $response = $this->postJson(route('admin.user.store'), [
+            'name'               => 'Яна',
+            'lastname'           => 'Прорешкина',
+            'email'              => 'y.proreshkina@mail',
+            'role_id'            => $this->studentRoleId(),
+            'is_enabled'         => 1,
+            'send_welcome_email' => 1,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email'])
+            ->assertJsonPath('errors.email.0', EmailHasDomainDot::MESSAGE);
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'y.proreshkina@mail',
+            'partner_id' => $this->partner->id,
+        ]);
+        Mail::assertNothingSent();
+    }
+
+    public function test_store_parent_email_without_domain_dot_returns_422_under_parent_email_field(): void
+    {
+        Mail::fake();
+
+        $this->asAdmin();
+        $this->grantUsersView($this->user);
+
+        $response = $this->postJson(route('admin.user.store'), [
+            'name'               => 'Яна',
+            'lastname'           => 'Прорешкина',
+            'parent_email'       => 'parent@mail',
+            'role_id'            => $this->studentRoleId(),
+            'is_enabled'         => 1,
+            'send_welcome_email' => 1,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['parent_email'])
+            ->assertJsonPath('errors.parent_email.0', EmailHasDomainDot::MESSAGE);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_update_email_without_domain_dot_returns_422_under_email_field(): void
+    {
+        $this->asAdmin();
+        $this->grantUsersView($this->user);
+        $this->grantPermission($this->user, 'users.email.update');
+        $this->grantPermission($this->user, 'users.name.update');
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->studentRoleId(),
+            'email' => 'student-ok@example.com',
+        ]);
+
+        $response = $this->patchJson(route('admin.user.update', $student), [
+            'name'     => $student->name,
+            'lastname' => $student->lastname,
+            'email'    => 'student@mail',
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email'])
+            ->assertJsonPath('errors.email.0', EmailHasDomainDot::MESSAGE);
+
+        $this->assertSame('student-ok@example.com', $student->fresh()->email);
     }
 }

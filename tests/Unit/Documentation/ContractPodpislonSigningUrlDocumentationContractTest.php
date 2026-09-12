@@ -79,7 +79,9 @@ final class ContractPodpislonSigningUrlDocumentationContractTest extends TestCas
         $this->assertStringContainsString('AccountDocumentsPodpislonSigningUrlUxFeatureTest.php', $fill);
         $this->assertStringContainsString('AccountDocumentsPodpislonSigningUrlAccessFeatureTest.php', $fill);
         $this->assertStringContainsString('AccountDocumentsPodpislonSigningUrlNonAjaxSafetyNetFeatureTest.php', $fill);
-        $this->assertStringContainsString('Фильтра по статусу нет', $fill);
+        $this->assertStringContainsString('canClientOpenSigningUrl()', $fill);
+        $this->assertStringContainsString('account-documents-expiry-notice', $fill);
+        $this->assertStringContainsString('signed</code> и <code>revoked</code>', $fill);
     }
 
     public function test_catalog_and_controller_title_mention_signing_url(): void
@@ -119,6 +121,7 @@ final class ContractPodpislonSigningUrlDocumentationContractTest extends TestCas
 
         $cabinet = (string) file_get_contents($root.'/resources/views/account/documents.blade.php');
         $this->assertStringContainsString('Открыть ссылку из SMS', $cabinet);
+        $this->assertStringContainsString('canClientOpenSigningUrl()', $cabinet);
         $this->assertStringContainsString('providerSigningUrl()', $cabinet);
     }
 

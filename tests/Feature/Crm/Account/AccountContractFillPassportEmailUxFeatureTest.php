@@ -247,13 +247,4 @@ final class AccountContractFillPassportEmailUxFeatureTest extends CrmTestCase
 
         return $parent;
     }
-
-    private function assertFillInputValue(string $html, string $fieldKey, string $expected): void
-    {
-        $this->assertMatchesRegularExpression(
-            '/name="fields\[' . preg_quote($fieldKey, '/') . ']"[^>]*value="' . preg_quote($expected, '/') . '"/u',
-            $html,
-            'Ожидалось fields[' . $fieldKey . '] = «' . $expected . '»',
-        );
-    }
 }

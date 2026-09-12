@@ -41,6 +41,11 @@ class ContractStoreTemplateModeTest extends ContractsFeatureTestCase
         $this->assertSame(Contract::STATUS_AWAITING_CLIENT_FILL, $contract->status);
         $this->assertNull($contract->source_pdf_path);
         $this->assertNotNull($contract->fill_expires_at);
+        $this->assertEqualsWithDelta(
+            now()->addDays(Contract::FILL_TTL_DAYS)->timestamp,
+            $contract->fill_expires_at->timestamp,
+            5
+        );
 
         $this->partner->refresh();
         $this->assertSame(30.0, (float) ($this->partner->wallet_balance_cents / 100));

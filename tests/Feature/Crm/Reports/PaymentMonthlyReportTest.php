@@ -210,5 +210,65 @@ class PaymentMonthlyReportTest extends CrmTestCase
             ->assertSee('pay-monthly-filter-user-status', false)
             ->assertSee('Активность ученика', false);
     }
+
+    public function test_month_payments_datatable_sort_by_summ_uses_summ_cents_and_is_not_500(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+
+        $smaller = Payment::factory()->forUser($student)->create([
+            'summ_cents' => 10000,
+            'payment_month' => '2025-09-01',
+            'operation_date' => '2025-09-20 10:00:00',
+        ]);
+        $larger = Payment::factory()->forUser($student)->create([
+            'summ_cents' => 50000,
+            'payment_month' => '2025-09-01',
+            'operation_date' => '2025-09-10 10:00:00',
+        ]);
+
+        $json = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('reports.payments.monthly.payments', [
+                'yearMonth' => '2025-09',
+                'mode' => 'subscription',
+                'draw' => 1,
+                'start' => 0,
+                'length' => 10,
+                'columns' => $this->monthPaymentsDataTableColumns(),
+                'order' => [
+                    ['column' => 3, 'dir' => 'asc'],
+                ],
+            ]));
+
+        $this->assertNotSame(500, $json->getStatusCode());
+        $json->assertOk();
+        $data = $json->json('data');
+        $this->assertIsArray($data);
+        $this->assertCount(2, $data);
+        $this->assertSame((int) $smaller->id, (int) ($data[0]['id'] ?? 0));
+        $this->assertSame((int) $larger->id, (int) ($data[1]['id'] ?? 0));
+        $this->assertSame(100.0, (float) ($data[0]['summ'] ?? 0));
+        $this->assertSame(500.0, (float) ($data[1]['summ'] ?? 0));
+    }
+
+    /**
+     * @return list<array{data: string, name: string, searchable: bool, orderable: bool}>
+     */
+    private function monthPaymentsDataTableColumns(): array
+    {
+        return [
+            ['data' => 'operation_date', 'name' => 'operation_date', 'searchable' => false, 'orderable' => true],
+            ['data' => 'user_name', 'name' => 'user_name', 'searchable' => true, 'orderable' => true],
+            ['data' => 'team_title', 'name' => 'team_title', 'searchable' => true, 'orderable' => true],
+            ['data' => 'summ', 'name' => 'summ', 'searchable' => false, 'orderable' => true],
+            ['data' => 'payment_month', 'name' => 'payment_month', 'searchable' => false, 'orderable' => true],
+            ['data' => 'payment_provider', 'name' => 'payment_provider', 'searchable' => false, 'orderable' => false],
+        ];
+    }
 }
 

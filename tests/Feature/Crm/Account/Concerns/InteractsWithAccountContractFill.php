@@ -5,6 +5,9 @@ namespace Tests\Feature\Crm\Account\Concerns;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\ContractTemplateVersion;
+use App\Models\ParentProfile;
+use App\Services\Contracts\ContractTemplatePrefillSources;
+use App\Support\RuPhone;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use ZipArchive;
@@ -180,5 +183,91 @@ trait InteractsWithAccountContractFill
             . '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
             . '<w:body><w:p><w:r><w:t>Договор ' . $inner . '</w:t></w:r></w:p></w:body></w:document>'
         );
+    }
+
+    /**
+     * @param list<array<string, mixed>> $extraFields
+     * @param list<string> $extraPlaceholders
+     */
+    protected function makeRequiredPhoneFillContract(array $extraFields = [], array $extraPlaceholders = []): Contract
+    {
+        $fields = array_merge([
+            ['key' => 'parent_lastname', 'label' => 'Фамилия', 'required' => true],
+            ['key' => 'parent_firstname', 'label' => 'Имя', 'required' => true],
+            [
+                'key'            => 'parent_phone',
+                'label'          => 'Родитель: телефон',
+                'required'       => true,
+                'prefill_source' => ContractTemplatePrefillSources::PARENT_PHONE,
+            ],
+        ], $extraFields);
+
+        return $this->makeAwaitingFillContract(
+            $fields,
+            array_merge(['parent_full_name', 'parent_phone'], $extraPlaceholders),
+        );
+    }
+
+    /**
+     * @param array<string, string> $overrides
+     * @return array<string, string>
+     */
+    protected function phoneGenerateFields(array $overrides = []): array
+    {
+        return array_merge([
+            'parent_lastname'  => 'Иванов',
+            'parent_firstname' => 'Иван',
+            'parent_phone'     => '9062475508',
+        ], $overrides);
+    }
+
+    /**
+     * @param array<string, string> $filledData
+     */
+    protected function makeDraftEditablePhoneContract(array $filledData = []): Contract
+    {
+        $contract = $this->makeRequiredPhoneFillContract();
+        $pdfPath = 'documents/test/contract-' . $contract->id . '-filled.pdf';
+        Storage::disk()->put($pdfPath, '%PDF-1.4 test');
+
+        $contract->update([
+            'status'          => Contract::STATUS_DRAFT,
+            'source_pdf_path' => $pdfPath,
+            'source_sha256'   => hash('sha256', '%PDF-1.4 test'),
+            'filled_data'     => array_merge([
+                'parent_lastname'  => 'Иванов',
+                'parent_firstname' => 'Иван',
+                'parent_full_name' => 'Иванов Иван',
+                'parent_phone'     => '9062475508',
+            ], $filledData),
+            'created_at'      => now()->subDay(),
+        ]);
+
+        return $contract->fresh();
+    }
+
+    protected function linkParentWithPhone(?string $phone): ParentProfile
+    {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'phone'      => $phone,
+        ]);
+        $this->user->forceFill(['parent_id' => $parent->id])->save();
+
+        return $parent;
+    }
+
+    protected function assertFillInputValue(string $html, string $fieldKey, string $expected): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/name="fields\[' . preg_quote($fieldKey, '/') . ']"[^>]*value="' . preg_quote($expected, '/') . '"/u',
+            $html,
+            'Ожидалось fields[' . $fieldKey . '] = «' . $expected . '»',
+        );
+    }
+
+    protected function expectedMaskedPhone(string $raw): string
+    {
+        return RuPhone::formatForInput($raw);
     }
 }

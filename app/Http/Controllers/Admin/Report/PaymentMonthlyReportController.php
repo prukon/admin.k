@@ -249,6 +249,10 @@ class PaymentMonthlyReportController extends AdminBaseController
                 ->addColumn('team_title', fn ($row) => $row->team_title ?: 'Без команды')
                 ->addColumn('payment_provider', fn ($row) => $this->resolvePaymentProvider($row))
                 ->editColumn('summ', fn ($row) => round(((int) $row->summ_cents) / 100, 2))
+                ->orderColumn('summ', function ($query, $order) {
+                    $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                    $query->orderBy('payments.summ_cents', $dir);
+                })
                 ->filter(function ($query) use ($request, $partnerId): void {
                     $this->applyMonthlyDataTableSearch($query, $request, $partnerId, false);
                 })

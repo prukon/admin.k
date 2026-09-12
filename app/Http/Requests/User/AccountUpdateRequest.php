@@ -4,6 +4,7 @@ namespace App\Http\Requests\User;
 
 use App\Http\Requests\User\Concerns\ValidatesStudentParent;
 use App\Enums\UserSex;
+use App\Rules\EmailHasDomainDot;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -117,6 +118,7 @@ class AccountUpdateRequest extends FormRequest
         if ($this->user()->can('account.user.email.update')) {
             $rules['email'] = ['sometimes', 'nullable', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($targetUserId),
+                new EmailHasDomainDot,
             ];
         }
 

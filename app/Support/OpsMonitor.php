@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Mail\ClientWelcomeCredentialsMail;
+use App\Models\Contract;
 use App\Models\FiscalReceipt;
 use App\Models\OutgoingEmailLog;
+use App\Models\Partner;
 use App\Models\Payment;
 use App\Models\PaymentIntent;
 use App\Models\Refund;
@@ -25,6 +27,7 @@ use Throwable;
 /**
  * Операционный снимок «Пульт»: счётчики за 24 часа и last-ok/last-fail шлюзов.
  * Строка «Сегодня» / «Вчера»: T‑Bank за календарный день (оборотка / комиссия из правил / число успешных).
+ * Строка «Договоры»: просрочка заполнения кабинета и expired SMS Подпислона (без окна 24 ч, все школы).
  * Исключения / шлюзы: email / phone / password / PAN в JSON не кладём.
  * Строка «Вход»: за 72 часа в JSON есть введённые email/пароль/код 2FA и IP (только cache, не my_logs).
  */
@@ -41,6 +44,8 @@ final class OpsMonitor
     public const AUTH_RECENT_LIMIT = 40;
 
     public const AUTH_SECRET_LIMIT = 80;
+
+    public const CONTRACTS_HOVER_LIMIT = 20;
 
     public const GATEWAY_TINKOFF = 'tinkoff';
 
@@ -111,6 +116,7 @@ final class OpsMonitor
                 'recent_2fa' => self::authRecentSnapshot('2fa'),
             ],
             'welcome' => self::welcomeSnapshot($since),
+            'contracts' => self::contractsSnapshot(),
         ];
     }
 
@@ -533,6 +539,112 @@ final class OpsMonitor
             'missing_count' => $missing,
             'last_user_id' => $lastUserId,
         ];
+    }
+
+    /**
+     * Просроченные договоры: заполнение кабинета и SMS Подпислона.
+     * Без окна 24 ч, сессия current_partner не режет. Email в JSON нет.
+     *
+     * @return array{
+     *     fill_expired_count: int,
+     *     fill_expired: list<array{name: string, school: string, at: int}>,
+     *     sms_expired_count: int,
+     *     sms_expired: list<array{name: string, school: string, at: int}>
+     * }
+     */
+    private static function contractsSnapshot(): array
+    {
+        $fillBase = Contract::query()
+            ->where('creation_mode', Contract::CREATION_MODE_TEMPLATE)
+            ->where('status', Contract::STATUS_AWAITING_CLIENT_FILL)
+            ->whereNotNull('fill_expires_at')
+            ->where('fill_expires_at', '<', now());
+
+        $smsBase = Contract::query()
+            ->where('status', Contract::STATUS_EXPIRED);
+
+        $fillCount = (clone $fillBase)->count();
+        $smsCount = (clone $smsBase)->count();
+
+        $fillRows = (clone $fillBase)
+            ->with('user:id,lastname,name')
+            ->orderByDesc('fill_expires_at')
+            ->orderByDesc('id')
+            ->limit(self::CONTRACTS_HOVER_LIMIT)
+            ->get(['id', 'user_id', 'school_id', 'fill_expires_at']);
+
+        $smsRows = (clone $smsBase)
+            ->with('user:id,lastname,name')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->limit(self::CONTRACTS_HOVER_LIMIT)
+            ->get(['id', 'user_id', 'school_id', 'updated_at']);
+
+        $schoolIds = $fillRows->pluck('school_id')
+            ->merge($smsRows->pluck('school_id'))
+            ->filter(static fn ($id): bool => $id !== null && (int) $id > 0)
+            ->map(static fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $schools = $schoolIds === []
+            ? collect()
+            : Partner::query()->whereIn('id', $schoolIds)->pluck('title', 'id');
+
+        return [
+            'fill_expired_count' => $fillCount,
+            'fill_expired' => self::mapContractHoverRows($fillRows, $schools, 'fill_expires_at'),
+            'sms_expired_count' => $smsCount,
+            'sms_expired' => self::mapContractHoverRows($smsRows, $schools, 'updated_at'),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, Contract>  $rows
+     * @param  Collection<int|string, mixed>  $schools
+     * @return list<array{name: string, school: string, at: int}>
+     */
+    private static function mapContractHoverRows(Collection $rows, Collection $schools, string $atColumn): array
+    {
+        $out = [];
+        foreach ($rows as $contract) {
+            $user = $contract->user;
+            $fallbackId = $user !== null ? (int) $user->id : (int) $contract->id;
+            $out[] = [
+                'name' => self::contractStudentLabel($user, $fallbackId),
+                'school' => self::contractSchoolLabel($schools->get((int) $contract->school_id)),
+                'at' => self::unixAt($contract->{$atColumn}),
+            ];
+        }
+
+        return $out;
+    }
+
+    private static function contractStudentLabel(?User $user, int $fallbackId): string
+    {
+        $fio = trim(trim((string) ($user?->lastname ?? '')).' '.trim((string) ($user?->name ?? '')));
+
+        return $fio !== '' ? $fio : '#'.$fallbackId;
+    }
+
+    private static function contractSchoolLabel(mixed $title): string
+    {
+        $school = trim((string) ($title ?? ''));
+
+        return $school !== '' ? $school : 'Без школы';
+    }
+
+    private static function unixAt(mixed $value): int
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->getTimestamp();
+        }
+        if ($value === null || $value === '') {
+            return 0;
+        }
+
+        return Carbon::parse((string) $value)->getTimestamp();
     }
 
     /**

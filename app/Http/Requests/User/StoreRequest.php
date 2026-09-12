@@ -10,6 +10,7 @@ use App\Http\Requests\User\Concerns\ValidatesStudentHealthFields;
 use App\Http\Requests\User\Concerns\ValidatesStudentParent;
 use App\Models\UserField;
 use App\Rules\AllowedActorTeam;
+use App\Rules\EmailHasDomainDot;
 use App\Services\PartnerContext;
 use App\Services\Users\FamilyStudentLoginResolver;
 use Illuminate\Foundation\Http\FormRequest;
@@ -104,7 +105,7 @@ class StoreRequest extends FormRequest
             'team_ids.*'  => ['integer', 'min:1'],
             'start_date'  => 'nullable|date',
 
-            'email'       => 'nullable|email|max:255|unique:users,email',
+            'email'       => ['nullable', 'email', 'max:255', 'unique:users,email', new EmailHasDomainDot],
             'password'    => 'nullable|string|min:8|max:255',
             'address'     => 'nullable|string|max:1000',
 

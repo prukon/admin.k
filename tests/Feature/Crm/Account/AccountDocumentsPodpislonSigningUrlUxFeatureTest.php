@@ -83,6 +83,24 @@ final class AccountDocumentsPodpislonSigningUrlUxFeatureTest extends CrmTestCase
             ->assertSee(self::SAMPLE_URL, false);
     }
 
+    public function test_expired_contract_hides_sms_link_even_when_url_is_stored(): void
+    {
+        $this->makeContract([
+            'status' => Contract::STATUS_EXPIRED,
+            'provider_doc_id' => '971890',
+            'provider_signing_url' => self::SAMPLE_URL,
+        ]);
+
+        $html = $this->get(route('account.documents.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('Открыть ссылку из SMS', $html);
+        $this->assertStringNotContainsString(self::SAMPLE_URL, $html);
+        $this->assertStringNotContainsString('Ссылка на подпись', $html);
+        $this->assertStringContainsString(Contract::CLIENT_SMS_EXPIRED_NOTICE, $html);
+    }
+
     public function test_guest_is_redirected_and_does_not_see_signing_url(): void
     {
         $this->makeContract([

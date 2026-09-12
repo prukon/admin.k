@@ -81,6 +81,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'contract templates email summernote' => ['contract-templates/partials/email-summernote-init.blade.php'];
         yield 'contract templates index page scripts' => ['contract-templates/index.blade.php'];
         yield 'account documents fill modal ajax' => ['account/documents.blade.php'];
+        yield 'phone inputmask init' => ['includes/scripts/phone-inputmask-init.blade.php'];
         yield 'account settings tabs shell' => ['account/index.blade.php'];
         yield 'cabinet attach team modal' => ['includes/modal/cabinet_attach_team_modal.blade.php'];
         yield 'user percent discount js helper' => ['partials/ui/discount-percent-js.blade.php'];
@@ -4149,14 +4150,19 @@ JS;
         $this->assertStringContainsString("ops-monitors__label\">Шлюзы", $content);
         $this->assertStringContainsString("ops-monitors__label\">Вход", $content);
         $this->assertStringContainsString("ops-monitors__label\">Welcome", $content);
+        $this->assertStringContainsString("ops-monitors__label\">Договоры", $content);
         $this->assertStringContainsString("data-role=\"welcome-count\"", $content);
         $this->assertStringContainsString("data-role=\"welcome-user\"", $content);
+        $this->assertStringContainsString("data-role=\"contracts-fill-expired\"", $content);
+        $this->assertStringContainsString("data-role=\"contracts-sms-expired\"", $content);
         $this->assertStringContainsString('function workerLabel(', $content);
         $this->assertStringContainsString('function schedulerLabel(', $content);
         $this->assertStringContainsString('function formatAge(', $content);
         $this->assertStringContainsString("setText('queue-worker'", $content);
         $this->assertStringContainsString("setText('welcome-count'", $content);
         $this->assertStringContainsString("setText('welcome-user'", $content);
+        $this->assertStringContainsString("setText('contracts-fill-expired'", $content);
+        $this->assertStringContainsString("setText('contracts-sms-expired'", $content);
         $this->assertStringContainsString("setText('day-turnover'", $content);
         $this->assertStringContainsString("setText('day-commission'", $content);
         $this->assertStringContainsString("setText('day-count'", $content);
@@ -4185,6 +4191,17 @@ JS;
         $this->assertStringNotContainsString('welcome.email', $content);
         $this->assertStringContainsString("setText('welcome-count', '—', 'is-muted')", $content);
         $this->assertStringContainsString("setText('welcome-user', '—', 'is-muted')", $content);
+        $this->assertStringContainsString("setText('contracts-fill-expired', '—', 'is-muted')", $content);
+        $this->assertStringContainsString("setText('contracts-sms-expired', '—', 'is-muted')", $content);
+        $this->assertStringContainsString("setHint('contracts-fill-expired'", $content);
+        $this->assertStringContainsString("setHint('contracts-sms-expired'", $content);
+        $this->assertStringContainsString('function formatContractRows(', $content);
+        $this->assertStringContainsString('function formatContractAt(', $content);
+        $this->assertStringContainsString('и ещё ', $content);
+        $this->assertStringContainsString('countTone(contracts.fill_expired_count)', $content);
+        $this->assertStringContainsString('countTone(contracts.sms_expired_count)', $content);
+        $this->assertStringContainsString('Просрочено заполнение в кабинете', $content);
+        $this->assertStringContainsString('Статус expired у Подпислона', $content);
         $this->assertStringContainsString('function setHint(', $content);
         $this->assertStringContainsString("setHint('errors-last'", $content);
         $this->assertStringContainsString("setHint('auth-logins'", $content);
@@ -7628,6 +7645,62 @@ JS;
     }
 
     /**
+     * P1: после AJAX-загрузки fill оба триггера (Заполнить / Изменить) вешают маску телефона.
+     */
+    public function test_account_documents_refreshes_phone_mask_after_both_fill_open_paths(): void
+    {
+        $path = resource_path('views/account/documents.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('function refreshContractFillPhoneMask()', $content);
+        $this->assertStringContainsString("$(document).trigger('phone-inputmask:refresh', [fillModalEl])", $content);
+        $this->assertStringContainsString('refreshContractFillPhoneMask();', $content);
+        $this->assertStringContainsString("click', '.js-open-contract-fill'", $content);
+        $this->assertStringContainsString("click', '.js-open-contract-fill-edit'", $content);
+        $this->assertStringContainsString("loadContractFill($(this).data('contract-id'), false, null)", $content);
+        $this->assertStringContainsString("loadContractFill($(this).data('contract-id'), false, 'edit')", $content);
+
+        $loadPos = strpos($content, 'function loadContractFill');
+        $this->assertNotFalse($loadPos);
+        $refreshPos = strpos($content, 'refreshContractFillPhoneMask();', $loadPos);
+        $this->assertNotFalse($refreshPos, 'Маска должна вешаться после успешного GET /fill, иначе поля без Inputmask');
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'refreshContractFillPhoneMask',
+            'blade-js-docs-fill-phone-mask'
+        );
+    }
+
+    /**
+     * P1: js-contract-fill-phone снимает маску при submit (10 цифр), formatRuDisplay собирает +7 (999) 999-99-99.
+     */
+    public function test_phone_inputmask_unmasks_contract_fill_fields_and_formats_display(): void
+    {
+        $path = resource_path('views/includes/scripts/phone-inputmask-init.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("var PHONE_MASK = '+7 (999) 999-99-99'", $content);
+        $this->assertStringContainsString('.js-contract-fill-phone', $content);
+        $this->assertStringContainsString('autoUnmask: true', $content);
+        $this->assertStringContainsString('removeMaskOnSubmit: true', $content);
+        $this->assertStringContainsString("hasClass('js-phone-mask-unmask')", $content);
+        $this->assertStringContainsString("hasClass('js-contract-fill-phone')", $content);
+        $this->assertStringContainsString('function formatRuDisplay(value)', $content);
+        $this->assertStringContainsString("'+7 (' + d.slice(1, 4) + ') '", $content);
+        $this->assertStringContainsString('phone-inputmask:refresh', $content);
+        $this->assertStringNotContainsString("autoUnmask: false", $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'js-contract-fill-phone',
+            'blade-js-phone-inputmask-init'
+        );
+    }
+
+    /**
      * P1: createUser — скидка только у роли ученик; * у основания при % ≥ 1; сброс при reset.
      */
     public function test_create_user_modal_discount_js_contract_is_valid_javascript(): void
@@ -8998,18 +9071,34 @@ JS;
         $markup = $parts[0];
         $scripts = $parts[1];
 
+        $this->assertStringContainsString('canClientOpenSigningUrl()', $markup);
         $this->assertStringContainsString('providerSigningUrl()', $markup);
+        $this->assertStringContainsString('clientCabinetExpiryNotice()', $markup);
+        $this->assertStringContainsString('isAwaitingClientFillExpired()', $markup);
+        $this->assertStringContainsString('canClientResendSms()', $markup);
+        $this->assertStringContainsString('js-contract-resend-sms-form', $markup);
+        $this->assertStringContainsString('CLIENT_RESEND_SMS_BUTTON', $markup);
         $this->assertStringContainsString('Открыть ссылку из SMS', $markup);
         $this->assertStringContainsString('target="_blank"', $markup);
         $this->assertStringContainsString('rel="noopener noreferrer"', $markup);
+        $this->assertStringContainsString("submit', '.js-contract-resend-sms-form'", $scripts);
+        $this->assertStringContainsString('window.location.reload()', $scripts);
+        $this->assertStringContainsString("data-error-for=\"contract\"", $markup);
         $this->assertStringNotContainsString('Открыть ссылку из SMS', $scripts);
         $this->assertStringNotContainsString('providerSigningUrl', $scripts);
         $this->assertStringNotContainsString('provider_signing_url', $scripts);
+        $this->assertStringNotContainsString('clientCabinetExpiryNotice', $scripts);
+        $this->assertStringNotContainsString('signer_phone', $scripts);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $path,
             'loadContractFill',
             'blade-js-account-docs-sms-link'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'js-contract-resend-sms-form',
+            'blade-js-account-docs-resend-sms'
         );
     }
 

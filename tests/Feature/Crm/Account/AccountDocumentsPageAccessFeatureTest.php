@@ -41,6 +41,7 @@ class AccountDocumentsPageAccessFeatureTest extends CrmTestCase
         $this->get(route('account.documents.index', ['fill' => $contract->id]))->assertRedirect(route('login'));
         $this->get(route('account.documents.fill', $contract))->assertRedirect(route('login'));
         $this->post(route('account.documents.generate', $contract), ['fields' => []])->assertRedirect(route('login'));
+        $this->post(route('account.documents.resendSms', $contract), [])->assertRedirect(route('login'));
         $this->get(route('account.documents.requests', $contract))->assertRedirect(route('login'));
 
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
@@ -65,6 +66,7 @@ class AccountDocumentsPageAccessFeatureTest extends CrmTestCase
         $this->get(route('account.documents.fill', $contract))->assertForbidden();
         $this->post(route('account.documents.generate', $contract), ['fields' => []])->assertForbidden();
         $this->post(route('account.documents.sign', $draft), [])->assertForbidden();
+        $this->post(route('account.documents.resendSms', $draft), [])->assertForbidden();
         $this->get(route('account.documents.requests', $draft))->assertForbidden();
         $this->get(route('account.documents.downloadOriginal', $draft))->assertForbidden();
         $this->get(route('account.documents.downloadSigned', $draft))->assertForbidden();

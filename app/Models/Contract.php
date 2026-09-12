@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Services\Signatures\PodpislonSigningUrl;
+use App\Support\RuPhone;
 
 class Contract extends Model
 {
@@ -23,10 +24,19 @@ class Contract extends Model
     public const CREATION_MODE_PDF      = 'pdf';
     public const CREATION_MODE_TEMPLATE = 'template';
 
-    public const FILL_TTL_DAYS = 7;
+    /** Срок, в течение которого родитель может заполнить форму договора в кабинете. Не связан с TTL SMS Подпислона. */
+    public const FILL_TTL_DAYS = 30;
 
     /** Срок, в течение которого родитель может исправить данные после формирования PDF. */
     public const CLIENT_EDIT_FILLED_DATA_TTL_DAYS = 30;
+
+    public const CLIENT_FILL_EXPIRED_BADGE = 'Срок заполнения истёк';
+
+    public const CLIENT_FILL_EXPIRED_NOTICE = 'Срок заполнения договора истёк. Обратитесь к администратору школы.';
+
+    public const CLIENT_SMS_EXPIRED_NOTICE = 'Срок подписи по SMS истёк. Нажмите «Отправить SMS ещё раз» — сообщение уйдёт на тот же номер, что и в первый раз.';
+
+    public const CLIENT_RESEND_SMS_BUTTON = 'Отправить SMS ещё раз';
 
     // Статусы
     public const STATUS_DRAFT   = 'draft';
@@ -159,6 +169,68 @@ class Contract extends Model
     public function isFillExpired(): bool
     {
         return $this->fill_expires_at !== null && $this->fill_expires_at->isPast();
+    }
+
+    public function isAwaitingClientFillExpired(): bool
+    {
+        return $this->isTemplateMode()
+            && $this->status === self::STATUS_AWAITING_CLIENT_FILL
+            && $this->isFillExpired();
+    }
+
+    public function clientCabinetExpiryNotice(): ?string
+    {
+        if ($this->isAwaitingClientFillExpired()) {
+            return self::CLIENT_FILL_EXPIRED_NOTICE;
+        }
+
+        if ($this->status === self::STATUS_EXPIRED) {
+            return self::CLIENT_SMS_EXPIRED_NOTICE;
+        }
+
+        return null;
+    }
+
+    public function canClientOpenSigningUrl(): bool
+    {
+        return $this->providerSigningUrl() !== null
+            && $this->status !== self::STATUS_EXPIRED;
+    }
+
+    public function canClientResendSms(): bool
+    {
+        if (!in_array($this->status, [
+            self::STATUS_SENT,
+            self::STATUS_OPENED,
+            self::STATUS_EXPIRED,
+        ], true)) {
+            return false;
+        }
+
+        if (!is_string($this->provider_doc_id) || $this->provider_doc_id === '') {
+            return false;
+        }
+
+        return $this->lastSignerPhone() !== null;
+    }
+
+    public function lastSignerPhone(): ?string
+    {
+        $phone = trim((string) ($this->lastSignRequest?->signer_phone ?? ''));
+
+        return $phone !== '' ? $phone : null;
+    }
+
+    public function clientResendSmsMaskedPhone(): ?string
+    {
+        $phone = $this->lastSignerPhone();
+        if ($phone === null) {
+            return null;
+        }
+
+        $masked = RuPhone::formatMaskedForDisplay($phone);
+
+        return $masked !== '' ? $masked : null;
     }
 
     public function isGeneratingPdf(): bool

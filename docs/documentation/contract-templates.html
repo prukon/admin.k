@@ -32,13 +32,14 @@
     см. <a href="/docs/documentation/contracts">договоры (CRM)</a>,
     <a href="/docs/documentation/account-contract-fill">заполнение родителем</a>
     · <a href="#docx-placeholder-substitution">§6.2 подстановка / Word</a>
+    · маска телефона в PDF: <a href="/doc#account-contract-phone-mask-index">/doc</a>
   </div>
 
   <h2>1) Назначение</h2>
   <div class="note">
     Партнёр загружает DOCX с плейсхолдерами <code>{{ключ}}</code>. Система извлекает ключи, формирует <code>fields_schema</code> (подписи, обязательность, prefill).
     При создании договора с <code>creation_mode=template</code> списывается <b>70&nbsp;₽</b>, договор получает статус <code>awaiting_client_fill</code>,
-    срок заполнения <code>fill_expires_at</code> (+7 дней, <code>Contract::FILL_TTL_DAYS</code>).
+    срок заполнения <code>fill_expires_at</code> (+30 дней, <code>Contract::FILL_TTL_DAYS</code>).
     Клиенту уходит email-приглашение и задача в личном кабинете (<code>/account-settings/documents</code>).
     PDF формирует родитель в кабинете; подпись — SMS (Подпислон) из кабинета, не из CRM.
   </div>
@@ -250,7 +251,15 @@
     (правки в <code>word/document.xml</code> и header/footer частей архива).<br><br>
     Значения служебных ключей при generate мержит <code>ContractTemplateSystemPlaceholders::forContract</code>:
     <code>documents_url</code>, <code>contract_id</code>, <code>contract_date</code> (текущая дата сервера, <code>d.m.Y</code>)
-    плюс блок <code>legal_entity_*</code> при наличии в схеме.
+    плюс блок <code>legal_entity_*</code> при наличии в схеме.<br><br>
+    Телефонные ключи (<code>phone</code> / <code>tel</code> / <code>mobile</code>, в т.ч. <code>spouse_phones</code> и кастомные)
+    перед подстановкой в DOCX приводит <code>ContractTemplateVariablePresets::formatPhoneFieldsForPdf</code>
+    к маске <code>+7 (999) 999-99-99</code> через <code>RuPhone::formatForInput</code>
+    (форма с <code>autoUnmask</code> иначе кладёт в PDF 10 цифр без <code>+7</code>).
+    Только generate из шаблона (<code>creation_mode=template</code>); загруженный PDF и
+    <code>signer_phone</code> SMS не участвуют.
+    Подробно: <a href="/docs/documentation/account-contract-fill#contract-phone-mask-pdf">account-contract-fill §2.2.1</a>,
+    анонс <a href="/doc#account-contract-phone-mask-index">/doc</a>.
   </div>
   <p><b>Почему в PDF могло остаться <code>{{contract_date}}</code>:</b> в UI Word плейсхолдер выглядит цельным,
   но внутри OOXML две открывающие скобки часто лежат в разных <code>&lt;w:t&gt;</code>
@@ -354,6 +363,7 @@
       <li><code>ContractRevokeRefundTest.php</code> — revoke + возврат 70&nbsp;₽</li>
       <li><code>ContractTemplateWorkflowFeatureTest.php</code>, <code>ContractTemplateToParentWorkflowFeatureTest.php</code> — E2E</li>
       <li><code>ContractParentProfileSyncTest.php</code>, <code>ContractStudentProfileSyncTest.php</code></li>
+      <li><code>AccountContractFillPhoneMaskFeatureTest.php</code> / Access / AjaxContract / NonAjaxSafetyNet / <code>AccountContractFillPhoneMaskDocumentationContractTest</code> — маска телефона в PDF (§6.2, <a href="/doc#account-contract-phone-mask-index">анонс</a>)</li>
       <li><code>PhpWordDompdfConverterTest.php</code> — phpword: снятие <code>w:numPr</code>, абзац с несколькими run остаётся одним <code>&lt;p&gt;</code> (§8.1)</li>
     </ul>
     <p><b>Кабинет родителя:</b> см. <a href="/docs/documentation/account-contract-fill#7-feature-тесты">account-contract-fill §7</a>.</p>

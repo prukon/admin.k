@@ -163,6 +163,71 @@ class TwoFactorController extends Controller
         return redirect()->intended('/');
     }
 
+    public function resend(Request $request, SmsRuService $sms)
+    {
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+        if (session('2fa:passed') === true) {
+            return redirect()->intended('/');
+        }
+
+        $user = $request->user();
+
+        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false, null);
+        $needs2fa = (((int)$user->role_id === 10) && $forceAdmin2fa) || (bool)$user->two_factor_enabled;
+
+        if (!$needs2fa) {
+            session(['2fa:passed' => true]);
+            return redirect()->intended('/');
+        }
+
+        if (!$user->phone) {
+            return redirect()->route('two-factor.phone')
+                ->with('error', 'Укажите номер телефона для получения кода.');
+        }
+
+        $cooldownSec = 0;
+        if ($last = session('2fa:last_sent_at')) {
+            try {
+                $diff = now()->diffInSeconds(\Illuminate\Support\Carbon::parse($last));
+                $cooldownSec = max(0, 60 - $diff);
+            } catch (\Throwable) {}
+        }
+
+        if ($cooldownSec > 0) {
+            return back()->withErrors([
+                'resend' => 'Повторная отправка доступна через '.$cooldownSec.' сек.',
+            ]);
+        }
+
+        $code = (string) random_int(100000, 999999);
+        $user->forceFill([
+            'two_factor_code'       => Hash::make($code),
+            'two_factor_expires_at' => now()->addMinutes(10),
+        ])->save();
+
+        $result = $sms->send($user->phone, "Код для входа: {$code}. Действителен 10 минут.");
+
+        Log::info('2FA resend: send result', [
+            'user_id' => $user->id,
+            'phone'   => '***'.substr((string) $user->phone, -4),
+            'result'  => $result === true ? 'OK' : $result,
+        ]);
+
+        session(['2fa:last_sent_at' => now()]);
+
+        if ($result !== true) {
+            $raw = is_string($result) ? $result : '';
+
+            return back()->withErrors([
+                'resend' => SmsRuService::userFacingErrorMessage($raw),
+            ]);
+        }
+
+        return back()->with('status', 'Код отправлен повторно.');
+    }
+
     // Страница ввода телефона
     public function phoneForm()
     {

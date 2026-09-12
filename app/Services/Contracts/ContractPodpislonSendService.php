@@ -193,6 +193,69 @@ class ContractPodpislonSendService
         }
     }
 
+    /**
+     * Повтор SMS на тот же пакет Подпислона: ФИО и телефон только из последней отправки, не из запроса.
+     *
+     * @return array{success: bool, message: string, status?: string, code?: string, errors?: array<string, list<string>>, cooldown_sec?: int}
+     */
+    public function resendFromLastRequest(Contract $contract, ?int $authorId = null): array
+    {
+        $authorId = $authorId ?? Auth::id();
+
+        if (!$contract->canClientResendSms()) {
+            $message = 'Повторная отправка SMS сейчас недоступна.';
+
+            return [
+                'success' => false,
+                'message' => $message,
+                'code'    => 'resend_not_allowed',
+                'errors'  => ['contract' => [$message]],
+            ];
+        }
+
+        $last = $contract->signRequests()->orderByDesc('id')->first();
+        $phone = trim((string) ($last?->signer_phone ?? ''));
+        if ($last === null || $phone === '') {
+            $message = 'Нет номера для повторной отправки SMS.';
+
+            return [
+                'success' => false,
+                'message' => $message,
+                'code'    => 'no_sign_request',
+                'errors'  => ['contract' => [$message]],
+            ];
+        }
+
+        $cooldown = ContractSmsCooldown::tryAcquire($contract->id);
+        if (!$cooldown['allowed']) {
+            $blocked = ContractSmsCooldown::blockedResponse($cooldown['remaining']);
+            $blocked['errors'] = ['contract' => [$blocked['message']]];
+
+            return $blocked;
+        }
+
+        try {
+            app(PodpislonCredentialsResolver::class)->bindToContract($contract);
+        } catch (PodpislonCredentialsException $e) {
+            ContractSmsCooldown::release($contract->id);
+
+            return $e->toSendFailure();
+        }
+
+        $sr = new ContractSignRequest([
+            'signer_name'       => $last->signer_name,
+            'signer_lastname'   => $last->signer_lastname,
+            'signer_firstname'  => $last->signer_firstname,
+            'signer_middlename' => $last->signer_middlename,
+            'signer_phone'      => $phone,
+            'ttl_hours'         => $last->ttl_hours ?? 72,
+            'status'            => 'created',
+        ]);
+        $contract->signRequests()->save($sr);
+
+        return $this->resendExisting($contract, $sr, $authorId);
+    }
+
     public function assertCanClientSign(Contract $contract): void
     {
         if (!$contract->isTemplateMode()) {

@@ -1268,13 +1268,15 @@
     Welcome / тип письма —
     <a href="/doc#ops-welcome-mailable-index">/doc#ops-welcome-mailable-index</a>,
     «Касса» без выплаты после задержки —
-    <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>.
+    <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>,
+    «Договоры» (заполнение / SMS Подпислона) —
+    <a href="/doc#ops-contracts-expired-index">/doc#ops-contracts-expired-index</a>.
     Не путать с §<a href="#online-users-overlay">5.2</a> (список людей) и §<a href="#reverb-overlay">5.1</a> (бейдж процесса/сокета).</p>
   <ol>
     <li>Стек <code>#system-monitors-stack</code>:
       <code>#js-ops-monitors</code> над <code>#js-online-users</code> над
       <code>#js-reverb-status</code>. Право и флаг как у Reverb.
-      Восемь строк цифр, первые — «Сегодня» и «Вчера» (T‑Bank за календарный день),
+      Девять строк цифр, первые — «Сегодня» и «Вчера» (T‑Bank за календарный день),
       <code>KidsCrmTooltip</code> (непрозрачный пузырёк), без ссылок.
       Ховер последней 500 — <code>last_message</code> (не innerHTML).
       <code>ViewException</code> разворачивается до причины; JSON <code>errors.recent</code>
@@ -1284,7 +1286,8 @@
       <code>window_hours</code> / <code>day</code> / <code>yesterday</code> /
       <code>queue</code> / <code>till</code> /
       <code>errors</code> / <code>gateways</code> / <code>auth</code> /
-      <code>welcome</code> (<code>missing_count</code>, <code>last_user_id</code>, без email).
+      <code>welcome</code> (<code>missing_count</code>, <code>last_user_id</code>, без email) /
+      <code>contracts</code> (<code>fill_expired_count</code> / <code>sms_expired_count</code>, ховер ученик + школа).
       Гость 302/401, без права 403, мутации 405.
       Нативный GET — JSON. Флаг GET не закрывает. Окно 24 ч (вход — 72 ч), все партнёры.
       Первое число «Касса» (<code>till.overdue_payouts</code>) — CONFIRMED мультисплит
@@ -1297,11 +1300,12 @@
       <code>ClientWelcomeCredentialsMail</code> или пустой класс + тема
       «Доступ в личный кабинет»; <code>sending</code> / <code>STATUS_FAILED</code>
       и sibling-письмо — missing. Первый кадр «…» (в том числе при платежах в БД);
-      <code>0</code> не «—»; сбой refresh — «—», не leftover цифры «Сегодня» / «Вчера».</li>
+      <code>0</code> не «—»; сбой refresh — «—», не leftover цифры «Сегодня» / «Вчера» / «Договоры».
+      Строка «Договоры» — <a href="/doc#ops-contracts-expired-index">анонс</a>.</li>
     <li>Клиент опрашивает раз в 5 с только при включённом переключателе.
       Первый кадр «…» во всех <code>data-role</code>. Сбой <code>refresh()</code>
       (сеть / 403) ставит «—» и откатывает ховер <code>last_message</code>
-      и пароль/код входа, не leftover.
+      и пароль/код входа и ФИО договоров, не leftover.
   </ol>
 
   <h2 id="tests">6) Тесты</h2>
@@ -1514,11 +1518,15 @@
       <code>SystemMonitorsOpsAjaxContractFeatureTest</code> /
       <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code> /
       <code>SystemMonitorsOpsUxFeatureTest</code> —
-      гость/403/200, JSON <code>errors.system_monitors</code>, native 302, персональный экран, откат 422, опрос Reverb/онлайн/пульт только при включённом флаге, список онлайн по партнёрам, пульт восемь строк (Сегодня / Вчера: T‑Bank за календарный день), refresh 403/сеть → «—», compact vs full overdue, неизвестный email / истёкший 2FA.</li>
+      гость/403/200, JSON <code>errors.system_monitors</code>, native 302, персональный экран, откат 422, опрос Reverb/онлайн/пульт только при включённом флаге, список онлайн по партнёрам, пульт девять строк (Сегодня / Вчера: T‑Bank за календарный день; Договоры: fill/SMS), refresh 403/сеть → «—», compact vs full overdue, неизвестный email / истёкший 2FA.</li>
     <li><code>SystemMonitorsOpsDayFeatureTest</code> — строки «Сегодня» / «Вчера»: оборотка / комиссия из правил / счётчик T‑Bank за календарный день, без офлайна, дни не смешиваются, все партнёры.</li>
     <li><code>OpsDayKpiDocumentationContractTest</code> — анонс <code>/doc#ops-day-kpi-index</code> совпадает с живыми строками «Сегодня» / «Вчера».</li>
     <li><code>SystemMonitorsOpsDayUxFeatureTest</code> — первый кадр «…» не цифры из БД; 0 не «—»; leftover после 403/сети; login и без права строк нет.</li>
     <li><code>SystemMonitorsOpsDayAccessFeatureTest</code> — гость/403 без <code>day</code>, оператор JSON и native GET целые, мутации не пустой 200.</li>
+    <li><code>SystemMonitorsOpsContractsExpiredFeatureTest</code> — строка «Договоры»: fill vs SMS, чужая школа, cap ховера.</li>
+    <li><code>SystemMonitorsOpsContractsExpiredUxFeatureTest</code> — первый кадр «…», leftover 403, XSS title.</li>
+    <li><code>SystemMonitorsOpsContractsExpiredAccessFeatureTest</code> — гость/403 без ФИО, native GET, мутации 405.</li>
+    <li><code>OpsContractsExpiredDocumentationContractTest</code> — анонс <code>/doc#ops-contracts-expired-index</code>.</li>
     <li><code>ChatUnreadSidebarFlashUxFeatureTest</code> — вспышка бейджа в открытом диалоге: серверный <code>inbox.bump</code> несёт новый unread, клиент на странице чата не красит этот total (прогон реального JS), вне чата и в другом диалоге каунтер показывается.</li>
     <li><code>ChatPartnerScopeFullAccessFeatureTest</code> — partner-scope, дедуп 1-на-1
       (в т.ч. 0/1 живой участник, UNIQUE пары в треде), чужой тред 403 (включая PATCH read и PATCH draft), 422 под полями.</li>

@@ -179,6 +179,48 @@ class ContractTemplateVariablePresetsTest extends TestCase
     }
 
     /** @test */
+    public function fill_form_phone_helpers_match_mask_keys_and_format_for_pdf(): void
+    {
+        $this->assertTrue(ContractTemplateVariablePresets::isFillFormPhoneField('parent_phone'));
+        $this->assertTrue(ContractTemplateVariablePresets::isFillFormPhoneField('student_phone'));
+        $this->assertTrue(ContractTemplateVariablePresets::isFillFormPhoneField('spouse_phones'));
+        $this->assertTrue(ContractTemplateVariablePresets::isFillFormPhoneField('custom_mobile'));
+        $this->assertTrue(ContractTemplateVariablePresets::isFillFormPhoneField('work_tel'));
+        $this->assertFalse(ContractTemplateVariablePresets::isFillFormPhoneField('trusted_person_1_contacts'));
+        $this->assertFalse(ContractTemplateVariablePresets::isFillFormPhoneField('parent_email'));
+
+        $formatted = ContractTemplateVariablePresets::formatPhoneFieldsForPdf([
+            'parent_phone'               => '9062475508',
+            'student_phone'              => '79062475508',
+            'spouse_phones'              => '+7 (900) 111-22-33',
+            'custom_mobile'              => '8 (912) 345-67-89',
+            'trusted_person_1_contacts'  => '9062475508, дом 12',
+            'parent_email'               => 'a@example.com',
+            'note'                       => '',
+        ]);
+
+        $this->assertSame('+7 (906) 247-55-08', $formatted['parent_phone']);
+        $this->assertSame('+7 (906) 247-55-08', $formatted['student_phone']);
+        $this->assertSame('+7 (900) 111-22-33', $formatted['spouse_phones']);
+        $this->assertSame('+7 (912) 345-67-89', $formatted['custom_mobile']);
+        $this->assertSame('9062475508, дом 12', $formatted['trusted_person_1_contacts']);
+        $this->assertSame('a@example.com', $formatted['parent_email']);
+    }
+
+    /** @test */
+    public function compose_name_fields_for_pdf_also_masks_phone_keys(): void
+    {
+        $composed = ContractTemplateVariablePresets::composeNameFieldsForPdf([
+            'parent_lastname'  => 'Иванов',
+            'parent_firstname' => 'Иван',
+            'parent_phone'     => '9062475508',
+        ]);
+
+        $this->assertSame('Иванов Иван', $composed['parent_full_name']);
+        $this->assertSame('+7 (906) 247-55-08', $composed['parent_phone']);
+    }
+
+    /** @test */
     public function enrich_field_marks_spouse_phones_as_optional(): void
     {
         $preset = ContractTemplateVariablePresets::recommendedByKey()['spouse_phones'];

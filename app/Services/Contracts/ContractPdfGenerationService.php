@@ -230,13 +230,13 @@ class ContractPdfGenerationService
             return;
         }
 
-        if ($contract->canClientFill()) {
-            if ($contract->fill_expires_at && $contract->fill_expires_at->isPast()) {
-                throw ValidationException::withMessages([
-                    'contract' => 'Срок заполнения договора истёк. Обратитесь в организацию.',
-                ]);
-            }
+        if ($contract->isAwaitingClientFillExpired()) {
+            throw ValidationException::withMessages([
+                'contract' => Contract::CLIENT_FILL_EXPIRED_NOTICE,
+            ]);
+        }
 
+        if ($contract->canClientFill()) {
             if ($contract->status !== Contract::STATUS_AWAITING_CLIENT_FILL) {
                 throw ValidationException::withMessages([
                     'contract' => 'Договор уже сформирован или недоступен для заполнения.',

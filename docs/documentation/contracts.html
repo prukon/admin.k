@@ -35,6 +35,7 @@
     · колонка «Обновлён»: <a href="/doc#contract-list-updated-at-index">анонс</a>
     · иконка подписанного PDF в списке: <a href="/doc#contract-list-signed-file-index">анонс</a>
     · ссылка Подпислона из SMS: <a href="/doc#contract-podpislon-signing-url-index">анонс</a>
+    · телефон в PDF с маской: <a href="/doc#account-contract-phone-mask-index">анонс</a>
     · списание 70 ₽ в историю кошелька: <a href="/doc#partner-wallet-ledger-index">анонс</a></div>
 
   <h2>1) Назначение и доступ</h2>
@@ -418,7 +419,7 @@
     <code>pdf</code> — загрузка готового PDF (классический сценарий CRM);
     <code>template</code> — выбор шаблона DOCX, договор уходит клиенту на заполнение в кабинете.<br><br>
     При успешном <code>POST /client-contracts</code> с <code>template</code>:
-    списание <b>70&nbsp;₽</b>, статус <code>awaiting_client_fill</code>, <code>fill_expires_at</code> +7 дней,
+    списание <b>70&nbsp;₽</b>, статус <code>awaiting_client_fill</code>, <code>fill_expires_at</code> +30 дней (<code>Contract::FILL_TTL_DAYS</code>),
     redirect на <code>GET /client-contracts/{id}</code> (карточка), не на index.
     Flash: «Договор создан. С баланса списано 70 ₽. Клиенту отправлено уведомление в личный кабинет (и на email, если указан).»<br><br>
     Списание идёт через <code>ContractBillingService</code>:
@@ -457,9 +458,18 @@
         <a href="/doc#account-documents-family-link-index">анонс</a>;
         автодата <code>{{contract_date}}</code> и разрывы Word — <a href="/docs/documentation/contract-templates#docx-placeholder-substitution">§6.2</a> /
         <a href="/docs/documentation/account-contract-fill#contract-date-placeholders">fill §4.1</a>;
+        <b>телефон в PDF с маской</b> —
+        <a href="/docs/documentation/account-contract-fill#contract-phone-mask-pdf">fill §2.2.1</a>,
+        <a href="/doc#account-contract-phone-mask-index">анонс</a>;
         паспорт / email / ошибки под полями —
         <a href="/docs/documentation/account-contract-fill#fill-modal-passport-email-errors">fill §2.6</a>,
-        <a href="/doc#account-contract-fill-modal-ux-index">анонс</a></td></tr>
+        <a href="/doc#account-contract-fill-modal-ux-index">анонс</a>;
+        <b>просрочка заполнения и SMS</b> на карточке кабинета —
+        <a href="/docs/documentation/account-contract-fill#account-documents-expiry-notice">fill §1.4</a>,
+        <a href="/doc#account-documents-expiry-notice-index">анонс</a>;
+        <b>повтор SMS из кабинета</b> —
+        <a href="/docs/documentation/account-contract-fill#account-documents-resend-sms">fill §1.5</a>,
+        <a href="/doc#account-documents-resend-sms-index">анонс</a></td></tr>
     </tbody>
   </table>
   <p class="small">На карточке договора template mode отображаются шаблон, срок заполнения, статус; отправка SMS из CRM для этого сценария не используется — подпись только из кабинета после generate PDF.</p>

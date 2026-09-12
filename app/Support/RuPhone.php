@@ -69,4 +69,21 @@ final class RuPhone
             substr($digits, 9, 2),
         );
     }
+
+    /**
+     * Маска для показа номера без возможности скопировать его целиком: +7 (906) ***-**-08
+     */
+    public static function formatMaskedForDisplay(?string $phone): string
+    {
+        $digits = self::normalizeDigits($phone);
+        if ($digits === null || strlen($digits) !== 11) {
+            return '';
+        }
+
+        return sprintf(
+            '+7 (%s) ***-**-%s',
+            substr($digits, 1, 3),
+            substr($digits, 9, 2),
+        );
+    }
 }

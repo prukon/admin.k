@@ -1238,7 +1238,8 @@
     <ul>
       <li>UI: чекбокс «Отправить письмо» (<code>#create-send-welcome-email</code>) в модалке create после email, по умолчанию включён; при включении поле «Пароль» скрывается (<code>syncCreateWelcomeCredentialsUi</code>).</li>
       <li>Поле запроса: <code>send_welcome_email</code> (bool; в форме — hidden <code>0</code> + checkbox <code>1</code>). При отсутствии ключа сервер считает флаг выключенным (безопасный default для API/тестов); UI всегда шлёт явное значение.</li>
-      <li>При <code>true</code>: нужен <code>email</code> ученика <b>или</b> (для ученика) <code>parent_email</code> для резолва логина семьи; пароль формы игнорируется. Если <code>email</code> пуст и задан <code>parent_email</code> — тот же <code>FamilyStudentLoginResolver</code>, что при лиде (первый ребёнок / sibling). Письмо синхронно после commit.</li>
+      <li>При <code>true</code>: нужен <code>email</code> ученика <b>или</b> (для ученика) <code>parent_email</code> для резолва логина семьи; пароль формы игнорируется. Если <code>email</code> пуст и задан <code>parent_email</code> — тот же <code>FamilyStudentLoginResolver</code>, что при лиде (первый ребёнок / sibling). Письмо синхронно после commit.
+        Адрес ученика и <code>parent_email</code> должны содержать точку в домене (<code>name@mail.ru</code>, не <code>name@mail</code>): правило <code>EmailHasDomainDot</code>, 422 <code>errors.email</code> / <code>errors.parent_email</code>, текст под полем в модалке.</li>
       <li>При <code>false</code>: письмо не шлётся; пароль из формы сохраняется как раньше (опционален); <code>parent_email</code> в <code>users.email</code> не копируется.</li>
       <li>Конвертация из заявки (<code>school_lead_id</code>) — по-прежнему всегда шлёт, без чекбокса (§5.1.1); чекбокс в UI create при заполненном <code>school_lead_id</code> скрыт.</li>
       <li>Импорт Excel — welcome-письмо не отправляется.</li>
@@ -1251,7 +1252,7 @@
   <h2>6) Редактирование (<code>PATCH /admin/users/{user}</code>)</h2>
   <div class="note">
     Валидация: <code>UpdateRequest</code>. Поля с отдельными правами: имя (<code>users.name.update</code>), группа (<code>users.group.update</code>),
-    email, телефон, роль, активность, дата рождения, дата начала — см. правила в Request.
+    email (<code>users.email.update</code>, тот же <code>EmailHasDomainDot</code>: без точки в домене → 422 <code>errors.email</code> под полем), телефон, роль, активность, дата рождения, дата начала — см. правила в Request.
     Сведения об ученике (три флага <code>is_*</code>) — §<a href="#user-health">2.2</a> (<code>users.other.update</code>, только роль <code>user</code>).
     Пол и комментарий — §<a href="#user-comment-sex">2.4</a> (<code>users.sex</code>, <code>users.comment</code>).
     Доп. поля: <code>custom[{slug}]</code> с той же логикой партнёра и <code>editable</code>, что при создании (это <code>user_fields</code>, не путать с §2.2).
@@ -1592,7 +1593,7 @@
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsWelcomeAccountingFeatureTest.php</code> — пульт Welcome: ложный missing при <code>sent</code> без типа; create из лида → 0</li>
       <li><code>tests/Feature/Crm/Reports/LogOutgoingEmailMailableClassFeatureTest.php</code> — welcome/sibling/payment пишут <code>mailable_class</code></li>
       <li><code>tests/Feature/Crm/Users/FamilyStudentLoginOnCreateFeatureTest.php</code> — логин семьи: первый/второй ребёнок из лида и ручного create, 422 чужая семья / тренер</li>
-      <li><code>tests/Feature/Crm/Users/UserCreateWelcomeCredentialsFeatureTest.php</code> — <code>send_welcome_email</code> при ручном create ученика</li>
+      <li><code>tests/Feature/Crm/Users/UserCreateWelcomeCredentialsFeatureTest.php</code> — <code>send_welcome_email</code> при ручном create ученика; 422 без точки в домене <code>email</code> / <code>parent_email</code></li>
       <li><code>tests/Feature/Crm/Users/UserCreateWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + AJAX JSON-контракт create ученика</li>
       <li><code>tests/Feature/Crm/Users/RoleStaffCreateWelcomeCredentialsFeatureTest.php</code> — welcome при create администратора</li>
       <li><code>tests/Feature/Crm/Users/RoleStaffCreateWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX/AJAX create администратора</li>

@@ -1,4 +1,4 @@
-{{-- Пульт: восемь строк счётчиков. Ховер — KidsCrmTooltip scope hint (data-kids-tooltip-hint). --}}
+{{-- Пульт: девять строк счётчиков. Ховер — KidsCrmTooltip scope hint (data-kids-tooltip-hint). --}}
 <div id="js-ops-monitors"
     class="ops-monitors system-monitor"
     data-url="{{ route('cabinet.system-monitors.ops') }}"
@@ -228,6 +228,24 @@
             ])
         </span>
     </div>
+    <div class="ops-monitors__row">
+        <span class="ops-monitors__label">Договоры</span>
+        <span class="ops-monitors__vals">
+            @include('partials.ui.tooltip-hint', [
+                'title' => 'Просрочено заполнение в кабинете: template + awaiting_client_fill, fill_expires_at в прошлом (все школы). Ховер: ученик, школа, срок заполнения',
+                'placement' => 'left',
+                'wrapperClass' => '',
+                'innerHtml' => '<span data-role="contracts-fill-expired">…</span>',
+            ])
+            <span class="ops-monitors__sep">·</span>
+            @include('partials.ui.tooltip-hint', [
+                'title' => 'Статус expired у Подпислона: ссылка SMS просрочена (все школы). Ховер: ученик, школа, дата обновления',
+                'placement' => 'left',
+                'wrapperClass' => '',
+                'innerHtml' => '<span data-role="contracts-sms-expired">…</span>',
+            ])
+        </span>
+    </div>
 </div>
 <style>
     .ops-monitors {
@@ -376,6 +394,37 @@
             }).join('\n');
         }
 
+        function formatContractAt(ts) {
+            if (!ts || typeof ts !== 'number') {
+                return '—';
+            }
+            var d = new Date(ts * 1000);
+            if (isNaN(d.getTime())) {
+                return '—';
+            }
+            function pad(n) {
+                return n < 10 ? '0' + n : String(n);
+            }
+            return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear() + ' '
+                + pad(d.getHours()) + ':' + pad(d.getMinutes());
+        }
+
+        function formatContractRows(rows, total) {
+            if (!rows || !rows.length) {
+                return '';
+            }
+            var lines = rows.map(function (row) {
+                var when = formatContractAt(row && row.at);
+                var name = (row && row.name) ? String(row.name) : '—';
+                var school = (row && row.school) ? String(row.school) : 'Без школы';
+                return when + '  ' + name + '  ·  ' + school;
+            });
+            if (typeof total === 'number' && total > rows.length) {
+                lines.push('и ещё ' + (total - rows.length));
+            }
+            return lines.join('\n');
+        }
+
         function formatAge(seconds) {
             if (seconds == null || typeof seconds !== 'number') {
                 return '—';
@@ -452,6 +501,10 @@
             setHint('auth-2fa', '');
             setText('welcome-count', '—', 'is-muted');
             setText('welcome-user', '—', 'is-muted');
+            setText('contracts-fill-expired', '—', 'is-muted');
+            setHint('contracts-fill-expired', '');
+            setText('contracts-sms-expired', '—', 'is-muted');
+            setHint('contracts-sms-expired', '');
         }
 
         function render(data) {
@@ -505,6 +558,12 @@
             var welcome = data.welcome || {};
             setText('welcome-count', String(welcome.missing_count == null ? '—' : welcome.missing_count), countTone(welcome.missing_count));
             setText('welcome-user', welcome.last_user_id ? ('#' + welcome.last_user_id) : '—', welcome.last_user_id ? 'is-warn' : 'is-muted');
+
+            var contracts = data.contracts || {};
+            setText('contracts-fill-expired', String(contracts.fill_expired_count == null ? '—' : contracts.fill_expired_count), countTone(contracts.fill_expired_count));
+            setHint('contracts-fill-expired', formatContractRows(contracts.fill_expired, contracts.fill_expired_count));
+            setText('contracts-sms-expired', String(contracts.sms_expired_count == null ? '—' : contracts.sms_expired_count), countTone(contracts.sms_expired_count));
+            setHint('contracts-sms-expired', formatContractRows(contracts.sms_expired, contracts.sms_expired_count));
         }
 
         function refresh() {

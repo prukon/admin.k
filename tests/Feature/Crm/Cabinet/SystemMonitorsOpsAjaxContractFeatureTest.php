@@ -39,8 +39,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * P1: JSON-контракт GET /cabinet/system-monitors/ops —
- * восемь блоков, окно 24 ч (вход — 72 ч), строки «Сегодня» / «Вчера» — календарный день, все партнёры.
- * 500/шлюзы без PII; auth.recent_* содержит введённые email/пароль/код и IP.
+ * девять блоков, окно 24 ч (вход — 72 ч), строки «Сегодня» / «Вчера» — календарный день, все партнёры.
+ * «Договоры» — fill_expired / sms_expired без окна 24 ч. 500/шлюзы без PII; auth.recent_* содержит введённые email/пароль/код и IP.
  *
  * @see \Tests\Feature\Crm\Teams\TeamControllerTest::test_store_non_ajax_redirects_and_creates_team
  */
@@ -82,6 +82,10 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->assertJsonPath('auth.recent_2fa', [])
             ->assertJsonPath('welcome.missing_count', 0)
             ->assertJsonPath('welcome.last_user_id', null)
+            ->assertJsonPath('contracts.fill_expired_count', 0)
+            ->assertJsonPath('contracts.fill_expired', [])
+            ->assertJsonPath('contracts.sms_expired_count', 0)
+            ->assertJsonPath('contracts.sms_expired', [])
             ->assertJsonPath('day.turnover', 0)
             ->assertJsonPath('day.commission', 0)
             ->assertJsonPath('day.payments_count', 0)
@@ -107,6 +111,7 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
                 ],
                 'auth' => ['window_hours', 'failed_logins', 'failed_2fa', 'recent_logins', 'recent_2fa'],
                 'welcome' => ['missing_count', 'last_user_id'],
+                'contracts' => ['fill_expired_count', 'fill_expired', 'sms_expired_count', 'sms_expired'],
             ]);
         $this->assertIsInt($empty->json('day.turnover'));
         $this->assertIsInt($empty->json('day.commission'));

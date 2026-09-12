@@ -1033,6 +1033,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
                 ->name('account.documents.generate');
             Route::post('account-settings/documents/contracts/{contract}/sign', [\App\Http\Controllers\AccountContractFillController::class, 'sign'])
                 ->name('account.documents.sign');
+            Route::post('account-settings/documents/contracts/{contract}/resend-sms', [\App\Http\Controllers\AccountContractFillController::class, 'resendSms'])
+                ->name('account.documents.resendSms');
         });
     });
 

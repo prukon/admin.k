@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Account\AccountContractGenerateRequest;
+use App\Http\Requests\Account\AccountContractResendSmsRequest;
 use App\Http\Requests\Contracts\ContractSendRequest;
 use App\Models\Contract;
 use App\Models\User;
@@ -168,6 +169,60 @@ class AccountContractFillController extends Controller
             ->withErrors($result['errors'] ?? ['sign' => $result['message'] ?? 'Не удалось отправить SMS.']);
     }
 
+    public function resendSms(AccountContractResendSmsRequest $request, Contract $contract): RedirectResponse|JsonResponse
+    {
+        $this->abortUnlessFamilyContract($contract);
+
+        $wantsJson = $request->ajax() || $request->wantsJson();
+
+        if (!$contract->canClientResendSms()) {
+            $message = 'Повторная отправка SMS сейчас недоступна.';
+
+            if ($wantsJson) {
+                return response()->json([
+                    'message' => $message,
+                    'errors'  => ['contract' => [$message]],
+                ], 422);
+            }
+
+            return redirect()
+                ->route('account.documents.index')
+                ->withErrors(['contract' => $message]);
+        }
+
+        $result = $this->sendService->resendFromLastRequest($contract, Auth::id());
+
+        if (!empty($result['success'])) {
+            $message = $result['message'] ?? 'SMS отправлена.';
+
+            if ($wantsJson) {
+                return response()->json([
+                    'message' => $message,
+                    'status'  => $result['status'] ?? Contract::STATUS_SENT,
+                ]);
+            }
+
+            return redirect()
+                ->route('account.documents.index')
+                ->with('success', $message);
+        }
+
+        $message = $result['message'] ?? 'Не удалось отправить SMS.';
+        $errors = $result['errors'] ?? ['contract' => [$message]];
+
+        if ($wantsJson) {
+            return response()->json([
+                'message' => $message,
+                'errors'  => $errors,
+                'code'    => $result['code'] ?? null,
+            ], 422);
+        }
+
+        return redirect()
+            ->route('account.documents.index')
+            ->withErrors($errors);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -241,8 +296,8 @@ class AccountContractFillController extends Controller
             return 'Договор недоступен для изменения.';
         }
 
-        if ($contract->isFillExpired() && $contract->status === Contract::STATUS_AWAITING_CLIENT_FILL) {
-            return 'Срок заполнения договора истёк. Обратитесь в организацию.';
+        if ($contract->isAwaitingClientFillExpired()) {
+            return Contract::CLIENT_FILL_EXPIRED_NOTICE;
         }
 
         if (!$contract->canClientFill() && !$contract->canClientSign() && !$contract->isGeneratingPdf()) {

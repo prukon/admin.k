@@ -32,15 +32,19 @@
     см. также <a href="/docs/documentation/contract-templates">шаблоны договоров</a>,
     <a href="/docs/documentation/contracts">договоры в CRM</a>
     · <a href="#contract-date-placeholders">§4.1 contract_date / Word</a>
+    · <a href="#contract-phone-mask-pdf">§2.2.1 телефон в PDF</a>
     · <a href="#account-documents-action-counter">§1.0 каунтер активных договоров</a>
     · <a href="#fill-modal-passport-email-errors">§2.6 паспорт / email / ошибки</a>
     · <a href="#invitation-email-recipients">§6 приглашение на email ученика и родителя</a>
     · анонс <a href="/doc#account-contract-fill-modal-ux-index">/doc</a>
+    · маска телефона в PDF: <a href="/doc#account-contract-phone-mask-index">/doc</a>
     · приглашение: <a href="/doc#contract-invitation-parent-email-index">/doc</a>
     · семейная ссылка на документы: <a href="/doc#account-documents-family-link-index">/doc</a>
     · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">/doc</a>
     · ключ Подпислона: <a href="/doc#legal-entities-podpislon-key-index">/doc</a>
     · ссылка Подпислона из SMS: <a href="/doc#contract-podpislon-signing-url-index">/doc</a>
+    · просрочка заполнения и SMS: <a href="/doc#account-documents-expiry-notice-index">/doc</a>
+    · повтор SMS из кабинета: <a href="/doc#account-documents-resend-sms-index">/doc</a>
   </div>
 
   <h2>1) Назначение и доступ</h2>
@@ -158,21 +162,78 @@
   <h3 id="account-documents-podpislon-signing-url">1.3) Ссылка на подпись из SMS</h3>
   <div class="note">
     Анонс: <a href="/doc#contract-podpislon-signing-url-index">/doc</a>.
-    На карточке <code>/account-settings/documents</code> при непустом
-    <code>Contract::providerSigningUrl()</code> — подпись «Ссылка на подпись»,
+    На карточке <code>/account-settings/documents</code> при
+    <code>Contract::canClientOpenSigningUrl()</code> — подпись «Ссылка на подпись»,
     кнопка <b>«Открыть ссылку из SMS»</b> и сам URL.
     Оба <code>&lt;a href&gt;</code>: <code>target="_blank"</code>,
     <code>rel="noopener noreferrer"</code>.
-    Значение — <code>contracts.provider_signing_url</code> (та же ссылка, что в SMS Подпислона).
-    Без URL кнопки нет. Чужой хост в БД на экран не попадает
-    (<code>PodpislonSigningUrl::normalize</code>).
-    Фильтра по статусу нет: <code>signed</code> и <code>revoked</code> с валидным URL тоже показывают кнопку
+    Значение — <code>contracts.provider_signing_url</code> (та же ссылка, что в SMS Подпислона)
+    после whitelist <code>PodpislonSigningUrl::normalize</code>.
+    Без URL кнопки нет. Чужой хост в БД на экран не попадает.
+    <code>signed</code> и <code>revoked</code> с валидным URL тоже показывают кнопку
     (аннулирование URL не стирает; старое SMS у Подпислона может остаться живым).
+    Статус <code>expired</code> кнопку прячет даже при сохранённом URL
+    (ссылка Подпислона уже мёртвая) — alert на карточке, §<a href="#account-documents-expiry-notice">1.4</a>.
+    Повтор SMS на тот же номер — §<a href="#account-documents-resend-sms">1.5</a>.
     Кнопка — обычный <code>&lt;a href&gt;</code> в разметке карточки, fill-AJAX её не пересобирает.
     Native POST <code>account.documents.sign</code> без <code>X-Requested-With</code> → 302 на
     <code>account.documents.index</code> и URL в БД; 422 <code>errors.signer_lastname</code> URL не пишет.
     Sibling видит ссылку только при активном ребёнке-владельце договора.
     CRM: <a href="/docs/documentation/contracts#contract-podpislon-signing-url">contracts §3.1.1</a>.
+  </div>
+
+  <h3 id="account-documents-expiry-notice">1.4) Просрочка заполнения и SMS</h3>
+  <div class="note">
+    Анонс: <a href="/doc#account-documents-expiry-notice-index">/doc#account-documents-expiry-notice-index</a>.
+    На карточке «Мои документы» два разных случая (тексты — константы <code>Contract</code>,
+    <code>clientCabinetExpiryNotice()</code>).
+    Школьный ресенд CRM («Повторно отправить на подпись», <code>#openResendModal</code> при
+    <code>sent</code> / <code>opened</code> / <code>failed</code> / <code>expired</code>) остаётся.
+    Повтор из кабинета — §<a href="#account-documents-resend-sms">1.5</a>.
+    <br><br>
+    <b>Заполнение.</b>
+    <code>isAwaitingClientFillExpired()</code>: template,
+    <code>awaiting_client_fill</code>, <code>fill_expires_at</code> в прошлом
+    (30 суток, <code>FILL_TTL_DAYS</code>).
+    Бейдж <code>CLIENT_FILL_EXPIRED_BADGE</code> — «Срок заполнения истёк»
+    (<code>badge bg-warning text-dark</code>), не «Требуется заполнение».
+    Alert: <code>CLIENT_FILL_EXPIRED_NOTICE</code> —
+    «Срок заполнения договора истёк. Обратитесь к администратору школы.»
+    Кнопка «Заполнить договор» скрыта. Fill JSON и generate → 422 с тем же текстом.
+    Каунтер сайдбара этот статус всё ещё считает.
+    <br>
+    <b>SMS.</b>
+    Статус <code>expired</code>. Бейдж «Истёк срок».
+    Alert: <code>CLIENT_SMS_EXPIRED_NOTICE</code> —
+    «Срок подписи по SMS истёк. Нажмите «Отправить SMS ещё раз» — сообщение уйдёт на тот же номер, что и в первый раз.»
+    <code>canClientOpenSigningUrl()</code> ложно — кнопки «Открыть ссылку из SMS» нет,
+    даже если URL в БД остался.
+    Пульт школы считает те же строки отдельно —
+    <a href="/doc#ops-contracts-expired-index">/doc#ops-contracts-expired-index</a>.
+  </div>
+
+  <h3 id="account-documents-resend-sms">1.5) Повтор SMS из кабинета</h3>
+  <div class="note">
+    Анонс: <a href="/doc#account-documents-resend-sms-index">/doc#account-documents-resend-sms-index</a>.
+    Кнопка <b>«Отправить SMS ещё раз»</b> (<code>CLIENT_RESEND_SMS_BUTTON</code>)
+    при <code>Contract::canClientResendSms()</code>:
+    <code>sent</code> / <code>opened</code> / <code>expired</code>,
+    есть <code>provider_doc_id</code> и телефон последней
+    <code>contract_sign_requests</code> (<code>lastSignerPhone()</code>).
+    Подсказка: «SMS уйдёт на {маска}», маска —
+    <code>RuPhone::formatMaskedForDisplay</code> / <code>clientResendSmsMaskedPhone()</code>
+    (<code>+7 (XXX) ***-**-NN</code>). Полный номер в разметку не пишем.
+    <code>POST account.documents.resendSms</code>,
+    Form Request <code>AccountContractResendSmsRequest</code>
+    (<code>signer_phone</code> и ФИО — <code>prohibited</code>).
+    Сервис <code>resendFromLastRequest</code> → пакет Подпислона
+    <code>repeat-send</code>, без новых 70 ₽.
+    Cooldown 30 сек (<code>ContractSmsCooldown</code>).
+    Форма <code>js-contract-resend-sms-form</code>: AJAX POST, 422 под
+    <code>[data-error-for="contract"]</code>, успех — reload.
+    Native POST — 302 и session <code>success</code>.
+    Первая отправка из fill-модалки по-прежнему с выбором телефона.
+    CRM <code>#openResendModal</code> не трогаем.
   </div>
 
   <h2>2) Модалка заполнения (<code>#contractFillModal</code>)</h2>
@@ -203,6 +264,33 @@
     При генерации PDF полные ФИО собираются в <code>ContractPdfGenerationService</code> / <code>ContractTemplateVariablePresets::composeNameFieldsForPdf</code>.<br><br>
     <code>child_birthday</code> — <code>&lt;input type="date"&gt;</code>, валидация <code>date</code> + <code>before:today</code> (<code>AccountContractGenerateRequest</code>).
     Значения в PDF и <code>filled_data</code> — в формате <code>d.m.Y</code>; в профиле ученика — <code>Y-m-d</code>.
+  </div>
+
+  <h3 id="contract-phone-mask-pdf">2.2.1) Телефон в PDF</h3>
+  <div class="note">
+    Только generate из шаблона (<code>creation_mode=template</code>). Загруженный PDF
+    (<code>creation_mode=pdf</code>) без плейсхолдеров не форматируем.
+    Телефон SMS после generate (<code>signer_phone</code>) — не ключ DOCX, в PDF не попадает.
+    <br><br>
+    В форме маска Inputmask <code>+7 (999) 999-99-99</code> (<code>js-contract-fill-phone</code>, <code>autoUnmask</code> / <code>removeMaskOnSubmit</code>).
+    Submit отдаёт 10 цифр без <code>+7</code> (например <code>9062475508</code>); prefill из CRM — 11 цифр с ведущей <code>7</code>.
+    При generate <code>ContractTemplateVariablePresets::formatPhoneFieldsForPdf</code>
+    (внутри <code>composeNameFieldsForPdf</code>) приводит ключи с <code>phone</code> / <code>tel</code> / <code>mobile</code>
+    к <code>RuPhone::formatForInput</code>: <code>+7 (906) 247-55-08</code>.
+    Это значение идёт в DOCX/PDF и в <code>filled_data</code>.
+    Критерий тот же, что у поля формы (<code>isFillFormPhoneField</code>):
+    <code>parent_phone</code>, <code>student_phone</code>, <code>spouse_phones</code> и кастомные ключи из шаблона.
+    <code>trusted_person_1_contacts</code> — не телефонное поле, строка как есть.
+    Невалидный номер не переписываем. Уже в маске и номер с ведущей <code>8</code> тоже приводятся к <code>+7 (…)</code>.
+    Карточка родителя по-прежнему сохраняет канон из цифр
+    (<code>StudentParentSyncService::normalizePhonePart</code> снимает маску). Уже сформированный PDF сам не меняется — нужна повторная генерация.<br><br>
+    Форма: первое открытие и повторный GET fill показывают prefill из CRM уже в маске
+    (<code>RuPhone::formatForInput</code> в <code>phone-input</code>); пустой номер остаётся пустым.
+    Режим «Изменить» тоже маскирует даже legacy <code>filled_data</code> из 10 цифр.
+    Оба JS-триггера (<code>.js-open-contract-fill</code> / <code>.js-open-contract-fill-edit</code>)
+    после AJAX GET fill вызывают <code>phone-inputmask:refresh</code>.
+    AJAX generate 422 — <code>errors['fields.parent_phone']</code> под полем; non-AJAX — 302 и session errors.
+    Анонс: <a href="/doc#account-contract-phone-mask-index">/doc#account-contract-phone-mask-index</a>.
   </div>
 
   <h3>2.3) Порядок полей</h3>
@@ -284,10 +372,11 @@
   <table>
     <thead><tr><th>Статус</th><th>UI в модалке</th></tr></thead>
     <tbody>
-      <tr><td><code>awaiting_client_fill</code></td><td>Форма «Сформировать договор»; доступен fill JSON</td></tr>
+      <tr><td><code>awaiting_client_fill</code></td><td>Форма «Сформировать договор»; доступен fill JSON. Если <code>fill_expires_at</code> в прошлом — бейдж «Срок заполнения истёк», alert «Обратитесь к администратору школы», кнопки «Заполнить договор» нет; fill/generate 422 (§<a href="#account-documents-expiry-notice">1.4</a>)</td></tr>
       <tr><td><code>generating_pdf</code></td><td>Спиннер, <code>poll: true</code> в JSON — автообновление модалки</td></tr>
       <tr><td><code>draft</code> + PDF</td><td>Блок подписания SMS + «Скачать PDF»</td></tr>
-      <tr><td><code>sent</code> / <code>opened</code></td><td>Fill JSON → 422 «Договор недоступен для заполнения»; подсказка про SMS на странице при других сценариях. Если в БД есть <code>provider_signing_url</code> — на карточке договора кнопка <b>«Открыть ссылку из SMS»</b> и сам URL (<code>target="_blank"</code>, <code>noopener noreferrer</code>; §<a href="#account-documents-podpislon-signing-url">1.3</a>). Школа может <b>аннулировать</b> договор на карточке CRM («Аннулировать», <a href="/doc#contract-annul-after-send-index">анонс</a>): статус <code>revoked</code>, 70&nbsp;₽ не возвращаются. Кнопка «Изменить» в кабинете не появляется. В каунтере сайдбара sent/opened ещё считаются, revoked — нет</td></tr>
+      <tr><td><code>sent</code> / <code>opened</code></td><td>Fill JSON → 422 «Договор недоступен для заполнения»; подсказка про SMS на странице при других сценариях. Если в БД есть <code>provider_signing_url</code> — на карточке договора кнопка <b>«Открыть ссылку из SMS»</b> и сам URL (<code>target="_blank"</code>, <code>noopener noreferrer</code>; §<a href="#account-documents-podpislon-signing-url">1.3</a>). Если пакет и номер последней отправки есть — кнопка <b>«Отправить SMS ещё раз»</b> и маска номера (§<a href="#account-documents-resend-sms">1.5</a>). Школа может <b>аннулировать</b> договор на карточке CRM («Аннулировать», <a href="/doc#contract-annul-after-send-index">анонс</a>): статус <code>revoked</code>, 70&nbsp;₽ не возвращаются. Кнопка «Изменить» в кабинете не появляется. В каунтере сайдбара sent/opened ещё считаются, revoked — нет</td></tr>
+      <tr><td><code>expired</code></td><td>Бейдж «Истёк срок». Alert: срок подписи по SMS истёк, нажать «Отправить SMS ещё раз» — сообщение уйдёт на тот же номер. Кнопки «Открыть ссылку из SMS» нет даже при URL в БД (§<a href="#account-documents-expiry-notice">1.4</a>). Повтор SMS — §<a href="#account-documents-resend-sms">1.5</a>. Fill JSON → 422 «Договор недоступен для заполнения». В каунтере сайдбара не считается</td></tr>
       <tr><td><code>revoked</code></td><td>Нет «Заполнить» / «Подписать» / «Изменить». Если позже пришёл signed PDF (старое SMS) — «Скачать подписанный» (и «Скачать PDF» оригинала, пока статус не <code>signed</code>). Если в БД остался валидный <code>provider_signing_url</code> — кнопка «Открыть ссылку из SMS» всё ещё на карточке (§<a href="#account-documents-podpislon-signing-url">1.3</a>). Бейдж статуса — «Отозвано», не «Подписано»</td></tr>
     </tbody>
   </table>
@@ -297,9 +386,9 @@
     Подписи «Отправлено СМС» / «Открыто СМС» — в timeline, бейдже списка и на карточке школы
     (<code>Contract::schoolStatusLabel</code>). В кабинете по-прежнему короткие подписи
     («Отправлено» / «Открыт» в <code>AccountDocumentsController</code>).
-    Аудит и вебхуки остаются на <code>Contract::$STATUS_RU</code> («Отправлено» / «Открыто»).</p>
-    После истечения в статусе <code>awaiting_client_fill</code> fill JSON возвращает 422: «Срок заполнения договора истёк…».
-  </div>
+    Аудит и вебхуки остаются на <code>Contract::$STATUS_RU</code> («Отправлено» / «Открыто»).
+    Просрочка заполнения и SMS на карточке кабинета — §<a href="#account-documents-expiry-notice">1.4</a>.
+    Повтор SMS из кабинета — §<a href="#account-documents-resend-sms">1.5</a>.</p>
 
   <h2>4) Валидация generate</h2>
   <p><code>AccountContractGenerateRequest</code>: обязательные поля по <code>required</code> в схеме; системные поля
@@ -361,6 +450,16 @@
     <ul>
       <li><code>AccountContractFillTest.php</code> — базовый fill, generate, sign</li>
       <li><code>AccountContractFillPodpislonKeyFeatureTest.php</code> — подпись без API-ключа юрлица: redirect на fill, <code>errors.podpislon_api_key</code>, статус не <code>failed</code>, guest</li>
+      <li><code>AccountContractFillPhoneMaskDocumentationContractTest</code> — анонс <a href="/doc#account-contract-phone-mask-index">/doc</a> совпадает с кодом</li>
+      <li><code>AccountContractFillPhoneMaskFeatureTest.php</code> — UX-баг: 10 цифр autoUnmask → маска в DOCX/PDF;
+        контакты доверенного лица без маски; первое открытие / повтор / «Изменить» показывают маску;
+        пустой номер не навязывается; оба триггера на index</li>
+      <li><code>AccountContractFillPhoneMaskAccessFeatureTest.php</code> — владелец 200, без права 403, гость redirect/401,
+        чужая школа и одноклассник 404, лишние HTTP-методы не 500</li>
+      <li><code>AccountContractFillPhoneMaskAjaxContractFeatureTest.php</code> — AJAX generate 200 JSON + маска в
+        <code>filled_data</code>; 422 <code>errors['fields.parent_phone']</code>; 403/гость; чужие методы</li>
+      <li><code>AccountContractFillPhoneMaskNonAjaxSafetyNetFeatureTest.php</code> — native POST 302 + маска в БД;
+        пустой телефон 302 + session errors под полем; GET fill → redirect на документы; 403/гость</li>
       <li><code>AccountContractFillFormFeatureTest.php</code> — UI полей, порядок, дата, маска телефона, sync профилей,
         подпись <code>parent_passport</code>, fallback <code>parent_email</code> ← <code>users.email</code>,
         <code>novalidate</code> + слоты Laravel-ошибок, 422 с подписью поля</li>
@@ -379,10 +478,11 @@
       <li><code>AccountContractFillFlowUiFeatureTest.php</code> — панели, sign-block, poll, ошибка генерации</li>
       <li><code>AccountDocumentsFullAccessFeatureTest.php</code> — index, fill JSON, download</li>
       <li><code>AccountDocumentsTest.php</code> — download signed при статусе <code>revoked</code>, если файл уже есть</li>
-      <li><code>AccountDocumentsPodpislonSigningUrlUxFeatureTest.php</code> — кнопка «Открыть ссылку из SMS», гость/403/чужая школа, junk, signed</li>
+      <li><code>AccountDocumentsPodpislonSigningUrlUxFeatureTest.php</code> — кнопка «Открыть ссылку из SMS», гость/403/чужая школа, junk, signed; <code>expired</code> прячет URL</li>
       <li><code>AccountDocumentsPodpislonSigningUrlAccessFeatureTest.php</code> — JSON sign гостя 401, тренер 403, sibling, чужие HTTP-методы</li>
       <li><code>AccountDocumentsPodpislonSigningUrlNonAjaxSafetyNetFeatureTest.php</code> — native sign 302 + URL, 422 по полям, гость</li>
-      <li><code>BladeInlineJsSyntaxTest.php</code> — кабинет SMS-ссылка не в fill-AJAX; CRM send/resend — один POST <code>/send</code></li>
+      <li><code>BladeInlineJsSyntaxTest.php</code> — кабинет SMS-ссылка не в fill-AJAX; CRM send/resend — один POST <code>/send</code>;
+        fill: оба триггера + <code>phone-inputmask:refresh</code>; Inputmask <code>js-contract-fill-phone</code> autoUnmask</li>
       <li><code>ContractPodpislonSigningUrlDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>AccountContractEditFilledDataFeatureTest.php</code> — «Изменить» у draft; нет кнопки и fill JSON 422 при opened/revoked</li>
       <li><code>ContractAnnulAfterSend*FeatureTest.php</code> / <code>ContractAnnulRevokedSignedWebhookFeatureTest.php</code> — аннулирование sent/opened; signed-вебхук не поднимает revoked в signed</li>
@@ -406,8 +506,19 @@
         markup-контракт badge на <code>account/index.blade.php</code> и <code>includes/sidebar.blade.php</code></li>
       <li><code>AccountContractFillModalUxDocumentationContractTest</code> — анонс <a href="/doc#account-contract-fill-modal-ux-index">/doc</a>
         совпадает с кодом (подпись паспорта только в модалке, fallback email, 422 без reload)</li>
+      <li><code>AccountDocumentsExpiryNoticeUxFeatureTest.php</code> — §1.4: бейдж «Срок заполнения истёк», alert заполнения/SMS, без «Заполнить» и без мёртвой ссылки SMS</li>
+      <li><code>AccountDocumentsExpiryNoticeAccessFeatureTest.php</code> — гость/403/тренер/чужая школа без текстов просрочки</li>
+      <li><code>AccountDocumentsExpiryNoticeAjaxContractFeatureTest.php</code> — AJAX fill/generate 422 с текстом про администратора школы</li>
+      <li><code>AccountDocumentsExpiryNoticeNonAjaxSafetyNetFeatureTest.php</code> — native GET fill / POST generate 302 + session errors</li>
+      <li><code>AccountDocumentsExpiryNoticeDocumentationContractTest</code> — анонс <a href="/doc#account-documents-expiry-notice-index">/doc</a> совпадает с кодом</li>
+      <li><code>AccountDocumentsResendSmsUxFeatureTest</code> — §1.5: кнопка «Отправить SMS ещё раз» при sent/opened/expired, маска номера, без полного телефона</li>
+      <li><code>AccountDocumentsResendSmsAccessFeatureTest</code> — гость/403/тренер/чужая школа/sibling</li>
+      <li><code>AccountDocumentsResendSmsAjaxContractFeatureTest</code> — AJAX 200 expired→sent, cooldown 422, prohibited телефон</li>
+      <li><code>AccountDocumentsResendSmsNonAjaxSafetyNetFeatureTest</code> — native POST 302 + session success/errors</li>
+      <li><code>AccountDocumentsResendSmsDocumentationContractTest</code> — анонс <a href="/doc#account-documents-resend-sms-index">/doc</a> совпадает с кодом</li>
+      <li><code>RuPhoneTest</code> — <code>formatMaskedForDisplay</code></li>
     </ul>
-    Запуск блока: <code>php artisan test tests/Feature/Crm/Account/AccountContractDatePlaceholderFeatureTest.php tests/Feature/Crm/Contracts/ContractTemplateContractDateExtractionFeatureTest.php tests/Feature/Crm/Account/AccountContractFillFormFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPassportEmailUxFeatureTest.php tests/Feature/Crm/Account/AccountContractFillFieldErrorsAjaxContractFeatureTest.php tests/Feature/Crm/Account/AccountContractFillGenerateNonAjaxSafetyNetFeatureTest.php tests/Feature/Crm/Account/AccountContractParentFillEndpointsAccessFeatureTest.php</code>
+    Запуск блока: <code>php artisan test tests/Feature/Crm/Account/AccountContractDatePlaceholderFeatureTest.php tests/Feature/Crm/Contracts/ContractTemplateContractDateExtractionFeatureTest.php tests/Feature/Crm/Account/AccountContractFillFormFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPhoneMaskFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPhoneMaskAccessFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPhoneMaskAjaxContractFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPhoneMaskNonAjaxSafetyNetFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPassportEmailUxFeatureTest.php tests/Feature/Crm/Account/AccountContractFillFieldErrorsAjaxContractFeatureTest.php tests/Feature/Crm/Account/AccountContractFillGenerateNonAjaxSafetyNetFeatureTest.php tests/Feature/Crm/Account/AccountContractParentFillEndpointsAccessFeatureTest.php</code>
   </div>
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·

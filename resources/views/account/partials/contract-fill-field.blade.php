@@ -10,9 +10,7 @@
     $label = ContractTemplateVariablePresets::fillFormFieldLabel($label, $fieldGroup);
     $required = !empty($field['required']);
     $rawValue = old('fields.' . $key, $prefill[$key] ?? '');
-    $isPhoneField = str_contains($key, 'phone')
-        || str_contains($key, 'tel')
-        || str_contains($key, 'mobile');
+    $isPhoneField = ContractTemplateVariablePresets::isFillFormPhoneField($key);
     $isDateField = ContractTemplateVariablePresets::isFillFormDateField($key);
     $value = $isDateField
         ? ContractTemplateVariablePresets::dateValueForFillInput($rawValue)

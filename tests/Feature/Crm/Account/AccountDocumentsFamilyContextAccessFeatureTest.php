@@ -42,6 +42,7 @@ final class AccountDocumentsFamilyContextAccessFeatureTest extends CrmTestCase
         $this->get(route('account.documents.fill', $awaiting))->assertRedirect(route('login'));
         $this->post(route('account.documents.generate', $awaiting), ['fields' => []])->assertRedirect(route('login'));
         $this->post(route('account.documents.sign', $draft), [])->assertRedirect(route('login'));
+        $this->post(route('account.documents.resendSms', $draft), [])->assertRedirect(route('login'));
         $this->get(route('account.documents.requests', $draft))->assertRedirect(route('login'));
         $this->get(route('account.documents.downloadOriginal', $draft))->assertRedirect(route('login'));
         $this->get(route('account.documents.downloadSigned', $draft))->assertRedirect(route('login'));
@@ -75,6 +76,7 @@ final class AccountDocumentsFamilyContextAccessFeatureTest extends CrmTestCase
         $this->get(route('account.documents.fill', $awaiting))->assertForbidden();
         $this->post(route('account.documents.generate', $awaiting), ['fields' => []])->assertForbidden();
         $this->post(route('account.documents.sign', $draft), [])->assertForbidden();
+        $this->post(route('account.documents.resendSms', $draft), [])->assertForbidden();
         $this->get(route('account.documents.requests', $draft))->assertForbidden();
         $this->get(route('account.documents.downloadOriginal', $draft))->assertForbidden();
         $this->get(route('account.documents.downloadSigned', $draft))->assertForbidden();
@@ -143,6 +145,9 @@ final class AccountDocumentsFamilyContextAccessFeatureTest extends CrmTestCase
             'fields' => ['parent_lastname' => 'Чужой'],
         ], $this->contractFillAjaxHeaders())
             ->assertNotFound();
+
+        $this->postJson(route('account.documents.resendSms', $foreign), [], $this->contractFillAjaxHeaders())
+            ->assertNotFound();
     }
 
     public function test_unsupported_http_methods_on_documents_routes_are_not_500(): void
@@ -160,6 +165,8 @@ final class AccountDocumentsFamilyContextAccessFeatureTest extends CrmTestCase
             ['DELETE', route('account.documents.generate', $contract)],
             ['PATCH', route('account.documents.sign', $contract)],
             ['GET', route('account.documents.sign', $contract)],
+            ['GET', route('account.documents.resendSms', $contract)],
+            ['PATCH', route('account.documents.resendSms', $contract)],
         ] as [$method, $url]) {
             $response = $this->call($method, $url);
             $this->assertNotSame(

@@ -19,7 +19,7 @@ final class OpsTillMissingPayoutDocumentationContractTest extends TestCase
         $this->assertStringContainsString('id="ops-till-missing-payout-index"', $html);
         $start = strpos($html, 'id="ops-till-missing-payout-index"');
         $this->assertNotFalse($start);
-        $end = strpos($html, 'id="setting-prices-monthly-former-charge-clear-index"');
+        $end = strpos($html, 'id="ops-contracts-expired-index"');
         $this->assertNotFalse($end);
         $this->assertGreaterThan($start, $end);
         $chunk = substr($html, $start, $end - $start);

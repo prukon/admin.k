@@ -608,6 +608,8 @@
     <b>Детализация месяца</b> — аналогично LTV (§4): без <code>draw</code> → <code>{ month_key, mode, payments: […] }</code>;
     с <code>draw</code> → server-side DataTables + <code>meta_payments_count</code>, <code>meta_sum_total</code>.
     Вложенная таблица — обычный <code>DataTable()</code>, не <code>KidsCrmDataTable</code>.
+    Колонка суммы в UI — <code>name: 'summ'</code>, в БД <code>payments.summ_cents</code>:
+    <code>orderColumn('summ')</code> сортирует по <code>summ_cents</code> (иначе Yajra даёт 42S22 / HTTP 500).
   </div>
   <div class="note">
     Режим группировки (по дате операции / по месяцу абонемента) в UI хранится в форме/JS и не обязан отражаться в URL.
@@ -975,7 +977,7 @@
     <li><code>tests/Feature/Crm/Reports/ReportsDatatableSearchFullAccessFeatureTest.php</code> — HTTP-матрица поиска на всех четырёх страницах: guest/403/с правом/SA, non-AJAX, методы, вложенные monthly/LTV, total без учёта <code>search.value</code>, админ без организации</li>
     <li><code>tests/Unit/Documentation/ReportsDatatableSearchDocumentationContractTest.php</code> — анонс <code>/doc#reports-datatable-search-index</code> совпадает с контроллерами и Blade</li>
     <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code>, фильтр локации, поиск DataTables по ФИО/имени и группе; запрос с <code>columns[]</code> как в UI, чтобы не пропустить 42S22 по агрегатам)</li>
-    <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code> (включая фильтр локации)</li>
+    <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code> (включая фильтр локации; сортировка детализации по <code>summ</code> → <code>summ_cents</code>, не 500)</li>
     <li><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> — отчёт «Платежи»: колонка и фильтр</li>
     <li><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> — запись <code>payments.location_id</code> при оплате</li>
     <li><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> — фильтр <code>filter_trainer_profile_id</code> по группам тренера</li>

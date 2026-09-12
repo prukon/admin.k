@@ -296,7 +296,7 @@ class ContractTemplateToParentWorkflowFeatureTest extends ContractsFeatureTestCa
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->getJson(route('account.documents.fill', $contract))
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Срок заполнения договора истёк. Обратитесь в организацию.');
+            ->assertJsonPath('message', Contract::CLIENT_FILL_EXPIRED_NOTICE);
     }
 
     /** @test */

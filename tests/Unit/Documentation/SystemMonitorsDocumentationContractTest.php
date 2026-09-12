@@ -58,6 +58,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $chunk);
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
         $this->assertStringContainsString('/doc#ops-day-kpi-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-contracts-expired-index', $chunk);
         $this->assertStringContainsString('last_message', $chunk);
         $this->assertStringContainsString('вход — 72 ч', $chunk);
         $this->assertStringContainsString('KidsCrmTooltip', $chunk);
@@ -86,6 +87,10 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingUxFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsContractsExpiredFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsContractsExpiredUxFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsContractsExpiredAccessFeatureTest', $chunk);
+        $this->assertStringContainsString('OpsContractsExpiredDocumentationContractTest', $chunk);
         $this->assertStringContainsString('LogOutgoingEmailMailableClassFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsPermissionCatalogFeatureTest', $chunk);
         $this->assertStringContainsString('DashboardCabinetDiagnosticsFeatureTest', $chunk);
@@ -189,6 +194,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
         $this->assertStringContainsString('/doc#ops-day-kpi-index', $chunk);
         $this->assertStringContainsString('/doc#ops-till-missing-payout-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-contracts-expired-index', $chunk);
         $this->assertStringContainsString('last_message', $chunk);
         $this->assertStringContainsString('innerHTML', $chunk);
         $this->assertStringContainsString('leftover', $chunk);
@@ -217,6 +223,10 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOpsDayAccessFeatureTest', $chunk);
         $this->assertStringContainsString('OpsDayKpiDocumentationContractTest', $chunk);
         $this->assertStringContainsString('OpsTillMissingPayoutDocumentationContractTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsContractsExpiredFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsContractsExpiredUxFeatureTest', $chunk);
+        $this->assertStringContainsString('SystemMonitorsOpsContractsExpiredAccessFeatureTest', $chunk);
+        $this->assertStringContainsString('OpsContractsExpiredDocumentationContractTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingUxFeatureTest', $chunk);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest', $chunk);
@@ -268,6 +278,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
         $this->assertStringContainsString('/doc#ops-day-kpi-index', $chunk);
         $this->assertStringContainsString('/doc#ops-till-missing-payout-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-contracts-expired-index', $chunk);
         $this->assertStringContainsString('KidsCrmTooltip', $chunk);
         $this->assertStringContainsString('/doc#kids-tooltip-contrast-index', $chunk);
         $this->assertStringContainsString('STATUS_FAILED', $chunk);
@@ -313,6 +324,10 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingUxFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsWelcomeAccountingFullAccessFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsContractsExpiredFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsContractsExpiredUxFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsContractsExpiredAccessFeatureTest', $html);
+        $this->assertStringContainsString('OpsContractsExpiredDocumentationContractTest', $html);
         $this->assertStringContainsString('LogOutgoingEmailMailableClassFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsNonAjaxSafetyNetFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsUxFeatureTest', $html);
@@ -338,6 +353,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $html);
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $html);
         $this->assertStringContainsString('/doc#ops-day-kpi-index', $html);
+        $this->assertStringContainsString('/doc#ops-contracts-expired-index', $html);
         $this->assertStringContainsString('JSON-оверлея на <code>/cabinet</code> нет', $html);
         $this->assertStringContainsString('settings.reverbOverlay.manage', $html);
         $this->assertStringContainsString('SystemMonitorsPermissionCatalogFeatureTest', $html);
@@ -394,6 +410,7 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#ops-welcome-mailable-index', $chunk);
         $this->assertStringContainsString('/doc#ops-day-kpi-index', $chunk);
         $this->assertStringContainsString('/doc#ops-till-missing-payout-index', $chunk);
+        $this->assertStringContainsString('/doc#ops-contracts-expired-index', $chunk);
     }
 
     private function docFile(string $name): string

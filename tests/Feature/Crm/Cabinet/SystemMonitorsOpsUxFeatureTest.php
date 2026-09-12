@@ -47,6 +47,11 @@ final class SystemMonitorsOpsUxFeatureTest extends SystemMonitorsTestCase
         $this->assertStringContainsString('data-role="auth-logins">…</span>', $html);
         $this->assertStringContainsString('data-role="auth-2fa">…</span>', $html);
         $this->assertStringContainsString('>Welcome</span>', $html);
+        $this->assertStringContainsString('>Договоры</span>', $html);
+        $this->assertStringContainsString('Просрочено заполнение в кабинете', $html);
+        $this->assertStringContainsString('Статус expired у Подпислона', $html);
+        $this->assertStringContainsString('data-role="contracts-fill-expired">…</span>', $html);
+        $this->assertStringContainsString('data-role="contracts-sms-expired">…</span>', $html);
         $this->assertStringContainsString('Воркер очереди', $html);
         $this->assertStringContainsString('Планировщик cron', $html);
         $this->assertStringContainsString('все школы', $html);
@@ -80,6 +85,17 @@ final class SystemMonitorsOpsUxFeatureTest extends SystemMonitorsTestCase
         $row = substr($html, $fiveHundredStart, $gatewaysStart - $fiveHundredStart);
         $this->assertStringNotContainsString('href=', $row);
         $this->assertStringNotContainsString('<a ', $row);
+
+        $welcomeStart = strpos($html, '>Welcome</span>');
+        $contractsStart = strpos($html, '>Договоры</span>');
+        $this->assertNotFalse($welcomeStart);
+        $this->assertNotFalse($contractsStart);
+        $this->assertGreaterThan($welcomeStart, $contractsStart, '«Договоры» сразу под Welcome');
+        $contractsRowEnd = strpos($html, '</div>', $contractsStart);
+        $this->assertNotFalse($contractsRowEnd);
+        $contractsRow = substr($html, $contractsStart, $contractsRowEnd - $contractsStart);
+        $this->assertStringNotContainsString('href=', $contractsRow);
+        $this->assertStringNotContainsString('<a ', $contractsRow);
     }
 
     public function test_first_html_does_not_print_cached_last_message(): void
@@ -1341,6 +1357,8 @@ JS;
             'auth-2fa',
             'welcome-count',
             'welcome-user',
+            'contracts-fill-expired',
+            'contracts-sms-expired',
         ];
     }
 

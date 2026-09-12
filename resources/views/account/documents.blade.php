@@ -32,12 +32,22 @@
                     Пока у вас нет загруженных договоров.
                 </div>
             @else
+                @if(session('success'))
+                    <div class="alert alert-success mt-3 mb-0">{{ session('success') }}</div>
+                @endif
 
                 {{-- Сетка карточек (адаптивная) --}}
                 <div class="row g-3 mt-1">
                     @foreach($contracts as $c)
                         @php
                             $cfg = $statusMap[$c->status] ?? ['label'=>'Неизвестно','class'=>'secondary'];
+                            if ($c->isAwaitingClientFillExpired()) {
+                                $cfg = [
+                                    'label' => \App\Models\Contract::CLIENT_FILL_EXPIRED_BADGE,
+                                    'class' => 'warning text-dark',
+                                ];
+                            }
+                            $expiryNotice = $c->clientCabinetExpiryNotice();
                         @endphp
                         <div class="col-12 col-md-6 col-lg-4">
                             <div class="card h-100 shadow-sm border-0">
@@ -74,7 +84,11 @@
                                         <div class="fw-semibold">{{ $c->group_title }}</div>
                                     </div>
 
-                                    @if($c->providerSigningUrl())
+                                    @if($expiryNotice)
+                                        <div class="alert alert-warning mt-3 mb-0 py-2 small" role="status">{{ $expiryNotice }}</div>
+                                    @endif
+
+                                    @if($c->canClientOpenSigningUrl())
                                         <div class="mt-2">
                                             <div class="text-muted small">Ссылка на подпись</div>
                                             <a class="btn btn-sm btn-outline-success mt-1"
@@ -86,6 +100,27 @@
                                                    target="_blank"
                                                    rel="noopener noreferrer">{{ $c->providerSigningUrl() }}</a>
                                             </div>
+                                        </div>
+                                    @endif
+
+                                    @if($c->canClientResendSms())
+                                        @php
+                                            $resendMaskedPhone = $c->clientResendSmsMaskedPhone();
+                                        @endphp
+                                        <div class="mt-3">
+                                            @if($resendMaskedPhone)
+                                                <div class="text-muted small">SMS уйдёт на {{ $resendMaskedPhone }}</div>
+                                            @endif
+                                            <form method="post"
+                                                  action="{{ route('account.documents.resendSms', $c) }}"
+                                                  class="js-contract-resend-sms-form mt-1">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-success">
+                                                    {{ \App\Models\Contract::CLIENT_RESEND_SMS_BUTTON }}
+                                                </button>
+                                                <div class="invalid-feedback d-block"
+                                                     data-error-for="contract">@error('contract'){{ $message }}@enderror</div>
+                                            </form>
                                         </div>
                                     @endif
 
@@ -390,6 +425,46 @@
 
                 $(document).on('click', '.js-open-contract-fill-edit', function () {
                     loadContractFill($(this).data('contract-id'), false, 'edit');
+                });
+
+                $(document).on('submit', '.js-contract-resend-sms-form', function (e) {
+                    e.preventDefault();
+
+                    const form = this;
+                    const $form = $(form);
+                    const $submit = $form.find('[type="submit"]');
+                    const errorEl = form.querySelector('[data-error-for="contract"]');
+                    if (errorEl) {
+                        errorEl.textContent = '';
+                    }
+                    $submit.prop('disabled', true);
+
+                    $.ajax({
+                        method: 'POST',
+                        url: form.action,
+                        data: $form.serialize(),
+                        headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'},
+                        dataType: 'json',
+                    }).done(function () {
+                        window.location.reload();
+                    }).fail(function (xhr) {
+                        let msg = 'Не удалось отправить SMS.';
+                        if (xhr.status === 422) {
+                            const errors = xhr.responseJSON?.errors || {};
+                            if (errors.contract && errors.contract[0]) {
+                                msg = errors.contract[0];
+                            } else if (xhr.responseJSON?.message) {
+                                msg = xhr.responseJSON.message;
+                            }
+                        } else if (xhr.responseJSON?.message) {
+                            msg = xhr.responseJSON.message;
+                        }
+                        if (errorEl) {
+                            errorEl.textContent = msg;
+                        }
+                    }).always(function () {
+                        $submit.prop('disabled', false);
+                    });
                 });
 
                 $(document).on('submit', '#contractFillModal .contract-fill-form', function (e) {

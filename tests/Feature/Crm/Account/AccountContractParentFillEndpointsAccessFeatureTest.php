@@ -40,6 +40,7 @@ class AccountContractParentFillEndpointsAccessFeatureTest extends CrmTestCase
         $this->get(route('account.documents.fill', $awaiting))->assertRedirect(route('login'));
         $this->post(route('account.documents.generate', $awaiting), ['fields' => []])->assertRedirect(route('login'));
         $this->post(route('account.documents.sign', $draft), [])->assertRedirect(route('login'));
+        $this->post(route('account.documents.resendSms', $draft), [])->assertRedirect(route('login'));
         $this->get(route('account.documents.requests', $draft))->assertRedirect(route('login'));
         $this->get(route('account.documents.downloadOriginal', $draft))->assertRedirect(route('login'));
         $this->get(route('account.documents.downloadSigned', $draft))->assertRedirect(route('login'));
@@ -66,6 +67,7 @@ class AccountContractParentFillEndpointsAccessFeatureTest extends CrmTestCase
         $this->get(route('account.documents.fill', $awaiting))->assertForbidden();
         $this->post(route('account.documents.generate', $awaiting), ['fields' => []])->assertForbidden();
         $this->post(route('account.documents.sign', $draft), [])->assertForbidden();
+        $this->post(route('account.documents.resendSms', $draft), [])->assertForbidden();
         $this->get(route('account.documents.requests', $draft))->assertForbidden();
         $this->get(route('account.documents.downloadOriginal', $draft))->assertForbidden();
         $this->get(route('account.documents.downloadSigned', $draft))->assertForbidden();

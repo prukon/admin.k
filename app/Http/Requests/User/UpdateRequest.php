@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Rules\AllowedActorTeam;
+use App\Rules\EmailHasDomainDot;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
@@ -167,6 +168,7 @@ class UpdateRequest extends FormRequest
                 'email',
                 'max:255',
                 Rule::unique('users', 'email')->ignore($targetUserId),
+                new EmailHasDomainDot,
             ];
         }
 
