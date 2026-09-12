@@ -12,6 +12,12 @@ use Illuminate\Support\Facades\DB;
 
 class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
 {
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     /** @test */
     public function data_returns_only_current_partner_contracts_and_basic_datatables_structure(): void
     {
@@ -46,7 +52,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
                 'draw',
                 'recordsTotal',
                 'recordsFiltered',
-                'data' => [['id', 'user_name', 'user_lastname', 'team_title', 'user_phone', 'user_email', 'status_label', 'status_badge_class', 'status', 'creation_mode', 'path_title', 'path_steps', 'download_signed_url', 'updated_at']],
+                'data' => [['id', 'user_name', 'user_lastname', 'team_title', 'user_phone', 'user_email', 'status_label', 'status_badge_class', 'status_error', 'status', 'creation_mode', 'path_title', 'path_steps', 'download_signed_url', 'updated_at']],
             ]);
 
         $this->assertSame(1, (int)$resp->json('recordsTotal'));
@@ -59,7 +65,10 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $this->assertSame(Contract::STATUS_DRAFT, $resp->json('data.0.path_steps.0.key'));
         $this->assertSame('', $resp->json('data.0.updated_at'));
         $this->assertNull($resp->json('data.0.download_signed_url'));
+        $this->assertNull($resp->json('data.0.status_error'));
         $this->assertArrayNotHasKey('fill_expires_at', $resp->json('data.0'));
+        $this->assertArrayNotHasKey('fill_expires_remaining', $resp->json('data.0'));
+        $this->assertArrayNotHasKey('fill_expires_remaining_warn', $resp->json('data.0'));
     }
 
     /** @test */
@@ -287,7 +296,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $this->createContractEvent($older->id, 'created', '2026-01-10 08:00:00');
         $this->createContractEvent($newer->id, 'created', '2026-05-20 11:30:00');
 
-        $descIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=8&order[0][dir]=desc')
+        $descIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=9&order[0][dir]=desc')
             ->assertOk()
             ->json('data'))
             ->pluck('id')
@@ -295,7 +304,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
 
         $this->assertSame([$newer->id, $older->id, $empty->id], $descIds);
 
-        $ascIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=8&order[0][dir]=asc')
+        $ascIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=9&order[0][dir]=asc')
             ->assertOk()
             ->json('data'))
             ->pluck('id')
@@ -385,11 +394,15 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
             ->json('data.0');
 
         $this->assertArrayNotHasKey('fill_expires_at', $row);
+        $this->assertArrayNotHasKey('fill_expires_remaining', $row);
+        $this->assertArrayNotHasKey('fill_expires_remaining_warn', $row);
     }
 
     /** @test */
-    public function data_returns_fill_expires_at_datetime_when_permission_granted(): void
+    public function data_returns_fill_expires_at_datetime_and_remaining_when_permission_granted(): void
     {
+        Carbon::setTestNow(Carbon::parse('2026-09-12 10:00:00', 'Europe/Moscow'));
+
         $this->grantPermissionToRoleForPartner(
             $this->user->role_id,
             $this->partner->id,
@@ -404,6 +417,97 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
             'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
             'status'           => Contract::STATUS_AWAITING_CLIENT_FILL,
             'provider'         => 'podpislon',
+            'fill_expires_at'  => Carbon::parse('2026-09-14 15:04:05'),
+        ]);
+
+        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->assertSame('14.09.2026 15:04:05', $row['fill_expires_at']);
+        $this->assertSame('2 дня', $row['fill_expires_remaining']);
+        $this->assertTrue($row['fill_expires_remaining_warn']);
+    }
+
+    /** @test */
+    public function data_returns_last_day_remaining_when_deadline_is_today(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-12 10:00:00', 'Europe/Moscow'));
+
+        $this->grantPermissionToRoleForPartner(
+            $this->user->role_id,
+            $this->partner->id,
+            self::PERM_CONTRACTS_FILL_EXPIRES_AT
+        );
+
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
+            'status'           => Contract::STATUS_AWAITING_CLIENT_FILL,
+            'provider'         => 'podpislon',
+            'fill_expires_at'  => Carbon::parse('2026-09-12 18:00:00'),
+        ]);
+
+        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->assertSame(Contract::CLIENT_FILL_REMAINING_LAST_DAY, $row['fill_expires_remaining']);
+        $this->assertTrue($row['fill_expires_remaining_warn']);
+    }
+
+    /** @test */
+    public function data_returns_expired_remaining_when_deadline_is_past(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-12 10:00:00', 'Europe/Moscow'));
+
+        $this->grantPermissionToRoleForPartner(
+            $this->user->role_id,
+            $this->partner->id,
+            self::PERM_CONTRACTS_FILL_EXPIRES_AT
+        );
+
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
+            'status'           => Contract::STATUS_AWAITING_CLIENT_FILL,
+            'provider'         => 'podpislon',
+            'fill_expires_at'  => Carbon::parse('2026-09-10 12:00:00'),
+        ]);
+
+        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->assertSame(Contract::SCHOOL_LIST_FILL_REMAINING_EXPIRED, $row['fill_expires_remaining']);
+        $this->assertTrue($row['fill_expires_remaining_warn']);
+    }
+
+    /** @test */
+    public function data_hides_remaining_for_signed_contract(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-12 10:00:00', 'Europe/Moscow'));
+
+        $this->grantPermissionToRoleForPartner(
+            $this->user->role_id,
+            $this->partner->id,
+            self::PERM_CONTRACTS_FILL_EXPIRES_AT
+        );
+
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
+            'status'           => Contract::STATUS_SIGNED,
+            'provider'         => 'podpislon',
             'fill_expires_at'  => Carbon::parse('2026-09-18 15:04:05'),
         ]);
 
@@ -412,6 +516,8 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
             ->json('data.0');
 
         $this->assertSame('18.09.2026 15:04:05', $row['fill_expires_at']);
+        $this->assertSame('', $row['fill_expires_remaining']);
+        $this->assertFalse($row['fill_expires_remaining_warn']);
     }
 
     /** @test */
@@ -440,6 +546,8 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
             ->json('data.0');
 
         $this->assertSame('', $row['fill_expires_at']);
+        $this->assertSame('', $row['fill_expires_remaining']);
+        $this->assertFalse($row['fill_expires_remaining_warn']);
     }
 
     /** @test */
@@ -479,7 +587,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
             'fill_expires_at' => null,
         ]);
 
-        $descIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=9&order[0][dir]=desc')
+        $descIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=10&order[0][dir]=desc')
             ->assertOk()
             ->json('data'))
             ->pluck('id')
@@ -487,7 +595,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
 
         $this->assertSame([$newer->id, $older->id, $empty->id], $descIds);
 
-        $ascIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=9&order[0][dir]=asc')
+        $ascIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=10&order[0][dir]=asc')
             ->assertOk()
             ->json('data'))
             ->pluck('id')
@@ -518,7 +626,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
             'fill_expires_at'  => Carbon::parse('2026-09-20 18:30:00'),
         ]);
 
-        $ids = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=9&order[0][dir]=asc')
+        $ids = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=10&order[0][dir]=asc')
             ->assertOk()
             ->json('data'))
             ->pluck('id')
@@ -548,6 +656,85 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
             ->json('data.0');
 
         $this->assertSame('18.09.2026 15:04:05', $row['fill_expires_at']);
+        $this->assertArrayHasKey('fill_expires_remaining', $row);
+        $this->assertArrayHasKey('fill_expires_remaining_warn', $row);
+    }
+
+    /** @test */
+    public function data_default_order_is_contract_id_desc(): void
+    {
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        $first = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/first.pdf',
+            'source_sha256'   => str_repeat('a', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+        $second = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/second.pdf',
+            'source_sha256'   => str_repeat('b', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+
+        $ids = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=1&order[0][dir]=desc')
+            ->assertOk()
+            ->json('data'))
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$second->id, $first->id], $ids);
+    }
+
+    /** @test */
+    public function data_search_finds_contract_by_id(): void
+    {
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+            'name'       => 'Ivan',
+            'lastname'   => 'Petrov',
+            'phone'      => '+79001112233',
+            'email'      => 'ivan@example.test',
+        ]);
+
+        $match = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/match.pdf',
+            'source_sha256'   => str_repeat('a', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+        $otherStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+            'name'       => 'Petr',
+            'lastname'   => 'Sidorov',
+            'phone'      => '+79004445566',
+            'email'      => 'petr@example.test',
+        ]);
+        Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $otherStudent->id,
+            'source_pdf_path' => 'documents/2026/01/other.pdf',
+            'source_sha256'   => str_repeat('b', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+
+        $ids = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&search_value='.$match->id)
+            ->assertOk()
+            ->json('data'))
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$match->id], $ids);
     }
 
     /** @test */

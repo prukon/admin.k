@@ -54,6 +54,9 @@
                             <dt class="col-sm-4">Статус</dt>
                             <dd class="col-sm-8">
                                 <span class="badge {{ $contract->status_badge_class }}">{{ $contract->school_status_ru }}</span>
+                                @if($contract->status === \App\Models\Contract::STATUS_FAILED && $contract->lastFailureMessage())
+                                    <div class="text-danger small mt-1" id="contract-status-error">{{ $contract->lastFailureMessage() }}</div>
+                                @endif
                             </dd>
 
                             @if($contract->providerSigningUrl())
@@ -266,7 +269,12 @@
                                             <tr>
                                                 <td>{{ $loop->remaining + 1 }}</td> {{-- обратная нумерация --}}
                                                 <td>{{ $e->author_fio }}</td>
-                                                <td>{{ $e->type_ru }}</td>
+                                                <td>
+                                                    {{ $e->type_ru }}
+                                                    @if($e->userFacingMessage())
+                                                        <div class="small text-danger contract-event-error">{{ $e->userFacingMessage() }}</div>
+                                                    @endif
+                                                </td>
                                                 <td>{{ $e->created_at->format('d.m.Y H:i:s') }}</td>
                                             </tr>
                                         @empty

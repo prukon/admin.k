@@ -121,11 +121,18 @@ class ContractPodpislonSendService
             $contract->status = Contract::STATUS_FAILED;
             $contract->save();
 
+            $message = ContractEvent::fromProviderSendResult(is_array($res) ? $res : []);
+            $links = $this->signingLinks($contract);
+
             ContractEvent::create([
                 'contract_id'  => $contract->id,
                 'author_id'    => $authorId,
                 'type'         => 'failed',
-                'payload_json' => json_encode(['res' => $res, 'links' => $this->signingLinks($contract)], JSON_UNESCAPED_UNICODE),
+                'payload_json' => json_encode([
+                    'message' => $message,
+                    'res'     => $res,
+                    'links'   => $links,
+                ], JSON_UNESCAPED_UNICODE),
             ]);
 
             $this->contractAudit->record(
@@ -133,6 +140,7 @@ class ContractPodpislonSendService
                 implode("\n", [
                     'Статус запроса: "created" → "failed"',
                     'Статус договора: "' . $oldContractStatus . '" → "' . $contract->status . '"',
+                    'Ошибка: ' . $message,
                 ]),
                 userId: (int) $contract->user_id,
                 authorId: $authorId,
@@ -143,9 +151,9 @@ class ContractPodpislonSendService
 
             return [
                 'success' => false,
-                'message' => 'Провайдер не подтвердил отправку SMS.',
+                'message' => $message,
                 'code'    => 'send_not_sent',
-                'links'   => $this->signingLinks($contract),
+                'links'   => $links,
             ];
         } catch (PodpislonCredentialsException $e) {
             $sr->delete();
@@ -163,7 +171,10 @@ class ContractPodpislonSendService
                 'contract_id'  => $contract->id,
                 'author_id'    => $authorId,
                 'type'         => 'failed',
-                'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
+                'payload_json' => json_encode([
+                    'message' => $e->getMessage(),
+                    'error'   => $e->getMessage(),
+                ], JSON_UNESCAPED_UNICODE),
             ]);
 
             $this->contractAudit->record(
@@ -328,6 +339,10 @@ class ContractPodpislonSendService
 
     private function pollForSent(Contract $contract): ?array
     {
+        if (!$contract->provider_doc_id) {
+            return null;
+        }
+
         for ($i = 0; $i < 3; $i++) {
             $doc = $this->fetchProviderDoc($contract);
             if ($this->isSentByProvider($doc)) {

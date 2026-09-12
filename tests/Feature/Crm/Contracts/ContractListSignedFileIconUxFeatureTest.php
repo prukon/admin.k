@@ -35,7 +35,8 @@ final class ContractListSignedFileIconUxFeatureTest extends ContractListSignedFi
             $html
         );
         $this->assertStringContainsString('signed_file: true', $html);
-        $this->assertStringContainsString("order: [[8, 'desc']]", $html);
+        $this->assertStringContainsString("order: [[1, 'desc']]", $html);
+        $this->assertStringNotContainsString("order: [[8, 'desc']]", $html);
         $this->assertStringNotContainsString("order: [[7, 'desc']]", $html);
     }
 
@@ -51,7 +52,7 @@ final class ContractListSignedFileIconUxFeatureTest extends ContractListSignedFi
         $this->assertStringContainsString('<th>Договор</th>', $html);
         $this->assertStringContainsString('data-column-key="signed_file"', $html);
         $this->assertStringContainsString('renderSignedContractFileCell', $html);
-        $this->assertStringContainsString("order: [[8, 'desc']]", $html);
+        $this->assertStringContainsString("order: [[1, 'desc']]", $html);
     }
 
     public function test_signed_file_cell_opens_download_in_new_tab_and_stays_empty_without_url(): void

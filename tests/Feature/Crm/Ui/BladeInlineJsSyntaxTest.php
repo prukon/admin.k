@@ -36,6 +36,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'admin users page' => ['admin/user.blade.php'];
         yield 'contract create modal' => ['contracts/partials/create-modal.blade.php'];
         yield 'contract show sync status ajax' => ['contracts/show.blade.php'];
+        yield 'contract list status error title js' => ['contracts/index.blade.php'];
         yield 'admin users parent form ajax handlers' => ['admin/users/_parent_form.blade.php'];
         yield 'admin trainers create welcome email ajax' => ['admin/trainers/index.blade.php'];
         yield 'admin role staff create welcome email ajax' => ['admin/role_staff/index.blade.php'];
@@ -7019,6 +7020,8 @@ JS;
         $this->assertStringContainsString("type: 'icon'", $index);
         $this->assertStringContainsString('fa-solid fa-file-pdf', $index);
         $this->assertStringContainsString('download_signed_url', $index);
+        $this->assertStringContainsString('row.status_error', $index);
+        $this->assertStringContainsString('titleAttr', $index);
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $indexPath,
             'js-contract-path-open',
@@ -7089,13 +7092,18 @@ JS;
         $this->assertStringContainsString('render: renderSignedContractFileCell', $colChunk);
         $this->assertStringNotContainsString('js-dt-nav-link', $colChunk);
 
-        $this->assertStringContainsString("order: [[8, 'desc']]", $index);
+        $this->assertStringContainsString("order: [[1, 'desc']]", $index);
+        $this->assertStringNotContainsString("order: [[8, 'desc']]", $index);
         $this->assertStringNotContainsString("order: [[7, 'desc']]", $index);
+        $this->assertStringContainsString("key: 'contract_number'", $index);
+        $this->assertStringContainsString('contract_number: true', $index);
         $this->assertStringContainsString('signed_file: true', $index);
         $this->assertStringContainsString('const canSeeFillExpiresAt = @json($canSeeFillExpiresAt);', $index);
         $this->assertStringContainsString('fill_expires_at: canSeeFillExpiresAt', $index);
         $this->assertStringContainsString("key: 'fill_expires_at'", $index);
         $this->assertStringContainsString('when: canSeeFillExpiresAt', $index);
+        $this->assertStringContainsString('row.fill_expires_remaining', $index);
+        $this->assertStringContainsString('fill_expires_remaining_warn', $index);
         $this->assertStringContainsString('data-column-key="fill_expires_at"', $index);
         $this->assertStringContainsString('id="colFillExpiresAt"', $index);
 
@@ -7103,6 +7111,48 @@ JS;
             $indexPath,
             'renderSignedContractFileCell',
             'blade-js-contract-signed-file-icon-contract'
+        );
+    }
+
+    /**
+     * P1: колонка «Номер договора» и вторая строка «Срок подписания» —
+     * data: id (не пустая ячейка), дефолт сортировки индекс 1, пустой остаток без второй строки.
+     */
+    public function test_contracts_list_number_and_remaining_days_inline_script_keeps_id_sort_and_empty_remaining_fallback(): void
+    {
+        $indexPath = resource_path('views/contracts/index.blade.php');
+        $this->assertFileExists($indexPath);
+        $index = (string) file_get_contents($indexPath);
+
+        $numberPos = strpos($index, "key: 'contract_number'");
+        $this->assertNotFalse($numberPos);
+        $this->assertGreaterThan(strpos($index, "{ type: 'rownum' }"), $numberPos);
+        $this->assertLessThan(strpos($index, "key: 'user_name'"), $numberPos);
+        $numberChunk = substr($index, $numberPos, 180);
+        $this->assertStringContainsString("type: 'text'", $numberChunk);
+        $this->assertStringContainsString("data: 'id'", $numberChunk);
+        $this->assertStringNotContainsString("type: 'rownum'", $numberChunk);
+        $this->assertStringNotContainsString('orderable: false', $numberChunk);
+
+        $this->assertStringContainsString('contract_number: true', $index);
+        $this->assertStringContainsString("order: [[1, 'desc']]", $index);
+        $this->assertStringNotContainsString("order: [[8, 'desc']]", $index);
+        $this->assertStringContainsString('placeholder="Имя, телефон, email, номер"', $index);
+
+        $fillPos = strpos($index, "key: 'fill_expires_at'");
+        $this->assertNotFalse($fillPos);
+        $fillChunk = substr($index, $fillPos, 2200);
+        $this->assertStringContainsString("if (type !== 'display')", $fillChunk);
+        $this->assertStringContainsString("const remaining = escapeHtml(row.fill_expires_remaining || '')", $fillChunk);
+        $this->assertStringContainsString('if (!remaining)', $fillChunk);
+        $this->assertStringContainsString('return date;', $fillChunk);
+        $this->assertStringContainsString("row.fill_expires_remaining_warn ? ' text-danger' : ' text-muted'", $fillChunk);
+        $this->assertStringNotContainsString('Осталось', $fillChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $indexPath,
+            'fill_expires_remaining',
+            'blade-js-contract-list-number-remaining'
         );
     }
 
@@ -9105,6 +9155,66 @@ JS;
             $path,
             'openResendModal',
             'blade-js-contract-show-resend-opener'
+        );
+    }
+
+    /**
+     * Оба opener'а (#openSendModal и #openResendModal) открывают один #sendModal;
+     * submit POST /send показывает json.message в #error-modal-message, не generic-only.
+     * Список: title бейджа только если status_error задан, через escapeHtml.
+     */
+    public function test_contract_send_failure_message_js_uses_json_message_and_list_title_only_when_set(): void
+    {
+        $showPath = resource_path('views/contracts/show.blade.php');
+        $this->assertFileExists($showPath);
+        $show = (string) file_get_contents($showPath);
+
+        $openSendStart = strpos($show, "document.getElementById('openSendModal')");
+        $this->assertNotFalse($openSendStart);
+        $openResendStart = strpos($show, "document.getElementById('openResendModal')");
+        $this->assertNotFalse($openResendStart);
+        $sendSubmitStart = strpos($show, "$('#sendSubmit').on('click'");
+        $this->assertNotFalse($sendSubmitStart);
+        $emailStart = strpos($show, "$('#emailSendSubmit').on('click'");
+        $this->assertNotFalse($emailStart);
+
+        $openSendChunk = substr($show, $openSendStart, $openResendStart - $openSendStart);
+        $this->assertStringContainsString('bsSendModal.show()', $openSendChunk);
+        $this->assertStringNotContainsString('$.ajax', $openSendChunk);
+        $this->assertStringNotContainsString('/send', $openSendChunk);
+        $this->assertStringNotContainsString('/resend', $openSendChunk);
+
+        $openResendChunk = substr($show, $openResendStart, $sendSubmitStart - $openResendStart);
+        $this->assertStringContainsString('bsSendModal.show()', $openResendChunk);
+        $this->assertStringNotContainsString('$.ajax', $openResendChunk);
+        $this->assertStringNotContainsString('/send', $openResendChunk);
+        $this->assertStringNotContainsString('/resend', $openResendChunk);
+
+        $sendChunk = substr($show, $sendSubmitStart, $emailStart - $sendSubmitStart);
+        $this->assertStringContainsString("url: '/client-contracts/' + contractId + '/send'", $sendChunk);
+        $this->assertStringContainsString('function onSendFailure(resp)', $sendChunk);
+        $this->assertStringContainsString('var msg = json.message ? json.message : \'Ошибка.\';', $sendChunk);
+        $this->assertStringContainsString("$('#error-modal-message').text(msg)", $sendChunk);
+        $this->assertStringNotContainsString('/resend', $sendChunk);
+        $this->assertStringNotContainsString('location.reload()', $sendChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $showPath,
+            '$(\'#error-modal-message\').text(msg)',
+            'blade-js-contract-show-send-failure-message'
+        );
+
+        $indexPath = resource_path('views/contracts/index.blade.php');
+        $this->assertFileExists($indexPath);
+        $index = (string) file_get_contents($indexPath);
+        $this->assertStringContainsString("row.status_error ? escapeHtml(row.status_error) : ''", $index);
+        $this->assertStringContainsString("const titleAttr = statusError ? ' title=\"' + statusError + '\"' : ''", $index);
+        $this->assertStringContainsString('.replace(/</g, \'&lt;\')', $index);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $indexPath,
+            'row.status_error',
+            'blade-js-contract-list-status-error-title'
         );
     }
 

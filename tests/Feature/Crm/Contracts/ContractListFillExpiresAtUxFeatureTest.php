@@ -22,7 +22,9 @@ final class ContractListFillExpiresAtUxFeatureTest extends ContractsFeatureTestC
         $this->assertStringNotContainsString('id="colFillExpiresAt"', $html);
         $this->assertStringContainsString('const canSeeFillExpiresAt = false;', $html);
         $this->assertStringContainsString('when: canSeeFillExpiresAt', $html);
-        $this->assertStringContainsString("order: [[8, 'desc']]", $html);
+        $this->assertStringContainsString('<th>Номер договора</th>', $html);
+        $this->assertStringContainsString("order: [[1, 'desc']]", $html);
+        $this->assertStringNotContainsString("order: [[8, 'desc']]", $html);
     }
 
     public function test_index_shows_fill_expires_column_and_columns_toggle_with_permission(): void
@@ -54,7 +56,10 @@ final class ContractListFillExpiresAtUxFeatureTest extends ContractsFeatureTestC
         $this->assertStringContainsString('fill_expires_at: canSeeFillExpiresAt', $html);
         $this->assertStringContainsString("key: 'fill_expires_at'", $html);
         $this->assertStringContainsString('when: canSeeFillExpiresAt', $html);
-        $this->assertStringContainsString("order: [[8, 'desc']]", $html);
+        $this->assertStringContainsString('row.fill_expires_remaining', $html);
+        $this->assertStringContainsString('fill_expires_remaining_warn', $html);
+        $this->assertStringContainsString("order: [[1, 'desc']]", $html);
+        $this->assertStringNotContainsString("order: [[8, 'desc']]", $html);
     }
 
     public function test_admin_without_permission_does_not_see_fill_expires_column(): void

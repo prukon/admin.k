@@ -32,10 +32,12 @@
     · колокольчик при signed: <a href="/doc#contract-signed-in-app-index">анонс</a>
     · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">анонс</a>
     · памятка статусов: <a href="/doc#contract-status-memo-index">анонс</a>
+    · колонка «Номер договора» и остаток дней: <a href="/doc#contract-list-number-and-fill-remaining-index">анонс</a>
     · колонка «Обновлён»: <a href="/doc#contract-list-updated-at-index">анонс</a>
     · колонка «Срок подписания»: <a href="/doc#contract-list-fill-expires-at-index">анонс</a>
     · иконка подписанного PDF в списке: <a href="/doc#contract-list-signed-file-index">анонс</a>
     · ссылка Подпислона из SMS: <a href="/doc#contract-podpislon-signing-url-index">анонс</a>
+    · текст ошибки Подпислона в CRM: <a href="/doc#contract-send-failure-message-index">анонс</a>
     · телефон в PDF с маской: <a href="/doc#account-contract-phone-mask-index">анонс</a>
     · списание 70 ₽ в историю кошелька: <a href="/doc#partner-wallet-ledger-index">анонс</a></div>
 
@@ -63,11 +65,11 @@
       <tr><td>POST</td><td><code>/client-contracts/check-balance</code></td><td>Предпроверка баланса перед submit модалки создания</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/users-search</code></td><td>AJAX Select2: поиск учеников (в т.ч. <code>parent_full_name</code> для модалки)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
-      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)», <code>download_signed_url</code> — URL <code>GET …/download-signed</code> или <code>null</code>, если <code>signed_pdf_path</code> пуст. Колонка «Обновлён» (<code>updated_at</code> в JSON) — <code>created_at</code> последнего события журнала этого договора (<code>contract_events</code>, максимальный <code>id</code>, как на карточке), формат <code>d.m.Y H:i:s</code>; не поле <code>contracts.updated_at</code>. При создании через UI всегда есть событие <code>created</code>. Без событий — пустая строка. Сортировка этой колонки — по дате события, без событий в конце. Колонка «Срок подписания» (<code>fill_expires_at</code> в JSON) — только при скрытом праве <code>contracts.fillExpiresAt.view</code>: дата и время <code>contracts.fill_expires_at</code> в формате <code>d.m.Y H:i:s</code>; без права ключа в JSON нет; <code>null</code> срок — пустая ячейка</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>id</code> (колонка «Номер договора»), <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>status_error</code> — текст отказа Подпислона при <code>failed</code> иначе <code>null</code> (<a href="/doc#contract-send-failure-message-index">анонс</a>), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)», <code>download_signed_url</code> — URL <code>GET …/download-signed</code> или <code>null</code>, если <code>signed_pdf_path</code> пуст. Колонка «Обновлён» (<code>updated_at</code> в JSON) — <code>created_at</code> последнего события журнала этого договора (<code>contract_events</code>, максимальный <code>id</code>, как на карточке), формат <code>d.m.Y H:i:s</code>; не поле <code>contracts.updated_at</code>. При создании через UI всегда есть событие <code>created</code>. Без событий — пустая строка. Сортировка этой колонки — индекс 9, по дате события, без событий в конце. Дефолт списка — индекс 1 (<code>contracts.id</code> desc). Колонка «Срок подписания» (<code>fill_expires_at</code> в JSON) — только при скрытом праве <code>contracts.fillExpiresAt.view</code>: дата и время <code>contracts.fill_expires_at</code> в формате <code>d.m.Y H:i:s</code> и вторая строка остатка дней (<code>fill_expires_remaining</code> / <code>fill_expires_remaining_warn</code>); без права этих ключей в JSON нет; <code>null</code> срок — пустая ячейка</td></tr>
       <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/logs-data</code> (<code>logs.data.contract</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract</code>)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
-      <tr><td>POST</td><td><code>/client-contracts/{contract}/send</code></td><td>Отправка на подпись (SMS): первая или повтор при уже существующем <code>provider_doc_id</code>. Модалка карточки (<code>#sendSubmit</code>) всегда бьёт сюда, не на <code>/resend</code>. Пишет <code>provider_signing_url</code>, если Подпислон вернул <code>contacts[].link</code></td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/send</code></td><td>Отправка на подпись (SMS): первая или повтор при уже существующем <code>provider_doc_id</code>. Модалка карточки (<code>#sendSubmit</code>) всегда бьёт сюда, не на <code>/resend</code>. Пишет <code>provider_signing_url</code>, если Подпислон вернул <code>contacts[].link</code>. HTTP 200 + JSON <code>status: false</code> — JSON 422 <code>code: send_not_sent</code> и текст в UI (§<a href="#contract-send-failure-message">3.1.2</a>), не ложное «Отправлено СМС»</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/resend</code></td><td>Легаси-повтор без ФИО/телефона (нужен последний <code>contract_sign_requests</code>). Тоже пишет <code>provider_signing_url</code>. Не путать с кабинетом: <code>POST /account-settings/documents/contracts/{contract}/resend-sms</code> — без смены номера, не при <code>failed</code> (<a href="/doc#account-documents-resend-sms-index">анонс</a>)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/send-email</code></td><td>Отправка PDF на email</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/download-original</code></td><td>Скачивание неподписанного PDF</td></tr>
@@ -118,8 +120,9 @@
     <br><br>
     Штатное создание через UI всегда пишет событие <code>created</code> («Создан»)
     в <code>ContractCreationService</code>. Без строк в <code>contract_events</code> —
-    пустая ячейка. Сортировка колонки (индекс 8 DataTables) — по этой дате,
-    без событий в конце. Timeline «(посмотреть)» эту колонку не использует.
+    пустая ячейка. Сортировка колонки (индекс 9 DataTables) — по этой дате,
+    без событий в конце. Дефолт списка — индекс 1 («Номер договора»), не эта колонка.
+    Timeline «(посмотреть)» эту колонку не использует.
     Анонс: <a href="/doc#contract-list-updated-at-index">/doc</a>.
   </div>
 
@@ -132,19 +135,39 @@
     <code>2026_09_12_062900_add_contracts_fill_expires_at_view_permission</code> ролям не выдаёт).
     Superadmin видит колонку через <code>Gate::before</code>.
     В матрице «Права и роли» чекбокс права видит только superadmin.
-    DataTables: <code>when: canSeeFillExpiresAt</code>, дефолт сортировки списка остаётся
-    индексом 8 («Обновлён»). С правом колонка стоит после «Обновлён» (индекс 9), сортировка
+    DataTables: <code>when: canSeeFillExpiresAt</code>, дефолт сортировки списка — индекс 1
+    («Номер договора», <a href="/doc#contract-list-number-and-fill-remaining-index">анонс</a>).
+    С правом колонка стоит после «Обновлён» (индекс 10), сортировка
     по <code>contracts.fill_expires_at</code>, пустые в конце.
     <br><br>
     Значение в <code>GET /client-contracts/data</code> — <code>contracts.fill_expires_at</code>
     в формате <code>d.m.Y H:i:s</code> (дата и время дедлайна заполнения/подписания,
     при создании по шаблону <code>now() + FILL_TTL_DAYS</code>). Без срока — пустая ячейка.
-    Без права ключ <code>fill_expires_at</code> в JSON не отдаётся.
+    Вторая строка той же ячейки — короткий остаток календарных дней:
+    «N день/дня/дней», сегодня — «Последний день» (<code>CLIENT_FILL_REMAINING_LAST_DAY</code>),
+    просрочка — «Срок истек.» (<code>SCHOOL_LIST_FILL_REMAINING_EXPIRED</code>)
+    (<code>schoolListFillRemainingDaysLabel()</code>; JSON
+    <code>fill_expires_remaining</code> / <code>fill_expires_remaining_warn</code>).
+    У <code>signed</code> и без срока второй строки нет. Меньше 6 дней и «Срок истек.» —
+    <code>text-danger</code>. Без права ключей <code>fill_expires_at</code>,
+    <code>fill_expires_remaining</code> и <code>fill_expires_remaining_warn</code> в JSON нет.
     Это не строка «Срок заполнения» на карточке договора (§<a href="#contract-card-fill-expires">2.1</a>:
     template + непустой срок, формат <code>d.m.Y H:i</code>, достаточно <code>contracts.view</code>)
-    и не «оставшиеся дни» кабинета родителя
+    и не подпись ЛК «Осталось N дней»
     (<a href="/doc#account-documents-fill-remaining-days-index">анонс ЛК</a>).
-    Анонс: <a href="/doc#contract-list-fill-expires-at-index">/doc</a>.
+    Анонс колонки: <a href="/doc#contract-list-fill-expires-at-index">/doc</a>;
+    остаток дней и номер: <a href="/doc#contract-list-number-and-fill-remaining-index">/doc</a>.
+  </div>
+
+  <h3 id="contract-list-number">1.5) Колонка «Номер договора» в списке</h3>
+  <div class="note">
+    Заголовок — «Номер договора» (после «№»), чекбокс <code>#colContractNumber</code>,
+    ключ настроек <code>data-column-key="contract_number"</code>, дефолт включён.
+    Значение — <code>contracts.id</code> (поле <code>id</code> в JSON, отдельного ключа нет).
+    Колонка «№» (порядковый номер строки, <code>type: 'rownum'</code>) остаётся.
+    Поиск <code>search_value</code> включает этот id. Сортировка колонки — индекс 1,
+    дефолт таблицы <code>order: [[1, 'desc']]</code>.
+    Анонс: <a href="/doc#contract-list-number-and-fill-remaining-index">/doc</a>.
   </div>
 
   <h2 id="contract-parent">2) Родитель и ученик на карточке договора</h2>
@@ -169,7 +192,7 @@
       <tr><td>Родитель</td><td><code>$student->parent_full_name</code> (из <code>parents</code> через <code>parentProfile</code>) или «—»</td></tr>
       <tr><td>Ученик</td><td><code>$student->full_name</code> (фамилия + имя ученика)</td></tr>
       <tr><td>Группа</td><td>На карточке — все текущие группы ученика через запятую (<code>TeamUserSyncService::teamTitlesLabel</code>, pivot). В списке договоров — снимок <code>contracts.group_id</code> → <code>teams.title</code>.</td></tr>
-      <tr><td>Статус</td><td>бейдж <code>school_status_ru</code>: <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»; остальные — как <code>Contract::$STATUS_RU</code></td></tr>
+      <tr><td>Статус</td><td>бейдж <code>school_status_ru</code>: <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»; остальные — как <code>Contract::$STATUS_RU</code>. При <code>failed</code> под бейджем — <code>#contract-status-error</code> с текстом Подпислона (<code>Contract::lastFailureMessage()</code>, §<a href="#contract-send-failure-message">3.1.2</a>)</td></tr>
       <tr><td>Ссылка на подпись</td><td>только если <code>Contract::providerSigningUrl()</code> не пуст: <code>contracts.provider_signing_url</code> после whitelist <code>https://podpislon.ru/sign/pack/{id}/{hex}</code>. <code>&lt;a id="contract-provider-signing-url" target="_blank" rel="noopener noreferrer"&gt;</code>. Без URL строки нет. Анонс: <a href="/doc#contract-podpislon-signing-url-index">/doc</a>, §<a href="#contract-podpislon-signing-url">3.1.1</a></td></tr>
       <tr><td>Способ создания</td><td>template — «Форма клиента (шаблон …)»; иначе «Готовый PDF»</td></tr>
       <tr id="contract-card-fill-expires"><td>Срок заполнения</td><td>только template и непустой <code>fill_expires_at</code>: <code>d.m.Y H:i</code> (без секунд). Право только <code>contracts.view</code> (карточка), не <code>contracts.fillExpiresAt.view</code>. Колонка списка — другое имя и формат, §<a href="#contract-list-fill-expires-at">1.4</a>, анонс <a href="/doc#contract-list-fill-expires-at-index">/doc</a></td></tr>
@@ -191,6 +214,9 @@
     этого договора, <code>orderBy('id', 'desc')</code>. Колонки: №, Автор
     (<code>author_fio</code>: сотрудник / клиент / «Система»), Событие (<code>type_ru</code>),
     Дата (<code>created_at</code>, <code>d.m.Y H:i:s</code>).
+    У событий <code>failed</code> / <code>resend_failed</code> под названием — красный
+    <code>.contract-event-error</code> с <code>ContractEvent::userFacingMessage()</code>
+    (ключ <code>message</code>, иначе <code>res.raw.message</code> / <code>error</code>).
     Верхняя строка журнала — та же дата, что колонка «Обновлён» в списке (§<a href="#contract-list-updated-at">1.3</a>).
     Это не аудит <code>my_logs</code> (§<a href="#contracts-audit">1.2</a>).
   </div>
@@ -216,6 +242,9 @@
     (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>).
     Резолюция юр. лица — <code>LegalEntityResolver::forTeamId(group_id, school_id)</code>; при 2+ юр. лицах без явной привязки группы отправка блокируется (422).
     Без ключа — 422, статус договора не меняется на <code>failed</code>. После первой отправки пишется <code>contracts.legal_entity_id</code>.<br>
+    HTTP 200 с JSON <code>status: false</code> — отказ, не успех: событие <code>sent</code> не пишется,
+    UUID в <code>provider_request_id</code> не подставляется, текст <code>message</code> уходит в UI
+    (§<a href="#contract-send-failure-message">3.1.2</a>, <a href="/doc#contract-send-failure-message-index">анонс</a>).<br>
     В <code>PUT /add-document</code> передаются <code>name</code> (имя), <code>last_name</code> (фамилия), <code>second_name</code> (отчество), <code>phone</code> — из данных формы отправки (оператор может изменить перед SMS), не напрямую из БД после отправки.<br>
     После отправки в <code>contract_sign_requests</code> фиксируется снимок подписанта; сменить подписанта у уже созданного договора нельзя — только новый договор или новая отправка с новыми данными в форме.<br>
     Вебхук: <code>POST /webhooks/podpislon</code> (имя <code>webhooks.podpislon</code>), без CSRF,
@@ -254,6 +283,36 @@
     <a href="/doc#account-documents-resend-sms-index">анонс</a>.
   </div>
 
+  <h3 id="contract-send-failure-message">3.1.2) Текст ошибки Подпислона в CRM</h3>
+  <div class="note">
+    Анонс: <a href="/doc#contract-send-failure-message-index">/doc</a>.
+    <code>PUT /add-document</code> может вернуть HTTP 200 и JSON
+    <code>{"status":false,"message":"Не выбран провайдер отправки смс."}</code>.
+    Это отказ: документ не создан, SMS не ушла.
+    <code>PodpislonProvider::send()</code> не пишет <code>sent</code>, не ставит UUID
+    в <code>provider_request_id</code>, после <code>status: false</code> не делает JSON-fallback.
+    <code>ContractPodpislonSendService</code> ставит договор в <code>failed</code>,
+    событие <code>failed</code> с <code>payload_json.message</code> и сырым <code>res</code>,
+    JSON 422 <code>message</code> + <code>code: send_not_sent</code>.
+    <code>pollForSent</code> без <code>provider_doc_id</code> сразу <code>null</code> (без паузы 3×300&nbsp;мс).
+    <br><br>
+    Карточка: <code>#contract-status-error</code> только при текущем <code>failed</code>
+    и непустом <code>Contract::lastFailureMessage()</code> (последнее событие
+    <code>failed</code>/<code>resend_failed</code>); при <code>sent</code> старое failed-событие в журнале остаётся, под бейджем строки нет.
+    Журнал: <code>.contract-event-error</code>, если <code>userFacingMessage()</code> не пустой
+    (в том числе старый payload без ключа <code>message</code>: <code>res.raw.message</code> / <code>error</code>);
+    у типичного <code>sent</code> текста нет — блока нет.
+    Список: JSON <code>status_error</code> (<code>null</code>, если не <code>failed</code> или текста нет),
+    бейдж с <code>title</code> только если текст есть, без новой колонки.
+    Модалка: и «Отправить СМС», и «Повторно отправить» открывают один <code>#sendModal</code> и POST <code>/send</code>
+    (не <code>/resend</code>); <code>onSendFailure</code> пишет <code>json.message</code> в <code>#error-modal-message</code>.
+    Native POST <code>/send</code> без <code>X-Requested-With</code> тоже JSON 422 (не 302 на список).
+    Нет <code>message</code> в ответе Подпислона — generic «Провайдер не подтвердил отправку SMS.»
+    Кабинет родителя <code>#contract-status-error</code> не рисует;
+    <code>account.documents.sign</code> при отказе — 302 с <code>errors.sign</code>, не JSON 422 CRM
+    (<a href="/docs/documentation/account-contract-fill">account-contract-fill</a>).
+  </div>
+
   <h2 id="contracts-pdf-download">4) Скачивание PDF в интерфейсе</h2>
   <div class="note">
     Три места, критерии разные. Не смешивать список, карточку CRM и кабинет.
@@ -277,13 +336,15 @@
   <h2 id="contracts-list-table">4.1) Таблица списка договоров</h2>
   <p>View: <code>resources/views/contracts/index.blade.php</code>, таблица <code>#contracts-table</code>, пресет <code>KidsCrmDataTable</code>.</p>
   <ul>
+    <li>Колонка «Номер договора» (<code>contract_number</code>) — <code>contracts.id</code>, см. §<a href="#contract-list-number">1.5</a>.</li>
     <li>Колонка «Имя» (<code>user_name</code>) — <code>type: 'link'</code>, класс <code>js-dt-nav-link</code>, атрибут <code>data-href="/client-contracts/{id}"</code>; клик открывает карточку договора (<code>GET /client-contracts/{id}</code>).</li>
     <li>После инициализации таблицы вызывается <code>KidsCrmDataTable.bindNavLinks(contractsTableEl)</code> (с inline fallback в blade).</li>
-    <li>Колонка «Статус» — бейдж и ссылка «(посмотреть)».</li>
+    <li>Колонка «Статус» — бейдж и ссылка «(посмотреть)»; при <code>failed</code> у бейджа <code>title</code> из <code>status_error</code>.</li>
     <li>Колонка «Договор» — иконка подписанного PDF, см. §<a href="#contract-list-signed-file">4.1.1</a>.</li>
     <li>Колонка «Действия» — кнопка «Подробнее» с обычным <code>href</code> (дублирует переход).</li>
     <li>Backend <code>GET /client-contracts/data</code> отдаёт поле <code>id</code> в каждой строке (нужно для <code>data-href</code>)
       и <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»),
+      <code>status_error</code> при <code>failed</code>,
       <code>download_signed_url</code> при заполненном <code>signed_pdf_path</code>.</li>
   </ul>
   <p class="small">Общий паттерн кликабельных названий — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</p>
@@ -308,7 +369,8 @@
     (<a href="/docs/documentation/admin-users#user-contract-column">admin-users §2.3</a>:
     PDF при статусе <code>signed</code> открывает карточку в той же вкладке).
     Без файла на диске download-signed → 302 <code>errors.file</code>.
-    Сортировка «Обновлён» из‑за этой колонки — индекс 8 DataTables (не 7).
+    Сортировка «Обновлён» из‑за вставки колонок — индекс 9 DataTables (не 8).
+    Дефолт списка — индекс 1 («Номер договора»).
   </div>
 
   <h2 id="contract-status-memo">4.2) Памятка по статусам</h2>
@@ -616,6 +678,13 @@
       <li><code>ContractsIndexAccessFeatureTest.php</code>, <code>ContractsAccessTest.php</code></li>
       <li><code>ContractsParentAndAccessTest.php</code> — родитель на show, подписант</li>
       <li><code>ContractsSigningTest.php</code>, <code>PodpislonCredentialsHttpFeatureTest.php</code>, <code>PodpislonCredentialsResolverTest.php</code> — ключ юрлица, 422 без ключа / без юрлица, <code>X-Api-Key</code> не из <code>.env</code></li>
+      <li><code>ContractSendFailureMessageAccessFeatureTest.php</code> — гость 302/401 и native POST без смены статуса; без <code>contracts.view</code> / тренер 403 без утечки текста; чужая школа не видит <code>status_error</code> и не send; без организации не 200; viewer — карточка и data</li>
+      <li><code>ContractSendFailureMessageFullAccessFeatureTest.php</code> — admin/superadmin видят <code>#contract-status-error</code> и <code>status_error</code> в data; admin AJAX send 422; GET/PUT/PATCH/DELETE send и POST/PUT/PATCH/DELETE show/data → 404/405</li>
+      <li><code>ContractSendFailureMessageAjaxContractFeatureTest.php</code> — AJAX send HTTP 200 <code>status: false</code> → 422 <code>message</code> Подпислона, без события <code>sent</code>, один <code>/add-document</code>, GET карточки после отказа без «Отправлено СМС»; 422 <code>errors.signer_lastname</code> / <code>errors.signer_firstname</code> / <code>errors.signer_phone</code> / <code>errors.podpislon_api_key</code> статус не <code>failed</code>; отказ без <code>message</code> → generic; успешный send — 200 и <code>status_error: null</code></li>
+      <li><code>ContractSendFailureMessageNonAjaxSafetyNetFeatureTest.php</code> — native POST send 422 с текстом (не 302); native 422 <code>errors.signer_lastname</code>; гость native POST не failed; native GET карточки, data и index JS <code>titleAttr</code></li>
+      <li><code>ContractSendFailureMessageUxFeatureTest.php</code> — <code>#contract-status-error</code> под бейджем, <code>#openResendModal</code> при failed; скрыто если не failed / пустой payload / статус sent при старом failed; журнал <code>sent</code> без ошибки, <code>resend_failed</code> с текстом; XSS escape; кабинет без строки; <code>title</code> бейджа только при <code>status_error</code>; legacy payload без ключа <code>message</code></li>
+      <li><code>ContractEventFailureMessageTest.php</code> — разбор <code>res.raw.message</code> / <code>message</code> / <code>error</code></li>
+      <li><code>ContractSendFailureMessageDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>PodpislonSigningUrlTest.php</code> — whitelist <code>https://podpislon.ru/sign/pack/…</code>, <code>contacts[].link</code> / <code>links</code>, чужой хост</li>
       <li><code>ContractPodpislonSigningUrlFeatureTest.php</code> — send пишет URL и карточка после reload его показывает; sync при уже <code>sent</code> (UX-баг старых договоров); POST <code>/send</code> при уже существующем пакете и POST <code>/resend</code>; чужой хост и ответ без <code>contacts[].link</code> не пишут URL</li>
       <li><code>ContractPodpislonSigningUrlAccessFeatureTest.php</code> — гость 302 / JSON 401; без <code>contracts.view</code> / тренер / чужая школа → 403; viewer без sync видит ссылку, GET status 403 и URL не пишет</li>
@@ -631,14 +700,14 @@
       <li><code>PodpislonWebhookTest.php</code> — пустой POST проба 200 без <code>?token=</code> и с ним (токен игнорируется); события требуют <code>SIGNATURE</code> Подпислона</li>
       <li><code>PodpislonWebhookUrlCheckFeatureTest.php</code> — UX кабинета Подпислона: гость, без CSRF, без права CRM, URL без <code>?token=</code> даёт 200 JSON <code>probe</code> (не логин/419/403); токен в path — 404; query-токен не заменяет <code>SIGNATURE</code>; GET/PUT/PATCH/DELETE не 500</li>
       <li><code>ContractsSyncFeatureTest.php</code></li>
-      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code> — в data <code>status_label</code> для sent/opened = «Отправлено СМС» / «Открыто СМС»; <code>download_signed_url</code> только при заполненном <code>signed_pdf_path</code> (в т.ч. revoked); колонка «Обновлён» = последнее <code>contract_events.created_at</code> (max <code>id</code>), не <code>contracts.updated_at</code>; совпадает с верхней строкой журнала на карточке; сортировка колонки (индекс 8); без событий — пустая строка; колонка «Срок подписания» (<code>fill_expires_at</code>) только при <code>contracts.fillExpiresAt.view</code>, формат <code>d.m.Y H:i:s</code>, без права ключа в JSON нет, сортировка индекса 9 с правом</li>
+      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code> — в data <code>status_label</code> для sent/opened = «Отправлено СМС» / «Открыто СМС»; <code>download_signed_url</code> только при заполненном <code>signed_pdf_path</code> (в т.ч. revoked); колонка «Обновлён» = последнее <code>contract_events.created_at</code> (max <code>id</code>), не <code>contracts.updated_at</code>; совпадает с верхней строкой журнала на карточке; сортировка колонки (индекс 9); без событий — пустая строка; дефолт списка индекс 1 (<code>contracts.id</code> desc); поиск по id; колонка «Срок подписания» (<code>fill_expires_at</code>) только при <code>contracts.fillExpiresAt.view</code>, формат <code>d.m.Y H:i:s</code> + <code>fill_expires_remaining</code> / <code>fill_expires_remaining_warn</code>, без права ключей в JSON нет, сортировка индекса 10 с правом</li>
       <li><code>ContractListUpdatedAtDocumentationContractTest.php</code> — анонс /doc, §1.3 / §2.3, <code>ContractTableController</code>, заголовок в blade: «Обновлён» из журнала, не <code>contracts.updated_at</code></li>
       <li><code>ContractListSignedFileIconDocumentationContractTest.php</code> — анонс /doc, §4.1.1, иконка PDF в списке, <code>download_signed_url</code>, <code>renderSignedContractFileCell</code></li>
       <li><code>ContractListSignedFileIconAccessFeatureTest.php</code> — гость 302/401, без <code>contracts.view</code> / тренер 403, чужая школа не видит URL и не скачивает, viewer 200 + файл</li>
       <li><code>ContractListSignedFileIconFullAccessFeatureTest.php</code> — admin/superadmin 200; POST/PUT/PATCH/DELETE на data и download-signed → 404/405, не 500</li>
       <li><code>ContractListSignedFileIconAjaxContractFeatureTest.php</code> — JSON <code>download_signed_url</code> только при заполненном <code>signed_pdf_path</code> (signed без файла / пустой путь — <code>null</code>; revoked и draft с файлом — URL); путь файла не утекает; 422 <code>errors.length</code> / <code>errors.columns</code>; скрытие колонки сохраняется</li>
       <li><code>ContractListSignedFileIconNonAjaxSafetyNetFeatureTest.php</code> — native GET data/download без X-Requested-With: файл 200, без пути 302 <code>errors.file</code>, не пустой 200</li>
-      <li><code>ContractListSignedFileIconUxFeatureTest.php</code> — колонка после «Статус», пустая ячейка без URL, не <code>js-dt-nav-link</code>, сортировка «Обновлён» индекс 8 (не 7), имя по-прежнему на карточку</li>
+      <li><code>ContractListSignedFileIconUxFeatureTest.php</code> — колонка после «Статус», пустая ячейка без URL, не <code>js-dt-nav-link</code>, дефолт сортировки индекс 1 (номер договора), имя по-прежнему на карточку</li>
       <li><code>BladeInlineJsSyntaxTest.php</code> — <code>renderSignedContractFileCell</code>: fallback <code>return ''</code>, <code>renderIcon</code>, не переход в той же вкладке</li>
       <li><code>ContractSchoolStatusLabelFeatureTest.php</code> — школьные подписи sent/opened в таблице, фильтре и на карточке; guest 302 / без права 403; чужой партнёр 403</li>
       <li><code>ContractSchoolStatusLabelTest.php</code> — <code>schoolStatusLabel</code> не меняет <code>$STATUS_RU</code></li>
@@ -664,10 +733,17 @@
     </ul>
     <p><b>Раздел «Документы» (вкладки + шаблоны):</b></p>
     <ul>
-      <li><code>ContractsDocumentsSectionUiFeatureTest.php</code> — вкладки, тулбар, колонка «Обновлён» (<code>&lt;th&gt;</code>, <code>#colUpdatedAt</code>), колонка «Договор» (<code>#colSignedFile</code>, <code>type: 'icon'</code>), без права нет колонки «Срок подписания»</li>
-      <li><code>ContractListFillExpiresAtUxFeatureTest.php</code> — колонка и пункт «Колонки» только при <code>contracts.fillExpiresAt.view</code>; admin/trainer/чужая школа без права; superadmin видит без выдачи</li>
+      <li><code>ContractsDocumentsSectionUiFeatureTest.php</code> — вкладки, тулбар, колонка «Номер договора», колонка «Обновлён» (<code>&lt;th&gt;</code>, <code>#colUpdatedAt</code>), колонка «Договор» (<code>#colSignedFile</code>, <code>type: 'icon'</code>), без права нет колонки «Срок подписания»</li>
+      <li><code>ContractListFillExpiresAtUxFeatureTest.php</code> — колонка и пункт «Колонки» только при <code>contracts.fillExpiresAt.view</code>; вторая строка остатка дней; admin/trainer/чужая школа без права; superadmin видит без выдачи</li>
       <li><code>ContractsFillExpiresAtPermissionCatalogFeatureTest.php</code> — скрытое право, не в базовых ролях, миграция без backfill</li>
       <li><code>ContractListFillExpiresAtDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
+      <li><code>ContractListNumberAndFillRemainingDocumentationContractTest.php</code> — анонс номера, остатка дней и дефолта по id</li>
+      <li><code>ContractSchoolListFillRemainingDaysTest.php</code> — короткая подпись «N дня» / «Последний день» / «Срок истек.»</li>
+      <li><code>ContractListNumberAndFillRemainingAccessFeatureTest.php</code> — гость 302/401, без <code>contracts.view</code> / тренер 403; viewer видит «Номер договора», без <code>fillExpiresAt.view</code> ключей остатка нет; с правом — «2 дня»; поиск по id чужой школы не утекает</li>
+      <li><code>ContractListNumberAndFillRemainingFullAccessFeatureTest.php</code> — admin 200 + номер; superadmin видит остаток без выдачи права; POST/PUT/PATCH/DELETE на data и columns-settings → 404/405, не 500</li>
+      <li><code>ContractListNumberAndFillRemainingAjaxContractFeatureTest.php</code> — JSON <code>id</code> / <code>fill_expires_remaining</code> (2 дня, 6 дней без красного, «Последний день», «Срок истек.», signed/PDF пустая вторая строка); без права ключей нет; поиск по id свой/чужой; 422 <code>errors.length</code> / <code>errors.search_value</code> / <code>errors.columns</code>; скрытие колонки сохраняется; сортировка индекса 1</li>
+      <li><code>ContractListNumberAndFillRemainingNonAjaxSafetyNetFeatureTest.php</code> — native GET data без X-Requested-With: id и остаток, не пустой 200; native POST columns сохраняет флаг; пустой POST → 422 <code>errors.columns</code>; гость не 200</li>
+      <li><code>ContractListNumberAndFillRemainingUxFeatureTest.php</code> — первое открытие: «№» / «Номер договора» / «Имя», <code>data: 'id'</code>, дефолт <code>[[1, 'desc']]</code> даже с колонкой срока; <code>?create=1</code> не сбрасывает; пустой остаток без второй строки, не «Осталось»; скрытая колонка не форсится; legacy settings без ключа не пишут false</li>
       <li><code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — вкладки, email API, маркеры <code>js-dt-nav-link</code>, поля <code>id</code>/<code>user_name</code> в data</li>
       <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное имя в списке договоров + show 200</li>
     </ul>

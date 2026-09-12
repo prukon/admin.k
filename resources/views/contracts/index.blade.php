@@ -95,6 +95,15 @@
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
                                            type="checkbox"
+                                           data-column-key="contract_number"
+                                           id="colContractNumber"
+                                           checked>
+                                    <label class="form-check-label" for="colContractNumber">Номер договора</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
                                            data-column-key="user_name"
                                            id="colUserName"
                                            checked>
@@ -198,7 +207,7 @@
                         <input id="filter-search"
                                class="form-control"
                                type="text"
-                               placeholder="Имя, телефон, email">
+                               placeholder="Имя, телефон, email, номер">
                     </div>
 
                     <div class="col-12 col-md-3">
@@ -245,6 +254,7 @@
                 <thead>
                 <tr>
                     <th>№</th>
+                    <th>Номер договора</th>
                     <th>Имя</th>
                     <th>Фамилия</th>
                     <th>Группа</th>
@@ -326,6 +336,7 @@
             const dtApi = KidsCrmDataTable.create('#contracts-table', {
                 columnsSettings: {
                     defaults: {
+                        contract_number: true,
                         user_name: true,
                         user_lastname: true,
                         team_title: true,
@@ -356,11 +367,12 @@
                             d.status = params.status;
                         },
                     },
-                    order: [[8, 'desc']],
+                    order: [[1, 'desc']],
                     language: @include('partials.datatables.ru'),
                 },
                 columns: [
                     { type: 'rownum' },
+                    { key: 'contract_number', type: 'text', data: 'id', className: 'dt-col-text text-nowrap' },
                     {
                         key: 'user_name',
                         type: 'link',
@@ -398,7 +410,9 @@
                             const badgeClass = escapeHtml(row.status_badge_class || 'bg-secondary');
                             const label = escapeHtml(data || '');
                             const contractId = escapeHtml(row.id);
-                            return '<span class="badge ' + badgeClass + '">' + label + '</span>'
+                            const statusError = row.status_error ? escapeHtml(row.status_error) : '';
+                            const titleAttr = statusError ? ' title="' + statusError + '"' : '';
+                            return '<span class="badge ' + badgeClass + '"' + titleAttr + '>' + label + '</span>'
                                 + ' <a href="#" class="js-contract-path-open small text-nowrap" data-contract-id="' + contractId + '">(посмотреть)</a>';
                         },
                     },
@@ -418,6 +432,33 @@
                         data: 'fill_expires_at',
                         when: canSeeFillExpiresAt,
                         className: 'dt-col-text text-nowrap',
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+
+                            const escapeHtml = window.KidsCrmTooltip && typeof window.KidsCrmTooltip.escapeHtml === 'function'
+                                ? window.KidsCrmTooltip.escapeHtml
+                                : function (value) {
+                                    return String(value == null ? '' : value)
+                                        .replace(/&/g, '&amp;')
+                                        .replace(/</g, '&lt;')
+                                        .replace(/>/g, '&gt;')
+                                        .replace(/"/g, '&quot;');
+                                };
+                            const date = escapeHtml(data || '');
+                            if (!date) {
+                                return '';
+                            }
+
+                            const remaining = escapeHtml(row.fill_expires_remaining || '');
+                            if (!remaining) {
+                                return date;
+                            }
+
+                            const warnClass = row.fill_expires_remaining_warn ? ' text-danger' : ' text-muted';
+                            return date + '<div class="small' + warnClass + '">' + remaining + '</div>';
+                        },
                     },
                     {
                         key: 'actions',

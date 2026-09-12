@@ -28,6 +28,101 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="contract-send-failure-message-index">Договоры: текст ошибки Подпислона в CRM (2026‑09)</h2>
+  <div class="note">
+    Если Подпислон отвечает HTTP 200 с JSON <code>status: false</code> (как «Не выбран провайдер отправки смс.»),
+    договор становится <code>failed</code> («Ошибка»), SMS не уходит, документ не создаётся.
+    Текст <code>message</code> из ответа показывается админу в CRM: карточка, журнал, модалка отправки, <code>title</code> бейджа в списке.
+    Кабинет родителя отдельную строку <code>#contract-status-error</code> не рисует.
+    Анонс: <a href="/doc#contract-send-failure-message-index">/doc#contract-send-failure-message-index</a>.
+    <br><br>
+    1) <b>Провайдер.</b> <code>PodpislonProvider::send()</code> больше не считает HTTP 200 успехом,
+    если <code>status === false</code> или нет id документа: не пишет событие <code>sent</code>,
+    не подставляет UUID в <code>provider_request_id</code>, JSON-fallback после явного отказа не делает.
+    <code>ContractPodpislonSendService</code> кладёт текст в <code>contract_events.payload_json.message</code>
+    (плюс сырой <code>res</code>). CRM <code>POST /client-contracts/{id}/send</code> — JSON 422
+    <code>message</code> / <code>code: send_not_sent</code> (в том числе native POST без <code>X-Requested-With</code>, не 302 на список).
+    Нет текста в ответе Подпислона — generic «Провайдер не подтвердил отправку SMS.»
+    Старые события без ключа <code>message</code> читаются из <code>res.raw.message</code> / <code>error</code>
+    (<code>ContractEvent::userFacingMessage()</code> / <code>lastFailureMessage()</code>).
+    <br>
+    2) <b>Карточка</b> <code>/client-contracts/{id}</code>: <code>#contract-status-error</code> только при текущем
+    <code>failed</code> и непустом <code>lastFailureMessage()</code>. Журнал печатает
+    <code>.contract-event-error</code>, если у события есть текст (у типичного <code>sent</code> его нет).
+    Модалка <code>#sendSubmit</code> пишет JSON <code>message</code>
+    в <code>#error-modal-message</code> (оба opener'а — POST <code>/send</code>, не <code>/resend</code>).
+    <br>
+    3) <b>Список.</b> <code>GET /client-contracts/data</code> отдаёт <code>status_error</code>
+    (строка или <code>null</code>; <code>null</code>, если статус не <code>failed</code> или текста нет).
+    Бейдж статуса получает <code>title</code> только если текст есть, отдельной колонки нет.
+    Кабинет: карточка без <code>#contract-status-error</code>; <code>account.documents.sign</code> при отказе —
+    302 на fill с <code>errors.sign</code> = тот же текст (это не JSON 422 CRM).
+    <br><br>
+    Подробно: <a href="/docs/documentation/contracts#contract-send-failure-message">contracts §3.1.2</a>.
+    Тесты: <code>ContractSendFailureMessageAccessFeatureTest</code> (гость/403/тренер/чужая школа),
+    <code>ContractSendFailureMessageFullAccessFeatureTest</code>,
+    <code>ContractSendFailureMessageAjaxContractFeatureTest</code> (422 <code>message</code>, без <code>sent</code>, errors по полям),
+    <code>ContractSendFailureMessageNonAjaxSafetyNetFeatureTest</code> (native JSON 422, не 302),
+    <code>ContractSendFailureMessageUxFeatureTest</code> (карточка/журнал/title/кабинет),
+    <code>ContractEventFailureMessageTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (<code>json.message</code> в модалке, <code>titleAttr</code> списка, <code>node --check</code>),
+    <code>ContractSendFailureMessageDocumentationContractTest</code>.
+    Анонс: <a href="/doc#contract-send-failure-message-index">/doc#contract-send-failure-message-index</a>.
+  </div>
+
+  <h2 id="contract-list-number-and-fill-remaining-index">Договоры: номер договора, остаток дней и сортировка по id (2026‑09)</h2>
+  <div class="note">
+    На <code>GET /client-contracts</code> (вкладка «Договоры», <code>#contracts-table</code>)
+    после колонки «№» (порядковый номер строки) стоит колонка «Номер договора» —
+    <code>contracts.id</code>, тот же номер, что «Договор #…» на карточке.
+    Колонка «№» не убирается. Анонс:
+    <a href="/doc#contract-list-number-and-fill-remaining-index">/doc#contract-list-number-and-fill-remaining-index</a>.
+    <br><br>
+    1) <b>Номер договора.</b>
+    Заголовок <code>&lt;th&gt;</code>, чекбокс <code>#colContractNumber</code>,
+    ключ настроек <code>data-column-key="contract_number"</code>, дефолт включён.
+    JSON по-прежнему отдаёт <code>id</code> (отдельного ключа нет).
+    Поиск фильтра (<code>search_value</code>) находит договор по этому id
+    (плейсхолдер «Имя, телефон, email, номер»).
+    Сортировка колонки — индекс 1 DataTables, <code>contracts.id</code>.
+    Дефолт списка — <code>order: [[1, 'desc']]</code> (новые сверху), не колонка «Обновлён».
+    <br>
+    2) <b>Остаток дней в «Срок подписания».</b>
+    Первая строка без изменений: <code>fill_expires_at</code> как <code>d.m.Y H:i:s</code>
+    (право <code>contracts.fillExpiresAt.view</code> —
+    <a href="/doc#contract-list-fill-expires-at-index">анонс колонки</a>).
+    Вторая строка: короткий остаток «N день/дня/дней», сегодня — «Последний день»
+    (<code>CLIENT_FILL_REMAINING_LAST_DAY</code>), просроченный срок — «Срок истек.»
+    (<code>SCHOOL_LIST_FILL_REMAINING_EXPIRED</code>).
+    JSON: <code>fill_expires_remaining</code> и <code>fill_expires_remaining_warn</code>
+    только вместе с правом; без срока и у <code>signed</code> — пустая вторая строка.
+    Красный <code>text-danger</code>, если дней меньше 6 или срок уже истёк
+    (порог тот же <code>CLIENT_FILL_REMAINING_DAYS_WARN</code>). Это не подпись ЛК
+    «Осталось N дней»
+    (<a href="/doc#account-documents-fill-remaining-days-index">анонс кабинета</a>).
+    Счёт календарный: <code>now()->startOfDay()->diffInDays(fill_expires_at->copy()->startOfDay(), false)</code>.
+    <br>
+    3) <b>Индексы.</b>
+    «Обновлён» — индекс 9, «Срок подписания» с правом — индекс 10
+    (пустые сроки в конце). Без права индекс 10 — «Действия», сортировка fallback по id.
+    Колонка «Договор» (иконка PDF) — индекс 8, <code>orderable: false</code>.
+    <br><br>
+    Подробно: <a href="/docs/documentation/contracts#contract-list-number">contracts §1.5</a>,
+    срок — §<a href="/docs/documentation/contracts#contract-list-fill-expires-at">1.4</a>.
+    Тесты: <code>ContractsTableAndColumnsTest</code>,
+    <code>ContractSchoolListFillRemainingDaysTest</code>,
+    <code>ContractListFillExpiresAtUxFeatureTest</code>,
+    <code>ContractListNumberAndFillRemainingAccessFeatureTest</code>,
+    <code>ContractListNumberAndFillRemainingFullAccessFeatureTest</code>,
+    <code>ContractListNumberAndFillRemainingAjaxContractFeatureTest</code>,
+    <code>ContractListNumberAndFillRemainingNonAjaxSafetyNetFeatureTest</code>,
+    <code>ContractListNumberAndFillRemainingUxFeatureTest</code>,
+    <code>ContractsDocumentsSectionUiFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>ContractListNumberAndFillRemainingDocumentationContractTest</code>.
+    Анонс: <a href="/doc#contract-list-number-and-fill-remaining-index">/doc#contract-list-number-and-fill-remaining-index</a>.
+  </div>
+
   <h2 id="contract-list-fill-expires-at-index">Договоры: колонка «Срок подписания» скрытым правом (2026‑09)</h2>
   <div class="note">
     На <code>GET /client-contracts</code> колонка «Срок подписания» показывает дату и время
@@ -52,9 +147,12 @@
     <code>GET /client-contracts/data</code> отдаёт ключ <code>fill_expires_at</code> только
     при праве. Без срока (PDF-договор, <code>null</code>) — пустая строка.
     Без права ключа нет (не <code>null</code>).
-    Сортировка с правом — индекс 9 DataTables,
+    Сортировка с правом — индекс 10 DataTables,
     <code>contracts.fill_expires_at is null, contracts.fill_expires_at …</code>, пустые в конце.
-    Дефолт списка остаётся индексом 8 («Обновлён»).
+    Дефолт списка — индекс 1 («Номер договора»), не «Обновлён»
+    (<a href="/doc#contract-list-number-and-fill-remaining-index">анонс</a>).
+    Вторая строка ячейки — короткий остаток дней / «Последний день» / «Срок истек.»
+    (ключи <code>fill_expires_remaining</code>, <code>fill_expires_remaining_warn</code>).
     <br>
     3) <b>Не путать с соседними подписями.</b>
     Карточка <code>/client-contracts/{id}</code>: строка «Срок заполнения»
@@ -82,9 +180,10 @@
     (<code>contracts.fill_expires_at</code>, календарные дни до даты срока,
     30 суток <code>Contract::FILL_TTL_DAYS</code>).
     Это <b>не</b> колонка CRM «Срок подписания» (там дата и время
-    <code>d.m.Y H:i:s</code> по скрытому праву
+    <code>d.m.Y H:i:s</code> и вторая строка короткого остатка по скрытому праву
     <code>contracts.fillExpiresAt.view</code> —
-    <a href="/doc#contract-list-fill-expires-at-index">/doc#contract-list-fill-expires-at-index</a>),
+    <a href="/doc#contract-list-fill-expires-at-index">/doc#contract-list-fill-expires-at-index</a>,
+    <a href="/doc#contract-list-number-and-fill-remaining-index">остаток в списке</a>),
     <b>не</b> подпись «Срок заполнения» на карточке CRM
     (<code>contracts/show</code>: то же поле <code>fill_expires_at</code>, формат
     <code>d.m.Y H:i</code> без секунд, без отдельного права),
@@ -1574,7 +1673,8 @@
     (класс навигации остаётся у колонки «Имя» → карточка в той же вкладке).
     Ключ колонок <code>signed_file</code>, тип <code>icon</code>,
     <code>orderable: false</code>, чекбокс <code>#colSignedFile</code>.
-    Сортировка «Обновлён» из‑за вставки колонки — индекс 8 DataTables (не 7).
+    Сортировка «Обновлён» из‑за вставки колонок — индекс 9 DataTables (не 8).
+    Дефолт списка — индекс 1 («Номер договора»).
     <br>
     3) <b>Что не менялось.</b> На карточке CRM кнопки блока «Файлы» по-прежнему от
     <code>contracts.status</code>: <code>signed</code> → только «Скачать подписанный»;
@@ -9325,7 +9425,7 @@
     <li><a href="/docs/documentation/groups-own">Право <code>groups.own</code>: тренер видит только свои группы (<code>team_trainer</code>), учеников своих групп в журнале/клиентах/консоли, merge чужих групп ученика; не в базовых ролях — <a href="/doc#groups-own-index">анонс</a></a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>«Мои документы» активного ребёнка</b> и ссылка из письма <code>?student=&amp;fill=</code> (<a href="/doc#account-documents-family-link-index">анонс</a>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «ФИО» (<code>users.view</code>) — только активные ученики <code>role=user</code> (<a href="/doc#cabinet-fio-select-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>оверлей «Пульт»</b> (<a href="/doc#ops-monitors-overlay-index">анонс</a>, «Касса» без выплаты после задержки — <a href="/doc#ops-till-missing-payout-index">анонс</a>)</a></li>
-    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>колонка «Договор»</b> — иконка PDF при <code>signed_pdf_path</code>, скачать в новой вкладке (<a href="/doc#contract-list-signed-file-index">анонс</a>), <b>колонка «Обновлён»</b> — последнее событие журнала (<a href="/doc#contract-list-updated-at-index">анонс</a>), <b>колонка «Срок подписания»</b> — <code>fill_expires_at</code> скрытым правом <code>contracts.fillExpiresAt.view</code> (<a href="/doc#contract-list-fill-expires-at-index">анонс</a>), <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<code>provider_signing_url</code>, <a href="/doc#contract-podpislon-signing-url-index">анонс</a>), <b>телефон в PDF с маской</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>колонка «Номер договора»</b> (<code>contracts.id</code>, дефолт сортировки, <a href="/doc#contract-list-number-and-fill-remaining-index">анонс</a>), <b>колонка «Договор»</b> — иконка PDF при <code>signed_pdf_path</code>, скачать в новой вкладке (<a href="/doc#contract-list-signed-file-index">анонс</a>), <b>колонка «Обновлён»</b> — последнее событие журнала (<a href="/doc#contract-list-updated-at-index">анонс</a>), <b>колонка «Срок подписания»</b> — <code>fill_expires_at</code> и остаток дней скрытым правом <code>contracts.fillExpiresAt.view</code> (<a href="/doc#contract-list-fill-expires-at-index">анонс</a>), <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<code>provider_signing_url</code>, <a href="/doc#contract-podpislon-signing-url-index">анонс</a>), <b>текст ошибки Подпислона при failed</b> (<a href="/doc#contract-send-failure-message-index">анонс</a>), <b>телефон в PDF с маской</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <b>«По умолчанию» → <code>{{documents_url}}</code></b> (<a href="/doc#contract-template-email-default-link-index">анонс</a>), <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), <b>телефон в PDF с маской +7 (999) 999-99-99</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица, <b>телефон с маской</b> — <a href="/doc#account-contract-phone-mask-index">анонс</a>, §2.2.1), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<a href="/doc#contract-podpislon-signing-url-index">анонс</a>, §1.3), <b>просрочка заполнения и SMS</b> (<a href="/doc#account-documents-expiry-notice-index">анонс</a>, §1.4), <b>повтор SMS из кабинета</b> (<a href="/doc#account-documents-resend-sms-index">анонс</a>, §1.5), <b>оставшиеся дни до срока подписания</b> (<a href="/doc#account-documents-fill-remaining-days-index">анонс</a>, §1.6), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>семейная ссылка из письма на нужного ребёнка</b> (<a href="/doc#account-documents-family-link-index">анонс</a>, §1.2), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на email ученика и родителя</b> (§6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>

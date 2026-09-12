@@ -43,6 +43,7 @@
     · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">/doc</a>
     · ключ Подпислона: <a href="/doc#legal-entities-podpislon-key-index">/doc</a>
     · ссылка Подпислона из SMS: <a href="/doc#contract-podpislon-signing-url-index">/doc</a>
+    · текст ошибки Подпислона в CRM: <a href="/doc#contract-send-failure-message-index">/doc</a>
     · просрочка заполнения и SMS: <a href="/doc#account-documents-expiry-notice-index">/doc</a>
     · повтор SMS из кабинета: <a href="/doc#account-documents-resend-sms-index">/doc</a>
     · оставшиеся дни до срока подписания: <a href="/doc#account-documents-fill-remaining-days-index">/doc</a>
@@ -53,7 +54,14 @@
     После создания договора в режиме «форма клиенту» (<code>creation_mode=template</code>) ученик (родитель в семейном кабинете)
     видит задачу «Требуется заполнение», открывает модалку, заполняет поля из схемы шаблона, формирует PDF и подписывает договор по SMS (Подпислон).
     Без API-ключа юрлица подпись не уходит: redirect на fill с <code>errors.podpislon_api_key</code>, статус не <code>failed</code>
-    (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>).<br><br>
+    (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>).
+    HTTP 200 Подпислона с JSON <code>status: false</code> — отказ: договор <code>failed</code>, SMS не уходит.
+    Текст ошибки в CRM (карточка / журнал / <code>title</code> списка) —
+    <a href="/doc#contract-send-failure-message-index">анонс</a>,
+    <a href="/docs/documentation/contracts#contract-send-failure-message">contracts §3.1.2</a>.
+    Карточка «Мои документы» <code>#contract-status-error</code> не рисует.
+    <code>account.documents.sign</code> при отказе — 302 на fill с <code>errors.sign</code> = текст сервиса
+    (не JSON 422 CRM <code>POST /client-contracts/{id}/send</code>).<br><br>
     Когда Подпислон подтверждает подпись (вебхук или ручная синхронизация статуса), договор становится <code>signed</code>
     и админы школы получают уведомление в колокольчик на 7 суток
     (<a href="/doc#contract-signed-in-app-index">анонс</a>,
@@ -257,9 +265,10 @@
     Источник — <code>fill_expires_at</code> (те же 30 суток, что школа видит при создании:
     «Срок для подписания договора N дней», <code>FILL_TTL_DAYS</code>).
     Это <b>не</b> колонка CRM «Срок подписания» (дата-время по
-    <code>contracts.fillExpiresAt.view</code>,
+    <code>contracts.fillExpiresAt.view</code> и вторая строка короткого остатка,
     <a href="/docs/documentation/contracts#contract-list-fill-expires-at">contracts §1.4</a>,
-    <a href="/doc#contract-list-fill-expires-at-index">анонс</a>),
+    <a href="/doc#contract-list-fill-expires-at-index">анонс</a>,
+    <a href="/doc#contract-list-number-and-fill-remaining-index">остаток в списке</a>),
     <b>не</b> подпись «Срок заполнения» на карточке CRM
     (то же поле, формат <code>d.m.Y H:i</code>, без отдельного права),
     <b>не</b> TTL SMS Подпислона (§<a href="#account-documents-expiry-notice">1.4</a>).

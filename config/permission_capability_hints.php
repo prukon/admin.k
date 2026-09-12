@@ -253,7 +253,7 @@ return [
         'Шаблоны договоров: колонка «Порядок» полей в форме родителя',
     ],
     'contracts.fillExpiresAt.view' => [
-        'Список /client-contracts: колонка «Срок подписания» (дата и время fill_expires_at)',
+        'Список /client-contracts: колонка «Срок подписания» (дата-время fill_expires_at и остаток дней)',
         'Пункт «Колонки» для этой колонки',
     ],
     'account.contracts.showFieldKeys' => [

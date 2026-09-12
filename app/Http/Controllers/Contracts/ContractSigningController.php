@@ -157,17 +157,23 @@ class ContractSigningController extends Controller
             $sr->save();
 
             $links = $this->signingLinks($contract);
+            $message = ContractEvent::fromProviderSendResult(is_array($res) ? $res : []);
             ContractEvent::create([
                 'contract_id'  => $contract->id,
                 'author_id'    => Auth::id(),
                 'type'         => 'resend_failed',
-                'payload_json' => json_encode(['res' => $res, 'links' => $links], JSON_UNESCAPED_UNICODE),
+                'payload_json' => json_encode([
+                    'message' => $message,
+                    'res'     => $res,
+                    'links'   => $links,
+                ], JSON_UNESCAPED_UNICODE),
             ]);
 
             $this->contractAudit->record(
                 AuditEvent::ContractSignResentFailed,
                 implode("\n", [
                     'Статус запроса: "' . $oldSrStatus . '" → "' . $sr->status . '"',
+                    'Ошибка: ' . $message,
                     'Договор: Договор #' . $contract->id,
                 ]),
                 userId: (int) $contract->user_id,
@@ -178,7 +184,7 @@ class ContractSigningController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Провайдер не подтвердил отправку SMS.',
+                'message' => $message,
                 'code'    => 'resend_not_sent',
                 'links'   => $links,
             ], 422);
@@ -723,11 +729,18 @@ class ContractSigningController extends Controller
 
     private function pollForSent(Contract $contract): ?array
     {
+        if (!$contract->provider_doc_id) {
+            return null;
+        }
+
         for ($i = 0; $i < 3; $i++) {
             $doc = $this->fetchProviderDoc($contract);
-            if ($this->isSentByProvider($doc)) return $doc;
+            if ($this->isSentByProvider($doc)) {
+                return $doc;
+            }
             usleep(300_000); // 300 мс
         }
+
         return null;
     }
 

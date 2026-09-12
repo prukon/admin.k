@@ -198,40 +198,28 @@ class PodpislonProvider implements SignatureProvider
             ]);
 
             if ($resp->ok()) {
-                $data   = $this->safeJson($resp);
-                $result = $data['result'] ?? null;
+                $data = $this->safeJson($resp);
+                if ($this->isAddDocumentBusinessRejection($data)) {
+                    Log::warning('PODPISLON: add-document rejected', [
+                        'contract_id' => $contract->id,
+                        'json'        => $data,
+                    ]);
 
-                if (is_int($result)) {
-                    $contract->provider_doc_id = $result;
-                } elseif (is_array($result)) {
-                    $firstId = is_int(reset($result)) ? reset($result) : ($result['id'] ?? null);
-                    if ($firstId) $contract->provider_doc_id = $firstId;
+                    return $this->rejectedAddDocumentResult($data);
                 }
-                if (!$contract->provider_doc_id) {
-                    Log::warning('PODPISLON: add-document ok, но id не распознан', ['result'=>$result,'json'=>$data]);
+
+                $accepted = $this->acceptAddDocumentSuccess($contract, $request, $data);
+                if ($accepted !== null) {
+                    return $accepted;
                 }
-                $contract->save();
-                PodpislonSigningUrl::capture($contract, is_array($result) ? $result : $data);
 
-                $request->provider_request_id = (string) ($contract->provider_doc_id ?: Str::uuid());
-                $request->status = 'sent';
-                $request->save();
-
-                $this->logEvent($contract, 'sent', [
-                    'provider_doc_id'     => $contract->provider_doc_id,
-                    'provider_request_id' => $request->provider_request_id,
-                    'resp'                => $data,
+                Log::warning('PODPISLON: add-document ok, но id не распознан, will fallback to JSON', [
+                    'result' => $data['result'] ?? null,
+                    'json'   => $data,
                 ]);
-
-                return [
-                    'provider_doc_id'     => $contract->provider_doc_id,
-                    'provider_request_id' => $request->provider_request_id,
-                    'raw'                 => $data,
-                ];
+            } else {
+                throw new \RuntimeException("HTTP {$resp->status()} ".$this->clip($resp->body()));
             }
-
-            // если не ok — падаем в catch и сделаем fallback
-            throw new \RuntimeException("HTTP {$resp->status()} ".$this->clip($resp->body()));
         } catch (\Throwable $e) {
             Log::warning('PODPISLON: add-document (multipart) failed, will fallback to JSON', [
                 'contract_id' => $contract->id,
@@ -287,36 +275,27 @@ class PodpislonProvider implements SignatureProvider
             throw new \RuntimeException('Ошибка /add-document: HTTP '.$resp2->status().' '.$this->clip($resp2->body()));
         }
 
-        $data2   = $this->safeJson($resp2);
-        $result2 = $data2['result'] ?? null;
+        $data2 = $this->safeJson($resp2);
+        if ($this->isAddDocumentBusinessRejection($data2)) {
+            Log::warning('PODPISLON: add-document rejected (json)', [
+                'contract_id' => $contract->id,
+                'json'        => $data2,
+            ]);
 
-        if (is_int($result2)) {
-            $contract->provider_doc_id = $result2;
-        } elseif (is_array($result2)) {
-            $firstId = is_int(reset($result2)) ? reset($result2) : ($result2['id'] ?? null);
-            if ($firstId) $contract->provider_doc_id = $firstId;
+            return $this->rejectedAddDocumentResult($data2);
         }
-        if (!$contract->provider_doc_id) {
-            Log::warning('PODPISLON: add-document ok, но id не распознан (json)', ['result'=>$result2,'json'=>$data2]);
+
+        $accepted = $this->acceptAddDocumentSuccess($contract, $request, $data2);
+        if ($accepted !== null) {
+            return $accepted;
         }
-        $contract->save();
-        PodpislonSigningUrl::capture($contract, is_array($result2) ? $result2 : $data2);
 
-        $request->provider_request_id = (string) ($contract->provider_doc_id ?: Str::uuid());
-        $request->status = 'sent';
-        $request->save();
-
-        $this->logEvent($contract, 'sent', [
-            'provider_doc_id'     => $contract->provider_doc_id,
-            'provider_request_id' => $request->provider_request_id,
-            'resp'                => $data2,
+        Log::warning('PODPISLON: add-document ok, но id не распознан (json)', [
+            'result' => $data2['result'] ?? null,
+            'json'   => $data2,
         ]);
 
-        return [
-            'provider_doc_id'     => $contract->provider_doc_id,
-            'provider_request_id' => $request->provider_request_id,
-            'raw'                 => $data2,
-        ];
+        return $this->rejectedAddDocumentResult($data2);
     }
  
 
@@ -450,6 +429,91 @@ class PodpislonProvider implements SignatureProvider
 
 
     /* ===== helpers ===== */
+
+    /**
+     * HTTP 200 с JSON status:false — отказ Подпислона, не успех.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function isAddDocumentBusinessRejection(array $data): bool
+    {
+        return array_key_exists('status', $data) && $data['status'] === false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{provider_doc_id: null, provider_request_id: null, raw: array<string, mixed>}
+     */
+    private function rejectedAddDocumentResult(array $data): array
+    {
+        return [
+            'provider_doc_id'     => null,
+            'provider_request_id' => null,
+            'raw'                 => $data,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{provider_doc_id: int|string, provider_request_id: string, raw: array<string, mixed>}|null
+     */
+    private function acceptAddDocumentSuccess(Contract $contract, ContractSignRequest $request, array $data): ?array
+    {
+        $docId = $this->extractAddDocumentDocId($data);
+        if ($docId === null) {
+            return null;
+        }
+
+        $contract->provider_doc_id = $docId;
+        $contract->save();
+        $result = $data['result'] ?? null;
+        PodpislonSigningUrl::capture($contract, is_array($result) ? $result : $data);
+
+        $request->provider_request_id = (string) $contract->provider_doc_id;
+        $request->status = 'sent';
+        $request->save();
+
+        $this->logEvent($contract, 'sent', [
+            'provider_doc_id'     => $contract->provider_doc_id,
+            'provider_request_id' => $request->provider_request_id,
+            'resp'                => $data,
+        ]);
+
+        return [
+            'provider_doc_id'     => $contract->provider_doc_id,
+            'provider_request_id' => $request->provider_request_id,
+            'raw'                 => $data,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function extractAddDocumentDocId(array $data): int|string|null
+    {
+        $result = $data['result'] ?? null;
+        if (is_int($result)) {
+            return $result;
+        }
+        if (is_string($result) && $result !== '' && ctype_digit($result)) {
+            return $result;
+        }
+        if (is_array($result)) {
+            $first = reset($result);
+            if (is_int($first)) {
+                return $first;
+            }
+            if (is_string($first) && $first !== '' && ctype_digit($first)) {
+                return $first;
+            }
+            $nestedId = $result['id'] ?? null;
+            if (is_int($nestedId) || (is_string($nestedId) && $nestedId !== '' && ctype_digit($nestedId))) {
+                return $nestedId;
+            }
+        }
+
+        return null;
+    }
 
     protected function logEvent(Contract $contract, string $type, $payload): void
     {

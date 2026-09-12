@@ -73,11 +73,16 @@ class ContractTableController extends Controller
 
         if (!empty($searchValue)) {
             $like = '%' . $searchValue . '%';
-            $baseQuery->where(function ($q) use ($like) {
+            $baseQuery->where(function ($q) use ($like, $searchValue) {
                 $q->where('users.name', 'like', $like)
                     ->orWhere('users.lastname', 'like', $like)
                     ->orWhere('users.phone', 'like', $like)
-                    ->orWhere('users.email', 'like', $like);
+                    ->orWhere('users.email', 'like', $like)
+                    ->orWhere('contracts.id', 'like', $like);
+
+                if (ctype_digit($searchValue)) {
+                    $q->orWhere('contracts.id', (int) $searchValue);
+                }
             });
         }
 
@@ -100,37 +105,40 @@ class ContractTableController extends Controller
                     $baseQuery->orderByDesc('contracts.id');
                     break;
                 case 1:
-                    $baseQuery->orderBy('users.name', $orderDir);
+                    $baseQuery->orderBy('contracts.id', $orderDir);
                     break;
                 case 2:
-                    $baseQuery->orderBy('users.lastname', $orderDir);
+                    $baseQuery->orderBy('users.name', $orderDir);
                     break;
                 case 3:
-                    $baseQuery->orderBy('teams.title', $orderDir);
+                    $baseQuery->orderBy('users.lastname', $orderDir);
                     break;
                 case 4:
-                    $baseQuery->orderBy('users.phone', $orderDir);
+                    $baseQuery->orderBy('teams.title', $orderDir);
                     break;
                 case 5:
-                    $baseQuery->orderBy('users.email', $orderDir);
+                    $baseQuery->orderBy('users.phone', $orderDir);
                     break;
                 case 6:
-                    $baseQuery->orderBy('contracts.status', $orderDir);
+                    $baseQuery->orderBy('users.email', $orderDir);
                     break;
                 case 7:
-                    $baseQuery->orderByDesc('contracts.id');
+                    $baseQuery->orderBy('contracts.status', $orderDir);
                     break;
                 case 8:
-                    $baseQuery->orderByRaw('last_event_at is null, last_event_at ' . $orderDir);
+                    $baseQuery->orderByDesc('contracts.id');
                     break;
                 case 9:
+                    $baseQuery->orderByRaw('last_event_at is null, last_event_at ' . $orderDir);
+                    break;
+                case 10:
                     if ($canSeeFillExpiresAt) {
                         $baseQuery->orderByRaw('contracts.fill_expires_at is null, contracts.fill_expires_at ' . $orderDir);
                     } else {
                         $baseQuery->orderByDesc('contracts.id');
                     }
                     break;
-                case 10:
+                case 11:
                 default:
                     $baseQuery->orderByDesc('contracts.id');
                     break;
@@ -147,6 +155,8 @@ class ContractTableController extends Controller
             ->take($length)
             ->get();
 
+        $contracts->load('latestFailureEvent');
+
         $data = $contracts->map(function (Contract $contract) use ($canSeeFillExpiresAt) {
             $row = [
                 'id'                 => $contract->id,
@@ -157,6 +167,7 @@ class ContractTableController extends Controller
                 'user_email'         => $contract->user_email ?: '—',
                 'status_label'       => $contract->school_status_ru ?? '',
                 'status_badge_class' => $contract->status_badge_class ?? '',
+                'status_error'       => $contract->lastFailureMessage(),
                 'status'              => $contract->status,
                 'creation_mode'       => $contract->creation_mode,
                 'path_title'          => $this->pathTimelineBuilder->title($contract),
@@ -167,6 +178,8 @@ class ContractTableController extends Controller
 
             if ($canSeeFillExpiresAt) {
                 $row['fill_expires_at'] = $this->formatDateTime($contract->fill_expires_at);
+                $row['fill_expires_remaining'] = $contract->schoolListFillRemainingDaysLabel() ?? '';
+                $row['fill_expires_remaining_warn'] = $contract->shouldHighlightSchoolListFillRemainingDays();
             }
 
             return $row;

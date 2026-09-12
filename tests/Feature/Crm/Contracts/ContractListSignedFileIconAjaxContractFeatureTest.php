@@ -143,7 +143,7 @@ final class ContractListSignedFileIconAjaxContractFeatureTest extends ContractLi
         $this->makeContractWithSignedFile();
 
         $response = $this->withHeaders($this->ajaxHeaders())
-            ->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=7&order[0][dir]=desc');
+            ->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=8&order[0][dir]=desc');
 
         $this->assertNotSame(500, $response->getStatusCode());
         $response->assertOk();

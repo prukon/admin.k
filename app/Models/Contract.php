@@ -45,6 +45,9 @@ class Contract extends Model
 
     public const CLIENT_FILL_REMAINING_LAST_DAY = 'Последний день';
 
+    /** Вторая строка колонки «Срок подписания» в списке CRM, если fill_expires_at уже в прошлом. */
+    public const SCHOOL_LIST_FILL_REMAINING_EXPIRED = 'Срок истек.';
+
     // Статусы
     public const STATUS_DRAFT   = 'draft';
     public const STATUS_AWAITING_CLIENT_FILL = 'awaiting_client_fill';
@@ -122,6 +125,29 @@ class Contract extends Model
     public function lastSignRequest(): HasOne
     {
         return $this->hasOne(ContractSignRequest::class)->latestOfMany();
+    }
+
+    public function latestFailureEvent(): HasOne
+    {
+        return $this->hasOne(ContractEvent::class)->ofMany(
+            ['id' => 'max'],
+            function ($query) {
+                $query->whereIn('type', ContractEvent::FAILURE_TYPES);
+            }
+        );
+    }
+
+    public function lastFailureMessage(): ?string
+    {
+        if ($this->status !== self::STATUS_FAILED) {
+            return null;
+        }
+
+        $event = $this->relationLoaded('latestFailureEvent')
+            ? $this->latestFailureEvent
+            : $this->latestFailureEvent()->first();
+
+        return $event?->userFacingMessage();
     }
 
     public function templateVersion(): BelongsTo
@@ -229,12 +255,7 @@ class Contract extends Model
             return null;
         }
 
-        $days = (int) now()->startOfDay()->diffInDays(
-            $this->fill_expires_at->copy()->startOfDay(),
-            false
-        );
-
-        return max(0, $days);
+        return $this->fillExpiresCalendarDaysFromToday();
     }
 
     public function clientFillRemainingDaysLabel(): ?string
@@ -256,6 +277,54 @@ class Contract extends Model
         $days = $this->clientFillRemainingDays();
 
         return $days !== null && $days < self::CLIENT_FILL_REMAINING_DAYS_WARN;
+    }
+
+    /**
+     * Вторая строка колонки «Срок подписания» в списке школы.
+     * Короткий остаток («2 дня»), «Последний день» или «Срок истек.»; у signed и без срока — null.
+     */
+    public function schoolListFillRemainingDaysLabel(): ?string
+    {
+        if ($this->fill_expires_at === null || $this->status === self::STATUS_SIGNED) {
+            return null;
+        }
+
+        if ($this->isFillExpired()) {
+            return self::SCHOOL_LIST_FILL_REMAINING_EXPIRED;
+        }
+
+        $days = $this->fillExpiresCalendarDaysFromToday();
+        if ($days === 0) {
+            return self::CLIENT_FILL_REMAINING_LAST_DAY;
+        }
+
+        return $days . ' ' . self::ruDaysWord($days);
+    }
+
+    public function shouldHighlightSchoolListFillRemainingDays(): bool
+    {
+        if ($this->schoolListFillRemainingDaysLabel() === null) {
+            return false;
+        }
+
+        if ($this->isFillExpired()) {
+            return true;
+        }
+
+        return $this->fillExpiresCalendarDaysFromToday() < self::CLIENT_FILL_REMAINING_DAYS_WARN;
+    }
+
+    /**
+     * Календарные дни от сегодня до даты fill_expires_at (0 = сегодня).
+     */
+    private function fillExpiresCalendarDaysFromToday(): int
+    {
+        $days = (int) now()->startOfDay()->diffInDays(
+            $this->fill_expires_at->copy()->startOfDay(),
+            false
+        );
+
+        return max(0, $days);
     }
 
     private static function ruDaysWord(int $days): string

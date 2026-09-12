@@ -45,7 +45,7 @@ final class ContractListSignedFileIconDocumentationContractTest extends TestCase
         $this->assertStringContainsString('signed_file', $chunk);
         $this->assertStringContainsString('тип <code>icon</code>', $chunk);
         $this->assertStringContainsString('#colSignedFile', $chunk);
-        $this->assertStringContainsString('индекс 8 DataTables', $chunk);
+        $this->assertStringContainsString('индекс 9 DataTables', $chunk);
         $this->assertStringContainsString('errors.file', $chunk);
         $this->assertStringContainsString('contracts.status', $chunk);
         $this->assertStringContainsString('contracts §4.1.1', $chunk);
@@ -76,7 +76,7 @@ final class ContractListSignedFileIconDocumentationContractTest extends TestCase
         $this->assertStringContainsString('signed_pdf_path', $contracts);
         $this->assertStringContainsString('download-signed', $contracts);
         $this->assertStringContainsString('target="_blank"', $contracts);
-        $this->assertStringContainsString('индекс 8 DataTables', $contracts);
+        $this->assertStringContainsString('индекс 9 DataTables', $contracts);
         $this->assertStringContainsString('id="contracts-pdf-download"', $contracts);
         $this->assertStringContainsString('Три места, критерии разные', $contracts);
         $this->assertStringContainsString('js-dt-nav-link', $contracts);
@@ -124,7 +124,7 @@ final class ContractListSignedFileIconDocumentationContractTest extends TestCase
         $this->assertStringContainsString('signedDownloadUrl($contract)', $controller);
         $this->assertStringContainsString("route('contracts.downloadSigned', \$contract)", $controller);
         $this->assertStringContainsString('signed_pdf_path', $controller);
-        $this->assertStringContainsString('case 8:', $controller);
+        $this->assertStringContainsString('case 9:', $controller);
         $this->assertStringContainsString('last_event_at is null, last_event_at', $controller);
 
         $this->assertStringContainsString('<th>Договор</th>', $index);
@@ -137,7 +137,7 @@ final class ContractListSignedFileIconDocumentationContractTest extends TestCase
         $this->assertStringContainsString('fa-solid fa-file-pdf', $index);
         $this->assertStringContainsString('#0d6efd', $index);
         $this->assertStringContainsString('KidsCrmDataTable.renderIcon', $index);
-        $this->assertStringContainsString("order: [[8, 'desc']]", $index);
+        $this->assertStringContainsString("order: [[1, 'desc']]", $index);
         $this->assertStringContainsString('Скачать подписанный договор', $index);
     }
 

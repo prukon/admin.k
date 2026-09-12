@@ -97,6 +97,7 @@ final class ContractListFillExpiresAtDocumentationContractTest extends TestCase
 
         $this->assertStringContainsString("viewerCanSeeFillExpiresAt()", $controller);
         $this->assertStringContainsString("'fill_expires_at'", $controller);
+        $this->assertStringContainsString('fill_expires_remaining', $controller);
         $this->assertStringContainsString('contracts.fill_expires_at is null, contracts.fill_expires_at', $controller);
         $this->assertStringContainsString("format('d.m.Y H:i:s')", $controller);
 
