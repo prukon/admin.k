@@ -7,10 +7,12 @@ namespace Tests\Feature\Crm\SettingPrices;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Разметка: у оплаченного месяца без абона селект доступен, сумма нет;
- * ошибка пакета под селектом. Карточки рисует JS.
+ * Разметка: без абонемента поле цены закрыто; ошибка пакета под селектом.
+ * Карточки рисует JS (Vite «По месяцам», inline «По ученикам»).
+ *
+ * Падает на коде до фикса: цена открывалась при !hasAbon.
  */
-final class SettingPricesPaidEmptyPrepaidAttachMarkupFeatureTest extends CrmTestCase
+final class SettingPricesRequirePackageForPriceMarkupFeatureTest extends CrmTestCase
 {
     protected function setUp(): void
     {
@@ -32,14 +34,16 @@ final class SettingPricesPaidEmptyPrepaidAttachMarkupFeatureTest extends CrmTest
 
         $this->assertStringNotContainsString('setting-prices-user-card', $html);
         $this->assertStringNotContainsString('setting-prices-monthly-package-error', $html);
+        $this->assertStringContainsString('id="set-price-all-users"', $html);
 
         $blade = (string) file_get_contents(resource_path('views/admin/SettingPrices/monthly.blade.php'));
         $this->assertStringContainsString("@vite(['resources/js/settings-prices.js'])", $blade);
         $this->assertStringContainsString('Без абонемента', $blade);
         $this->assertStringNotContainsString('packageSelectDisabled', $blade);
+        $this->assertStringNotContainsString('modal-fullscreen', $blade);
     }
 
-    public function test_monthly_js_enables_package_select_for_paid_month_even_without_package(): void
+    public function test_monthly_js_keeps_price_disabled_until_package_is_chosen(): void
     {
         $js = (string) file_get_contents(resource_path('js/settings-prices.js'));
         $renderPos = strpos($js, 'function renderUsersRightColumn');
@@ -48,23 +52,20 @@ final class SettingPricesPaidEmptyPrepaidAttachMarkupFeatureTest extends CrmTest
         $this->assertNotFalse($changePos);
         $render = substr($js, $renderPos, $changePos - $renderPos);
 
-        $formerPos = strpos($render, 'if (!isFormer)');
-        $this->assertNotFalse($formerPos);
-        $afterFormer = substr($render, $formerPos, 700);
-        $this->assertStringContainsString("packageSelectDisabled = ''", $afterFormer);
-        $enablePos = strpos($afterFormer, "packageSelectDisabled = ''");
-        $this->assertNotFalse($enablePos);
-        $beforeEnable = substr($afterFormer, 0, $enablePos);
-        $this->assertStringNotContainsString('hasAbon', $beforeEnable);
-        $this->assertStringNotContainsString('eff ?', $beforeEnable);
+        $this->assertStringContainsString('} else if (isEditing && !eff && hasAbon)', $render);
         $this->assertStringContainsString('} else if (!eff && hasAbon && !canManage)', $render);
+        $this->assertStringNotContainsString('!canManage || !hasAbon', $render);
         $this->assertStringContainsString('setting-prices-monthly-package-error', $render);
-        $this->assertStringContainsString('data-effective-paid', $render);
         $this->assertStringContainsString('data-abon-established', $render);
         $this->assertStringContainsString('aria-label="Абонемент"', $render);
+
+        $enablePos = strpos($render, '} else if (!eff && hasAbon && !canManage)');
+        $this->assertNotFalse($enablePos);
+        $beforeEnable = substr($render, 0, $enablePos);
+        $this->assertStringContainsString("let priceInputDisabled = 'disabled'", $beforeEnable);
     }
 
-    public function test_users_tab_enables_package_select_when_paid_without_package_and_keeps_price_locked(): void
+    public function test_users_tab_first_html_has_wrapper_and_inline_js_locks_price_without_package(): void
     {
         $html = $this->get(route('admin.settingPrices.users'))
             ->assertOk()
@@ -74,11 +75,12 @@ final class SettingPricesPaidEmptyPrepaidAttachMarkupFeatureTest extends CrmTest
         $this->assertStringContainsString('id="save-user-year-prices"', $html);
 
         $blade = (string) file_get_contents(resource_path('views/admin/SettingPrices/users.blade.php'));
-        $this->assertStringContainsString("const packageDisabledAttr = isFormer ? 'disabled' : ''", $blade);
-        $this->assertStringNotContainsString("effectivePaid ? 'disabled'", $blade);
+        $this->assertStringNotContainsString("@vite(['resources/js/settings-prices.js'])", $blade);
         $this->assertStringContainsString('if (!isFormer && !effectivePaid && hasAbon && !canManual)', $blade);
+        $this->assertStringNotContainsString('!canManual || !hasAbon', $blade);
         $this->assertStringContainsString('setting-prices-monthly-package-error', $blade);
-        $this->assertStringContainsString("data-effective-paid=\"' + (effectivePaid ? '1' : '0')", $blade);
+        $this->assertStringContainsString('data-abon-established', $blade);
+        $this->assertStringContainsString("url: '/admin/setting-prices/user-year-prices/save'", $blade);
         $this->assertStringNotContainsString('modal-fullscreen', $blade);
     }
 }

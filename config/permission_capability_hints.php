@@ -252,6 +252,10 @@ return [
     'contracts.templates.fillSortOrder.edit' => [
         'Шаблоны договоров: колонка «Порядок» полей в форме родителя',
     ],
+    'contracts.fillExpiresAt.view' => [
+        'Список /client-contracts: колонка «Срок подписания» (дата и время fill_expires_at)',
+        'Пункт «Колонки» для этой колонки',
+    ],
     'account.contracts.showFieldKeys' => [
         'Форма заполнения договора: показ технических ключей полей {{…}}',
     ],

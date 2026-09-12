@@ -59,6 +59,7 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $this->assertSame(Contract::STATUS_DRAFT, $resp->json('data.0.path_steps.0.key'));
         $this->assertSame('', $resp->json('data.0.updated_at'));
         $this->assertNull($resp->json('data.0.download_signed_url'));
+        $this->assertArrayNotHasKey('fill_expires_at', $resp->json('data.0'));
     }
 
     /** @test */
@@ -363,6 +364,190 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
             'any'        => true,
             'weird'      => false,
         ], $setting->columns);
+    }
+
+    /** @test */
+    public function data_omits_fill_expires_at_without_permission_even_when_deadline_is_set(): void
+    {
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
+            'status'           => Contract::STATUS_AWAITING_CLIENT_FILL,
+            'provider'         => 'podpislon',
+            'fill_expires_at'  => Carbon::parse('2026-09-18 15:04:05'),
+        ]);
+
+        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->assertArrayNotHasKey('fill_expires_at', $row);
+    }
+
+    /** @test */
+    public function data_returns_fill_expires_at_datetime_when_permission_granted(): void
+    {
+        $this->grantPermissionToRoleForPartner(
+            $this->user->role_id,
+            $this->partner->id,
+            self::PERM_CONTRACTS_FILL_EXPIRES_AT
+        );
+
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
+            'status'           => Contract::STATUS_AWAITING_CLIENT_FILL,
+            'provider'         => 'podpislon',
+            'fill_expires_at'  => Carbon::parse('2026-09-18 15:04:05'),
+        ]);
+
+        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->assertSame('18.09.2026 15:04:05', $row['fill_expires_at']);
+    }
+
+    /** @test */
+    public function data_returns_empty_fill_expires_at_when_deadline_is_null(): void
+    {
+        $this->grantPermissionToRoleForPartner(
+            $this->user->role_id,
+            $this->partner->id,
+            self::PERM_CONTRACTS_FILL_EXPIRES_AT
+        );
+
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/pdf.pdf',
+            'source_sha256'   => str_repeat('e', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+            'fill_expires_at' => null,
+        ]);
+
+        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->assertSame('', $row['fill_expires_at']);
+    }
+
+    /** @test */
+    public function data_sorts_fill_expires_at_column_with_missing_deadlines_last_when_permitted(): void
+    {
+        $this->grantPermissionToRoleForPartner(
+            $this->user->role_id,
+            $this->partner->id,
+            self::PERM_CONTRACTS_FILL_EXPIRES_AT
+        );
+
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        $older = Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
+            'status'           => Contract::STATUS_AWAITING_CLIENT_FILL,
+            'provider'         => 'podpislon',
+            'fill_expires_at'  => Carbon::parse('2026-09-10 12:00:00'),
+        ]);
+        $newer = Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
+            'status'           => Contract::STATUS_AWAITING_CLIENT_FILL,
+            'provider'         => 'podpislon',
+            'fill_expires_at'  => Carbon::parse('2026-09-20 18:30:00'),
+        ]);
+        $empty = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'source_pdf_path' => 'documents/2026/01/empty-deadline.pdf',
+            'source_sha256'   => str_repeat('f', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+            'fill_expires_at' => null,
+        ]);
+
+        $descIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=9&order[0][dir]=desc')
+            ->assertOk()
+            ->json('data'))
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$newer->id, $older->id, $empty->id], $descIds);
+
+        $ascIds = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=9&order[0][dir]=asc')
+            ->assertOk()
+            ->json('data'))
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$older->id, $newer->id, $empty->id], $ascIds);
+    }
+
+    /** @test */
+    public function data_does_not_sort_by_fill_expires_at_without_permission(): void
+    {
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        $first = Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
+            'status'           => Contract::STATUS_AWAITING_CLIENT_FILL,
+            'provider'         => 'podpislon',
+            'fill_expires_at'  => Carbon::parse('2026-09-10 12:00:00'),
+        ]);
+        $second = Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
+            'status'           => Contract::STATUS_AWAITING_CLIENT_FILL,
+            'provider'         => 'podpislon',
+            'fill_expires_at'  => Carbon::parse('2026-09-20 18:30:00'),
+        ]);
+
+        $ids = collect($this->getJson('/client-contracts/data?draw=1&start=0&length=20&order[0][column]=9&order[0][dir]=asc')
+            ->assertOk()
+            ->json('data'))
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$second->id, $first->id], $ids);
+    }
+
+    /** @test */
+    public function superadmin_sees_fill_expires_at_in_data_without_role_assignment(): void
+    {
+        $this->asSuperadmin();
+
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
+            'status'           => Contract::STATUS_AWAITING_CLIENT_FILL,
+            'provider'         => 'podpislon',
+            'fill_expires_at'  => Carbon::parse('2026-09-18 15:04:05'),
+        ]);
+
+        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->assertSame('18.09.2026 15:04:05', $row['fill_expires_at']);
     }
 
     /** @test */

@@ -33,6 +33,7 @@
     · аннулирование sent/opened: <a href="/doc#contract-annul-after-send-index">анонс</a>
     · памятка статусов: <a href="/doc#contract-status-memo-index">анонс</a>
     · колонка «Обновлён»: <a href="/doc#contract-list-updated-at-index">анонс</a>
+    · колонка «Срок подписания»: <a href="/doc#contract-list-fill-expires-at-index">анонс</a>
     · иконка подписанного PDF в списке: <a href="/doc#contract-list-signed-file-index">анонс</a>
     · ссылка Подпислона из SMS: <a href="/doc#contract-podpislon-signing-url-index">анонс</a>
     · телефон в PDF с маской: <a href="/doc#account-contract-phone-mask-index">анонс</a>
@@ -62,12 +63,12 @@
       <tr><td>POST</td><td><code>/client-contracts/check-balance</code></td><td>Предпроверка баланса перед submit модалки создания</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/users-search</code></td><td>AJAX Select2: поиск учеников (в т.ч. <code>parent_full_name</code> для модалки)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
-      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)», <code>download_signed_url</code> — URL <code>GET …/download-signed</code> или <code>null</code>, если <code>signed_pdf_path</code> пуст. Колонка «Обновлён» (<code>updated_at</code> в JSON) — <code>created_at</code> последнего события журнала этого договора (<code>contract_events</code>, максимальный <code>id</code>, как на карточке), формат <code>d.m.Y H:i:s</code>; не поле <code>contracts.updated_at</code>. При создании через UI всегда есть событие <code>created</code>. Без событий — пустая строка. Сортировка этой колонки — по дате события, без событий в конце</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)», <code>download_signed_url</code> — URL <code>GET …/download-signed</code> или <code>null</code>, если <code>signed_pdf_path</code> пуст. Колонка «Обновлён» (<code>updated_at</code> в JSON) — <code>created_at</code> последнего события журнала этого договора (<code>contract_events</code>, максимальный <code>id</code>, как на карточке), формат <code>d.m.Y H:i:s</code>; не поле <code>contracts.updated_at</code>. При создании через UI всегда есть событие <code>created</code>. Без событий — пустая строка. Сортировка этой колонки — по дате события, без событий в конце. Колонка «Срок подписания» (<code>fill_expires_at</code> в JSON) — только при скрытом праве <code>contracts.fillExpiresAt.view</code>: дата и время <code>contracts.fill_expires_at</code> в формате <code>d.m.Y H:i:s</code>; без права ключа в JSON нет; <code>null</code> срок — пустая ячейка</td></tr>
       <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/logs-data</code> (<code>logs.data.contract</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract</code>)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/send</code></td><td>Отправка на подпись (SMS): первая или повтор при уже существующем <code>provider_doc_id</code>. Модалка карточки (<code>#sendSubmit</code>) всегда бьёт сюда, не на <code>/resend</code>. Пишет <code>provider_signing_url</code>, если Подпислон вернул <code>contacts[].link</code></td></tr>
-      <tr><td>POST</td><td><code>/client-contracts/{contract}/resend</code></td><td>Легаси-повтор без ФИО/телефона (нужен последний <code>contract_sign_requests</code>). Тоже пишет <code>provider_signing_url</code></td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/resend</code></td><td>Легаси-повтор без ФИО/телефона (нужен последний <code>contract_sign_requests</code>). Тоже пишет <code>provider_signing_url</code>. Не путать с кабинетом: <code>POST /account-settings/documents/contracts/{contract}/resend-sms</code> — без смены номера, не при <code>failed</code> (<a href="/doc#account-documents-resend-sms-index">анонс</a>)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/send-email</code></td><td>Отправка PDF на email</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/download-original</code></td><td>Скачивание неподписанного PDF</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/download-signed</code></td><td>Скачивание подписанного PDF</td></tr>
@@ -122,6 +123,30 @@
     Анонс: <a href="/doc#contract-list-updated-at-index">/doc</a>.
   </div>
 
+  <h3 id="contract-list-fill-expires-at">1.4) Колонка «Срок подписания» в списке</h3>
+  <div class="note">
+    Заголовок колонки — «Срок подписания» (<code>&lt;th&gt;</code>, чекбокс <code>#colFillExpiresAt</code>,
+    ключ настроек <code>data-column-key="fill_expires_at"</code>). Колонка и пункт в меню «Колонки»
+    рендерятся только при скрытом праве <code>contracts.fillExpiresAt.view</code>
+    (<code>is_visible=0</code>, не в <code>role_base_permissions</code>, миграция
+    <code>2026_09_12_062900_add_contracts_fill_expires_at_view_permission</code> ролям не выдаёт).
+    Superadmin видит колонку через <code>Gate::before</code>.
+    В матрице «Права и роли» чекбокс права видит только superadmin.
+    DataTables: <code>when: canSeeFillExpiresAt</code>, дефолт сортировки списка остаётся
+    индексом 8 («Обновлён»). С правом колонка стоит после «Обновлён» (индекс 9), сортировка
+    по <code>contracts.fill_expires_at</code>, пустые в конце.
+    <br><br>
+    Значение в <code>GET /client-contracts/data</code> — <code>contracts.fill_expires_at</code>
+    в формате <code>d.m.Y H:i:s</code> (дата и время дедлайна заполнения/подписания,
+    при создании по шаблону <code>now() + FILL_TTL_DAYS</code>). Без срока — пустая ячейка.
+    Без права ключ <code>fill_expires_at</code> в JSON не отдаётся.
+    Это не строка «Срок заполнения» на карточке договора (§<a href="#contract-card-fill-expires">2.1</a>:
+    template + непустой срок, формат <code>d.m.Y H:i</code>, достаточно <code>contracts.view</code>)
+    и не «оставшиеся дни» кабинета родителя
+    (<a href="/doc#account-documents-fill-remaining-days-index">анонс ЛК</a>).
+    Анонс: <a href="/doc#contract-list-fill-expires-at-index">/doc</a>.
+  </div>
+
   <h2 id="contract-parent">2) Родитель и ученик на карточке договора</h2>
   <div class="note">
     Договор привязан к ученику (<code>contracts.user_id</code> → <code>users</code>). ФИО родителя в <b>именительном</b> на карточке и в модалке создания
@@ -146,6 +171,8 @@
       <tr><td>Группа</td><td>На карточке — все текущие группы ученика через запятую (<code>TeamUserSyncService::teamTitlesLabel</code>, pivot). В списке договоров — снимок <code>contracts.group_id</code> → <code>teams.title</code>.</td></tr>
       <tr><td>Статус</td><td>бейдж <code>school_status_ru</code>: <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»; остальные — как <code>Contract::$STATUS_RU</code></td></tr>
       <tr><td>Ссылка на подпись</td><td>только если <code>Contract::providerSigningUrl()</code> не пуст: <code>contracts.provider_signing_url</code> после whitelist <code>https://podpislon.ru/sign/pack/{id}/{hex}</code>. <code>&lt;a id="contract-provider-signing-url" target="_blank" rel="noopener noreferrer"&gt;</code>. Без URL строки нет. Анонс: <a href="/doc#contract-podpislon-signing-url-index">/doc</a>, §<a href="#contract-podpislon-signing-url">3.1.1</a></td></tr>
+      <tr><td>Способ создания</td><td>template — «Форма клиента (шаблон …)»; иначе «Готовый PDF»</td></tr>
+      <tr id="contract-card-fill-expires"><td>Срок заполнения</td><td>только template и непустой <code>fill_expires_at</code>: <code>d.m.Y H:i</code> (без секунд). Право только <code>contracts.view</code> (карточка), не <code>contracts.fillExpiresAt.view</code>. Колонка списка — другое имя и формат, §<a href="#contract-list-fill-expires-at">1.4</a>, анонс <a href="/doc#contract-list-fill-expires-at-index">/doc</a></td></tr>
       <tr><td>Телефон</td><td><code>users.phone</code> (контакт родителя)</td></tr>
       <tr><td>Почта</td><td><code>users.email</code></td></tr>
     </tbody>
@@ -222,7 +249,9 @@
     тоже пишет URL (JSON 200). 422: <code>errors.signer_lastname</code> / <code>errors.signer_phone</code> /
     <code>errors.podpislon_api_key</code> — URL не пишется.
     Карточка CRM — §2.1. Кабинет родителя — кнопка «Открыть ссылку из SMS»
-    (<a href="/docs/documentation/account-contract-fill#account-documents-podpislon-signing-url">account-contract-fill</a>).
+    (<a href="/docs/documentation/account-contract-fill#account-documents-podpislon-signing-url">account-contract-fill</a>);
+    повтор SMS без смены номера — <a href="/docs/documentation/account-contract-fill#account-documents-resend-sms">§1.5</a>,
+    <a href="/doc#account-documents-resend-sms-index">анонс</a>.
   </div>
 
   <h2 id="contracts-pdf-download">4) Скачивание PDF в интерфейсе</h2>
@@ -397,9 +426,13 @@
   <h3>5.4) Сохранение и оплата</h3>
   <ul>
     <li>Footer модалки: «Отмена» и «Создать договор» (<code>#btn-save</code>).</li>
-    <li>Submit модалки → подтверждение «Создать договор?» → <code>POST /client-contracts/check-balance</code> → <code>POST /client-contracts</code>.</li>
+    <li>Submit модалки → подтверждение «Создать договор?» (текст зависит от <code>creation_mode</code>, см. ниже) → <code>POST /client-contracts/check-balance</code> → <code>POST /client-contracts</code>.</li>
     <li>Списание с баланса партнёра — только при успешном <code>POST /client-contracts</code>, не при открытии модалки.</li>
     <li>После создания ученика и группы изменить нельзя — только новый договор.</li>
+    <li>Текст подтверждения (<code>showConfirmDeleteModal</code> в <code>onSaveClick</code>):
+      <code>pdf</code> — «Изменить файл и ученика после создания договора будет нельзя. Стоимость создания договора 70 руб. Создать договор?»;
+      <code>template</code> — «Изменить шаблон договора и ученика после создания договора будет нельзя. Срок для подписания договора N дней. После истечения срока договор подписать будет нельзя. Стоимость создания договора 70 руб. Создать договор?».
+      N = <code>Contract::FILL_TTL_DAYS</code> (сейчас 30).</li>
   </ul>
 
   <h2>6) Заявки с сайта и создание договора</h2>
@@ -469,7 +502,10 @@
         <a href="/doc#account-documents-expiry-notice-index">анонс</a>;
         <b>повтор SMS из кабинета</b> —
         <a href="/docs/documentation/account-contract-fill#account-documents-resend-sms">fill §1.5</a>,
-        <a href="/doc#account-documents-resend-sms-index">анонс</a></td></tr>
+        <a href="/doc#account-documents-resend-sms-index">анонс</a>;
+        <b>оставшиеся дни до срока подписания</b> на карточке кабинета —
+        <a href="/docs/documentation/account-contract-fill#account-documents-fill-remaining-days">fill §1.6</a>,
+        <a href="/doc#account-documents-fill-remaining-days-index">анонс</a></td></tr>
     </tbody>
   </table>
   <p class="small">На карточке договора template mode отображаются шаблон, срок заполнения, статус; отправка SMS из CRM для этого сценария не используется — подпись только из кабинета после generate PDF.</p>
@@ -571,7 +607,7 @@
       <li><code>ContractStatusMemoDocumentationContractTest.php</code> — анонс /doc совпадает с blade и builder</li>
       <li><code>ContractsAuditLogsFeatureTest.php</code> — endpoint «История», created/revoke/email/send/resend audit, logs-data</li>
       <li><code>ContractsPageFullAccessFeatureTest.php</code> — гость/403 без права, 200 для всех endpoint'ов <code>/client-contracts</code> при <code>contracts.view</code></li>
-      <li><code>ContractCreateModalFeatureTest.php</code> — модалка, redirect <code>/create</code>, store PDF, lockUser helpers</li>
+      <li><code>ContractCreateModalFeatureTest.php</code> — модалка, redirect <code>/create</code>, store PDF, lockUser helpers; тексты подтверждения PDF vs template</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersContractCreate*FeatureTest.php</code> — создание со списка клиентов: UX ячейки, lockUser, guest/403, AJAX lookup, native POST 302; см. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a></li>
       <li><code>ContractCreateModalParentFeatureTest.php</code> — «ФИО родителя», <code>users-search</code>, preselectedUser</li>
       <li><code>ContractCreateTemplateModeModalFeatureTest.php</code> — режим template, баланс, foreign student 422</li>
@@ -595,7 +631,7 @@
       <li><code>PodpislonWebhookTest.php</code> — пустой POST проба 200 без <code>?token=</code> и с ним (токен игнорируется); события требуют <code>SIGNATURE</code> Подпислона</li>
       <li><code>PodpislonWebhookUrlCheckFeatureTest.php</code> — UX кабинета Подпислона: гость, без CSRF, без права CRM, URL без <code>?token=</code> даёт 200 JSON <code>probe</code> (не логин/419/403); токен в path — 404; query-токен не заменяет <code>SIGNATURE</code>; GET/PUT/PATCH/DELETE не 500</li>
       <li><code>ContractsSyncFeatureTest.php</code></li>
-      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code> — в data <code>status_label</code> для sent/opened = «Отправлено СМС» / «Открыто СМС»; <code>download_signed_url</code> только при заполненном <code>signed_pdf_path</code> (в т.ч. revoked); колонка «Обновлён» = последнее <code>contract_events.created_at</code> (max <code>id</code>), не <code>contracts.updated_at</code>; совпадает с верхней строкой журнала на карточке; сортировка колонки (индекс 8); без событий — пустая строка</li>
+      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code> — в data <code>status_label</code> для sent/opened = «Отправлено СМС» / «Открыто СМС»; <code>download_signed_url</code> только при заполненном <code>signed_pdf_path</code> (в т.ч. revoked); колонка «Обновлён» = последнее <code>contract_events.created_at</code> (max <code>id</code>), не <code>contracts.updated_at</code>; совпадает с верхней строкой журнала на карточке; сортировка колонки (индекс 8); без событий — пустая строка; колонка «Срок подписания» (<code>fill_expires_at</code>) только при <code>contracts.fillExpiresAt.view</code>, формат <code>d.m.Y H:i:s</code>, без права ключа в JSON нет, сортировка индекса 9 с правом</li>
       <li><code>ContractListUpdatedAtDocumentationContractTest.php</code> — анонс /doc, §1.3 / §2.3, <code>ContractTableController</code>, заголовок в blade: «Обновлён» из журнала, не <code>contracts.updated_at</code></li>
       <li><code>ContractListSignedFileIconDocumentationContractTest.php</code> — анонс /doc, §4.1.1, иконка PDF в списке, <code>download_signed_url</code>, <code>renderSignedContractFileCell</code></li>
       <li><code>ContractListSignedFileIconAccessFeatureTest.php</code> — гость 302/401, без <code>contracts.view</code> / тренер 403, чужая школа не видит URL и не скачивает, viewer 200 + файл</li>
@@ -628,7 +664,10 @@
     </ul>
     <p><b>Раздел «Документы» (вкладки + шаблоны):</b></p>
     <ul>
-      <li><code>ContractsDocumentsSectionUiFeatureTest.php</code> — вкладки, тулбар, колонка «Обновлён» (<code>&lt;th&gt;</code>, <code>#colUpdatedAt</code>), колонка «Договор» (<code>#colSignedFile</code>, <code>type: 'icon'</code>)</li>
+      <li><code>ContractsDocumentsSectionUiFeatureTest.php</code> — вкладки, тулбар, колонка «Обновлён» (<code>&lt;th&gt;</code>, <code>#colUpdatedAt</code>), колонка «Договор» (<code>#colSignedFile</code>, <code>type: 'icon'</code>), без права нет колонки «Срок подписания»</li>
+      <li><code>ContractListFillExpiresAtUxFeatureTest.php</code> — колонка и пункт «Колонки» только при <code>contracts.fillExpiresAt.view</code>; admin/trainer/чужая школа без права; superadmin видит без выдачи</li>
+      <li><code>ContractsFillExpiresAtPermissionCatalogFeatureTest.php</code> — скрытое право, не в базовых ролях, миграция без backfill</li>
+      <li><code>ContractListFillExpiresAtDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — вкладки, email API, маркеры <code>js-dt-nav-link</code>, поля <code>id</code>/<code>user_name</code> в data</li>
       <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное имя в списке договоров + show 200</li>
     </ul>

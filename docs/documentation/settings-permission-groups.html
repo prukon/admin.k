@@ -66,7 +66,7 @@
       <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code>, <code>legal_entities.*</code> (пункт меню — <code>directories.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>lessonPackages</code></td><td>Абонементы</td><td><code>lessonPackages.view</code>; скрытые <code>lessonPackages.type.fixed</code> / <code>.flexible</code> / <code>.no_schedule</code> / <code>.postpay</code> (выбор типа шаблона — <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>, <a href="/doc#lesson-packages-type-permissions-index">анонс</a>)</td></tr>
       <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.cabinetSeasons.view</code>, <code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code>, <code>payment.clubfee</code>, <code>setPrices.paymentNotifications.manage</code>, <code>setPrices.cabinetPackages.fixed.view</code> / <code>.flexible.view</code> / <code>.single.view</code> / <code>.postpay.view</code> (консоль по типу)</td></tr>
-      <tr><td><code>contracts</code></td><td>Договоры</td><td><code>contracts.sync</code>, <code>contracts.templates.fillSortOrder.edit</code>, <code>account.contracts.showFieldKeys</code></td></tr>
+      <tr><td><code>contracts</code></td><td>Договоры</td><td><code>contracts.sync</code>, <code>contracts.templates.fillSortOrder.edit</code>, скрытое <code>contracts.fillExpiresAt.view</code> (колонка «Срок подписания» в списке, не в базовых ролях), <code>account.contracts.showFieldKeys</code></td></tr>
       <tr><td><code>leads</code></td><td>Заявки и лиды</td><td><code>partnerLeads.view</code>, <code>schoolWidget.view</code>, <code>schoolLeadLanding.view</code> (пункт меню «Лиды» — <code>schoolLeads.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>partner</code></td><td>Партнёры и сервис</td><td><code>partner.switch</code>, <code>servicePayments.view</code>, <code>partnerWallet.view</code>, скрытое <code>partner.oferta.pdf</code> (скачать партнёрскую оферту в PDF, не в базовых ролях)</td></tr>
       <tr><td><code>account</code></td><td>Учетная запись</td><td>Страницы ЛК (<code>account.user.view</code>, …) и поля «свой профиль»: <code>account.user.name.update</code>, <code>account.user.email.update</code>, …; скрытое <code>account.user.team.update</code> — добавление группы в ЛК (сайдбар / карандаш; не в base roles); скрытое <code>account.user.two_factor.update</code> — переключатель SMS-2FA в ЛК (не в base roles, при создании партнёра выкл. у всех, superadmin включает любой роли)</td></tr>
@@ -169,6 +169,13 @@
       PATCH без права не 403 — поле не меняется.
       См. <a href="/docs/documentation/parents-and-family-cabinet#account-two-factor">parents-and-family-cabinet §4.6</a>,
       анонс <a href="/doc#account-two-factor-permission-index">/doc</a>.</li>
+    <li>Миграция <code>contracts.fillExpiresAt.view</code>:
+      <code>/database/migrations/2026_09_12_062900_add_contracts_fill_expires_at_view_permission.php</code>
+      (право в группе <code>contracts</code>, <code>is_visible=0</code>, <b>без</b> выдачи ролям;
+      не в <code>role_base_permissions</code>). Колонка «Срок подписания» и пункт «Колонки» на
+      <code>/client-contracts</code>. Superadmin видит через <code>Gate::before</code>.
+      См. <a href="/docs/documentation/contracts#contract-list-fill-expires-at">contracts §1.4</a>,
+      анонс <a href="/doc#contract-list-fill-expires-at-index">/doc</a>.</li>
     <li>Системные мониторы: скрытое право <code>settings.systemMonitors.view</code>
       (<code>is_visible=0</code>, группа <code>settings</code>, <b>без</b> выдачи ролям).
       Superadmin видит переключатель в шапке через <code>Gate::before</code> / <code>@can</code>.
@@ -274,6 +281,8 @@
       витринные <code>payment.method.*</code> не открывают кошелёк/абонплату; только ЮKassa → дефолт ЮKassa;
       <code>old()</code> после 422; гость / 403 / 422 <code>errors.payment_method</code>.</li>
     <li><code>/tests/Feature/Crm/Permissions/SystemMonitorsPermissionCatalogFeatureTest.php</code> — <code>settings.systemMonitors.view</code> скрытое, не в базовых ролях; <code>settings.reverbOverlay.manage</code> нет.</li>
+    <li><code>/tests/Feature/Crm/Permissions/ContractsFillExpiresAtPermissionCatalogFeatureTest.php</code>
+      — <code>contracts.fillExpiresAt.view</code> скрытое, не в базовых ролях, миграция без выдачи в <code>up()</code>.</li>
     <li><code>/tests/Feature/Crm/Cabinet/SystemMonitorsToggleFeatureTest.php</code> —
       переключатель в шапке, персональный флаг, native POST, первый paint, оверлей Reverb.</li>
     <li><code>/tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php</code> — гость / без <code>settings.roles.view</code> → 403; с правом, admin и superadmin → все endpoint'ы вкладки 200.</li>

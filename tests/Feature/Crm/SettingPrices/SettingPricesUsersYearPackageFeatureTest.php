@@ -130,6 +130,94 @@ final class SettingPricesUsersYearPackageFeatureTest extends CrmTestCase
         ]);
     }
 
+    public function test_save_rejects_new_price_without_package(): void
+    {
+        $response = $this->postJson(route('setting-prices.user-year-prices.save'), [
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'year' => 2024,
+            'prices' => [
+                [
+                    'new_month' => '2024-05-01',
+                    'price' => 4500,
+                    'lesson_package_id' => null,
+                ],
+            ],
+        ]);
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['prices.0.lesson_package_id']);
+        $this->assertSame(
+            'Нельзя установить цену без абонемента.',
+            $response->json('errors')['prices.0.lesson_package_id'][0]
+        );
+
+        $this->assertDatabaseMissing('users_prices', [
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-05-01',
+        ]);
+    }
+
+    public function test_save_rejects_changing_legacy_price_without_package(): void
+    {
+        UserPrice::forceCreate([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-04-01',
+            'price_cents' => 1680000,
+            'is_paid' => 0,
+            'lesson_package_id' => null,
+        ]);
+
+        $this->postJson(route('setting-prices.user-year-prices.save'), [
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'year' => 2024,
+            'prices' => [
+                ['new_month' => '2024-04-01', 'price' => 17000, 'lesson_package_id' => null],
+            ],
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['prices.0.lesson_package_id']);
+
+        $this->assertDatabaseHas('users_prices', [
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-04-01',
+            'price_cents' => 1680000,
+            'lesson_package_id' => null,
+        ]);
+    }
+
+    public function test_save_allows_clearing_legacy_price_without_package(): void
+    {
+        UserPrice::forceCreate([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-04-01',
+            'price_cents' => 1680000,
+            'is_paid' => 0,
+            'lesson_package_id' => null,
+        ]);
+
+        $this->postJson(route('setting-prices.user-year-prices.save'), [
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'year' => 2024,
+            'prices' => [
+                ['new_month' => '2024-04-01', 'price' => 0, 'lesson_package_id' => null],
+            ],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('users_prices', [
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-04-01',
+            'price_cents' => 0,
+            'lesson_package_id' => null,
+        ]);
+    }
+
     public function test_save_snapshots_package_and_creates_user_lesson_package(): void
     {
         UserPrice::forceCreate([

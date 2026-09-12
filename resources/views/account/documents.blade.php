@@ -62,6 +62,13 @@
                                         <div class="fw-semibold">{{ $c->updated_at?->format('d.m.Y H:i') }}</div>
                                     </div>
 
+                                    @if(($remainingDaysLabel = $c->clientFillRemainingDaysLabel()) !== null)
+                                        <div class="mt-2">
+                                            <div class="text-muted small">{{ \App\Models\Contract::CLIENT_FILL_REMAINING_CAPTION }}</div>
+                                            <div class="fw-semibold{{ $c->shouldHighlightClientFillRemainingDays() ? ' text-danger' : '' }}">{{ $remainingDaysLabel }}</div>
+                                        </div>
+                                    @endif
+
 {{--                                    <div class="mt-2">--}}
 {{--                                        <div class="text-muted small">SHA-256</div>--}}
 {{--                                        <div class="small text-break" style="line-height:1.2;">--}}

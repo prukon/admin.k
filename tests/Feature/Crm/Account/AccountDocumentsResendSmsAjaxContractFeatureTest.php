@@ -171,6 +171,77 @@ final class AccountDocumentsResendSmsAjaxContractFeatureTest extends CrmTestCase
         $this->assertSame(self::SIGNER_PHONE, $contract->signRequests()->orderByDesc('id')->value('signer_phone'));
     }
 
+    public function test_ajax_resend_sent_keeps_sent_and_opened_keeps_opened(): void
+    {
+        $this->seedPodpislonLegalEntity();
+        $this->fakePodpislonResend();
+
+        $sent = $this->makeResendableContract(Contract::STATUS_SENT);
+        $this->postJson(route('account.documents.resendSms', $sent), [], $this->contractFillAjaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('status', Contract::STATUS_SENT);
+        $this->assertSame(Contract::STATUS_SENT, $sent->fresh()->status);
+
+        $opened = $this->makeResendableContract(Contract::STATUS_OPENED);
+        $this->postJson(route('account.documents.resendSms', $opened), [], $this->contractFillAjaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('status', Contract::STATUS_SENT);
+        $this->assertSame(Contract::STATUS_OPENED, $opened->fresh()->status);
+    }
+
+    public function test_ajax_resend_rejects_posted_signer_name_fields(): void
+    {
+        $contract = $this->makeResendableContract();
+        $before = $contract->signRequests()->count();
+
+        foreach (['signer_lastname', 'signer_firstname', 'signer_middlename', 'sid'] as $field) {
+            $this->postJson(route('account.documents.resendSms', $contract), [
+                $field => 'атака',
+            ], $this->contractFillAjaxHeaders())
+                ->assertStatus(422)
+                ->assertJsonValidationErrors([$field]);
+        }
+
+        $this->assertSame($before, $contract->signRequests()->count());
+        $this->assertSame(self::SIGNER_PHONE, $contract->signRequests()->orderByDesc('id')->value('signer_phone'));
+    }
+
+    public function test_ajax_resend_empty_phone_field_still_uses_last_request_number(): void
+    {
+        $this->seedPodpislonLegalEntity();
+        $this->fakePodpislonResend();
+        $contract = $this->makeResendableContract(Contract::STATUS_EXPIRED);
+
+        $this->postJson(route('account.documents.resendSms', $contract), [
+            'signer_phone' => '',
+        ], $this->contractFillAjaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('status', Contract::STATUS_SENT);
+
+        $this->assertSame(self::SIGNER_PHONE, $contract->signRequests()->orderByDesc('id')->value('signer_phone'));
+        $this->assertSame(2, $contract->signRequests()->count());
+    }
+
+    public function test_ajax_fill_on_sent_contract_is_unavailable_and_does_not_offer_new_phone(): void
+    {
+        $contract = $this->makeResendableContract(Contract::STATUS_SENT);
+
+        $this->withHeaders($this->contractFillAjaxHeaders())
+            ->getJson(route('account.documents.fill', $contract))
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Договор недоступен для заполнения.')
+            ->assertJsonMissingPath('html');
+    }
+
+    public function test_ajax_resend_on_failed_returns_422_unavailable(): void
+    {
+        $contract = $this->makeResendableContract(Contract::STATUS_FAILED);
+
+        $this->postJson(route('account.documents.resendSms', $contract), [], $this->contractFillAjaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonPath('errors.contract.0', 'Повторная отправка SMS сейчас недоступна.');
+    }
+
     private function makeResendableContract(string $status = Contract::STATUS_SENT): Contract
     {
         $contract = Contract::create([

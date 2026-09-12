@@ -5,6 +5,7 @@ namespace App\Http\Requests\Admin;
 use App\Models\UserPrice;
 use App\Support\LessonPackagePostpayPermission;
 use App\Support\LessonPackageTypePermission;
+use App\Support\SettingPricesRequirePackageForPositivePrice;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -92,13 +93,13 @@ class SaveUserYearPricesRequest extends FormRequest
                     ->where('user_id', $userId)
                     ->where('team_id', $teamId)
                     ->whereIn('new_month', $months)
-                    ->get(['new_month', 'lesson_package_id'])
+                    ->get(['new_month', 'lesson_package_id', 'price_cents', 'is_paid', 'is_manual_paid'])
                     ->mapWithKeys(static function (UserPrice $row) {
                         $key = $row->new_month instanceof \DateTimeInterface
                             ? $row->new_month->format('Y-m-d')
                             : substr((string) $row->new_month, 0, 10);
 
-                        return [$key => $row->lesson_package_id !== null ? (int) $row->lesson_package_id : null];
+                        return [$key => $row];
                     })
                     ->all();
             }
@@ -109,8 +110,9 @@ class SaveUserYearPricesRequest extends FormRequest
                 }
                 $packageId = isset($row['lesson_package_id']) ? (int) $row['lesson_package_id'] : 0;
                 $monthKey = substr((string) ($row['new_month'] ?? ''), 0, 10);
-                $previous = array_key_exists($monthKey, $existingByMonth)
-                    ? $existingByMonth[$monthKey]
+                $existing = $existingByMonth[$monthKey] ?? null;
+                $previous = $existing && $existing->lesson_package_id !== null
+                    ? (int) $existing->lesson_package_id
                     : null;
 
                 LessonPackageTypePermission::rejectUnauthorizedPackageId(
@@ -120,6 +122,18 @@ class SaveUserYearPricesRequest extends FormRequest
                     "prices.{$index}.lesson_package_id",
                     $previous,
                 );
+
+                if (! ($existing && $existing->effective_is_paid)) {
+                    SettingPricesRequirePackageForPositivePrice::rejectIfMissingPackage(
+                        $v,
+                        $row['price'] ?? null,
+                        array_key_exists('lesson_package_id', $row),
+                        $row['lesson_package_id'] ?? null,
+                        $existing !== null ? (int) $existing->price_cents : null,
+                        $previous,
+                        "prices.{$index}.lesson_package_id",
+                    );
+                }
             }
         });
     }
@@ -142,6 +156,7 @@ class SaveUserYearPricesRequest extends FormRequest
         return [
             'team_id.required' => 'Выберите группу для сохранения цен.',
             'prices.*.lesson_package_id.exists' => 'Выбранный абонемент не найден или недоступен.',
+            'prices.*.lesson_package_id.required' => SettingPricesRequirePackageForPositivePrice::MESSAGE,
         ];
     }
 }

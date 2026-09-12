@@ -28,6 +28,168 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="contract-list-fill-expires-at-index">Договоры: колонка «Срок подписания» скрытым правом (2026‑09)</h2>
+  <div class="note">
+    На <code>GET /client-contracts</code> колонка «Срок подписания» показывает дату и время
+    дедлайна <code>contracts.fill_expires_at</code> (формат <code>d.m.Y H:i:s</code>).
+    Колонка и пункт в меню «Колонки» (<code>#colFillExpiresAt</code>,
+    <code>data-column-key="fill_expires_at"</code>) видны только со скрытым правом
+    <code>contracts.fillExpiresAt.view</code>.
+    Анонс: <a href="/doc#contract-list-fill-expires-at-index">/doc#contract-list-fill-expires-at-index</a>.
+    <br><br>
+    1) <b>Право.</b>
+    Группа <code>contracts</code>, <code>is_visible=0</code>, не в
+    <code>role_base_permissions</code>, миграция
+    <code>2026_09_12_062900_…</code> ролям не выдаёт.
+    Админ школы / тренер / клиент по умолчанию не видят колонку и чекбокс в «Колонки».
+    Superadmin видит колонку через <code>Gate::before</code>; в матрице «Права и роли»
+    чекбокс права видит только superadmin и может выдать любой роли
+    (список опциональных — <a href="/docs/documentation/partners-permissions#optional-admin-permissions">partners-permissions §7</a>).
+    Страница списка по-прежнему только <code>contracts.view</code>: без нового права таблица
+    открывается, колонки просто нет.
+    <br>
+    2) <b>JSON и сортировка.</b>
+    <code>GET /client-contracts/data</code> отдаёт ключ <code>fill_expires_at</code> только
+    при праве. Без срока (PDF-договор, <code>null</code>) — пустая строка.
+    Без права ключа нет (не <code>null</code>).
+    Сортировка с правом — индекс 9 DataTables,
+    <code>contracts.fill_expires_at is null, contracts.fill_expires_at …</code>, пустые в конце.
+    Дефолт списка остаётся индексом 8 («Обновлён»).
+    <br>
+    3) <b>Не путать с соседними подписями.</b>
+    Карточка <code>/client-contracts/{id}</code>: строка «Срок заполнения»
+    (<code>d.m.Y H:i</code>, без секунд) при template-режиме и непустом
+    <code>fill_expires_at</code> — для любого, кто видит карточку
+    (<code>contracts.view</code>), отдельное право не нужно.
+    ЛК «Мои документы»: подпись тоже «Срок подписания», но это
+    оставшиеся календарные дни, не дата-время
+    (<a href="/doc#account-documents-fill-remaining-days-index">/doc#account-documents-fill-remaining-days-index</a>).
+    <br><br>
+    Подробно: <a href="/docs/documentation/contracts#contract-list-fill-expires-at">contracts §1.4</a>,
+    карточка §<a href="/docs/documentation/contracts#contract-card-fill-expires">2.1</a>.
+    Тесты: <code>ContractsTableAndColumnsTest</code>,
+    <code>ContractListFillExpiresAtUxFeatureTest</code>,
+    <code>ContractsFillExpiresAtPermissionCatalogFeatureTest</code>,
+    <code>ContractsDocumentsSectionUiFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>ContractListFillExpiresAtDocumentationContractTest</code>.
+    Анонс: <a href="/doc#contract-list-fill-expires-at-index">/doc#contract-list-fill-expires-at-index</a>.
+  </div>
+
+  <h2 id="account-documents-fill-remaining-days-index">ЛК «Мои документы»: оставшиеся дни до срока подписания (2026‑09)</h2>
+  <div class="note">
+    На карточке <code>/account-settings/documents</code> родитель видит оставшиеся дни до срока подписания
+    (<code>contracts.fill_expires_at</code>, календарные дни до даты срока,
+    30 суток <code>Contract::FILL_TTL_DAYS</code>).
+    Это <b>не</b> колонка CRM «Срок подписания» (там дата и время
+    <code>d.m.Y H:i:s</code> по скрытому праву
+    <code>contracts.fillExpiresAt.view</code> —
+    <a href="/doc#contract-list-fill-expires-at-index">/doc#contract-list-fill-expires-at-index</a>),
+    <b>не</b> подпись «Срок заполнения» на карточке CRM
+    (<code>contracts/show</code>: то же поле <code>fill_expires_at</code>, формат
+    <code>d.m.Y H:i</code> без секунд, без отдельного права),
+    <b>не</b> TTL SMS Подпислона и <b>не</b> alert просрочки
+    (<a href="/doc#account-documents-expiry-notice-index">/doc#account-documents-expiry-notice-index</a>).
+    Анонс: <a href="/doc#account-documents-fill-remaining-days-index">/doc#account-documents-fill-remaining-days-index</a>.
+    <br><br>
+    1) <b>Когда видно.</b>
+    <code>shouldShowClientFillRemainingDays()</code>: template-режим,
+    <code>fill_expires_at</code> задан и ещё в будущем, статус не
+    <code>STATUS_SIGNED</code>
+    (в том числе <code>awaiting_client_fill</code>, <code>generating_pdf</code>,
+    <code>draft</code>, <code>sent</code>, <code>opened</code>, <code>expired</code>,
+    <code>failed</code>, <code>revoked</code>).
+    Подпись <code>CLIENT_FILL_REMAINING_CAPTION</code> — «Срок подписания».
+    Значение <code>clientFillRemainingDaysLabel()</code>: «Осталось N дней»
+    (склонение день/дня/дней) или <code>CLIENT_FILL_REMAINING_LAST_DAY</code> — «Последний день»,
+    если срок истекает сегодня по календарю, но <code>isPast()</code> ещё ложно.
+    Просроченный <code>fill_expires_at</code>, PDF-режим, <code>null</code> срок и уже
+    <code>signed</code> поле скрывают.
+    Скрытие дней при прошлом <code>fill_expires_at</code> <b>не</b> равно статусу
+    <code>expired</code> SMS: для <code>awaiting_client_fill</code> тогда alert §1.4;
+    <code>sent</code> / <code>opened</code> подпись по SMS это не блокирует.
+    <br>
+    2) <b>Подсветка.</b>
+    Если календарных дней меньше <code>CLIENT_FILL_REMAINING_DAYS_WARN</code> (6),
+    включая 0 («Последний день»), значение с классом <code>text-danger</code>
+    (<code>shouldHighlightClientFillRemainingDays()</code>). 6 дней — без красного.
+    Счёт — <code>now()->startOfDay()->diffInDays(fill_expires_at->copy()->startOfDay(), false)</code>
+    в таймзоне приложения (<code>Europe/Moscow</code>), не часы/24.
+    <br>
+    3) <b>Код.</b>
+    Новых маршрутов нет, только карточка.
+    Подробно —
+    <a href="/docs/documentation/account-contract-fill#account-documents-fill-remaining-days">account-contract-fill §1.6</a>.
+    Тесты: <code>AccountDocumentsFillRemainingDaysUxFeatureTest</code>,
+    <code>AccountDocumentsFillRemainingDaysAccessFeatureTest</code>
+    (гость / 403 / тренер / чужая школа, чужие HTTP-методы не 500),
+    <code>ContractClientFillRemainingDaysTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>AccountDocumentsFillRemainingDaysDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="setting-prices-require-package-for-price-index">Установка цен: нельзя поставить сумму без абонемента (2026‑09)</h2>
+  <div class="note">
+    На вкладках <b>«По месяцам»</b> (<code>/admin/setting-prices/monthly</code>, правая колонка)
+    и <b>«По ученикам»</b> (<code>/admin/setting-prices/users</code>)
+    сумму <code>&gt; 0</code> можно сохранить только вместе с абонементом.
+    Пустая строка (цена <code>0</code> и «Без абонемента») по-прежнему снимает начисление.
+    Исторические строки «цена есть, пакета нет» при том же payload не валим.
+    Это <b>не</b> снимок тарифа слева (<code>POST …/set-team-price</code> /
+    <code>set-price-all-teams</code> — абонемент группы и так обязателен:
+    «Выберите абонемент для группы.»)
+    и <b>не</b> постановка предоплаты на уже оплаченный месяц без абона
+    (<a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>:
+    у оплаченного это правило Request пропускает, тексты остаются от ULP-sync).
+    Ручную отметку оплаты это не трогает
+    (<code>POST …/manual-paid</code> — как раньше, см.
+    <a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс карточки</a>).
+    Право раздела — <code>setPrices.view</code>.
+    <br><br>
+    1) <b>Бэкенд.</b> Только <code>SetPriceAllUsersRequest</code> и <code>SaveUserYearPricesRequest</code>
+    через <code>SettingPricesRequirePackageForPositivePrice</code>:
+    цена <code>&gt; 0</code> без пакета → <b>422</b>
+    <code>errors.usersPrice.N.lesson_package_id</code> /
+    <code>errors.prices.N.lesson_package_id</code>
+    («Нельзя установить цену без абонемента.»).
+    Повтор «Применить» по уже существующей legacy-строке (та же сумма, пакета нет) — <b>200</b>.
+    Снять пакет, оставив сумму, нельзя; обнулить сумму — можно.
+    Оплаченный месяц (<code>effective_is_paid</code>) это правило не дублирует:
+    снять пакет / не-предоплату по-прежнему тексты sync
+    («Нельзя снять абонемент у оплаченного месяца.» и т.д.).
+    Ошибка на одной строке валит <b>весь</b> POST (FormRequest), в отличие от ULP-sync 422
+    в контроллере, где остальные строки сохраняются.
+    AJAX с <code>X-Requested-With</code> — JSON 200/422; HTML POST без AJAX — <b>302</b>
+    и запись в БД или session errors по полю. Гость — 302/401/403;
+    без <code>setPrices.view</code> — 403; чужая группа/ученик — 404.
+    GET/PATCH/DELETE на POST-рутах — 404/405, не 500 и не пустой 200.
+    <br>
+    2) <b>UI.</b> Пока выбран «Без абонемента», поле цены disabled
+    (Vite «По месяцам»: после загрузки карточек и в режиме карандаша;
+    вкладка «По ученикам»: inline JS, карточка месяца и «Применить» за год).
+    Снятие абонемента на неоплаченном месяце обнуляет сумму; на оплаченном сумму не трогает.
+    После выбора шаблона цена из каталога (кроме оплаченного).
+    Тексты 422 — под селектом <code>setting-prices-monthly-package-error</code>,
+    форма не пересобирается.
+    <br>
+    3) <b>Тесты.</b>
+    <code>SettingPricesRequirePackageForPriceFeatureTest</code>,
+    <code>SettingPricesRequirePackageForPriceAccessFeatureTest</code>,
+    <code>SettingPricesRequirePackageForPriceAjaxContractFeatureTest</code>,
+    <code>SettingPricesRequirePackageForPriceNonAjaxSafetyNetFeatureTest</code>,
+    <code>SettingPricesRequirePackageForPriceMarkupFeatureTest</code>,
+    <code>SettingPricesRequirePackageForPriceJsContractTest</code>,
+    <code>SettingPricesRequirePackageForPositivePriceTest</code>,
+    <code>SettingPricesMonthlyLessonPackageFeatureTest</code>,
+    <code>SettingPricesUsersYearPackageFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_require_package_for_price_ux_contract</code>,
+    <code>SettingPricesRequirePackageForPriceDocumentationContractTest</code>.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/setting-prices-monthly-users#require-package-for-price">setting-prices-monthly-users §require-package-for-price</a>.
+    Анонс: <a href="/doc#setting-prices-require-package-for-price-index">/doc#setting-prices-require-package-for-price-index</a>.
+  </div>
+
   <h2 id="account-contract-phone-mask-index">Договоры: телефон в PDF с маской +7 (999) 999-99-99 (2026‑09)</h2>
   <div class="note">
     В сгенерированном PDF договора (режим <code>creation_mode=template</code>) номер больше не уходит «голыми» цифрами
@@ -121,6 +283,9 @@
     AJAX — JSON 200/422; HTML POST без <code>X-Requested-With</code> — <b>302</b> и запись в БД.
     Гость — 302/401/403; без <code>setPrices.view</code> — 403; чужая группа/ученик — 404.
     GET/PATCH/DELETE на POST-рутах — 404/405.
+    Неоплаченный месяц: сумму <code>&gt; 0</code> без абонемента сохранить нельзя
+    (<a href="/doc#setting-prices-require-package-for-price-index">анонс</a>);
+    этот анонс про оплаченный месяц без абона + предоплату, не про выставление суммы «с нуля».
     <br>
     3) <b>Тесты.</b>
     <code>SettingPricesPaidEmptyPrepaidAttachFeatureTest</code>,
@@ -741,6 +906,10 @@
     и session <code>errors.contract</code>.
     Каунтер сайдбара по-прежнему считает <code>awaiting_client_fill</code>
     (задача — написать администратору).
+    Пока срок заполнения ещё живой, на той же карточке отдельно
+    «оставшиеся дни» —
+    <a href="/doc#account-documents-fill-remaining-days-index">/doc#account-documents-fill-remaining-days-index</a>;
+    после просрочки заполнения это поле скрыто.
     <br>
     2) <b>SMS.</b>
     Статус <code>Contract::STATUS_EXPIRED</code>.
@@ -783,10 +952,13 @@
     <code>expired</code>, если первое SMS не дошло / срок пакета истёк.
     Номер <b>не</b> спрашиваем: SMS уходит на тот же пакет Подпислона
     (<code>repeat-send</code>), ФИО и телефон только из последней
-    <code>contract_sign_requests</code>.
+    <code>contract_sign_requests</code> (<code>lastSignerPhone()</code>).
     Рядом с кнопкой маска <code>RuPhone::formatMaskedForDisplay</code>:
     «SMS уйдёт на +7 (XXX) ***-**-NN» (код и последние 2 цифры).
     Полный номер в HTML не попадает.
+    Это <b>не</b> школьная кнопка CRM «Повторно отправить на подпись»
+    (<code>#openResendModal</code> + модалка с ФИО/телефоном при
+    <code>sent</code> / <code>opened</code> / <code>failed</code> / <code>expired</code>).
     Анонс: <a href="/doc#account-documents-resend-sms-index">/doc#account-documents-resend-sms-index</a>.
     <br><br>
     1) <b>Когда кнопка есть.</b>
@@ -794,25 +966,37 @@
     <code>sent</code> / <code>opened</code> / <code>expired</code>,
     непустой <code>provider_doc_id</code>,
     <code>lastSignerPhone()</code> не пуст.
-    <code>failed</code> / <code>signed</code> / <code>draft</code> /
-    заполнение — кнопки нет.
+    <code>failed</code> / <code>signed</code> / <code>revoked</code> /
+    <code>draft</code> / заполнение — кнопки нет
+    (у школы <code>failed</code> в CRM-ресенде есть, в кабинете нет).
     Первая отправка из модалки fill по-прежнему даёт выбрать телефон.
     <br>
     2) <b>HTTP.</b>
     <code>POST …/contracts/{contract}/resend-sms</code>
     (<code>account.documents.resendSms</code>),
-    <code>account.documents.view</code> + <code>contract.owner</code>.
+    <code>account.documents.view</code> + <code>contract.owner</code>
+    (<code>canAccessContract</code>: владелец или sibling при активном ребёнке).
     Form Request <code>AccountContractResendSmsRequest</code>:
     <code>signer_phone</code> / ФИО / <code>sid</code> —
-    <code>prohibited</code>.
+    <code>prohibited</code> (422 <code>errors.signer_phone</code> и т.д.).
     Сервис <code>resendFromLastRequest</code> копирует последнюю заявку
     и вызывает тот же пакет, без новых 70 ₽
     (списание было при создании договора).
     Антифлуд <code>ContractSmsCooldown</code> 30 сек, как в CRM.
-    AJAX: JSON 200 + reload; 422 →
+    AJAX: JSON 200 + reload; cooldown / недоступно → 422
     <code>errors.contract</code> под кнопкой
-    (<code>js-contract-resend-sms-form</code>).
-    Native POST: 302 и session <code>success</code> / <code>errors</code>.
+    (<code>js-contract-resend-sms-form</code>,
+    <code>[data-error-for="contract"]</code>).
+    Если в 422 нет <code>errors.contract</code> (в т.ч. prohibited),
+    JS берёт <code>message</code> в тот же блок.
+    Native POST: 302 и session <code>success</code> /
+    <code>errors.contract</code> (печатается <code>@error('contract')</code>).
+    Native prohibited остаётся в session
+    <code>errors.signer_phone</code> и под кнопкой не выводится.
+    После успеха <code>expired</code> → <code>sent</code>;
+    <code>opened</code> остаётся <code>opened</code>
+    (в JSON <code>status</code> всё равно <code>sent</code>).
+    fill-AJAX (<code>loadContractFill</code>) пересобирает только модалку.
     Школьный <code>#openResendModal</code> на карточке CRM не убираем.
     <br>
     3) <b>Код.</b>
@@ -1487,6 +1671,8 @@
     отдельно — <a href="/doc#setting-prices-flexible-replace-index">анонс замены предоплаты</a>;
     на оплаченный месяц без абонемента можно поставить предоплату —
     <a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>.
+    Правило «сумма &gt; 0 только с абонементом» на этом endpoint не стоит
+    (<a href="/doc#setting-prices-require-package-for-price-index">анонс</a>).
     Это <b>не</b> вкладка «По ученикам» (там свой JS года), <b>не</b> доп. платежи
     (<code>POST …/custom-payments/{id}/manual-paid</code>) и <b>не</b> пролонгация месяца
     (<a href="/doc#setting-prices-month-prolong-index">анонс</a>).
@@ -9091,7 +9277,7 @@
     <li><a href="/docs/documentation/dev-seed-data"><strong>Dev-фикстуры (SEED_DEV_DATA)</strong>: цепочка Dev*-сидеров, юр. лица/справочники/T‑Bank/history, GuardsDevSeedData, ограничения prod</a></li>
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank; только СБП — без «Других способов» и без «Выберите ниже», <a href="/doc#payment-vitrina-sbp-only-index">анонс</a>), публичная СБП месяца из писем уведомлений (<code>/pm/{code}</code>, <a href="/doc#payment-notifications-sbp-link-index">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
-    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, <b>корзина неоплаченного начисления бывшего</b> (<a href="/doc#setting-prices-monthly-former-charge-clear-index">анонс</a>), apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>), <b>абонемент и сумма из карточки при ручной оплате</b> (<a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>), <b>замена предоплаты в разложенном/оплаченном месяце</b> (<a href="/doc#setting-prices-flexible-replace-index">анонс</a>), <b>предоплата на оплаченный месяц без абонемента</b> (<a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>), <b>плашка группы только вместе со списком учеников</b> (<a href="/doc#setting-prices-monthly-team-select-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, <b>корзина неоплаченного начисления бывшего</b> (<a href="/doc#setting-prices-monthly-former-charge-clear-index">анонс</a>), apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>), <b>абонемент и сумма из карточки при ручной оплате</b> (<a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>), <b>замена предоплаты в разложенном/оплаченном месяце</b> (<a href="/doc#setting-prices-flexible-replace-index">анонс</a>), <b>предоплата на оплаченный месяц без абонемента</b> (<a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>), <b>цену без абонемента ставить нельзя</b> (<a href="/doc#setting-prices-require-package-for-price-index">анонс</a>), <b>плашка группы только вместе со списком учеников</b> (<a href="/doc#setting-prices-monthly-team-select-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, автособытия «ученик добавил группу» (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer) и <b>«договор подписан»</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>, только admin школы, 7 суток), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
     <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>оверлей «Пульт»</b> («Касса» — <a href="/doc#ops-till-missing-payout-index">анонс</a>), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>карточка чужой школы</b> (<a href="/doc#chat-peer-card-cross-partner-index">анонс</a>: superadmin при живом общем треде, 403 <code>errors.user</code> по-русски), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>название партнёра в модалках</b> (<a href="/doc#chat-partner-name-index">анонс</a>: под ФИО в «Контакт» и под именем в «Группа», не вкладка «Аккаунт», не шапка), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>удаление своих сообщений</b> (<a href="/doc#chat-own-message-delete-index">анонс</a>: скрытое <code>messages.own.delete</code>, только автор, подтверждение), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
@@ -9139,9 +9325,9 @@
     <li><a href="/docs/documentation/groups-own">Право <code>groups.own</code>: тренер видит только свои группы (<code>team_trainer</code>), учеников своих групп в журнале/клиентах/консоли, merge чужих групп ученика; не в базовых ролях — <a href="/doc#groups-own-index">анонс</a></a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>«Мои документы» активного ребёнка</b> и ссылка из письма <code>?student=&amp;fill=</code> (<a href="/doc#account-documents-family-link-index">анонс</a>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «ФИО» (<code>users.view</code>) — только активные ученики <code>role=user</code> (<a href="/doc#cabinet-fio-select-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>оверлей «Пульт»</b> (<a href="/doc#ops-monitors-overlay-index">анонс</a>, «Касса» без выплаты после задержки — <a href="/doc#ops-till-missing-payout-index">анонс</a>)</a></li>
-    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>колонка «Договор»</b> — иконка PDF при <code>signed_pdf_path</code>, скачать в новой вкладке (<a href="/doc#contract-list-signed-file-index">анонс</a>), <b>колонка «Обновлён»</b> — последнее событие журнала (<a href="/doc#contract-list-updated-at-index">анонс</a>), <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<code>provider_signing_url</code>, <a href="/doc#contract-podpislon-signing-url-index">анонс</a>), <b>телефон в PDF с маской</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>колонка «Договор»</b> — иконка PDF при <code>signed_pdf_path</code>, скачать в новой вкладке (<a href="/doc#contract-list-signed-file-index">анонс</a>), <b>колонка «Обновлён»</b> — последнее событие журнала (<a href="/doc#contract-list-updated-at-index">анонс</a>), <b>колонка «Срок подписания»</b> — <code>fill_expires_at</code> скрытым правом <code>contracts.fillExpiresAt.view</code> (<a href="/doc#contract-list-fill-expires-at-index">анонс</a>), <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<code>provider_signing_url</code>, <a href="/doc#contract-podpislon-signing-url-index">анонс</a>), <b>телефон в PDF с маской</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <b>«По умолчанию» → <code>{{documents_url}}</code></b> (<a href="/doc#contract-template-email-default-link-index">анонс</a>), <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), <b>телефон в PDF с маской +7 (999) 999-99-99</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
-    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица, <b>телефон с маской</b> — <a href="/doc#account-contract-phone-mask-index">анонс</a>, §2.2.1), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<a href="/doc#contract-podpislon-signing-url-index">анонс</a>, §1.3), <b>просрочка заполнения и SMS</b> (<a href="/doc#account-documents-expiry-notice-index">анонс</a>, §1.4), <b>повтор SMS из кабинета</b> (<a href="/doc#account-documents-resend-sms-index">анонс</a>, §1.5), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>семейная ссылка из письма на нужного ребёнка</b> (<a href="/doc#account-documents-family-link-index">анонс</a>, §1.2), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на email ученика и родителя</b> (§6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица, <b>телефон с маской</b> — <a href="/doc#account-contract-phone-mask-index">анонс</a>, §2.2.1), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<a href="/doc#contract-podpislon-signing-url-index">анонс</a>, §1.3), <b>просрочка заполнения и SMS</b> (<a href="/doc#account-documents-expiry-notice-index">анонс</a>, §1.4), <b>повтор SMS из кабинета</b> (<a href="/doc#account-documents-resend-sms-index">анонс</a>, §1.5), <b>оставшиеся дни до срока подписания</b> (<a href="/doc#account-documents-fill-remaining-days-index">анонс</a>, §1.6), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>семейная ссылка из письма на нужного ребёнка</b> (<a href="/doc#account-documents-family-link-index">анонс</a>, §1.2), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на email ученика и родителя</b> (§6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
     <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>create/edit без «OK» и без F5</b> (<a href="/doc#users-create-edit-toast-index">анонс</a>), <b>шапка и горизонтальный скролл на экране</b> (§2.0.1, <a href="/doc#users-sticky-header-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>

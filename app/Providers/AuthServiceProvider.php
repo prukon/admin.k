@@ -336,6 +336,12 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('contracts.templates.fillSortOrder.edit');
         });
 
+        // Договоры: колонка «Срок подписания» в списке. Скрытое, никому не выдаётся.
+        // Superadmin проходит Gate::before.
+        Gate::define('contracts.fillExpiresAt.view', function (User $user) {
+            return $user->hasPermission('contracts.fillExpiresAt.view');
+        });
+
         // Страница "Настройки
         Gate::define('settings.view', function (User $user) {
             return $user->hasPermission('settings.view');

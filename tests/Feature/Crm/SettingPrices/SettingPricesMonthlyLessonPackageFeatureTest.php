@@ -152,7 +152,45 @@ final class SettingPricesMonthlyLessonPackageFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_legacy_price_without_package_still_updates(): void
+    public function test_legacy_price_without_package_rejects_price_change(): void
+    {
+        UserPrice::forceCreate([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-09-01',
+            'price_cents' => 100000,
+            'is_paid' => 0,
+            'lesson_package_id' => null,
+        ]);
+
+        $response = $this->postJson(route('setPriceAllUsers'), [
+            'selectedDate' => 'Сентябрь 2024',
+            'teamId' => $this->team->id,
+            'usersPrice' => [
+                [
+                    'user_id' => $this->student->id,
+                    'price' => 1200,
+                    'user' => ['name' => $this->student->name],
+                ],
+            ],
+        ]);
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['usersPrice.0.lesson_package_id']);
+        $this->assertSame(
+            'Нельзя установить цену без абонемента.',
+            $response->json('errors')['usersPrice.0.lesson_package_id'][0]
+        );
+
+        $this->assertDatabaseHas('users_prices', [
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-09-01',
+            'price_cents' => 100000,
+            'lesson_package_id' => null,
+        ]);
+    }
+
+    public function test_legacy_price_without_package_allows_unchanged_reapply(): void
     {
         UserPrice::forceCreate([
             'user_id' => $this->student->id,
@@ -169,21 +207,20 @@ final class SettingPricesMonthlyLessonPackageFeatureTest extends CrmTestCase
             'usersPrice' => [
                 [
                     'user_id' => $this->student->id,
-                    'price' => 1200,
+                    'price' => 1000,
+                    'lesson_package_id' => null,
                     'user' => ['name' => $this->student->name],
                 ],
             ],
         ])->assertOk();
 
-        $row = UserPrice::query()
-            ->where('user_id', $this->student->id)
-            ->where('team_id', $this->team->id)
-            ->where('new_month', '2024-09-01')
-            ->first();
-
-        $this->assertNotNull($row);
-        $this->assertEquals(120000, (int) $row->price_cents);
-        $this->assertNull($row->lesson_package_id);
+        $this->assertDatabaseHas('users_prices', [
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-09-01',
+            'price_cents' => 100000,
+            'lesson_package_id' => null,
+        ]);
     }
 
     public function test_rejects_foreign_partner_lesson_package(): void

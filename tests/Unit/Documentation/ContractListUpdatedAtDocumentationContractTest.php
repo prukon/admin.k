@@ -85,7 +85,7 @@ final class ContractListUpdatedAtDocumentationContractTest extends TestCase
         $this->assertStringContainsString('last_event_at', $controller);
         $this->assertStringContainsString('from contract_events as last_ce', $controller);
         $this->assertStringContainsString('order by last_ce.id desc', $controller);
-        $this->assertStringContainsString('formatLastEventAt($contract->last_event_at ?? null)', $controller);
+        $this->assertStringContainsString('formatDateTime($contract->last_event_at ?? null)', $controller);
         $this->assertStringContainsString('last_event_at is null, last_event_at', $controller);
         $this->assertStringNotContainsString("orderBy('contracts.updated_at'", $controller);
 

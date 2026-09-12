@@ -88,6 +88,8 @@ class ContractTableController extends Controller
 
         $baseQuery->addSelect(DB::raw($this->lastEventAtSubquery() . ' as last_event_at'));
 
+        $canSeeFillExpiresAt = $this->viewerCanSeeFillExpiresAt();
+
         // --- сортировка DataTables ---
         $orderColumnIndex = $request->input('order.0.column');
         $orderDir         = strtolower((string) $request->input('order.0.dir', 'asc')) === 'desc' ? 'desc' : 'asc';
@@ -122,6 +124,13 @@ class ContractTableController extends Controller
                     $baseQuery->orderByRaw('last_event_at is null, last_event_at ' . $orderDir);
                     break;
                 case 9:
+                    if ($canSeeFillExpiresAt) {
+                        $baseQuery->orderByRaw('contracts.fill_expires_at is null, contracts.fill_expires_at ' . $orderDir);
+                    } else {
+                        $baseQuery->orderByDesc('contracts.id');
+                    }
+                    break;
+                case 10:
                 default:
                     $baseQuery->orderByDesc('contracts.id');
                     break;
@@ -138,8 +147,8 @@ class ContractTableController extends Controller
             ->take($length)
             ->get();
 
-        $data = $contracts->map(function (Contract $contract) {
-            return [
+        $data = $contracts->map(function (Contract $contract) use ($canSeeFillExpiresAt) {
+            $row = [
                 'id'                 => $contract->id,
                 'user_name'          => $contract->user_name ?: '—',
                 'user_lastname'      => $contract->user_lastname ?: '—',
@@ -153,8 +162,14 @@ class ContractTableController extends Controller
                 'path_title'          => $this->pathTimelineBuilder->title($contract),
                 'path_steps'          => $this->pathTimelineBuilder->build($contract),
                 'download_signed_url' => $this->signedDownloadUrl($contract),
-                'updated_at'          => $this->formatLastEventAt($contract->last_event_at ?? null),
+                'updated_at'          => $this->formatDateTime($contract->last_event_at ?? null),
             ];
+
+            if ($canSeeFillExpiresAt) {
+                $row['fill_expires_at'] = $this->formatDateTime($contract->fill_expires_at);
+            }
+
+            return $row;
         })->toArray();
 
         return response()->json([
@@ -212,7 +227,12 @@ class ContractTableController extends Controller
         return '(select last_ce.created_at from contract_events as last_ce where last_ce.contract_id = contracts.id order by last_ce.id desc limit 1)';
     }
 
-    private function formatLastEventAt(mixed $value): string
+    private function viewerCanSeeFillExpiresAt(): bool
+    {
+        return Auth::user()?->can('contracts.fillExpiresAt.view') ?? false;
+    }
+
+    private function formatDateTime(mixed $value): string
     {
         if ($value === null || $value === '') {
             return '';

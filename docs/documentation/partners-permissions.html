@@ -162,6 +162,11 @@
       <li><code>users.full_name_genitive</code> — ФИО ученика в родительном падеже (CRM / ЛК / колонка импорта Excel); скрытое (<code>is_visible=0</code>);
         по умолчанию никому; договоры <code>{{child_full_name_genitive}}</code> работают независимо —
         <a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>;</li>
+      <li><code>contracts.fillExpiresAt.view</code> — список <code>/client-contracts</code>: колонка «Срок подписания»
+        и пункт «Колонки»; скрытое (<code>is_visible=0</code>); не в базовых ролях; миграция без выдачи;
+        карточка «Срок заполнения» этим правом не закрыта —
+        <a href="/docs/documentation/contracts#contract-list-fill-expires-at">contracts §1.4</a>,
+        анонс <a href="/doc#contract-list-fill-expires-at-index">/doc</a>;</li>
       <li><code>reports.payments.commission_total.view</code> — отчёт «Платежи»: колонка «Комиссия» (сводно);
         скрытое (<code>is_visible=0</code>); не в базовых ролях; строка в конфиге закомментирована;
         миграция hide не трогает <code>permission_role</code> —

@@ -38,6 +38,13 @@ class Contract extends Model
 
     public const CLIENT_RESEND_SMS_BUTTON = 'Отправить SMS ещё раз';
 
+    /** На карточке кабинета красным, если календарных дней до fill_expires_at меньше этого порога. */
+    public const CLIENT_FILL_REMAINING_DAYS_WARN = 6;
+
+    public const CLIENT_FILL_REMAINING_CAPTION = 'Срок подписания';
+
+    public const CLIENT_FILL_REMAINING_LAST_DAY = 'Последний день';
+
     // Статусы
     public const STATUS_DRAFT   = 'draft';
     public const STATUS_AWAITING_CLIENT_FILL = 'awaiting_client_fill';
@@ -189,6 +196,86 @@ class Contract extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Показывать оставшиеся дни до fill_expires_at, пока договор не подписан
+     * и школьный срок ещё не истёк. Не связано с TTL SMS Подпислона.
+     */
+    public function shouldShowClientFillRemainingDays(): bool
+    {
+        if (!$this->isTemplateMode()) {
+            return false;
+        }
+
+        if ($this->status === self::STATUS_SIGNED) {
+            return false;
+        }
+
+        if ($this->fill_expires_at === null || $this->isFillExpired()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Календарные дни от сегодня до даты fill_expires_at, или null если поле скрыто.
+     * 0 = срок истекает сегодня (ещё не isPast).
+     */
+    public function clientFillRemainingDays(): ?int
+    {
+        if (!$this->shouldShowClientFillRemainingDays()) {
+            return null;
+        }
+
+        $days = (int) now()->startOfDay()->diffInDays(
+            $this->fill_expires_at->copy()->startOfDay(),
+            false
+        );
+
+        return max(0, $days);
+    }
+
+    public function clientFillRemainingDaysLabel(): ?string
+    {
+        $days = $this->clientFillRemainingDays();
+        if ($days === null) {
+            return null;
+        }
+
+        if ($days === 0) {
+            return self::CLIENT_FILL_REMAINING_LAST_DAY;
+        }
+
+        return 'Осталось ' . $days . ' ' . self::ruDaysWord($days);
+    }
+
+    public function shouldHighlightClientFillRemainingDays(): bool
+    {
+        $days = $this->clientFillRemainingDays();
+
+        return $days !== null && $days < self::CLIENT_FILL_REMAINING_DAYS_WARN;
+    }
+
+    private static function ruDaysWord(int $days): string
+    {
+        $n = abs($days) % 100;
+        $n1 = $n % 10;
+
+        if ($n > 10 && $n < 20) {
+            return 'дней';
+        }
+
+        if ($n1 === 1) {
+            return 'день';
+        }
+
+        if ($n1 >= 2 && $n1 <= 4) {
+            return 'дня';
+        }
+
+        return 'дней';
     }
 
     public function canClientOpenSigningUrl(): bool

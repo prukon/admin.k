@@ -145,6 +145,60 @@ final class AccountDocumentsResendSmsAccessFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString(self::SIGNER_PHONE, $html);
     }
 
+    public function test_sibling_does_not_see_brother_resend_when_other_child_is_active(): void
+    {
+        $this->seedFamilyStudents();
+        $contract = $this->makeContractFor($this->brother2, Contract::STATUS_SENT, [
+            'provider_doc_id' => '971890',
+            'provider_signing_url' => self::SAMPLE_URL,
+        ]);
+        $this->attachSignRequest($contract);
+
+        $html = $this->actingAsBrother1($this->brother1->id)
+            ->get(route('account.documents.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString(Contract::CLIENT_RESEND_SMS_BUTTON, $html);
+        $this->assertStringNotContainsString(self::MASKED_PHONE, $html);
+        $this->assertStringNotContainsString('data-id="'.$contract->id.'"', $html);
+    }
+
+    public function test_classmate_with_permission_gets_404_on_resend(): void
+    {
+        $contract = $this->seedResendableContract();
+        $classmate = $this->createUserWithRole('user');
+
+        $this->actingAs($classmate)
+            ->withSession($this->accountDocumentsSession())
+            ->post(route('account.documents.resendSms', $contract), [])
+            ->assertNotFound();
+
+        $this->actingAs($classmate)
+            ->withSession($this->accountDocumentsSession())
+            ->postJson(route('account.documents.resendSms', $contract), [], $this->contractFillAjaxHeaders())
+            ->assertNotFound();
+    }
+
+    public function test_json_unsupported_methods_on_resend_sms_are_not_500_or_empty_200(): void
+    {
+        $contract = $this->seedResendableContract();
+
+        foreach (['GET', 'PATCH', 'PUT', 'DELETE'] as $method) {
+            $url = route('account.documents.resendSms', $contract);
+            $response = $this->json($method, $url, [], $this->contractFillAjaxHeaders());
+            $this->assertNotSame(500, $response->getStatusCode(), "JSON {$method} {$url} не должен быть 500");
+            $this->assertContains(
+                $response->getStatusCode(),
+                [401, 403, 404, 405, 419, 422],
+                "JSON {$method} {$url} → {$response->getStatusCode()}"
+            );
+            if ($response->getStatusCode() === 200) {
+                $this->fail("JSON {$method} не должен быть пустым/успешным 200");
+            }
+        }
+    }
+
     public function test_unsupported_http_methods_on_resend_sms_are_not_500(): void
     {
         $contract = $this->seedResendableContract();

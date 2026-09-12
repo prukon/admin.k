@@ -601,11 +601,24 @@
 
                 suppressCreateModalReset = true;
 
+                const mode = $('input[name="creation_mode"]:checked').val();
+                const isTemplate = mode === @json(\App\Models\Contract::CREATION_MODE_TEMPLATE);
+                const confirmMessage = isTemplate
+                    ? (
+                        'Изменить шаблон договора и ученика после создания договора будет нельзя.<br>' +
+                        'Срок для подписания договора {{ (int) \App\Models\Contract::FILL_TTL_DAYS }} дней. После истечения срока договор подписать будет нельзя.<br>' +
+                        '<span class="fw-semibold">Стоимость создания договора 70&nbsp;руб.</span><br>' +
+                        'Создать договор?<br>'
+                    )
+                    : (
+                        'Изменить файл и ученика после создания договора будет нельзя.<br>' +
+                        '<span class="fw-semibold">Стоимость создания договора 70&nbsp;руб.</span><br>' +
+                        'Создать договор?<br>'
+                    );
+
                 showConfirmDeleteModal(
                     'Создание договора',
-                    'Изменить файл и ученика после создания договора будет нельзя.<br>' +
-                    '<span class="fw-semibold">Стоимость создания договора 70&nbsp;руб.</span><br>' +
-                    'Создать договор?<br>',
+                    confirmMessage,
                     onConfirmCreateContract
                 );
             }

@@ -72,6 +72,8 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#users-contract-create-index', $contracts);
         $this->assertStringContainsString('lockUser: true', $contracts);
         $this->assertStringContainsString('Footer модалки: «Отмена» и «Создать договор»', $contracts);
+        $this->assertStringContainsString('Изменить шаблон договора и ученика после создания договора будет нельзя', $contracts);
+        $this->assertStringContainsString('Contract::FILL_TTL_DAYS', $contracts);
         $this->assertStringContainsString('Создать ещё один договор', $contracts);
 
         $this->assertStringContainsString('/doc#users-contract-create-index', $leads);
@@ -124,6 +126,9 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $this->assertStringContainsString('setContractUserSelectLocked', $modal);
         $this->assertStringContainsString('user_id_locked', $modal);
         $this->assertStringContainsString('options.lockUser', $modal);
+        $this->assertStringContainsString('Изменить файл и ученика после создания договора будет нельзя', $modal);
+        $this->assertStringContainsString('Изменить шаблон договора и ученика после создания договора будет нельзя', $modal);
+        $this->assertStringContainsString('Contract::FILL_TTL_DAYS', $modal);
 
         $this->assertSame(
             2,

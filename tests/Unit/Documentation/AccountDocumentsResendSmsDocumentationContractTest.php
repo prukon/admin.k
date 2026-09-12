@@ -35,6 +35,13 @@ final class AccountDocumentsResendSmsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('sent', $chunk);
         $this->assertStringContainsString('opened', $chunk);
         $this->assertStringContainsString('expired', $chunk);
+        $this->assertStringContainsString('failed', $chunk);
+        $this->assertStringContainsString('revoked', $chunk);
+        $this->assertStringContainsString('остаётся <code>opened</code>', $chunk);
+        $this->assertStringContainsString('errors.contract', $chunk);
+        $this->assertStringContainsString('errors.signer_phone', $chunk);
+        $this->assertStringContainsString('@error(\'contract\')', $chunk);
+        $this->assertStringContainsString('canAccessContract', $chunk);
         $this->assertStringContainsString('provider_doc_id', $chunk);
         $this->assertStringContainsString('account.documents.resendSms', $chunk);
         $this->assertStringContainsString('AccountContractResendSmsRequest', $chunk);
@@ -70,6 +77,9 @@ final class AccountDocumentsResendSmsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Отправить SMS ещё раз', $fill);
         $this->assertStringContainsString('formatMaskedForDisplay', $fill);
         $this->assertStringContainsString('canClientResendSms', $fill);
+        $this->assertStringContainsString('CRM-ресенд ещё и при', $fill);
+        $this->assertStringContainsString('остаётся <code>opened</code>', $fill);
+        $this->assertStringContainsString('@error(\'contract\')', $fill);
 
         $this->assertStringContainsString('/doc#account-documents-resend-sms-index', $contracts);
         $this->assertStringContainsString('account-documents-resend-sms', $contracts);
@@ -115,6 +125,14 @@ final class AccountDocumentsResendSmsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('STATUS_SENT', $model);
         $this->assertStringContainsString('STATUS_OPENED', $model);
         $this->assertStringContainsString('STATUS_EXPIRED', $model);
+        $resendFnStart = strpos($model, 'function canClientResendSms');
+        $this->assertNotFalse($resendFnStart);
+        $resendFn = substr($model, $resendFnStart, 450);
+        $this->assertStringContainsString('STATUS_SENT', $resendFn);
+        $this->assertStringContainsString('STATUS_OPENED', $resendFn);
+        $this->assertStringContainsString('STATUS_EXPIRED', $resendFn);
+        $this->assertStringNotContainsString('STATUS_FAILED', $resendFn);
+        $this->assertStringNotContainsString('STATUS_REVOKED', $resendFn);
 
         $this->assertStringContainsString('function formatMaskedForDisplay', $phone);
         $this->assertStringContainsString("'+7 (%s) ***-**-%s'", $phone);

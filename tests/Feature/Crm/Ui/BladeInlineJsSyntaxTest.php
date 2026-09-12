@@ -2293,7 +2293,8 @@ JS;
         $blade = (string) file_get_contents($usersPath);
         $this->assertStringContainsString("const packageDisabledAttr = isFormer ? 'disabled' : ''", $blade);
         $this->assertStringNotContainsString("effectivePaid ? 'disabled'", $blade);
-        $this->assertStringContainsString('if (!isPaid && select.value && pkgPrice != null && pkgPrice !== \'\')', $blade);
+        $this->assertStringContainsString('if (!select.value)', $blade);
+        $this->assertStringContainsString('} else if (!isPaid && pkgPrice != null && pkgPrice !== \'\')', $blade);
         $this->assertStringContainsString("errs['prices.0.lesson_package_id']", $blade);
         $this->assertStringContainsString("prices.' + i + '.lesson_package_id", $blade);
         $this->assertStringContainsString('setting-prices-monthly-package-error', $blade);
@@ -2336,7 +2337,7 @@ JS;
         $enablePos = strpos($afterFormer, "packageSelectDisabled = ''");
         $this->assertNotFalse($enablePos);
         $this->assertStringNotContainsString('hasAbon', substr($afterFormer, 0, $enablePos));
-        $this->assertStringContainsString('} else if (!eff && (!canManage || !hasAbon))', $render);
+        $this->assertStringContainsString('} else if (!eff && hasAbon && !canManage)', $render);
         $this->assertStringContainsString('if (pkg && !isPaid)', $js);
 
         $payloadStart = strpos($js, 'function buildRightApplyPayloadFromDom');
@@ -2359,15 +2360,61 @@ JS;
         $this->assertFileExists($usersPath);
         $blade = (string) file_get_contents($usersPath);
         $this->assertStringContainsString("const packageDisabledAttr = isFormer ? 'disabled' : ''", $blade);
-        $this->assertStringContainsString('if (!isPaid && select.value && pkgPrice != null && pkgPrice !== \'\')', $blade);
+        $this->assertStringContainsString('if (!select.value)', $blade);
+        $this->assertStringContainsString('} else if (!isPaid && pkgPrice != null && pkgPrice !== \'\')', $blade);
         $this->assertStringContainsString("errs['prices.0.lesson_package_id']", $blade);
         $this->assertStringContainsString("prices.' + i + '.lesson_package_id", $blade);
-        $this->assertStringContainsString('if (!isFormer && !effectivePaid && (!canManual || !hasAbon))', $blade);
+        $this->assertStringContainsString('if (!isFormer && !effectivePaid && hasAbon && !canManual)', $blade);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $usersPath,
             'packageDisabledAttr',
             'blade-js-setting-prices-paid-empty-prepaid-attach'
+        );
+    }
+
+    /**
+     * Цена без абонемента закрыта: disabled input, 0 при снятии абона, 422 под селектом.
+     */
+    public function test_setting_prices_require_package_for_price_ux_contract(): void
+    {
+        $vitePath = resource_path('js/settings-prices.js');
+        $this->assertFileExists($vitePath);
+        $js = (string) file_get_contents($vitePath);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($vitePath).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/settings-prices.js (require package for price):\n".implode("\n", $output)
+        );
+
+        $this->assertStringContainsString('} else if (isEditing && !eff && hasAbon)', $js);
+        $this->assertStringContainsString('} else if (!eff && hasAbon && !canManage)', $js);
+        $this->assertStringNotContainsString('!canManage || !hasAbon', $js);
+        $this->assertStringContainsString('} else if (!pkg && !isPaid)', $js);
+        $this->assertStringContainsString('$priceInput.val(formatPriceValue(0))', $js);
+        $this->assertStringContainsString("errs['usersPrice.0.lesson_package_id']", $js);
+        $this->assertStringContainsString('/^usersPrice\\.(\\d+)\\.lesson_package_id$/', $js);
+
+        $usersPath = resource_path('views/admin/SettingPrices/users.blade.php');
+        $this->assertFileExists($usersPath);
+        $blade = (string) file_get_contents($usersPath);
+        $this->assertStringContainsString('if (!isFormer && !effectivePaid && hasAbon && !canManual)', $blade);
+        $this->assertStringNotContainsString('!canManual || !hasAbon', $blade);
+        $this->assertStringContainsString('if (!select.value)', $blade);
+        $this->assertStringContainsString('$input.val(formatPriceValue(0))', $blade);
+        $this->assertStringContainsString("errs['prices.0.lesson_package_id']", $blade);
+        $this->assertStringContainsString("prices.' + i + '.lesson_package_id", $blade);
+        $this->assertStringContainsString('function saveUserMonthPrice', $blade);
+        $this->assertStringContainsString("$('#save-user-year-prices').on('click'", $blade);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $usersPath,
+            'data-abon-established',
+            'blade-js-setting-prices-require-package-for-price'
         );
     }
 
@@ -7045,6 +7092,12 @@ JS;
         $this->assertStringContainsString("order: [[8, 'desc']]", $index);
         $this->assertStringNotContainsString("order: [[7, 'desc']]", $index);
         $this->assertStringContainsString('signed_file: true', $index);
+        $this->assertStringContainsString('const canSeeFillExpiresAt = @json($canSeeFillExpiresAt);', $index);
+        $this->assertStringContainsString('fill_expires_at: canSeeFillExpiresAt', $index);
+        $this->assertStringContainsString("key: 'fill_expires_at'", $index);
+        $this->assertStringContainsString('when: canSeeFillExpiresAt', $index);
+        $this->assertStringContainsString('data-column-key="fill_expires_at"', $index);
+        $this->assertStringContainsString('id="colFillExpiresAt"', $index);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $indexPath,
@@ -9075,6 +9128,9 @@ JS;
         $this->assertStringContainsString('providerSigningUrl()', $markup);
         $this->assertStringContainsString('clientCabinetExpiryNotice()', $markup);
         $this->assertStringContainsString('isAwaitingClientFillExpired()', $markup);
+        $this->assertStringContainsString('clientFillRemainingDaysLabel()', $markup);
+        $this->assertStringContainsString('shouldHighlightClientFillRemainingDays()', $markup);
+        $this->assertStringContainsString('CLIENT_FILL_REMAINING_CAPTION', $markup);
         $this->assertStringContainsString('canClientResendSms()', $markup);
         $this->assertStringContainsString('js-contract-resend-sms-form', $markup);
         $this->assertStringContainsString('CLIENT_RESEND_SMS_BUTTON', $markup);
@@ -9099,6 +9155,75 @@ JS;
             $path,
             'js-contract-resend-sms-form',
             'blade-js-account-docs-resend-sms'
+        );
+    }
+
+    /**
+     * Повтор SMS с карточки: delegated submit, AJAX, ошибки под кнопкой.
+     * fill-AJAX пересобирает только модалку и не должен трогать форму на карточке.
+     */
+    public function test_account_documents_resend_sms_js_posts_ajax_and_does_not_rebuild_card(): void
+    {
+        $path = resource_path('views/account/documents.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $parts = preg_split("/@push\\('scripts'\\)/", $content, 2);
+        $this->assertIsArray($parts);
+        $this->assertCount(2, $parts);
+        $markup = $parts[0];
+        $scripts = $parts[1];
+
+        $resendStart = strpos($scripts, "$(document).on('submit', '.js-contract-resend-sms-form'");
+        $this->assertNotFalse($resendStart);
+        $fillSubmitStart = strpos($scripts, "$(document).on('submit', '#contractFillModal .contract-fill-form'");
+        $this->assertNotFalse($fillSubmitStart);
+        $this->assertGreaterThan($resendStart, $fillSubmitStart);
+        $resendChunk = substr($scripts, $resendStart, $fillSubmitStart - $resendStart);
+
+        $this->assertStringContainsString('e.preventDefault()', $resendChunk);
+        $this->assertStringContainsString('$.ajax({', $resendChunk);
+        $this->assertStringContainsString("method: 'POST'", $resendChunk);
+        $this->assertStringContainsString('url: form.action', $resendChunk);
+        $this->assertStringContainsString('$form.serialize()', $resendChunk);
+        $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $resendChunk);
+        $this->assertStringContainsString("'Accept': 'application/json'", $resendChunk);
+        $this->assertStringContainsString("data-error-for=\"contract\"", $resendChunk);
+        $this->assertStringContainsString('errors.contract', $resendChunk);
+        $this->assertStringContainsString('window.location.reload()', $resendChunk);
+        $this->assertStringContainsString("\$submit.prop('disabled', true)", $resendChunk);
+        $this->assertStringContainsString("\$submit.prop('disabled', false)", $resendChunk);
+        $this->assertStringNotContainsString('loadContractFill', $resendChunk);
+        $this->assertStringNotContainsString('signer_phone', $resendChunk);
+        $this->assertStringNotContainsString('fillContent.innerHTML', $resendChunk);
+        $this->assertStringNotContainsString('js-open-contract-fill', $resendChunk);
+
+        $loadStart = strpos($scripts, 'function loadContractFill(');
+        $this->assertNotFalse($loadStart);
+        $openFillStart = strpos($scripts, "$(document).on('click', '.js-open-contract-fill'");
+        $this->assertNotFalse($openFillStart);
+        $loadChunk = substr($scripts, $loadStart, $openFillStart - $loadStart);
+        $this->assertStringContainsString('fillContent.innerHTML = resp.html', $loadChunk);
+        $this->assertStringNotContainsString('js-contract-resend-sms-form', $loadChunk);
+        $this->assertStringNotContainsString('CLIENT_RESEND_SMS_BUTTON', $loadChunk);
+
+        $this->assertStringContainsString("$(document).on('click', '.js-open-contract-fill'", $scripts);
+        $this->assertStringContainsString("$(document).on('click', '.js-open-contract-fill-edit'", $scripts);
+        $this->assertEquals(
+            1,
+            substr_count($scripts, "$(document).on('submit', '.js-contract-resend-sms-form'"),
+            'Обработчик повторной SMS не должен дублироваться'
+        );
+
+        $this->assertStringContainsString('clientResendSmsMaskedPhone()', $markup);
+        $this->assertStringContainsString('SMS уйдёт на', $markup);
+        $this->assertStringContainsString("method=\"post\"", $markup);
+        $this->assertStringNotContainsString('name="signer_phone"', $markup);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "submit', '.js-contract-resend-sms-form'",
+            'blade-js-account-docs-resend-sms-handler'
         );
     }
 

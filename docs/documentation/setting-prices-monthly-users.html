@@ -55,6 +55,9 @@
     На оплаченный месяц без абонемента можно поставить предоплату
     (сумма заморожена, ULP создаётся оплаченным, журнал не трогаем) —
     <a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>.
+    Сумму <code>&gt; 0</code> без абонемента сохранить нельзя
+    (исторические строки при том же payload остаются) —
+    <a href="/doc#setting-prices-require-package-for-price-index">анонс</a>.
     На вкладке «по месяцам»: слева при postpay цена группы скрыта (иконка <code>i</code> с подсказкой),
     справа сумма только расчётная (0 при 0 посещений). Кнопка «Применить» слева назначает шаблон.
     Без права новые postpay в каталоге скрыты (уже назначенные остаются для отображения);
@@ -356,6 +359,38 @@
     <li>Заголовок справа для бывшей группы: «{группа} · не в группе».</li>
   </ul>
 
+  <h2 id="require-package-for-price">3.3) Цена только с абонементом</h2>
+  <div class="ok">
+    <b>Зачем.</b> Начисление без шаблона не должно попадать в «Установку цен»:
+    сумма <code>&gt; 0</code> сохраняется только вместе с <code>lesson_package_id</code>.
+  </div>
+  <ul>
+    <li>Правая колонка «По месяцам» (<code>POST …/set-price-all-users</code>) и вкладка «По ученикам»
+      (<code>POST …/user-year-prices/save</code>).
+      Слева (<code>set-team-price</code> / <code>set-price-all-teams</code>) абонемент группы и так обязателен
+      («Выберите абонемент для группы.») — это правило туда не ставили.</li>
+    <li>Цена <code>&gt; 0</code> и нет абонемента → <b>422</b> на поле пакета,
+      текст «Нельзя установить цену без абонемента.» под селектом
+      (<code>setting-prices-monthly-package-error</code>).</li>
+    <li>Цена <code>0</code> + «Без абонемента» — снятие начисления, <b>200</b>.</li>
+    <li>Историческая строка (сумма уже стоит, пакета нет): тот же payload — no-op <b>200</b>;
+      смена суммы без пакета — <b>422</b>.
+      Оплаченный месяц это правило Request не дублирует: снять пакет /
+      поставить не-предоплату по-прежнему тексты sync
+      («Нельзя снять абонемент у оплаченного месяца.» и т.д.).
+      Постановка предоплаты на оплаченный месяц без абона не меняется —
+      <a href="#ulp-sync">§0.2</a>.</li>
+    <li>UI: без абонемента поле цены disabled; снятие абона на неоплаченном обнуляет сумму;
+      оплаченный месяц при снятии абона сумму не обнуляет; после выбора шаблона подставляется каталог (кроме оплаченного).
+      Vite «По месяцам»: «Применить» справа и карандаш; вкладка «По ученикам»: карточка месяца и «Применить» за год —
+      оба пути шлют <code>lesson_package_id</code> и рисуют 422 под селектом.</li>
+    <li>Массовое «Применить» справа: ошибка Request на одной строке валит весь POST
+      (в отличие от ULP-sync 422 в контроллере, где остальные строки сохраняются).</li>
+    <li>Ручная отметка оплаты (<code>POST …/manual-paid</code>) это правило не дублирует.</li>
+  </ul>
+  <p class="small">Helper: <code>App\Support\SettingPricesRequirePackageForPositivePrice</code>.
+    Анонс — <a href="/doc#setting-prices-require-package-for-price-index">/doc#setting-prices-require-package-for-price-index</a>.</p>
+
   <h2 id="endpoints">4) Endpoint'ы (monthly / users)</h2>
   <table>
     <thead><tr><th>Метод</th><th>URL</th><th>Route</th><th>Контракт</th></tr></thead>
@@ -407,7 +442,11 @@
           предоплата→предоплата и оплаченный без абона + предоплата разрешены
           (сумма оплаченного заморожена). Частичный save + ошибки
           <code>usersPrice.{i}.lesson_package_id</code>
-          (AJAX JSON / non-AJAX <b>302</b> + session errors)</td>
+          (AJAX JSON / non-AJAX <b>302</b> + session errors).
+          Цена &gt; 0 без абонемента — отдельно, на FormRequest
+          (<a href="#require-package-for-price">§3.3</a>): <b>422</b>
+          «Нельзя установить цену без абонемента.», весь POST не пишется
+          (legacy с той же суммой — 200). Не путать с частичным ULP-sync.</td>
       </tr>
       <tr>
         <td>POST</td>
@@ -438,7 +477,10 @@
           Как Apply справа: предоплата→предоплата и пусто→предоплата на оплаченном
           (сумма заморожена); объём &lt; списанного → <b>422</b>
           <code>errors.prices.{i}.lesson_package_id</code>
-          (фронт рисует под селектом)</td>
+          (фронт рисует под селектом).
+          Цена &gt; 0 без абонемента — FormRequest (§ <a href="#require-package-for-price">3.3</a>):
+          <b>422</b> на том же поле («Нельзя установить цену без абонемента.»),
+          до контроллера / ULP-sync</td>
       </tr>
       <tr>
         <td>POST</td>
@@ -447,6 +489,7 @@
         <td>Нужны <code>setPrices.manualPaid.manage</code> + членство. Бывший → <b>422</b>.
           Пишет <code>is_manual_paid</code> / note / by / at, <b>не</b> трогает авто <code>is_paid</code>.
           Опционально <code>lesson_package_id</code> и <code>price</code> — см. §<a href="#manual-paid-card">manual-paid карточка</a>.
+          Правило «цена &gt; 0 только с абонементом» (§ <a href="#require-package-for-price">3.3</a>) сюда не ставили.
           См. §<a href="#manual-paid-debts">manual-paid → задолженности</a></td>
       </tr>
       <tr>
@@ -571,11 +614,28 @@
       Иконка <code>%</code> у поля цены ученика: скидка применилась при выставлении; tooltip
       <code>Скидка N%. {основание}</code> — см. <a href="/docs/documentation/admin-users.html#user-percent-discount">admin-users §2.6</a>.</li>
     <li><code>app/Http/Requests/Admin/GetTeamPriceRequest.php</code> — 422 на <code>teamId</code> / <code>selectedDate</code> (JSON даже без AJAX)</li>
+    <li><code>app/Http/Requests/Admin/SetPriceAllUsersRequest.php</code> / <code>SaveUserYearPricesRequest.php</code> — цена &gt; 0 требует абонемент (<code>SettingPricesRequirePackageForPositivePrice</code>)</li>
     <li><code>resources/views/admin/SettingPrices/monthly.blade.php</code>, <code>users.blade.php</code></li>
   </ul>
 
   <h2 id="tests">6) Feature-тесты</h2>
   <ul>
+    <li><code>SettingPricesRequirePackageForPriceFeatureTest</code> — цена &gt; 0 без абонемента → 422 на поле пакета (monthly + users year); с пакетом 200; снятие в 0 — 200; legacy без изменения — 200; смена legacy — 422; оплаченный месяц — текст sync, не это правило; массовый POST валит весь Request; ручная оплата без полей пакета не блокируется</li>
+    <li><code>SettingPricesRequirePackageForPriceAccessFeatureTest</code> — гость 302/401/403, без
+      <code>setPrices.view</code> → 403, GET/PATCH/DELETE → 404/405, чужая группа/ученик → 404</li>
+    <li><code>SettingPricesRequirePackageForPriceAjaxContractFeatureTest</code> — JSON с <code>X-Requested-With</code>:
+      200 с пакетом; 422 <code>errors.usersPrice.N.lesson_package_id</code> / <code>prices.N.lesson_package_id</code>;
+      legacy same-price 200; нет пустого <code>{}</code></li>
+    <li><code>SettingPricesRequirePackageForPriceNonAjaxSafetyNetFeatureTest</code> — HTML POST без AJAX:
+      302 + БД с пакетом; без пакета — 302 + session errors по полю; обнуление — 302 + БД</li>
+    <li><code>SettingPricesRequirePackageForPriceMarkupFeatureTest</code> — первый HTML monthly без карточек (Vite);
+      вкладка «По ученикам»: wrapper + inline JS, цена открыта только при <code>hasAbon</code></li>
+    <li><code>SettingPricesRequirePackageForPriceJsContractTest</code> — UX-баг: цена disabled без абона
+      (<code>hasAbon</code>, не <code>!canManage || !hasAbon</code>); снятие обнуляет только неоплаченный;
+      422 под селектом на «Применить» и карандаше; оба пути save на «По ученикам»</li>
+    <li><code>SettingPricesRequirePackageForPositivePriceTest</code> — helper: новая сумма без пакета / смена legacy / с пакетом / legacy no-op / ноль / ключ пакета отсутствует</li>
+    <li><code>BladeInlineJsSyntaxTest::test_setting_prices_require_package_for_price_ux_contract</code> — <code>node --check</code> Vite + inline users, оба пути save</li>
+    <li><code>SettingPricesRequirePackageForPriceDocumentationContractTest</code> — §require-package-for-price и анонс <code>/doc#setting-prices-require-package-for-price-index</code></li>
     <li><code>SettingPricesUsersPriceUlpSyncFeatureTest</code> — create/update/clear ULP, postpay без ULP, block при laid out, reapply/ends_at;
       замена разложенной/оплаченной предоплаты, объём &lt; списанного, массовый частичный save, ротация SMS</li>
     <li><code>SettingPricesPaidEmptyPrepaidAttachFeatureTest</code> — оплаченный без абона → предоплата
@@ -690,6 +750,14 @@
       <code>data.message</code> в модалке; «Пропущено» — «N учеников» + i-иконка после слова, без групп</li>
   </ul>
   <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/SettingPrices/SettingPricesRequirePackageForPriceFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesRequirePackageForPriceAccessFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesRequirePackageForPriceAjaxContractFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesRequirePackageForPriceNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesRequirePackageForPriceMarkupFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesRequirePackageForPriceJsContractTest.php \
+  tests/Unit/Support/SettingPricesRequirePackageForPositivePriceTest.php \
+  tests/Unit/Documentation/SettingPricesRequirePackageForPriceDocumentationContractTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersPriceUlpSyncFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersPriceUlpSyncContractsFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersFeatureTest.php \
@@ -725,7 +793,7 @@
   tests/Unit/Documentation/SettingPricesMonthlyTeamSelectDocumentationContractTest.php
 php artisan test --env=testing \
   tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php \
-  --filter='test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract|test_setting_prices_monthly_prolong_vite_module_ux_contract|test_setting_prices_monthly_team_select_loading_ux_contract'</code></pre>
+  --filter='test_setting_prices_require_package_for_price_ux_contract|test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract|test_setting_prices_monthly_prolong_vite_module_ux_contract|test_setting_prices_monthly_team_select_loading_ux_contract'</code></pre>
 
   <h2 id="related">7) Связанные страницы</h2>
   <p class="small">

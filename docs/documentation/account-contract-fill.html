@@ -45,6 +45,7 @@
     · ссылка Подпислона из SMS: <a href="/doc#contract-podpislon-signing-url-index">/doc</a>
     · просрочка заполнения и SMS: <a href="/doc#account-documents-expiry-notice-index">/doc</a>
     · повтор SMS из кабинета: <a href="/doc#account-documents-resend-sms-index">/doc</a>
+    · оставшиеся дни до срока подписания: <a href="/doc#account-documents-fill-remaining-days-index">/doc</a>
   </div>
 
   <h2>1) Назначение и доступ</h2>
@@ -62,7 +63,7 @@
     (<a href="/doc#contract-annul-after-send-index">анонс аннулирования</a>).<br><br>
     Право на раздел: <code>account.documents.view</code> (<code>Gate::define('account.documents.view')</code>).<br>
     Список и каунтер — договоры <b>активного ребёнка</b> (<code>FamilyStudentContextService::activeStudent()</code>), не учётки входа.
-    Маршруты fill / generate / sign защищены middleware <code>contract.owner</code>: договор доступен владельцу
+    Маршруты fill / generate / sign / resend-sms защищены middleware <code>contract.owner</code>: договор доступен владельцу
     (<code>contracts.user_id === Auth::id()</code>) или sibling из <code>accessibleStudents</code>; чужой пользователь получает <b>404</b> (anti-enumeration).<br>
     Ссылка в письме-приглашении: <code>/account-settings/documents?student={user_id}&amp;fill={contract_id}</code>
     переключает контекст на ребёнка договора (только свой sibling) и открывает модалку.
@@ -201,6 +202,9 @@
     «Срок заполнения договора истёк. Обратитесь к администратору школы.»
     Кнопка «Заполнить договор» скрыта. Fill JSON и generate → 422 с тем же текстом.
     Каунтер сайдбара этот статус всё ещё считает.
+    Пока <code>fill_expires_at</code> ещё в будущем, на той же карточке отдельно поле
+    оставшихся дней (§<a href="#account-documents-fill-remaining-days">1.6</a>);
+    после просрочки заполнения оно скрыто.
     <br>
     <b>SMS.</b>
     Статус <code>expired</code>. Бейдж «Истёк срок».
@@ -220,20 +224,65 @@
     <code>sent</code> / <code>opened</code> / <code>expired</code>,
     есть <code>provider_doc_id</code> и телефон последней
     <code>contract_sign_requests</code> (<code>lastSignerPhone()</code>).
+    У школы CRM-ресенд ещё и при <code>failed</code>; в кабинете <code>failed</code> /
+    <code>revoked</code> / <code>signed</code> кнопки нет.
     Подсказка: «SMS уйдёт на {маска}», маска —
     <code>RuPhone::formatMaskedForDisplay</code> / <code>clientResendSmsMaskedPhone()</code>
     (<code>+7 (XXX) ***-**-NN</code>). Полный номер в разметку не пишем.
     <code>POST account.documents.resendSms</code>,
     Form Request <code>AccountContractResendSmsRequest</code>
-    (<code>signer_phone</code> и ФИО — <code>prohibited</code>).
+    (<code>signer_phone</code> и ФИО — <code>prohibited</code>, 422 по этим ключам).
     Сервис <code>resendFromLastRequest</code> → пакет Подпислона
     <code>repeat-send</code>, без новых 70 ₽.
-    Cooldown 30 сек (<code>ContractSmsCooldown</code>).
+    Cooldown 30 сек (<code>ContractSmsCooldown</code>) → 422 <code>errors.contract</code>.
     Форма <code>js-contract-resend-sms-form</code>: AJAX POST, 422 под
-    <code>[data-error-for="contract"]</code>, успех — reload.
-    Native POST — 302 и session <code>success</code>.
+    <code>[data-error-for="contract"]</code> (без этого ключа — <code>message</code>),
+    успех — reload.
+    Native POST — 302 и session <code>success</code> / <code>errors.contract</code>
+    (<code>@error('contract')</code>). Native prohibited —
+    session <code>errors.signer_phone</code>, под кнопкой не печатается.
+    После успеха <code>expired</code> становится <code>sent</code>; <code>opened</code> остаётся <code>opened</code>
+    (JSON <code>status</code> при этом <code>sent</code>).
+    Номер всегда с последней <code>contract_sign_requests</code>.
+    fill-AJAX (<code>loadContractFill</code>) пересобирает только модалку, форму на карточке не трогает.
     Первая отправка из fill-модалки по-прежнему с выбором телефона.
     CRM <code>#openResendModal</code> не трогаем.
+  </div>
+
+  <h3 id="account-documents-fill-remaining-days">1.6) Оставшиеся дни до срока подписания</h3>
+  <div class="note">
+    Анонс: <a href="/doc#account-documents-fill-remaining-days-index">/doc#account-documents-fill-remaining-days-index</a>.
+    На карточке «Мои документы» (рядом с «Обновлён») поле
+    <code>CLIENT_FILL_REMAINING_CAPTION</code> — «Срок подписания».
+    Источник — <code>fill_expires_at</code> (те же 30 суток, что школа видит при создании:
+    «Срок для подписания договора N дней», <code>FILL_TTL_DAYS</code>).
+    Это <b>не</b> колонка CRM «Срок подписания» (дата-время по
+    <code>contracts.fillExpiresAt.view</code>,
+    <a href="/docs/documentation/contracts#contract-list-fill-expires-at">contracts §1.4</a>,
+    <a href="/doc#contract-list-fill-expires-at-index">анонс</a>),
+    <b>не</b> подпись «Срок заполнения» на карточке CRM
+    (то же поле, формат <code>d.m.Y H:i</code>, без отдельного права),
+    <b>не</b> TTL SMS Подпислона (§<a href="#account-documents-expiry-notice">1.4</a>).
+    <br><br>
+    Показывать: template-режим, <code>fill_expires_at</code> в будущем, статус не
+    <code>signed</code> (<code>shouldShowClientFillRemainingDays()</code>) —
+    в том числе <code>awaiting_client_fill</code>, <code>generating_pdf</code>,
+    <code>draft</code>, <code>sent</code>, <code>opened</code>, <code>expired</code>,
+    <code>failed</code>, <code>revoked</code>.
+    Скрывать: уже <code>signed</code>, PDF-режим, <code>null</code> срок, <code>fill_expires_at</code> в прошлом.
+    Прошлый <code>fill_expires_at</code> у <code>awaiting_client_fill</code> даёт бейдж/alert §1.4;
+    у <code>sent</code> / <code>opened</code> поле дней просто исчезает, SMS это не блокирует.
+    <br>
+    Значение <code>clientFillRemainingDaysLabel()</code>: «Осталось N дней»
+    (склонение день/дня/дней) или «Последний день»
+    (<code>CLIENT_FILL_REMAINING_LAST_DAY</code>), если дата срока — сегодня,
+    а время ещё не прошло.
+    Счёт календарный: <code>now()->startOfDay()->diffInDays(fill_expires_at->copy()->startOfDay(), false)</code>
+    в <code>Europe/Moscow</code>.
+    Если дней меньше <code>CLIENT_FILL_REMAINING_DAYS_WARN</code> (6), включая 0,
+    значение с <code>text-danger</code>
+    (<code>shouldHighlightClientFillRemainingDays()</code>). Ровно 6 дней — без красного.
+    Новых маршрутов нет.
   </div>
 
   <h2>2) Модалка заполнения (<code>#contractFillModal</code>)</h2>
@@ -372,7 +421,7 @@
   <table>
     <thead><tr><th>Статус</th><th>UI в модалке</th></tr></thead>
     <tbody>
-      <tr><td><code>awaiting_client_fill</code></td><td>Форма «Сформировать договор»; доступен fill JSON. Если <code>fill_expires_at</code> в прошлом — бейдж «Срок заполнения истёк», alert «Обратитесь к администратору школы», кнопки «Заполнить договор» нет; fill/generate 422 (§<a href="#account-documents-expiry-notice">1.4</a>)</td></tr>
+      <tr><td><code>awaiting_client_fill</code></td><td>Форма «Сформировать договор»; доступен fill JSON. Пока <code>fill_expires_at</code> в будущем — на карточке «Срок подписания» / оставшиеся дни (§<a href="#account-documents-fill-remaining-days">1.6</a>). Если <code>fill_expires_at</code> в прошлом — бейдж «Срок заполнения истёк», alert «Обратитесь к администратору школы», кнопки «Заполнить договор» нет, поле дней скрыто; fill/generate 422 (§<a href="#account-documents-expiry-notice">1.4</a>)</td></tr>
       <tr><td><code>generating_pdf</code></td><td>Спиннер, <code>poll: true</code> в JSON — автообновление модалки</td></tr>
       <tr><td><code>draft</code> + PDF</td><td>Блок подписания SMS + «Скачать PDF»</td></tr>
       <tr><td><code>sent</code> / <code>opened</code></td><td>Fill JSON → 422 «Договор недоступен для заполнения»; подсказка про SMS на странице при других сценариях. Если в БД есть <code>provider_signing_url</code> — на карточке договора кнопка <b>«Открыть ссылку из SMS»</b> и сам URL (<code>target="_blank"</code>, <code>noopener noreferrer</code>; §<a href="#account-documents-podpislon-signing-url">1.3</a>). Если пакет и номер последней отправки есть — кнопка <b>«Отправить SMS ещё раз»</b> и маска номера (§<a href="#account-documents-resend-sms">1.5</a>). Школа может <b>аннулировать</b> договор на карточке CRM («Аннулировать», <a href="/doc#contract-annul-after-send-index">анонс</a>): статус <code>revoked</code>, 70&nbsp;₽ не возвращаются. Кнопка «Изменить» в кабинете не появляется. В каунтере сайдбара sent/opened ещё считаются, revoked — нет</td></tr>
@@ -388,7 +437,8 @@
     («Отправлено» / «Открыт» в <code>AccountDocumentsController</code>).
     Аудит и вебхуки остаются на <code>Contract::$STATUS_RU</code> («Отправлено» / «Открыто»).
     Просрочка заполнения и SMS на карточке кабинета — §<a href="#account-documents-expiry-notice">1.4</a>.
-    Повтор SMS из кабинета — §<a href="#account-documents-resend-sms">1.5</a>.</p>
+    Повтор SMS из кабинета — §<a href="#account-documents-resend-sms">1.5</a>.
+    Оставшиеся дни до срока подписания — §<a href="#account-documents-fill-remaining-days">1.6</a>.</p>
 
   <h2>4) Валидация generate</h2>
   <p><code>AccountContractGenerateRequest</code>: обязательные поля по <code>required</code> в схеме; системные поля
@@ -511,11 +561,16 @@
       <li><code>AccountDocumentsExpiryNoticeAjaxContractFeatureTest.php</code> — AJAX fill/generate 422 с текстом про администратора школы</li>
       <li><code>AccountDocumentsExpiryNoticeNonAjaxSafetyNetFeatureTest.php</code> — native GET fill / POST generate 302 + session errors</li>
       <li><code>AccountDocumentsExpiryNoticeDocumentationContractTest</code> — анонс <a href="/doc#account-documents-expiry-notice-index">/doc</a> совпадает с кодом</li>
-      <li><code>AccountDocumentsResendSmsUxFeatureTest</code> — §1.5: кнопка «Отправить SMS ещё раз» при sent/opened/expired, маска номера, без полного телефона</li>
-      <li><code>AccountDocumentsResendSmsAccessFeatureTest</code> — гость/403/тренер/чужая школа/sibling</li>
-      <li><code>AccountDocumentsResendSmsAjaxContractFeatureTest</code> — AJAX 200 expired→sent, cooldown 422, prohibited телефон</li>
-      <li><code>AccountDocumentsResendSmsNonAjaxSafetyNetFeatureTest</code> — native POST 302 + session success/errors</li>
+      <li><code>AccountDocumentsResendSmsUxFeatureTest</code> — §1.5: кнопка при sent/opened/expired, маска рядом с кнопкой, последний номер, без полного телефона; failed/revoked/fill-expired/нет заявки — кнопки нет; fill-модалка первой отправки по-прежнему спрашивает телефон</li>
+      <li><code>AccountDocumentsResendSmsAccessFeatureTest</code> — гость/403/тренер/чужая школа/sibling/одноклассник 404, JSON-методы не 500</li>
+      <li><code>AccountDocumentsResendSmsAjaxContractFeatureTest</code> — AJAX 200 expired→sent, opened остаётся opened, cooldown 422, prohibited телефон/ФИО, пустой phone не подменяет номер, fill sent 422</li>
+      <li><code>AccountDocumentsResendSmsNonAjaxSafetyNetFeatureTest</code> — native POST 302 + session success/errors по <code>contract</code> и <code>signer_phone</code>, cooldown</li>
       <li><code>AccountDocumentsResendSmsDocumentationContractTest</code> — анонс <a href="/doc#account-documents-resend-sms-index">/doc</a> совпадает с кодом</li>
+      <li><code>AccountDocumentsFillRemainingDaysUxFeatureTest.php</code> — §1.6: «Срок подписания», 6 дней без красного, 5 дней и «Последний день» с <code>text-danger</code>, sent виден, signed и просроченный fill скрыты</li>
+      <li><code>AccountDocumentsFillRemainingDaysAccessFeatureTest.php</code> — гость/403/тренер/чужая школа без срока подписания, чужие HTTP-методы не 500</li>
+      <li><code>ContractClientFillRemainingDaysTest.php</code> — календарный счёт, склонение, signed/PDF/прошлое скрывают</li>
+      <li><code>AccountDocumentsFillRemainingDaysDocumentationContractTest</code> — анонс <a href="/doc#account-documents-fill-remaining-days-index">/doc</a> совпадает с кодом</li>
+      <li><code>BladeInlineJsSyntaxTest</code> — delegated submit, AJAX, <code>errors.contract</code> под кнопкой, fill-AJAX не пересобирает карточку</li>
       <li><code>RuPhoneTest</code> — <code>formatMaskedForDisplay</code></li>
     </ul>
     Запуск блока: <code>php artisan test tests/Feature/Crm/Account/AccountContractDatePlaceholderFeatureTest.php tests/Feature/Crm/Contracts/ContractTemplateContractDateExtractionFeatureTest.php tests/Feature/Crm/Account/AccountContractFillFormFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPhoneMaskFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPhoneMaskAccessFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPhoneMaskAjaxContractFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPhoneMaskNonAjaxSafetyNetFeatureTest.php tests/Feature/Crm/Account/AccountContractFillPassportEmailUxFeatureTest.php tests/Feature/Crm/Account/AccountContractFillFieldErrorsAjaxContractFeatureTest.php tests/Feature/Crm/Account/AccountContractFillGenerateNonAjaxSafetyNetFeatureTest.php tests/Feature/Crm/Account/AccountContractParentFillEndpointsAccessFeatureTest.php</code>

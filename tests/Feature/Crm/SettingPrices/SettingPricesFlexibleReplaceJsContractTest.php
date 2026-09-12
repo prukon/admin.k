@@ -86,18 +86,22 @@ final class SettingPricesFlexibleReplaceJsContractTest extends TestCase
 
         $this->assertStringContainsString("const packageDisabledAttr = isFormer ? 'disabled' : ''", $blade);
         $this->assertStringNotContainsString("effectivePaid ? 'disabled'", $blade);
-        $this->assertStringContainsString('if (!isPaid && select.value && pkgPrice != null && pkgPrice !== \'\')', $blade);
+        $this->assertStringContainsString('if (!select.value)', $blade);
+        $this->assertStringContainsString('} else if (!isPaid && pkgPrice != null && pkgPrice !== \'\')', $blade);
 
         $changeStart = strpos($blade, "$('#user-prices-table-wrapper').on('change', '.setting-prices-monthly-package-select'");
         $this->assertNotFalse($changeStart);
         $changeEnd = strpos($blade, "$('#user-prices-table-wrapper').on('input change', '.user-price-input'");
         $this->assertNotFalse($changeEnd);
         $change = substr($blade, $changeStart, $changeEnd - $changeStart);
-        $guardPos = strpos($change, 'if (!isPaid && select.value');
+        $emptyPos = strpos($change, 'if (!select.value)');
+        $fillPos = strpos($change, '} else if (!isPaid && pkgPrice != null && pkgPrice !== \'\')');
         $valPos = strpos($change, '$input.val(formatPriceValue(payableRubAfterUserDiscount(pkgPrice, pct)))');
-        $this->assertNotFalse($guardPos);
+        $this->assertNotFalse($emptyPos);
+        $this->assertNotFalse($fillPos);
         $this->assertNotFalse($valPos);
-        $this->assertLessThan($valPos, $guardPos);
+        $this->assertLessThan($fillPos, $emptyPos);
+        $this->assertLessThan($valPos, $fillPos);
     }
 
     public function test_users_tab_card_save_and_save_all_both_send_package_including_paid_months(): void

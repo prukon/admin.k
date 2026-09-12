@@ -43,6 +43,10 @@ class ContractCreateModalFeatureTest extends ContractsFeatureTestCase
             ->assertSee('setContractUserSelectLocked', false)
             ->assertSee('lockUser', false)
             ->assertSee('id="user_id_locked"', false)
+            ->assertSee('Изменить файл и ученика после создания договора будет нельзя', false)
+            ->assertSee('Изменить шаблон договора и ученика после создания договора будет нельзя', false)
+            ->assertSee('Срок для подписания договора ' . Contract::FILL_TTL_DAYS . ' дней', false)
+            ->assertSee('После истечения срока договор подписать будет нельзя', false)
             ->assertDontSee('form-check-inline', false);
     }
 

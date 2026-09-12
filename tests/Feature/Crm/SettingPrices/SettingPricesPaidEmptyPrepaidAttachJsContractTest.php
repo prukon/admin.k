@@ -31,7 +31,7 @@ final class SettingPricesPaidEmptyPrepaidAttachJsContractTest extends TestCase
         $this->assertStringNotContainsString('hasAbon', $beforeEnable);
         $this->assertStringNotContainsString('eff', $beforeEnable);
 
-        $this->assertStringContainsString('} else if (!eff && (!canManage || !hasAbon))', $render);
+        $this->assertStringContainsString('} else if (!eff && hasAbon && !canManage)', $render);
         $this->assertStringContainsString("priceInputDisabled = ''", $render);
     }
 
@@ -102,7 +102,8 @@ final class SettingPricesPaidEmptyPrepaidAttachJsContractTest extends TestCase
         $blade = $this->usersBlade();
 
         $this->assertStringContainsString("const packageDisabledAttr = isFormer ? 'disabled' : ''", $blade);
-        $this->assertStringContainsString('if (!isPaid && select.value && pkgPrice != null && pkgPrice !== \'\')', $blade);
+        $this->assertStringContainsString('if (!select.value)', $blade);
+        $this->assertStringContainsString('} else if (!isPaid && pkgPrice != null && pkgPrice !== \'\')', $blade);
 
         $cardStart = strpos($blade, 'function saveUserMonthPrice');
         $this->assertNotFalse($cardStart);

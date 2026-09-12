@@ -8,6 +8,7 @@
     $partner = $partner ?? null;
     $contractTemplates = $contractTemplates ?? collect();
     $preselectedUser = $preselectedUser ?? null;
+    $canSeeFillExpiresAt = $canSeeFillExpiresAt ?? (auth()->user()?->can('contracts.fillExpiresAt.view') ?? false);
 @endphp
 
 @section('content')
@@ -163,6 +164,17 @@
                                     <label class="form-check-label" for="colUpdatedAt">Обновлён</label>
                                 </div>
 
+                                @if($canSeeFillExpiresAt)
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="fill_expires_at"
+                                           id="colFillExpiresAt"
+                                           checked>
+                                    <label class="form-check-label" for="colFillExpiresAt">Срок подписания</label>
+                                </div>
+                                @endif
+
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
                                            type="checkbox"
@@ -241,6 +253,9 @@
                     <th>Статус</th>
                     <th>Договор</th>
                     <th>Обновлён</th>
+                    @if($canSeeFillExpiresAt)
+                    <th>Срок подписания</th>
+                    @endif
                     <th>Действия</th>
                 </tr>
                 </thead>
@@ -306,6 +321,8 @@
                 }], type, {});
             }
 
+            const canSeeFillExpiresAt = @json($canSeeFillExpiresAt);
+
             const dtApi = KidsCrmDataTable.create('#contracts-table', {
                 columnsSettings: {
                     defaults: {
@@ -317,6 +334,7 @@
                         status_label: true,
                         signed_file: true,
                         updated_at: true,
+                        fill_expires_at: canSeeFillExpiresAt,
                         actions: true,
                     },
                     urls: {
@@ -394,6 +412,13 @@
                         render: renderSignedContractFileCell,
                     },
                     { key: 'updated_at', type: 'text', data: 'updated_at', className: 'dt-col-text text-nowrap' },
+                    {
+                        key: 'fill_expires_at',
+                        type: 'text',
+                        data: 'fill_expires_at',
+                        when: canSeeFillExpiresAt,
+                        className: 'dt-col-text text-nowrap',
+                    },
                     {
                         key: 'actions',
                         type: 'actions',

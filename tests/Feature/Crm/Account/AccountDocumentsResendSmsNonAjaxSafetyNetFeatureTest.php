@@ -6,7 +6,9 @@ namespace Tests\Feature\Crm\Account;
 
 use App\Models\Contract;
 use App\Models\ContractSignRequest;
+use App\Services\Contracts\ContractSmsCooldown;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Monolog\Handler\NullHandler;
@@ -133,6 +135,87 @@ final class AccountDocumentsResendSmsNonAjaxSafetyNetFeatureTest extends CrmTest
         $this->assertContains($response->getStatusCode(), [302, 401, 403]);
         $this->assertSame(Contract::STATUS_EXPIRED, $contract->fresh()->status);
         $this->assertSame(1, $contract->signRequests()->count());
+    }
+
+    public function test_native_resend_rejects_posted_phone_with_session_error_under_field(): void
+    {
+        $contract = $this->makeResendableContract(Contract::STATUS_SENT);
+        $before = $contract->signRequests()->count();
+
+        $response = $this->from(route('account.documents.index'))
+            ->post(route('account.documents.resendSms', $contract), [
+                '_token' => csrf_token(),
+                'signer_phone' => '79998887766',
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode(), 'Валидация не должна давать пустой/успешный 200');
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors(['signer_phone']);
+
+        $sessionErrors = session('errors');
+        $this->assertNotNull($sessionErrors);
+        $this->assertSame(
+            'Номер телефона при повторной отправке изменить нельзя.',
+            $sessionErrors->first('signer_phone')
+        );
+        $this->assertSame($before, $contract->signRequests()->count());
+        $this->assertSame(self::SIGNER_PHONE, $contract->signRequests()->orderByDesc('id')->value('signer_phone'));
+        $this->assertSame(Contract::STATUS_SENT, $contract->fresh()->status);
+    }
+
+    public function test_native_resend_cooldown_redirects_with_contract_error(): void
+    {
+        $contract = $this->makeResendableContract();
+        Cache::put(
+            ContractSmsCooldown::cacheKey($contract->id),
+            time() + ContractSmsCooldown::SECONDS,
+            ContractSmsCooldown::SECONDS
+        );
+
+        $response = $this->from(route('account.documents.index'))
+            ->post(route('account.documents.resendSms', $contract), [
+                '_token' => csrf_token(),
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode());
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors(['contract']);
+        $this->assertStringContainsString('через', (string) session('errors')->first('contract'));
+        $this->assertSame(1, $contract->signRequests()->count());
+    }
+
+    public function test_native_resend_sent_redirects_and_keeps_phone(): void
+    {
+        $this->seedPodpislonLegalEntity();
+        Http::fake([
+            '*repeat-send*' => Http::response(['status' => true], 200),
+            '*' => Http::response([[
+                'status' => 15,
+                'status_text' => 'sent',
+                'contacts' => [
+                    [
+                        'phone' => '+79001112233',
+                        'link' => self::SAMPLE_URL,
+                    ],
+                ],
+            ]], 200),
+        ]);
+
+        $contract = $this->makeResendableContract(Contract::STATUS_SENT);
+
+        $response = $this->from(route('account.documents.index'))
+            ->post(route('account.documents.resendSms', $contract), [
+                '_token' => csrf_token(),
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode());
+        $response->assertRedirect(route('account.documents.index'));
+        $response->assertSessionHas('success');
+        $this->assertSame(Contract::STATUS_SENT, $contract->fresh()->status);
+        $this->assertSame(self::SIGNER_PHONE, $contract->signRequests()->orderByDesc('id')->value('signer_phone'));
     }
 
     private function makeResendableContract(string $status = Contract::STATUS_SENT): Contract

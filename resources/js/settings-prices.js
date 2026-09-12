@@ -968,19 +968,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? payableRubAfterUserDiscount(grossPostpay, appliedPct || userPct)
                 : up.price;
             // Бывшие: всегда disabled. Текущие: селект абонемента доступен и у оплаченного
-            // (замена предоплаты, сумма заморожена). Сумма открыта при первичной установке
-            // (нет абона), иначе — через карандаш. Postpay: цена только расчётная — readonly.
+            // (замена предоплаты, сумма заморожена). Сумма без абонемента закрыта;
+            // после выбора абона — через карандаш или сразу, если нет права карандаша.
+            // Postpay: цена только расчётная — readonly.
             let packageSelectDisabled = 'disabled';
             let priceInputDisabled = 'disabled';
             if (!isFormer) {
                 packageSelectDisabled = '';
                 if (isPostpay) {
                     priceInputDisabled = 'disabled';
-                } else if (isEditing && !eff) {
-                    // Карандаш: сумму можно править только для неоплаченных.
+                } else if (isEditing && !eff && hasAbon) {
+                    // Карандаш: сумму можно править только для неоплаченных с абонементом.
                     priceInputDisabled = '';
-                } else if (!eff && (!canManage || !hasAbon)) {
-                    // Первичная установка абона / без права карандаша — сумма доступна.
+                } else if (!eff && hasAbon && !canManage) {
+                    // Без права карандаша — сумму можно править после выбора абонемента.
                     priceInputDisabled = '';
                 }
             }
@@ -1113,6 +1114,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 || (known ? effectivePaidFromUserPrice(known) : false);
             if (pkg && !isPaid) {
                 $priceInput.val(formatPriceValue(payableRubAfterUserDiscount(pkg.price, previewPct)));
+            } else if (!pkg && !isPaid) {
+                $priceInput.val(formatPriceValue(0));
             }
             $priceInput.prop('readonly', false);
             $priceInput.removeClass('is-postpay-calc');
@@ -1122,7 +1125,11 @@ document.addEventListener('DOMContentLoaded', function () {
             $priceInput.removeAttr('data-bs-custom-class');
             $priceInput.removeAttr('title');
             if (api && $priceWrap.length) {
-                api.showBadge($priceWrap.get(0), previewPct, previewComment);
+                if (pkg && !isPaid) {
+                    api.showBadge($priceWrap.get(0), previewPct, previewComment);
+                } else {
+                    api.hideBadge($priceWrap.get(0));
+                }
             }
         }
 
@@ -1139,13 +1146,15 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        // Вне режима редактирования сумму блокируем только если абон уже был сохранён.
-        // При первичной установке оставляем поле открытым для правки перед «Применить».
+        // Без абонемента сумму не даём править. После выбора шаблона поле открыто,
+        // пока абон ещё не сохранён (или нет права карандаша).
         const inEditMode = uid && editingMonthlyUserId !== null && String(editingMonthlyUserId) === String(uid);
         const abonEstablished = $card.attr('data-abon-established') === '1';
         if (isPostpay) {
             $priceInput.prop('disabled', true).prop('readonly', true);
         } else if ($card.attr('data-effective-paid') === '1') {
+            $priceInput.prop('disabled', true);
+        } else if (!pkg) {
             $priceInput.prop('disabled', true);
         } else if (inEditMode) {
             $priceInput.prop('disabled', false);
@@ -1386,6 +1395,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         $btn.prop('disabled', true);
+        clearMonthlyCardFieldErrors($card);
         const selectedDate = getSelectedMonthLabel();
         const csrf = $('meta[name="csrf-token"]').attr('content');
 
@@ -1432,21 +1442,29 @@ document.addEventListener('DOMContentLoaded', function () {
             error: function (xhr) {
                 $btn.prop('disabled', false);
                 let msg = 'Не удалось сохранить цену.';
+                let fieldShown = false;
                 if (xhr.responseJSON) {
                     if (xhr.responseJSON.message) {
                         msg = xhr.responseJSON.message;
                     }
                     const errs = xhr.responseJSON.errors;
                     if (errs) {
-                        const firstKey = Object.keys(errs)[0];
-                        if (firstKey && errs[firstKey] && errs[firstKey][0]) {
-                            msg = errs[firstKey][0];
+                        const pkgErr = errs['usersPrice.0.lesson_package_id'] || errs.lesson_package_id;
+                        if (pkgErr && pkgErr[0]) {
+                            showMonthlyCardFieldError($card, 'lesson_package_id', pkgErr[0]);
+                            fieldShown = true;
+                            msg = pkgErr[0];
+                        } else {
+                            const firstKey = Object.keys(errs)[0];
+                            if (firstKey && errs[firstKey] && errs[firstKey][0]) {
+                                msg = errs[firstKey][0];
+                            }
                         }
                     }
                 }
-                if (typeof showErrorModal === 'function') {
+                if (!fieldShown && typeof showErrorModal === 'function') {
                     showErrorModal('Ошибка', msg);
-                } else {
+                } else if (!fieldShown) {
                     alert(msg);
                 }
             }

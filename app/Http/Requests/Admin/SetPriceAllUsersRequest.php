@@ -5,6 +5,7 @@ namespace App\Http\Requests\Admin;
 use App\Models\UserPrice;
 use App\Support\LessonPackagePostpayPermission;
 use App\Support\LessonPackageTypePermission;
+use App\Support\SettingPricesRequirePackageForPositivePrice;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -88,13 +89,13 @@ final class SetPriceAllUsersRequest extends FormRequest
             $userIds = array_values(array_unique(array_filter($userIds)));
 
             $existingByUser = [];
-            if ($teamId > 0 && $userIds !== []) {
+            if ($teamId > 0 && $userIds !== [] && $monthDate !== '') {
                 $existingByUser = UserPrice::query()
                     ->where('team_id', $teamId)
                     ->whereDate('new_month', $monthDate)
                     ->whereIn('user_id', $userIds)
-                    ->pluck('lesson_package_id', 'user_id')
-                    ->all();
+                    ->get(['user_id', 'lesson_package_id', 'price_cents', 'is_paid', 'is_manual_paid'])
+                    ->keyBy(static fn (UserPrice $row) => (int) $row->user_id);
             }
 
             foreach ($rows as $index => $row) {
@@ -103,8 +104,9 @@ final class SetPriceAllUsersRequest extends FormRequest
                 }
                 $packageId = isset($row['lesson_package_id']) ? (int) $row['lesson_package_id'] : 0;
                 $userId = (int) ($row['user_id'] ?? 0);
-                $previous = array_key_exists($userId, $existingByUser)
-                    ? ($existingByUser[$userId] !== null ? (int) $existingByUser[$userId] : null)
+                $existing = $existingByUser[$userId] ?? null;
+                $previous = $existing && $existing->lesson_package_id !== null
+                    ? (int) $existing->lesson_package_id
                     : null;
 
                 LessonPackageTypePermission::rejectUnauthorizedPackageId(
@@ -114,6 +116,18 @@ final class SetPriceAllUsersRequest extends FormRequest
                     "usersPrice.{$index}.lesson_package_id",
                     $previous,
                 );
+
+                if (! ($existing && $existing->effective_is_paid)) {
+                    SettingPricesRequirePackageForPositivePrice::rejectIfMissingPackage(
+                        $v,
+                        $row['price'] ?? null,
+                        array_key_exists('lesson_package_id', $row),
+                        $row['lesson_package_id'] ?? null,
+                        $existing !== null ? (int) $existing->price_cents : null,
+                        $previous,
+                        "usersPrice.{$index}.lesson_package_id",
+                    );
+                }
             }
         });
     }
@@ -142,6 +156,7 @@ final class SetPriceAllUsersRequest extends FormRequest
             'usersPrice.*.price.numeric' => 'Цена должна быть числом.',
             'usersPrice.*.price.min' => 'Цена не может быть отрицательной.',
             'usersPrice.*.lesson_package_id.exists' => 'Выбранный абонемент не найден или недоступен.',
+            'usersPrice.*.lesson_package_id.required' => SettingPricesRequirePackageForPositivePrice::MESSAGE,
         ];
     }
 }

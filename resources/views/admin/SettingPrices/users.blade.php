@@ -529,10 +529,10 @@
                     const hasAbon = packageId !== '';
                     // Абонемент: бывшие — только просмотр; оплаченные можно сменить (цена заморожена).
                     const packageDisabledAttr = isFormer ? 'disabled' : '';
-                    // Сумма: при первичной установке (ещё нет абона) — открыта;
-                    // после установки абона — только через карандаш (если есть право).
+                    // Сумма без абонемента закрыта; после установки абона — только через карандаш
+                    // (если есть право). Без права карандаша поле открыто, пока выбран абонемент.
                     let priceDisabledAttr = 'disabled';
-                    if (!isFormer && !effectivePaid && (!canManual || !hasAbon)) {
+                    if (!isFormer && !effectivePaid && hasAbon && !canManual) {
                         priceDisabledAttr = '';
                     }
 
@@ -575,7 +575,7 @@
                         '<div class="setting-prices-monthly-edit-wrap">' + pencilHtml + '</div>' +
                         '</div>';
 
-                    html += '<div class="setting-prices-user-card mb-2 pb-2 border-bottom' + (isFormer ? ' setting-prices-user-card--former' : '') + '" data-new-month="' + item.new_month + '"' + (isFormer ? ' data-is-former-member="1"' : '') + '>';
+                    html += '<div class="setting-prices-user-card mb-2 pb-2 border-bottom' + (isFormer ? ' setting-prices-user-card--former' : '') + '" data-new-month="' + item.new_month + '"' + (isFormer ? ' data-is-former-member="1"' : '') + ' data-abon-established="' + (hasAbon ? '1' : '0') + '">';
                     html += '<div class="setting-prices-monthly-row d-flex align-items-center gap-1 flex-nowrap w-100 min-w-0">';
                     html += '<div class="setting-prices-monthly-name-col d-flex align-items-center min-w-0 flex-grow-1 gap-1">';
                     html += '<span class="setting-prices-monthly-name-text text-truncate" title="' + monthTitle + '">' + escapeHtml(item.month_label) + '</span>';
@@ -642,8 +642,9 @@
                 const eff = !!item.effective_is_paid;
                 const selVal = eff ? '1' : '0';
 
-                // В режиме карандаша сумма доступна для правки (кроме оплаченных).
-                if (!eff) {
+                // В режиме карандаша сумму можно править только у неоплаченных с абонементом.
+                const hasAbonNow = String($row.find('.setting-prices-monthly-package-select').val() || '') !== '';
+                if (!eff && hasAbonNow) {
                     $priceInput.prop('disabled', false);
                 }
 
@@ -882,9 +883,24 @@
                     const $wrap = $input.closest('.kids-user-discount-price-wrap');
                     const pct = yearUserDiscountPercent();
                     const comment = lastYearUserDiscount.comment || '';
+                    const canManualNow = !!(lastPricesPayload && lastPricesPayload.can_manage_manual_paid);
+                    const abonEstablished = $card.attr('data-abon-established') === '1';
                     // Подставляем цену абонемента (со скидкой ученика), кроме оплаченного месяца.
-                    if (!isPaid && select.value && pkgPrice != null && pkgPrice !== '') {
+                    if (!select.value) {
+                        if (!isPaid) {
+                            $input.val(formatPriceValue(0));
+                            $input.prop('disabled', true);
+                        }
+                        if (api && $wrap.length && !isPaid) {
+                            api.hideBadge($wrap.get(0));
+                        }
+                    } else if (!isPaid && pkgPrice != null && pkgPrice !== '') {
                         $input.val(formatPriceValue(payableRubAfterUserDiscount(pkgPrice, pct)));
+                        if (canManualNow && abonEstablished) {
+                            $input.prop('disabled', true);
+                        } else {
+                            $input.prop('disabled', false);
+                        }
                         if (api && $wrap.length) {
                             api.showBadge($wrap.get(0), pct, comment);
                             api.initHint($wrap.get(0));

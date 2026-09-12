@@ -52,6 +52,16 @@ final class AccountDocumentsResendSmsUxFeatureTest extends CrmTestCase
         $this->assertStringContainsString('SMS уйдёт на '.self::MASKED_PHONE, $card);
         $this->assertStringContainsString('js-contract-resend-sms-form', $card);
         $this->assertStringContainsString(route('account.documents.resendSms', $sent), $card);
+        $this->assertLessThan(
+            strpos($card, 'js-contract-resend-sms-form'),
+            strpos($card, 'SMS уйдёт на '.self::MASKED_PHONE),
+            'Маска должна быть рядом с кнопкой, до формы'
+        );
+        $this->assertLessThan(
+            strpos($card, Contract::CLIENT_RESEND_SMS_BUTTON),
+            strpos($card, 'SMS уйдёт на '.self::MASKED_PHONE),
+            'Маска должна быть рядом с кнопкой, до submit'
+        );
         $this->assertStringContainsString('Открыть ссылку из SMS', $card);
         $this->assertStringNotContainsString(self::SIGNER_PHONE, $card);
         $this->assertStringNotContainsString(self::FULL_FORMATTED, $card);
@@ -139,6 +149,157 @@ final class AccountDocumentsResendSmsUxFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString(self::MASKED_PHONE, $html);
         $this->assertStringNotContainsString(self::SIGNER_PHONE, $html);
         $this->assertStringNotContainsString(self::FULL_FORMATTED, $html);
+    }
+
+    public function test_failed_revoked_and_fill_expired_do_not_show_resend_button(): void
+    {
+        $failed = $this->makeSentCabinetContract([
+            'status' => Contract::STATUS_FAILED,
+            'provider_doc_id' => '971893',
+        ]);
+        $this->attachSignRequest($failed);
+
+        $revoked = $this->makeSentCabinetContract([
+            'status' => Contract::STATUS_REVOKED,
+            'provider_doc_id' => '971894',
+            'provider_signing_url' => self::SAMPLE_URL,
+        ]);
+        $this->attachSignRequest($revoked);
+
+        $fillExpired = $this->makeAwaitingFillContract([
+            ['key' => 'parent_lastname', 'label' => 'Фамилия', 'required' => true],
+        ]);
+        $fillExpired->update(['fill_expires_at' => now()->subMinute()]);
+
+        $html = $this->get(route('account.documents.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('js-contract-resend-sms-form', $this->cardAroundContract($html, $failed->id));
+        $this->assertStringNotContainsString('js-contract-resend-sms-form', $this->cardAroundContract($html, $revoked->id));
+
+        $fillCard = $this->cardAroundContract($html, $fillExpired->id);
+        $this->assertStringContainsString(Contract::CLIENT_FILL_EXPIRED_NOTICE, $fillCard);
+        $this->assertStringNotContainsString('js-contract-resend-sms-form', $fillCard);
+        $this->assertStringNotContainsString(self::MASKED_PHONE, $html);
+    }
+
+    public function test_mask_uses_last_sign_request_phone_not_the_first(): void
+    {
+        $contract = $this->makeSentCabinetContract();
+        $this->attachSignRequest($contract);
+        ContractSignRequest::create([
+            'contract_id' => $contract->id,
+            'signer_name' => 'Петров Пётр Петрович',
+            'signer_lastname' => 'Петров',
+            'signer_firstname' => 'Пётр',
+            'signer_middlename' => 'Петрович',
+            'signer_phone' => '79002223344',
+            'ttl_hours' => 72,
+            'status' => 'sent',
+        ]);
+
+        $html = $this->get(route('account.documents.index'))
+            ->assertOk()
+            ->getContent();
+
+        $card = $this->cardAroundContract($html, $contract->id);
+        $this->assertStringContainsString('SMS уйдёт на +7 (900) ***-**-44', $card);
+        $this->assertStringNotContainsString(self::MASKED_PHONE, $card);
+        $this->assertStringNotContainsString('79002223344', $card);
+        $this->assertStringNotContainsString(self::SIGNER_PHONE, $card);
+        $this->assertStringNotContainsString('+7 (900) 222-33-44', $card);
+    }
+
+    public function test_formatted_phone_in_last_request_is_masked_on_card(): void
+    {
+        $contract = $this->makeSentCabinetContract();
+        ContractSignRequest::create([
+            'contract_id' => $contract->id,
+            'signer_name' => 'Иванов Иван Иванович',
+            'signer_lastname' => 'Иванов',
+            'signer_firstname' => 'Иван',
+            'signer_middlename' => 'Иванович',
+            'signer_phone' => '+7 (906) 247-55-08',
+            'ttl_hours' => 72,
+            'status' => 'sent',
+        ]);
+
+        $html = $this->get(route('account.documents.index'))
+            ->assertOk()
+            ->getContent();
+
+        $card = $this->cardAroundContract($html, $contract->id);
+        $this->assertStringContainsString('SMS уйдёт на +7 (906) ***-**-08', $card);
+        $this->assertStringNotContainsString('247-55-08', $card);
+        $this->assertStringNotContainsString('89062475508', $card);
+    }
+
+    public function test_whitespace_phone_hides_resend_button(): void
+    {
+        $contract = $this->makeSentCabinetContract();
+        ContractSignRequest::create([
+            'contract_id' => $contract->id,
+            'signer_name' => 'Иванов Иван Иванович',
+            'signer_lastname' => 'Иванов',
+            'signer_firstname' => 'Иван',
+            'signer_phone' => '   ',
+            'ttl_hours' => 72,
+            'status' => 'sent',
+        ]);
+
+        $html = $this->get(route('account.documents.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString(
+            'js-contract-resend-sms-form',
+            $this->cardAroundContract($html, $contract->id)
+        );
+    }
+
+    public function test_neighbor_card_without_phone_does_not_inherit_mask(): void
+    {
+        $withPhone = $this->makeSentCabinetContract([
+            'provider_doc_id' => '971890',
+        ]);
+        $this->attachSignRequest($withPhone);
+
+        $withoutPhone = $this->makeSentCabinetContract([
+            'provider_doc_id' => '971891',
+            'provider_signing_url' => 'https://podpislon.ru/sign/pack/971891/9f1d11872061',
+        ]);
+
+        $html = $this->get(route('account.documents.index'))
+            ->assertOk()
+            ->getContent();
+
+        $withCard = $this->cardAroundContract($html, $withPhone->id);
+        $withoutCard = $this->cardAroundContract($html, $withoutPhone->id);
+
+        $this->assertStringContainsString('SMS уйдёт на '.self::MASKED_PHONE, $withCard);
+        $this->assertStringContainsString('js-contract-resend-sms-form', $withCard);
+        $this->assertStringNotContainsString('js-contract-resend-sms-form', $withoutCard);
+        $this->assertStringNotContainsString(self::MASKED_PHONE, $withoutCard);
+    }
+
+    public function test_first_sign_modal_still_asks_for_phone_resend_form_does_not(): void
+    {
+        $draft = $this->makeDraftEditablePhoneContract();
+        $sent = $this->makeSentCabinetContract();
+        $this->attachSignRequest($sent);
+
+        $indexHtml = $this->get(route('account.documents.index'))
+            ->assertOk()
+            ->getContent();
+        $sentCard = $this->cardAroundContract($indexHtml, $sent->id);
+        $this->assertStringNotContainsString('name="signer_phone"', $sentCard);
+        $this->assertStringContainsString('js-contract-resend-sms-form', $sentCard);
+
+        $fillHtml = $this->getContractFillModalHtml($draft);
+        $this->assertStringContainsString('name="signer_phone"', $fillHtml);
+        $this->assertStringNotContainsString('js-contract-resend-sms-form', $fillHtml);
+        $this->assertStringContainsString('Подписать договор (отправить SMS)', $fillHtml);
     }
 
     /**

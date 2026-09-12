@@ -56,7 +56,7 @@ final class SettingPricesFlexibleReplaceMarkupFeatureTest extends CrmTestCase
         $renderChunk = substr($js, $renderPos, $changePos - $renderPos);
         $this->assertStringContainsString("if (!isFormer)", $renderChunk);
         $this->assertStringContainsString("packageSelectDisabled = ''", $renderChunk);
-        $this->assertStringContainsString("} else if (!eff && (!canManage || !hasAbon))", $renderChunk);
+        $this->assertStringContainsString('} else if (!eff && hasAbon && !canManage)', $renderChunk);
     }
 
     public function test_users_tab_inline_markup_enables_package_select_when_paid_and_shows_field_error(): void

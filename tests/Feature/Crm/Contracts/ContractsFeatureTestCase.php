@@ -18,6 +18,8 @@ abstract class ContractsFeatureTestCase extends CrmTestCase
 
     protected const PERM_CONTRACTS_SYNC = 'contracts.sync';
 
+    protected const PERM_CONTRACTS_FILL_EXPIRES_AT = 'contracts.fillExpiresAt.view';
+
     protected function setUp(): void
     {
         parent::setUp();

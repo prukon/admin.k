@@ -143,6 +143,9 @@ class ContractCreateTemplateModeModalFeatureTest extends ContractsFeatureTestCas
             ->assertSee('value="' . Contract::CREATION_MODE_TEMPLATE . '"', false)
             ->assertSee('value="' . Contract::CREATION_MODE_PDF . '"', false)
             ->assertSee('id="contract_template_id"', false)
-            ->assertSee('Для radio', false);
+            ->assertSee('Для radio', false)
+            ->assertSee('Изменить шаблон договора и ученика после создания договора будет нельзя', false)
+            ->assertSee('Срок для подписания договора ' . Contract::FILL_TTL_DAYS . ' дней', false)
+            ->assertSee('После истечения срока договор подписать будет нельзя', false);
     }
 }
