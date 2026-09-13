@@ -35,6 +35,7 @@
     · колонка «Номер договора» и остаток дней: <a href="/doc#contract-list-number-and-fill-remaining-index">анонс</a>
     · колонка «Обновлён»: <a href="/doc#contract-list-updated-at-index">анонс</a>
     · колонка «Срок подписания»: <a href="/doc#contract-list-fill-expires-at-index">анонс</a>
+    · без остатка дней у signed/revoked: <a href="/doc#contract-list-hide-remaining-signed-revoked-index">анонс</a>
     · иконка подписанного PDF в списке: <a href="/doc#contract-list-signed-file-index">анонс</a>
     · ссылка Подпислона из SMS: <a href="/doc#contract-podpislon-signing-url-index">анонс</a>
     · текст ошибки Подпислона в CRM: <a href="/doc#contract-send-failure-message-index">анонс</a>
@@ -65,7 +66,7 @@
       <tr><td>POST</td><td><code>/client-contracts/check-balance</code></td><td>Предпроверка баланса перед submit модалки создания</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/users-search</code></td><td>AJAX Select2: поиск учеников (в т.ч. <code>parent_full_name</code> для модалки)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
-      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>id</code> (колонка «Номер договора»), <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>status_error</code> — текст отказа Подпислона при <code>failed</code> иначе <code>null</code> (<a href="/doc#contract-send-failure-message-index">анонс</a>), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)», <code>download_signed_url</code> — URL <code>GET …/download-signed</code> или <code>null</code>, если <code>signed_pdf_path</code> пуст. Колонка «Обновлён» (<code>updated_at</code> в JSON) — <code>created_at</code> последнего события журнала этого договора (<code>contract_events</code>, максимальный <code>id</code>, как на карточке), формат <code>d.m.Y H:i:s</code>; не поле <code>contracts.updated_at</code>. При создании через UI всегда есть событие <code>created</code>. Без событий — пустая строка. Сортировка этой колонки — индекс 9, по дате события, без событий в конце. Дефолт списка — индекс 1 (<code>contracts.id</code> desc). Колонка «Срок подписания» (<code>fill_expires_at</code> в JSON) — только при скрытом праве <code>contracts.fillExpiresAt.view</code>: дата и время <code>contracts.fill_expires_at</code> в формате <code>d.m.Y H:i:s</code> и вторая строка остатка дней (<code>fill_expires_remaining</code> / <code>fill_expires_remaining_warn</code>); без права этих ключей в JSON нет; <code>null</code> срок — пустая ячейка</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>id</code> (колонка «Номер договора»), <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>status_error</code> — текст отказа Подпислона при <code>failed</code> иначе <code>null</code> (<a href="/doc#contract-send-failure-message-index">анонс</a>), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)», <code>download_signed_url</code> — URL <code>GET …/download-signed</code> или <code>null</code>, если <code>signed_pdf_path</code> пуст. Колонка «Обновлён» (<code>updated_at</code> в JSON) — <code>created_at</code> последнего события журнала этого договора (<code>contract_events</code>, максимальный <code>id</code>, как на карточке), формат <code>d.m.Y H:i:s</code>; не поле <code>contracts.updated_at</code>. При создании через UI всегда есть событие <code>created</code>. Без событий — пустая строка. Сортировка этой колонки — индекс 9, по дате события, без событий в конце. Дефолт списка — индекс 1 (<code>contracts.id</code> desc). Колонка «Срок подписания» (<code>fill_expires_at</code> в JSON) — только при скрытом праве <code>contracts.fillExpiresAt.view</code>: дата и время <code>contracts.fill_expires_at</code> в формате <code>d.m.Y H:i:s</code> и вторая строка остатка дней (<code>fill_expires_remaining</code> / <code>fill_expires_remaining_warn</code>); у <code>signed</code> / <code>revoked</code> вторая строка пустая (<a href="/doc#contract-list-hide-remaining-signed-revoked-index">анонс</a>); без права этих ключей в JSON нет; <code>null</code> срок — пустая ячейка</td></tr>
       <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/logs-data</code> (<code>logs.data.contract</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract</code>)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
@@ -127,7 +128,7 @@
   </div>
 
   <h3 id="contract-list-fill-expires-at">1.4) Колонка «Срок подписания» в списке</h3>
-  <div class="note">
+  <div class="note" id="contract-list-hide-remaining-signed-revoked">
     Заголовок колонки — «Срок подписания» (<code>&lt;th&gt;</code>, чекбокс <code>#colFillExpiresAt</code>,
     ключ настроек <code>data-column-key="fill_expires_at"</code>). Колонка и пункт в меню «Колонки»
     рендерятся только при скрытом праве <code>contracts.fillExpiresAt.view</code>
@@ -148,15 +149,23 @@
     просрочка — «Срок истек.» (<code>SCHOOL_LIST_FILL_REMAINING_EXPIRED</code>)
     (<code>schoolListFillRemainingDaysLabel()</code>; JSON
     <code>fill_expires_remaining</code> / <code>fill_expires_remaining_warn</code>).
-    У <code>signed</code> и без срока второй строки нет. Меньше 6 дней и «Срок истек.» —
-    <code>text-danger</code>. Без права ключей <code>fill_expires_at</code>,
-    <code>fill_expires_remaining</code> и <code>fill_expires_remaining_warn</code> в JSON нет.
-    Это не строка «Срок заполнения» на карточке договора (§<a href="#contract-card-fill-expires">2.1</a>:
-    template + непустой срок, формат <code>d.m.Y H:i</code>, достаточно <code>contracts.view</code>)
-    и не подпись ЛК «Осталось N дней»
+    У <code>signed</code> («Подписано») / <code>revoked</code> («Отозвано») и без срока второй строки нет:
+    метод даёт <code>null</code>, JSON — пустая <code>fill_expires_remaining</code> и
+    <code>fill_expires_remaining_warn: false</code>, дата-время в первой строке остаётся.
+    Слова «просрочен» в колонке нет. Остальные статусы (черновик, ожидает заполнения,
+    формируется PDF, отправлено СМС, открыто СМС, истёк срок SMS, ошибка) вторую строку показывают.
+    Это не ЛК: там поле скрывается только у <code>signed</code>; у <code>revoked</code>
+    в кабинете остаток дней может быть виден, пока срок в будущем
     (<a href="/doc#account-documents-fill-remaining-days-index">анонс ЛК</a>).
+    Карточка CRM «Срок заполнения» дату у signed/revoked не прячет
+    (§<a href="#contract-card-fill-expires">2.1</a>: template + непустой срок,
+    формат <code>d.m.Y H:i</code>, достаточно <code>contracts.view</code>).
+    Меньше 6 дней и «Срок истек.» — <code>text-danger</code>.
+    Без права ключей <code>fill_expires_at</code>,
+    <code>fill_expires_remaining</code> и <code>fill_expires_remaining_warn</code> в JSON нет.
     Анонс колонки: <a href="/doc#contract-list-fill-expires-at-index">/doc</a>;
-    остаток дней и номер: <a href="/doc#contract-list-number-and-fill-remaining-index">/doc</a>.
+    остаток дней и номер: <a href="/doc#contract-list-number-and-fill-remaining-index">/doc</a>;
+    без второй строки у signed/revoked: <a href="/doc#contract-list-hide-remaining-signed-revoked-index">/doc</a>.
   </div>
 
   <h3 id="contract-list-number">1.5) Колонка «Номер договора» в списке</h3>
@@ -738,10 +747,11 @@
       <li><code>ContractsFillExpiresAtPermissionCatalogFeatureTest.php</code> — скрытое право, не в базовых ролях, миграция без backfill</li>
       <li><code>ContractListFillExpiresAtDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>ContractListNumberAndFillRemainingDocumentationContractTest.php</code> — анонс номера, остатка дней и дефолта по id</li>
-      <li><code>ContractSchoolListFillRemainingDaysTest.php</code> — короткая подпись «N дня» / «Последний день» / «Срок истек.»</li>
+      <li><code>ContractSchoolListFillRemainingDaysTest.php</code> — короткая подпись «N дня» / «Последний день» / «Срок истек.»; signed/revoked без второй строки</li>
+      <li><code>ContractListHideRemainingSignedRevokedDocumentationContractTest.php</code> — анонс <a href="/doc#contract-list-hide-remaining-signed-revoked-index">/doc</a> совпадает со списком CRM (дата остаётся, остаток и «Срок истек.» скрыты у signed/revoked; ЛК revoked не прячет)</li>
       <li><code>ContractListNumberAndFillRemainingAccessFeatureTest.php</code> — гость 302/401, без <code>contracts.view</code> / тренер 403; viewer видит «Номер договора», без <code>fillExpiresAt.view</code> ключей остатка нет; с правом — «2 дня»; поиск по id чужой школы не утекает</li>
       <li><code>ContractListNumberAndFillRemainingFullAccessFeatureTest.php</code> — admin 200 + номер; superadmin видит остаток без выдачи права; POST/PUT/PATCH/DELETE на data и columns-settings → 404/405, не 500</li>
-      <li><code>ContractListNumberAndFillRemainingAjaxContractFeatureTest.php</code> — JSON <code>id</code> / <code>fill_expires_remaining</code> (2 дня, 6 дней без красного, «Последний день», «Срок истек.», signed/PDF пустая вторая строка); без права ключей нет; поиск по id свой/чужой; 422 <code>errors.length</code> / <code>errors.search_value</code> / <code>errors.columns</code>; скрытие колонки сохраняется; сортировка индекса 1</li>
+      <li><code>ContractListNumberAndFillRemainingAjaxContractFeatureTest.php</code> — JSON <code>id</code> / <code>fill_expires_remaining</code> (2 дня, 6 дней без красного, «Последний день», «Срок истек.», signed/revoked/PDF пустая вторая строка); без права ключей нет; поиск по id свой/чужой; 422 <code>errors.length</code> / <code>errors.search_value</code> / <code>errors.columns</code>; скрытие колонки сохраняется; сортировка индекса 1</li>
       <li><code>ContractListNumberAndFillRemainingNonAjaxSafetyNetFeatureTest.php</code> — native GET data без X-Requested-With: id и остаток, не пустой 200; native POST columns сохраняет флаг; пустой POST → 422 <code>errors.columns</code>; гость не 200</li>
       <li><code>ContractListNumberAndFillRemainingUxFeatureTest.php</code> — первое открытие: «№» / «Номер договора» / «Имя», <code>data: 'id'</code>, дефолт <code>[[1, 'desc']]</code> даже с колонкой срока; <code>?create=1</code> не сбрасывает; пустой остаток без второй строки, не «Осталось»; скрытая колонка не форсится; legacy settings без ключа не пишут false</li>
       <li><code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — вкладки, email API, маркеры <code>js-dt-nav-link</code>, поля <code>id</code>/<code>user_name</code> в data</li>

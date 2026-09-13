@@ -28,6 +28,8 @@ final class MoneyCentsAccessContractsFeatureTest extends CrmTestCase
 
     private User $student;
 
+    private LessonPackage $package;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -53,6 +55,10 @@ final class MoneyCentsAccessContractsFeatureTest extends CrmTestCase
         ]);
 
         app(TeamUserSyncService::class)->attachTeamForStudent($this->student, (int) $this->team->id);
+
+        $this->package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 10005,
+        ]);
     }
 
     /**
@@ -216,6 +222,7 @@ final class MoneyCentsAccessContractsFeatureTest extends CrmTestCase
     public function test_authorized_admin_set_price_all_users_ajax_with_kopecks_returns_json(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user);
 
         UserPrice::query()->create([
             'user_id' => $this->student->id,
@@ -231,7 +238,7 @@ final class MoneyCentsAccessContractsFeatureTest extends CrmTestCase
             'usersPrice' => [[
                 'user_id' => $this->student->id,
                 'price' => 100.05,
-                'lesson_package_id' => null,
+                'lesson_package_id' => $this->package->id,
                 'user' => ['name' => $this->student->name],
             ]],
         ], $this->ajaxHeaders())
@@ -249,6 +256,7 @@ final class MoneyCentsAccessContractsFeatureTest extends CrmTestCase
     public function test_set_price_all_users_non_ajax_redirects_and_persists_kopecks(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user);
 
         UserPrice::query()->create([
             'user_id' => $this->student->id,
@@ -264,7 +272,7 @@ final class MoneyCentsAccessContractsFeatureTest extends CrmTestCase
             'usersPrice' => [[
                 'user_id' => $this->student->id,
                 'price' => 200.50,
-                'lesson_package_id' => null,
+                'lesson_package_id' => $this->package->id,
                 'user' => ['name' => $this->student->name],
             ]],
         ]);

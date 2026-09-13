@@ -32,6 +32,8 @@ final class ContractListNumberAndFillRemainingDocumentationContractTest extends 
         $this->assertStringContainsString("order: [[1, 'desc']]", $chunk);
         $this->assertStringContainsString('fill_expires_remaining', $chunk);
         $this->assertStringContainsString('fill_expires_remaining_warn', $chunk);
+        $this->assertStringContainsString('signed', $chunk);
+        $this->assertStringContainsString('revoked', $chunk);
         $this->assertStringContainsString('Срок истек.', $chunk);
         $this->assertStringContainsString('Последний день', $chunk);
         $this->assertStringContainsString('CLIENT_FILL_REMAINING_LAST_DAY', $chunk);
@@ -50,6 +52,7 @@ final class ContractListNumberAndFillRemainingDocumentationContractTest extends 
         $this->assertStringContainsString('ContractListNumberAndFillRemainingUxFeatureTest', $chunk);
         $this->assertStringContainsString('ContractListNumberAndFillRemainingDocumentationContractTest', $chunk);
         $this->assertStringContainsString('/doc#contract-list-number-and-fill-remaining-index', $chunk);
+        $this->assertStringContainsString('/doc#contract-list-hide-remaining-signed-revoked-index', $chunk);
         $this->assertStringNotContainsString('npm run build', $chunk);
     }
 
@@ -66,6 +69,10 @@ final class ContractListNumberAndFillRemainingDocumentationContractTest extends 
         $this->assertStringContainsString('fill_expires_remaining', $contracts);
         $this->assertStringContainsString('SCHOOL_LIST_FILL_REMAINING_EXPIRED', $contracts);
         $this->assertStringContainsString('schoolListFillRemainingDaysLabel', $contracts);
+        $this->assertStringContainsString('signed</code>', $contracts);
+        $this->assertStringContainsString('revoked</code>', $contracts);
+        $this->assertStringContainsString('id="contract-list-hide-remaining-signed-revoked"', $contracts);
+        $this->assertStringContainsString('/doc#contract-list-hide-remaining-signed-revoked-index', $contracts);
         $this->assertStringContainsString("order: [[1, 'desc']]", $contracts);
         $this->assertStringContainsString('индекс 9 DataTables', $contracts);
         $this->assertStringContainsString('индекс 10', $contracts);
@@ -118,6 +125,7 @@ final class ContractListNumberAndFillRemainingDocumentationContractTest extends 
 
         $this->assertStringContainsString("SCHOOL_LIST_FILL_REMAINING_EXPIRED = 'Срок истек.'", $model);
         $this->assertStringContainsString('function schoolListFillRemainingDaysLabel', $model);
+        $this->assertStringContainsString('STATUS_SIGNED, self::STATUS_REVOKED', $model);
         $this->assertStringContainsString('function shouldHighlightSchoolListFillRemainingDays', $model);
     }
 

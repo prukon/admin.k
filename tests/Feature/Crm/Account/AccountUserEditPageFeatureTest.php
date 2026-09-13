@@ -255,6 +255,11 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
         $this->postJson(route('account.user.phoneSendCode', $this->user), [
             'phone' => '79001112233',
         ])->assertUnauthorized();
+
+        $this->postJson(route('account.user.phoneConfirmCode', $this->user), [
+            'phone' => '79001112233',
+            'code' => '123456',
+        ])->assertUnauthorized();
     }
 
     public function test_account_user_edit_page_routes_forbidden_without_account_user_view(): void
@@ -276,6 +281,13 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
 
         $this->postJson(route('account.user.avatar.store'), [], $this->jsonHeaders())->assertForbidden();
         $this->deleteJson(route('account.user.avatar.destroy'), [], $this->jsonHeaders())->assertForbidden();
+        $this->postJson(route('account.user.phoneSendCode', $actor), [
+            'phone' => '79001112233',
+        ], $this->jsonHeaders())->assertForbidden();
+        $this->postJson(route('account.user.phoneConfirmCode', $actor), [
+            'phone' => '79001112233',
+            'code' => '123456',
+        ], $this->jsonHeaders())->assertForbidden();
     }
 
     public function test_regular_user_all_account_user_edit_page_endpoints_return_200(): void
@@ -323,6 +335,15 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
 
         $this->deleteJson(route('account.user.avatar.destroy'), [], $this->jsonHeaders())
             ->assertOk();
+
+        $now = now();
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => (int) $actor->partner_id,
+            'role_id'       => (int) $actor->role_id,
+            'permission_id' => $this->permissionId('account.user.phone.verify'),
+            'created_at'    => $now,
+            'updated_at'    => $now,
+        ]);
 
         $this->mock(SmsRuService::class, function ($mock): void {
             $mock->shouldReceive('send')->andReturn(true);

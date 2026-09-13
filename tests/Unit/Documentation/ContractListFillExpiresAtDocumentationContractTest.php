@@ -47,6 +47,7 @@ final class ContractListFillExpiresAtDocumentationContractTest extends TestCase
         $this->assertStringContainsString('ContractsFillExpiresAtPermissionCatalogFeatureTest', $chunk);
         $this->assertStringContainsString('ContractListFillExpiresAtDocumentationContractTest', $chunk);
         $this->assertStringContainsString('/doc#contract-list-fill-expires-at-index', $chunk);
+        $this->assertStringContainsString('contract-list-hide-remaining-signed-revoked-index', $chunk);
         $this->assertStringNotContainsString('npm run build', $chunk);
     }
 

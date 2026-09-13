@@ -220,6 +220,7 @@
     <code>test_new_partner_does_not_assign_trainer_salary_scheme_sales_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_account_user_team_update_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_account_user_two_factor_update_to_base_roles</code>,
+    <code>test_new_partner_does_not_assign_account_user_phone_verify_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_reports_payments_commission_total_to_base_roles</code>,
     <code>ReportsTbankPaymentsPermissionCatalogFeatureTest</code>.
   </div>
@@ -243,6 +244,22 @@
     <code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_account_user_two_factor_update_to_base_roles</code>.
     См. <a href="/docs/documentation/parents-and-family-cabinet#account-two-factor">parents-and-family-cabinet §4.6</a>,
     анонс <a href="/doc#account-two-factor-permission-index">/doc</a>.
+  </p>
+  <p class="small">
+    С 2026‑09 скрытое <code>account.user.phone.verify</code> <b>не</b> входит в базовые роли
+    <code>user</code>, <code>admin</code> и <code>trainer</code> (ЛК: кнопка «Подтвердить»
+    телефон SMS). При создании партнёра выключено у всех.
+    Админ школы строку в матрице не видит; superadmin включает любой роли.
+    С правом admin может send/confirm ученику <b>той же</b> школы
+    (<code>partner_id</code>), не чужому партнёру (403). Superadmin —
+    <code>Gate::before</code>, без выдачи права роли.
+    Миграция <code>2026_09_13_004500_add_account_user_phone_verify_permission.php</code>
+    создаёт право без выдачи. Без права POST send/confirm → 403, кнопки нет.
+    Тесты: <code>AccountPhoneVerifyPermissionCatalogFeatureTest</code>,
+    <code>AccountPhoneVerifyPermissionAccessFeatureTest</code>,
+    <code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_account_user_phone_verify_to_base_roles</code>.
+    См. <a href="/docs/documentation/parents-and-family-cabinet#account-phone-verify">parents-and-family-cabinet §4.7</a>,
+    анонс <a href="/doc#account-phone-verify-permission-index">/doc</a>.
   </p>
 
   <h2>8) Роль <code>trainer</code> и право <code>trainers.view</code></h2>

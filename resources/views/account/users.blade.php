@@ -164,6 +164,7 @@
             {{-- Поле "Телефон" --}}
             @php
                 $canPhone    = auth()->user()->can('account.user.phone.update');
+                $canVerify   = auth()->user()->can('account.user.phone.verify');
                 $verifiedAt  = $user->phone_verified_at ? \Carbon\Carbon::parse($user->phone_verified_at) : null;
                 $isVerified  = (bool) $verifiedAt;
             @endphp
@@ -179,15 +180,8 @@
                         'disabled' => $isVerified || !$canPhone,
                     ])
 
-                    {{-- Кнопка подтверждения — скрыта, если номер уже подтверждён --}}
-                    @if($canPhone && !$isVerified)
+                    @if($canVerify && !$isVerified)
                         <button type="button" id="verify-phone-btn" class="btn btn-success">
-                            Подтвердить
-                        </button>
-                    @else
-                        <button type="button" id="verify-phone-btn"
-                                class="btn btn-success d-none"
-                                aria-disabled="true" tabindex="-1">
                             Подтвердить
                         </button>
                     @endif
@@ -201,6 +195,11 @@
                 </div>
 
                 {{-- Статус + запрет редактирования после подтверждения --}}
+                @error('phone')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                @enderror
+                <div id="phone-verify-error" class="text-danger small mt-1 d-none" role="alert"></div>
+
                 @if($isVerified)
                     <small id="phone-verify-status"
                            class="small text-success d-block mt-1"
@@ -515,6 +514,7 @@
     изменен
 </div>
 
+@can('account.user.phone.verify')
 {{-- Модалка ввода SMS-кода для подтверждения телефона --}}
 <div class="modal fade" id="phoneCodeModal" tabindex="-1" aria-labelledby="phoneCodeModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -536,6 +536,7 @@
         </div>
     </div>
 </div>
+@endcan
 
 @push('scripts')
 
@@ -716,12 +717,14 @@
         });
     </script>
 
+    @can('account.user.phone.verify')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var $phone = $('#phone');
             var $verifyBtn = $('#verify-phone-btn');
             var $icon = $('#phone-verified-icon');
             var $status = $('#phone-verify-status');
+            var $phoneErr = $('#phone-verify-error');
 
             var $codeModal = $('#phoneCodeModal');
             var $codeTarget = $('#code-target-phone');
@@ -764,10 +767,37 @@
                 $verifyBtn.addClass('d-none').prop('disabled', true);
             }
 
-            // Показывать / скрывать кнопку «Подтвердить»
+            function fieldError(xhr, field, fallback) {
+                var json = xhr.responseJSON || {};
+                if (json.errors && json.errors[field] && json.errors[field][0]) {
+                    return String(json.errors[field][0]);
+                }
+                if (json.message) {
+                    return String(json.message);
+                }
+                return fallback;
+            }
+
+            function setPhoneVerifyError(msg) {
+                if (!msg) {
+                    $phoneErr.addClass('d-none').text('');
+                    $phone.removeClass('is-invalid');
+                    return;
+                }
+                $phoneErr.removeClass('d-none').text(msg);
+                $phone.addClass('is-invalid');
+            }
+
+            function setCodeError(msg) {
+                if (!msg) {
+                    $codeErr.addClass('d-none').text('');
+                    return;
+                }
+                $codeErr.removeClass('d-none').text(msg);
+            }
+
             function updateVerifyUI() {
-                if (!$phone.length || $phone.is(':disabled')) {
-                    hideBtn();
+                if (!$verifyBtn.length) {
                     return;
                 }
                 if (isVerified()) {
@@ -788,37 +818,45 @@
             // Отправка кода
             $verifyBtn.on('click', function () {
                 var n = norm7($phone.val());
-                if (!/^7\d{10}$/.test(n)) return;
+                if (!/^7\d{10}$/.test(n)) {
+                    setPhoneVerifyError('Некорректный номер. Формат 79XXXXXXXXX.');
+                    return;
+                }
 
+                setPhoneVerifyError('');
                 $.ajax({
                     url: "{{ route('account.user.phoneSendCode', $user->id) }}",
                     method: 'POST',
                     data: {_token: "{{ csrf_token() }}", phone: n},
                     success: function () {
-                        // Показ модалки ввода кода
                         $codeTarget.text($phone.val());
                         $codeInput.val('');
-                        $codeErr.addClass('d-none').text('');
+                        setCodeError('');
                         $codeModal.modal('show');
                         setTimeout(function () {
                             $codeInput.trigger('focus');
                         }, 150);
                     },
                     error: function (xhr) {
-                        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Не удалось отправить код. Попробуйте позже.';
-                        alert(msg);
+                        setPhoneVerifyError(fieldError(xhr, 'phone', 'Не удалось отправить код. Попробуйте позже.'));
                     }
                 });
             });
 
-            // Повторная отправка
             $resend.on('click', function () {
                 var n = norm7($phone.val());
-                if (!/^7\d{10}$/.test(n)) return;
+                if (!/^7\d{10}$/.test(n)) {
+                    setCodeError('Некорректный номер. Формат 79XXXXXXXXX.');
+                    return;
+                }
+                setCodeError('');
                 $.ajax({
                     url: "{{ route('account.user.phoneSendCode', $user->id) }}",
                     method: 'POST',
-                    data: {_token: "{{ csrf_token() }}", phone: n}
+                    data: {_token: "{{ csrf_token() }}", phone: n},
+                    error: function (xhr) {
+                        setCodeError(fieldError(xhr, 'phone', 'Не удалось отправить код. Попробуйте позже.'));
+                    }
                 });
             });
 
@@ -827,7 +865,7 @@
                 var n = norm7($phone.val());
                 var code = String($codeInput.val() || '').trim();
                 if (!/^\d{4,8}$/.test(code)) {
-                    $codeErr.removeClass('d-none').text('Введите корректный код.');
+                    setCodeError('Введите корректный код.');
                     return;
                 }
                 $.ajax({
@@ -876,15 +914,14 @@
                         }
                     },
                     error: function (xhr) {
-                        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Неверный код.';
-                        $codeErr.removeClass('d-none').text(msg);
+                        setCodeError(fieldError(xhr, 'code', 'Неверный код.'));
                     }
                 });
             });
 
             // Скрывать ошибку при вводе кода
             $codeInput.on('input', function () {
-                $codeErr.addClass('d-none').text('');
+                setCodeError('');
             });
 
             // Инициализация
@@ -893,6 +930,7 @@
             })();
         });
     </script>
+    @endcan
 
 
 

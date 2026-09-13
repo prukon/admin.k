@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\SettingPrices;
 
+use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\UserPrice;
 use Tests\Feature\Crm\StudentTeams\StudentTeamPivotTestCase;
@@ -17,6 +18,8 @@ final class SettingPricesUsersTabWorkflowFeatureTest extends StudentTeamPivotTes
     private Team $teamA;
 
     private Team $teamB;
+
+    private LessonPackage $package;
 
     protected function setUp(): void
     {
@@ -39,6 +42,10 @@ final class SettingPricesUsersTabWorkflowFeatureTest extends StudentTeamPivotTes
             'partner_id' => $this->partner->id,
             'title'      => 'Workflow-B',
             'deleted_at' => null,
+        ]);
+
+        $this->package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 275000,
         ]);
     }
 
@@ -113,7 +120,11 @@ final class SettingPricesUsersTabWorkflowFeatureTest extends StudentTeamPivotTes
                 'team_id' => $this->teamA->id,
                 'year'    => 2024,
                 'prices'  => [
-                    ['new_month' => '2024-03-01', 'price' => 2750],
+                    [
+                        'new_month'         => '2024-03-01',
+                        'price'             => 2750,
+                        'lesson_package_id' => $this->package->id,
+                    ],
                 ],
             ])
             ->assertOk()
@@ -252,7 +263,11 @@ final class SettingPricesUsersTabWorkflowFeatureTest extends StudentTeamPivotTes
                 'team_id' => $this->teamA->id,
                 'year'    => 2024,
                 'prices'  => [
-                    ['new_month' => '2024-04-01', 'price' => 900],
+                    [
+                        'new_month'         => '2024-04-01',
+                        'price'             => 900,
+                        'lesson_package_id' => $this->package->id,
+                    ],
                 ],
             ]);
         $this->assertSame(200, $save->getStatusCode());

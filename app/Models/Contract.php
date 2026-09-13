@@ -281,11 +281,14 @@ class Contract extends Model
 
     /**
      * Вторая строка колонки «Срок подписания» в списке школы.
-     * Короткий остаток («2 дня»), «Последний день» или «Срок истек.»; у signed и без срока — null.
+     * Короткий остаток («2 дня»), «Последний день» или «Срок истек.»;
+     * у signed/revoked и без срока — null.
      */
     public function schoolListFillRemainingDaysLabel(): ?string
     {
-        if ($this->fill_expires_at === null || $this->status === self::STATUS_SIGNED) {
+        if ($this->fill_expires_at === null
+            || in_array($this->status, [self::STATUS_SIGNED, self::STATUS_REVOKED], true)
+        ) {
             return null;
         }
 

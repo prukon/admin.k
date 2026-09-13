@@ -165,7 +165,7 @@ final class KidsCrmDataTableColumnsMigrationIter1Iter2Test extends CrmTestCase
         $this->asSuperadmin();
 
         $tbankHtml = $this->get(route('admin.setting.tbankCommissions'))->assertOk()->getContent();
-        $this->assertColumnBlockUsesType($tbankHtml, 'partner_title', 'text');
+        $this->assertColumnBlockUsesType($tbankHtml, 'partner_title', 'link');
         $this->assertColumnBlockUsesType($tbankHtml, 'acquiring_percent', 'text');
         $this->assertColumnBlockUsesType($tbankHtml, 'auto_payout', 'badge');
         $this->assertColumnBlockUsesType($tbankHtml, 'actions', 'actions');

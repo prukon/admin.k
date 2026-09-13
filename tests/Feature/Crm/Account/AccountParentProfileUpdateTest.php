@@ -143,7 +143,6 @@ class AccountParentProfileUpdateTest extends CrmTestCase
             ->assertOk()
             ->assertSee('Клиент')
             ->assertSee('Данные родителя')
-            ->assertSee('Двухфакторная аутентификация (SMS)')
             ->assertSee('parent_lastname', false);
     }
 

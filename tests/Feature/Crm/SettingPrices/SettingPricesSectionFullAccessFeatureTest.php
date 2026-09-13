@@ -434,7 +434,11 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
                 'team_id' => $this->team->id,
                 'year'    => 2024,
                 'prices'  => [
-                    ['new_month' => '2024-03-01', 'price' => 550],
+                    [
+                        'new_month'         => '2024-03-01',
+                        'price'             => 550,
+                        'lesson_package_id' => $this->lessonPackage->id,
+                    ],
                 ],
             ])
             ->assertOk()

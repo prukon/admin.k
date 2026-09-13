@@ -69,7 +69,7 @@
       <tr><td><code>contracts</code></td><td>Договоры</td><td><code>contracts.sync</code>, <code>contracts.templates.fillSortOrder.edit</code>, скрытое <code>contracts.fillExpiresAt.view</code> (колонка «Срок подписания» в списке, не в базовых ролях), <code>account.contracts.showFieldKeys</code></td></tr>
       <tr><td><code>leads</code></td><td>Заявки и лиды</td><td><code>partnerLeads.view</code>, <code>schoolWidget.view</code>, <code>schoolLeadLanding.view</code> (пункт меню «Лиды» — <code>schoolLeads.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>partner</code></td><td>Партнёры и сервис</td><td><code>partner.switch</code>, <code>servicePayments.view</code>, <code>partnerWallet.view</code>, скрытое <code>partner.oferta.pdf</code> (скачать партнёрскую оферту в PDF, не в базовых ролях)</td></tr>
-      <tr><td><code>account</code></td><td>Учетная запись</td><td>Страницы ЛК (<code>account.user.view</code>, …) и поля «свой профиль»: <code>account.user.name.update</code>, <code>account.user.email.update</code>, …; скрытое <code>account.user.team.update</code> — добавление группы в ЛК (сайдбар / карандаш; не в base roles); скрытое <code>account.user.two_factor.update</code> — переключатель SMS-2FA в ЛК (не в base roles, при создании партнёра выкл. у всех, superadmin включает любой роли)</td></tr>
+      <tr><td><code>account</code></td><td>Учетная запись</td><td>Страницы ЛК (<code>account.user.view</code>, …) и поля «свой профиль»: <code>account.user.name.update</code>, <code>account.user.email.update</code>, …; скрытое <code>account.user.team.update</code> — добавление группы в ЛК (сайдбар / карандаш; не в base roles); скрытое <code>account.user.phone.verify</code> — кнопка «Подтвердить» телефон SMS в ЛК (не в base roles, при создании партнёра выкл. у всех, superadmin включает любой роли); скрытое <code>account.user.two_factor.update</code> — переключатель SMS-2FA в ЛК (не в base roles, при создании партнёра выкл. у всех, superadmin включает любой роли)</td></tr>
       <tr><td><code>users</code></td><td>Управление клиентами</td><td>Поля CRM ученика/сотрудника: <code>users.name.update</code>, <code>users.sex</code>, <code>users.comment</code>, <code>users.discount.manage</code> (персональная скидка; у <code>admin</code> нового партнёра в базовом наборе), скрытые <code>users.import</code>, <code>users.full_name_genitive</code> (ФИО ученика в родительном; не в базовых ролях), страница тренеров <code>trainers.view</code>, видимое <code>groups.own</code> («Только свои группы (тренер)», не в базовых ролях). Пункт меню «Пользователи» — это <code>users.view</code> в <code>mainMenu</code>, не эта группа. Колонка роли <code>user</code> в матрице — «Клиент».</td></tr>
       <tr><td><code>settings</code></td><td>Настройки</td><td><code>settings.roles.view</code>, <code>settings.queues.*</code>, <code>viewing.all.logs</code>, <code>settings.force2fa.admins</code>, скрытое <code>settings.systemMonitors.view</code> (системные мониторы / оверлеи, не в базовых ролях)</td></tr>
       <tr><td><code>platformPayments</code></td><td>Оплата платформы</td><td>Скрытые <code>platformPayments.method.tbankSbp</code> и <code>platformPayments.method.yookassa</code> — радио на кошельке и абонплате CRM. Не путать с <code>payment.method.*</code> витрины. Superadmin видит группу; админ школы — нет (все права <code>is_visible=0</code>)</td></tr>
@@ -92,6 +92,10 @@
     <code>is_visible=0</code>, <b>не</b> в <code>role_base_permissions</code>
     (при создании партнёра выкл. у <code>user</code> / <code>admin</code> / <code>trainer</code>).
     См. <a href="/docs/documentation/parents-and-family-cabinet#account-two-factor">parents-and-family-cabinet §4.6</a>.
+    <code>account.user.phone.verify</code> — ЛК: кнопка «Подтвердить» телефон SMS;
+    <code>is_visible=0</code>, <b>не</b> в <code>role_base_permissions</code>
+    (при создании партнёра выкл. у всех).
+    См. <a href="/docs/documentation/parents-and-family-cabinet#account-phone-verify">parents-and-family-cabinet §4.7</a>.
   </div>
 
   <h2>4) Видимость в матрице (<code>is_visible</code>)</h2>
@@ -169,6 +173,13 @@
       PATCH без права не 403 — поле не меняется.
       См. <a href="/docs/documentation/parents-and-family-cabinet#account-two-factor">parents-and-family-cabinet §4.6</a>,
       анонс <a href="/doc#account-two-factor-permission-index">/doc</a>.</li>
+    <li>Миграция <code>account.user.phone.verify</code>:
+      <code>/database/migrations/2026_09_13_004500_add_account_user_phone_verify_permission.php</code>
+      (группа <code>account</code>, <code>is_visible=0</code>, без выдачи ролям;
+      не в <code>role_base_permissions</code>). Superadmin включает любой роли, чтобы показать кнопку
+      «Подтвердить» в ЛК. POST без права — 403.
+      См. <a href="/docs/documentation/parents-and-family-cabinet#account-phone-verify">parents-and-family-cabinet §4.7</a>,
+      анонс <a href="/doc#account-phone-verify-permission-index">/doc</a>.</li>
     <li>Миграция <code>contracts.fillExpiresAt.view</code>:
       <code>/database/migrations/2026_09_12_062900_add_contracts_fill_expires_at_view_permission.php</code>
       (право в группе <code>contracts</code>, <code>is_visible=0</code>, <b>без</b> выдачи ролям;
@@ -191,6 +202,7 @@
       Сегодня / Вчера <a href="/doc#ops-day-kpi-index">/doc#ops-day-kpi-index</a>,
       Договоры <a href="/doc#ops-contracts-expired-index">/doc#ops-contracts-expired-index</a>,
       ховер 500 <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a>,
+      копирование строки <a href="/doc#ops-row-copy-index">/doc#ops-row-copy-index</a>,
       Welcome / тип письма <a href="/doc#ops-welcome-mailable-index">/doc#ops-welcome-mailable-index</a>.</li>
     <li>Удаление чата: скрытое право <code>messages.threads.delete</code>
       (<code>is_visible=0</code>, группа <code>mainMenu</code>, <b>без</b> выдачи ролям).

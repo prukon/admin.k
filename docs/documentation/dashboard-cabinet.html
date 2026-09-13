@@ -60,7 +60,9 @@
     анонс пульта <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>,
     строки Сегодня / Вчера <a href="/doc#ops-day-kpi-index">/doc#ops-day-kpi-index</a>,
     ховер 500 / ViewException / ring
-    <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a>.
+    <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a>,
+    копирование строки
+    <a href="/doc#ops-row-copy-index">/doc#ops-row-copy-index</a>.
     JSON-оверлея на <code>/cabinet</code> нет.
   </div>
 
@@ -543,6 +545,11 @@
     <code>Accept: application/json</code>) больше не падает в <code>admin2</code>
     и не пишет ErrorException в строку 500 —
     <a href="/docs/documentation/session-lifetime">session-lifetime</a>.
+    У каждой строки справа от заголовка кнопка <code>data-role="copy-row"</code>
+    (иконка <code>fa-copy</code>): в буфер — красные (<code>is-bad</code>)
+    и жёлтые (<code>is-warn</code>) показатели, статика ховера
+    + живой текст, если отличается. Нет таких — «красных и жёлтых показателей нет».
+    Анонс — <a href="/doc#ops-row-copy-index">/doc#ops-row-copy-index</a>.
     Welcome <code>STATUS_FAILED</code>
     всё ещё missing. Успешный welcome: <code>mailable_class</code> =
     <code>ClientWelcomeCredentialsMail</code> или пустой класс + тема
@@ -563,6 +570,7 @@
     (сеть / 403) ставит «—» и откатывает ховер <code>last_message</code>
     и пароль/код входа и ФИО договоров, не leftover.
     <a href="/doc#ops-monitors-overlay-index">анонс оверлея «Пульт»</a>,
+    <a href="/doc#ops-row-copy-index">анонс копирования строки</a>,
     <a href="/doc#ops-errors-detail-index">анонс ховера 500</a>,
     <a href="/doc#ops-welcome-mailable-index">анонс Welcome / типа письма</a>.</p>
 
@@ -634,7 +642,8 @@
       <li><code>tests/Unit/Documentation/OpsWelcomeMailableDocumentationContractTest.php</code> — анонс <code>/doc#ops-welcome-mailable-index</code> не противоречит коду</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAuthAttemptsFeatureTest</code> — неуспешный вход/2FA: 302 <code>errors.password</code> / <code>errors.email</code>, AJAX не пустой 200, пустые поля 422 без счётчика, успешный вход не считает, гость 2FA не считает, 422 <code>errors.code</code>, пароль только в JSON пульта, не в <code>my_logs</code>; 403 без утечки пароля; нативный GET recent; ring 40 / 72 ч; hide_authorizations</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsNonAjaxSafetyNetFeatureTest.php</code> — нативный GET JSON не HTML (dashboard и чат), recent в JSON, POST/PATCH/DELETE 405</li>
-      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsUxFeatureTest.php</code> — первый кадр все data-role «…» и подсказки 72 ч; cached last_message и typed password не в HTML; строка 500 без ссылок; cabinet/чат/настройки; флаг выкл; чужой суперадмин; ошибка refresh() (сеть/403) ставит «—» и откатывает ховер last_message и пароля входа; пустой last_message / пустой recent_logins не leftover; ховер errors-last и auth-logins/auth-2fa через title; XSS пароля в title не innerHTML; «нет email» только если user_found=false; один poller; XSS через textContent / title не innerHTML; жив/cron/возраст/#id</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsUxFeatureTest.php</code> — первый кадр все data-role «…» и подсказки 72 ч; cached last_message и typed password не в HTML; строка 500 без ссылок; cabinet/чат/настройки; флаг выкл; чужой суперадмин; ошибка refresh() (сеть/403) ставит «—» и откатывает ховер last_message и пароля входа; пустой last_message / пустой recent_logins не leftover; ховер errors-last и auth-logins/auth-2fa через title; XSS пароля в title не innerHTML; «нет email» только если user_found=false; один poller; XSS через textContent / title не innerHTML; жив/cron/возраст/#id; copy-row у заголовка строки (9 кнопок), текст буфера: is-bad/is-warn, статика+живой ховер</li>
+      <li><code>tests/Unit/Documentation/OpsRowCopyDocumentationContractTest.php</code> — анонс <code>/doc#ops-row-copy-index</code> совпадает с кнопками <code>copy-row</code> и <code>rowProblemText</code></li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAccessFeatureTest.php</code> — гость 302/401, admin HTML/JSON 403 без утечки last_message, со скрытым правом 200 и оверлей в DOM, ученик/тренер с выданным правом 200, без права 403 не пустой 200</li>
       <li><code>tests/Feature/Crm/Ui/KidsCrmTooltipContrastFeatureTest.php</code> — непрозрачный пузырёк KidsCrmTooltip (opacity 1, #111827 / #fff, z-index 20050) на /cabinet вместе с пультом</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetDiagnosticsFeatureTest.php</code> — на <code>/cabinet</code> нет JSON-оверлея даже у superadmin; бейдж Reverb при включённом флаге; JSON <code>get-user-details</code> без ключа <code>cabinet_diagnostics</code></li>

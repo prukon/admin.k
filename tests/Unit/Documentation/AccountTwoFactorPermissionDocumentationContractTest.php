@@ -60,7 +60,7 @@ final class AccountTwoFactorPermissionDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#account-two-factor-permission-index', $html);
         $start = strpos($html, 'id="account-two-factor"');
         $this->assertNotFalse($start);
-        $end = strpos($html, 'id="family-cabinet"');
+        $end = strpos($html, 'id="account-phone-verify"');
         $this->assertNotFalse($end);
         $this->assertGreaterThan($start, $end);
         $chunk = substr($html, $start, $end - $start);

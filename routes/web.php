@@ -1007,6 +1007,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // Аватар
         Route::post('account-settings/user/avatar', [AccountController::class, 'store'])->name('avatar.store');         // добавление/замена
         Route::delete('account-settings/user/avatar', [AccountController::class, 'destroy'])->name('avatar.destroy');   // удаление
+        Route::post('/account/user/{user}/phone/send-code', [AccountController::class, 'phoneSendCode'])->name('phoneSendCode');
+        Route::post('/account/user/{user}/phone/confirm-code', [AccountController::class, 'phoneConfirmCode'])->name('phoneConfirmCode');
     });
 
     // Учетная запись - вкладка "организация" (текущий пользователь)  (feature test +)
@@ -1265,9 +1267,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('/admin/tinkoff/partners/{id}/sm-pull', [TinkoffAdminPartnerController::class, 'smPull'])
             ->name('tinkoff.partners.smPull');
     });
-
-    Route::post('/account/user/{user}/phone/send-code', [\App\Http\Controllers\Admin\AccountController::class, 'phoneSendCode'])->name('account.user.phoneSendCode');
-    Route::post('/account/user/{user}/phone/confirm-code', [\App\Http\Controllers\Admin\AccountController::class, 'phoneConfirmCode'])->name('account.user.phoneConfirmCode');
 
     //Подтверждение оферты
     Route::post('/partner/accept-offer', [\App\Http\Controllers\PartnerOfferController::class, 'acceptOffer'])->name('partner.accept-offer');

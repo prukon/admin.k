@@ -279,6 +279,10 @@
     <code>draft</code>, <code>sent</code>, <code>opened</code>, <code>expired</code>,
     <code>failed</code>, <code>revoked</code>.
     Скрывать: уже <code>signed</code>, PDF-режим, <code>null</code> срок, <code>fill_expires_at</code> в прошлом.
+    Список CRM <code>/client-contracts</code> прячет вторую строку ещё и у <code>revoked</code>
+    (<code>schoolListFillRemainingDaysLabel()</code>,
+    <a href="/doc#contract-list-hide-remaining-signed-revoked-index">анонс</a>) —
+    кабинет так не делает.
     Прошлый <code>fill_expires_at</code> у <code>awaiting_client_fill</code> даёт бейдж/alert §1.4;
     у <code>sent</code> / <code>opened</code> поле дней просто исчезает, SMS это не блокирует.
     <br>

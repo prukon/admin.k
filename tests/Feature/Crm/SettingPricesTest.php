@@ -831,14 +831,19 @@ class SettingPricesTest extends CrmTestCase
             'is_paid'   => 1,
         ]);
 
+        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 150000,
+        ]);
+
         $this->postJson(route('setPriceAllUsers'), [
             'selectedDate' => 'Сентябрь 2024',
             'teamId'       => $team->id,
             'usersPrice'   => [
                 [
-                    'user_id' => $user1->id,
-                    'price'   => 1500,
-                    'user'    => ['name' => 'User1'],
+                    'user_id'           => $user1->id,
+                    'price'             => 1500,
+                    'lesson_package_id' => $package->id,
+                    'user'              => ['name' => 'User1'],
                 ],
                 [
                     'user_id' => $user2->id,
@@ -961,19 +966,25 @@ class SettingPricesTest extends CrmTestCase
 
         // user4 — без UserPrice за этот месяц
 
+        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 150000,
+        ]);
+
         $this->postJson(route('setPriceAllUsers'), [
             'selectedDate' => 'Сентябрь 2024',
             'teamId'       => $team->id,
             'usersPrice'   => [
                 [
-                    'user_id' => $user1->id,
-                    'price'   => 1500,
-                    'user'    => ['name' => 'User1'],
+                    'user_id'           => $user1->id,
+                    'price'             => 1500,
+                    'lesson_package_id' => $package->id,
+                    'user'              => ['name' => 'User1'],
                 ],
                 [
-                    'user_id' => $user2->id,
-                    'price'   => 2500,
-                    'user'    => ['name' => 'User2'],
+                    'user_id'           => $user2->id,
+                    'price'             => 2500,
+                    'lesson_package_id' => $package->id,
+                    'user'              => ['name' => 'User2'],
                 ],
             ],
         ])->assertStatus(200);

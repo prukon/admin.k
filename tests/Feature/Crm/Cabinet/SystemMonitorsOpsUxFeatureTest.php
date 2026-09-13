@@ -64,6 +64,12 @@ final class SystemMonitorsOpsUxFeatureTest extends SystemMonitorsTestCase
         $this->assertStringContainsString('После опроса здесь будет текст ошибки', $html);
         $this->assertStringNotContainsString('href="/admin/settings/queues"', $html);
         $this->assertStringNotContainsString('data-role="errors-recent"', $html);
+        $this->assertSame(9, substr_count($html, 'class="ops-monitors__copy" data-role="copy-row"'));
+        $this->assertStringContainsString('aria-label="Копировать красные и жёлтые"', $html);
+        $this->assertStringContainsString('title="Копировать красные и жёлтые"', $html);
+        $this->assertStringContainsString('ops-monitors__copy', $html);
+        $this->assertStringContainsString('ops-monitors__head', $html);
+        $this->assertStringContainsString('class="fas fa-copy"', $html);
 
         $titleStart = strpos($html, '>Пульт</div>');
         $todayStart = strpos($html, '>Сегодня</span>');
@@ -522,6 +528,26 @@ final class SystemMonitorsOpsUxFeatureTest extends SystemMonitorsTestCase
         $this->assertSame('—', $result['auth_logins_after_network']);
         $this->assertSame('', $result['inner_html']);
         $this->assertSame(5000, $result['interval_ms']);
+    }
+
+    public function test_row_copy_text_includes_red_yellow_static_and_live_hint(): void
+    {
+        $result = $this->simulateOpsRowCopyText();
+
+        $this->assertSame('Пульт · Сегодня: красных и жёлтых показателей нет', $result['empty']);
+        $this->assertStringContainsString('Пульт · Касса', $result['till']);
+        $this->assertStringContainsString('3 — CONFIRMED без выплаты', $result['till']);
+        $this->assertStringContainsString('2 — Неуспешные Init оплаты', $result['till']);
+        $this->assertStringNotContainsString('зелёный ок', $result['till']);
+        $this->assertSame('[data-role].is-bad, [data-role].is-warn', $result['till_selector']);
+        $this->assertStringContainsString('Пульт · Очередь', $result['queue']);
+        $this->assertStringContainsString('нет — Воркер очереди умер', $result['queue']);
+        $this->assertStringContainsString('25 — Сколько задач сейчас в таблице jobs', $result['queue']);
+        $this->assertStringContainsString('Пульт · Вход', $result['auth']);
+        $this->assertStringContainsString('1 — Неверный пароль или неизвестный email за 72 часа', $result['auth']);
+        $this->assertStringContainsString('typed-secret', $result['auth']);
+        $this->assertStringContainsString('knock@example.test', $result['auth']);
+        $this->assertStringContainsString('<img src=x>', $result['auth']);
     }
 
     /**
@@ -1520,6 +1546,109 @@ process.stdout.write(JSON.stringify(texts));
 JS;
 
         return $this->runNodeScript($script, [$bladePath, json_encode($payload, JSON_THROW_ON_ERROR)]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function simulateOpsRowCopyText(): array
+    {
+        $bladePath = resource_path('views/includes/system_monitors/ops.blade.php');
+        $this->assertFileExists($bladePath);
+
+        $script = <<<'JS'
+const fs = require('fs');
+const blade = fs.readFileSync(process.argv[2], 'utf8');
+const start = blade.indexOf('function hintAttr(wrap, name)');
+const end = blade.indexOf('function refresh()');
+if (start < 0 || end <= start) {
+    throw new Error('ops row copy helpers not found');
+}
+const src = blade.slice(start, end);
+eval(src);
+
+let lastSelector = '';
+function makeWrap(attrs) {
+    return {
+        getAttribute: function (name) {
+            return Object.prototype.hasOwnProperty.call(attrs, name) ? attrs[name] : '';
+        }
+    };
+}
+function makeNode(text, wrap, tone) {
+    return {
+        textContent: text,
+        tone: tone,
+        closest: function () { return wrap || null; }
+    };
+}
+function makeRow(label, nodes) {
+    return {
+        querySelector: function (sel) {
+            return sel === '.ops-monitors__label' ? { textContent: label } : null;
+        },
+        querySelectorAll: function (sel) {
+            lastSelector = String(sel || '');
+            return nodes.filter(function (node) {
+                return node.tone === 'is-bad' || node.tone === 'is-warn';
+            });
+        }
+    };
+}
+
+const empty = rowProblemText(makeRow('Сегодня', []));
+
+const tillOkWrap = makeWrap({
+    title: 'зелёный ок',
+    'data-bs-original-title': 'зелёный ок'
+});
+const tillOverdueWrap = makeWrap({
+    title: 'CONFIRMED без выплаты',
+    'data-bs-original-title': 'CONFIRMED без выплаты'
+});
+const tillIntentsWrap = makeWrap({
+    title: 'Неуспешные Init оплаты',
+    'data-bs-original-title': 'Неуспешные Init оплаты'
+});
+const till = rowProblemText(makeRow('Касса', [
+    makeNode('0', tillOkWrap, 'is-ok'),
+    makeNode('3', tillOverdueWrap, 'is-bad'),
+    makeNode('2', tillIntentsWrap, 'is-bad')
+]));
+const tillSelector = lastSelector;
+
+const workerWrap = makeWrap({
+    title: 'Воркер очереди умер',
+    'data-bs-original-title': 'Воркер очереди умер'
+});
+const jobsWrap = makeWrap({
+    title: 'Сколько задач сейчас в таблице jobs',
+    'data-bs-original-title': 'Сколько задач сейчас в таблице jobs'
+});
+const queue = rowProblemText(makeRow('Очередь', [
+    makeNode('нет', workerWrap, 'is-bad'),
+    makeNode('25', jobsWrap, 'is-warn')
+]));
+
+const authWrap = makeWrap({
+    'data-ops-hint-default': 'Неверный пароль или неизвестный email за 72 часа',
+    title: '14.09 12:00  knock@example.test  ·  typed-secret  ·  <img src=x>  ·  1.1.1.1',
+    'aria-label': '14.09 12:00  knock@example.test  ·  typed-secret  ·  <img src=x>  ·  1.1.1.1'
+});
+const auth = rowProblemText(makeRow('Вход', [
+    makeNode('1', authWrap, 'is-bad')
+]));
+
+process.stdout.write(JSON.stringify({
+    empty: empty,
+    till: till,
+    till_selector: tillSelector,
+    queue: queue,
+    auth: auth
+}));
+JS;
+
+        return $this->runNodeScript($script, [$bladePath]);
     }
 
     /**

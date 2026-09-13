@@ -235,6 +235,7 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
     public function test_gateway_and_auth_cache_counters_appear_in_snapshot(): void
     {
         $this->asSuperadmin();
+        $this->freezeTime();
         OpsMonitor::recordGatewayOk(OpsMonitor::GATEWAY_TINKOFF);
         OpsMonitor::recordGatewayFail(OpsMonitor::GATEWAY_SMSRU, 'HTTP 502');
         OpsMonitor::recordFailedLogin();

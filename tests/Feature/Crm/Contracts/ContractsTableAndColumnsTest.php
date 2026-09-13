@@ -492,32 +492,13 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
     /** @test */
     public function data_hides_remaining_for_signed_contract(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-09-12 10:00:00', 'Europe/Moscow'));
+        $this->assertDataHidesRemainingForStatus(Contract::STATUS_SIGNED);
+    }
 
-        $this->grantPermissionToRoleForPartner(
-            $this->user->role_id,
-            $this->partner->id,
-            self::PERM_CONTRACTS_FILL_EXPIRES_AT
-        );
-
-        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
-
-        Contract::create([
-            'school_id'        => $this->partner->id,
-            'user_id'          => $student->id,
-            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
-            'status'           => Contract::STATUS_SIGNED,
-            'provider'         => 'podpislon',
-            'fill_expires_at'  => Carbon::parse('2026-09-18 15:04:05'),
-        ]);
-
-        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
-            ->assertOk()
-            ->json('data.0');
-
-        $this->assertSame('18.09.2026 15:04:05', $row['fill_expires_at']);
-        $this->assertSame('', $row['fill_expires_remaining']);
-        $this->assertFalse($row['fill_expires_remaining_warn']);
+    /** @test */
+    public function data_hides_remaining_for_revoked_contract(): void
+    {
+        $this->assertDataHidesRemainingForStatus(Contract::STATUS_REVOKED);
     }
 
     /** @test */
@@ -748,6 +729,36 @@ class ContractsTableAndColumnsTest extends ContractsFeatureTestCase
         $this->getJson('/client-contracts/columns-settings')
             ->assertStatus(200)
             ->assertExactJson([]);
+    }
+
+    private function assertDataHidesRemainingForStatus(string $status): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-12 10:00:00', 'Europe/Moscow'));
+
+        $this->grantPermissionToRoleForPartner(
+            $this->user->role_id,
+            $this->partner->id,
+            self::PERM_CONTRACTS_FILL_EXPIRES_AT
+        );
+
+        $student = User::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => 1]);
+
+        Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'creation_mode'    => Contract::CREATION_MODE_TEMPLATE,
+            'status'           => $status,
+            'provider'         => 'podpislon',
+            'fill_expires_at'  => Carbon::parse('2026-09-18 15:04:05'),
+        ]);
+
+        $row = $this->getJson('/client-contracts/data?draw=1&start=0&length=20')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->assertSame('18.09.2026 15:04:05', $row['fill_expires_at']);
+        $this->assertSame('', $row['fill_expires_remaining']);
+        $this->assertFalse($row['fill_expires_remaining_warn']);
     }
 
     private function createContractEvent(int $contractId, string $type, string $createdAt): ContractEvent

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\SettingPrices;
 
+use App\Models\LessonPackage;
 use App\Models\Partner;
 use App\Models\Team;
 use App\Models\User;
@@ -27,6 +28,8 @@ final class SettingPricesUsersFormerMembersAccessFeatureTest extends CrmTestCase
     private Team $dubl;
 
     private User $student;
+
+    private LessonPackage $package;
 
     private TeamUserSyncService $teamSync;
 
@@ -72,6 +75,10 @@ final class SettingPricesUsersFormerMembersAccessFeatureTest extends CrmTestCase
             'is_paid' => 0,
         ]);
         $this->teamSync->syncTeamsForStudent($this->student, [(int) $this->dubl->id]);
+
+        $this->package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 999900,
+        ]);
     }
 
     /**
@@ -186,6 +193,7 @@ final class SettingPricesUsersFormerMembersAccessFeatureTest extends CrmTestCase
     {
         $actor = $this->createUserWithoutPermission('setPrices.view', $this->partner);
         $this->grantPermission($actor, 'setPrices.view');
+        $this->grantLessonPackageTypePermissions($actor, ['fixed', 'flexible', 'no_schedule']);
         $this->actingAs($actor);
 
         $page = $this->get(route('admin.settingPrices.users'));
@@ -234,7 +242,7 @@ final class SettingPricesUsersFormerMembersAccessFeatureTest extends CrmTestCase
                     [
                         'new_month' => '2026-02-01',
                         'price' => 9999,
-                        'lesson_package_id' => null,
+                        'lesson_package_id' => $this->package->id,
                     ],
                 ],
             ])
@@ -262,7 +270,7 @@ final class SettingPricesUsersFormerMembersAccessFeatureTest extends CrmTestCase
                 [
                     'new_month' => '2026-02-01',
                     'price' => 5555,
-                    'lesson_package_id' => null,
+                    'lesson_package_id' => $this->package->id,
                 ],
             ],
         ]);

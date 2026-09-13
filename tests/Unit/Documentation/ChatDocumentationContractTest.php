@@ -204,6 +204,7 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOpsDayUxFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsDayAccessFeatureTest', $html);
         $this->assertStringContainsString('OpsDayKpiDocumentationContractTest', $html);
+        $this->assertStringContainsString('OpsRowCopyDocumentationContractTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsNonAjaxSafetyNetFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOpsUxFeatureTest', $html);
         $this->assertStringContainsString('users.system_monitors', $html);
@@ -222,6 +223,7 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('text-align: left', $html);
         $this->assertStringContainsString('id="ops-monitors-overlay"', $html);
         $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $html);
+        $this->assertStringContainsString('/doc#ops-row-copy-index', $html);
         $this->assertStringContainsString('/doc#ops-errors-detail-index', $html);
         $this->assertStringContainsString('/doc#chat-index', $html);
         $this->assertStringNotContainsString('доступ по Form Request только у superadmin', $html);

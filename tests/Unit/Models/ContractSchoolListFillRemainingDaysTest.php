@@ -66,19 +66,21 @@ final class ContractSchoolListFillRemainingDaysTest extends TestCase
         $this->assertTrue($contract->shouldHighlightSchoolListFillRemainingDays());
     }
 
-    public function test_signed_hides_remaining_even_if_deadline_is_future_or_past(): void
+    public function test_signed_and_revoked_hide_remaining_even_if_deadline_is_future_or_past(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-09-12 10:00:00', 'Europe/Moscow'));
 
-        $future = $this->unsignedTemplate(Carbon::parse('2026-09-18 15:00:00', 'Europe/Moscow'));
-        $future->status = Contract::STATUS_SIGNED;
-        $this->assertNull($future->schoolListFillRemainingDaysLabel());
-        $this->assertFalse($future->shouldHighlightSchoolListFillRemainingDays());
+        foreach ([Contract::STATUS_SIGNED, Contract::STATUS_REVOKED] as $status) {
+            $future = $this->unsignedTemplate(Carbon::parse('2026-09-18 15:00:00', 'Europe/Moscow'));
+            $future->status = $status;
+            $this->assertNull($future->schoolListFillRemainingDaysLabel());
+            $this->assertFalse($future->shouldHighlightSchoolListFillRemainingDays());
 
-        $past = $this->unsignedTemplate(Carbon::parse('2026-09-10 15:00:00', 'Europe/Moscow'));
-        $past->status = Contract::STATUS_SIGNED;
-        $this->assertNull($past->schoolListFillRemainingDaysLabel());
-        $this->assertFalse($past->shouldHighlightSchoolListFillRemainingDays());
+            $past = $this->unsignedTemplate(Carbon::parse('2026-09-10 15:00:00', 'Europe/Moscow'));
+            $past->status = $status;
+            $this->assertNull($past->schoolListFillRemainingDaysLabel());
+            $this->assertFalse($past->shouldHighlightSchoolListFillRemainingDays());
+        }
     }
 
     public function test_null_deadline_hides_remaining(): void

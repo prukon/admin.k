@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Enums\UserSex;
+use App\Http\Requests\Account\AccountUserPhoneConfirmCodeRequest;
+use App\Http\Requests\Account\AccountUserPhoneSendCodeRequest;
 use App\Http\Requests\User\AccountUpdatePasswordRequest;
 use App\Http\Requests\User\AccountUpdateRequest;
 use App\Http\Requests\User\UpdateRequest;
@@ -16,6 +18,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Models\UserField;
 use App\Models\UserFieldValue;
+use App\Services\SmsRuService;
 use App\Services\UserService;
 use App\Services\Users\StudentParentSyncService;
 use Carbon\Carbon;
@@ -28,7 +31,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Yajra\DataTables\DataTables;
 
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Gate;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Storage;
@@ -504,106 +507,88 @@ class AccountController extends AdminBaseController
 
         return response()->json(['success' => true]);
     }
-    public function phoneSendCode(Request $request, User $user)
+    public function phoneSendCode(AccountUserPhoneSendCodeRequest $request, User $user)
     {
-        // Права: сам себе или админ/супер
-        $res = Gate::inspect('verify-phone', $user);
-        if ($res->denied()) {
-            Log::warning('phoneSendCode: denied', ['actor_id' => Auth::id(), 'target_id' => $user->id]);
-            abort(403, $res->message() ?: 'Недостаточно прав.');
-        }
+        $digits = $request->phoneDigits();
 
-        // Нормализация входа -> цифры 79XXXXXXXXX
-        $raw = (string)$request->input('phone', '');
-        $digits = preg_replace('/\D+/', '', $raw);
-        if (strlen($digits) === 11 && str_starts_with($digits, '8')) $digits = '7' . substr($digits, 1);
-        if (strlen($digits) === 10) $digits = '7' . $digits;
-
-        if (!preg_match('/^7\d{10}$/', $digits)) {
-            return response()->json(['success' => false, 'message' => 'Некорректный номер. Формат 79XXXXXXXXX.'], 422);
-        }
-
-        // Если номер не меняется и уже подтверждён — не шлём код
-        $currentDigits = preg_replace('/\D+/', '', (string)$user->phone);
+        $currentDigits = preg_replace('/\D+/', '', (string) $user->phone);
         if ($user->phone_verified_at && $currentDigits === $digits) {
             return response()->json(['success' => true, 'alreadyVerified' => true]);
         }
 
-        // Генерим код
-        $code = (string)random_int(100000, 999999);
+        $code = (string) random_int(100000, 999999);
         $expires = now()->addMinutes(10);
 
-        // ✅ Храним pending в E.164 (+7…)
         $user->two_factor_phone_pending = '+' . $digits;
         $user->phone_change_new_code = Hash::make($code);
         $user->phone_change_new_expires_at = $expires;
-        // Чистим старый шаг на всякий случай
         $user->phone_change_old_code = null;
         $user->phone_change_old_expires_at = null;
         $user->save();
 
         Log::debug('phoneSendCode: saved pending', [
-            'user_id'   => $user->id,
-            'pending'   => $user->two_factor_phone_pending,
-            'digits'    => $digits,
-            'expires'   => $expires->toDateTimeString(),
+            'user_id' => $user->id,
+            'pending' => $user->two_factor_phone_pending,
+            'digits' => $digits,
+            'expires' => $expires->toDateTimeString(),
         ]);
 
-        // Отправка SMS — шлюзу отдаем цифры (79…)
         try {
-            app(\App\Services\SmsRuService::class)->send($digits, "Код подтверждения: {$code}");
+            $result = app(SmsRuService::class)->send($digits, "Код подтверждения: {$code}");
         } catch (\Throwable $e) {
             Log::error('phoneSendCode: sms send failed', ['err' => $e->getMessage()]);
-            return response()->json(['success' => false, 'message' => 'Не удалось отправить SMS. Попробуйте позже.'], 500);
+            throw ValidationException::withMessages([
+                'phone' => SmsRuService::USER_ERROR_GENERIC,
+            ]);
+        }
+
+        if ($result !== true) {
+            throw ValidationException::withMessages([
+                'phone' => SmsRuService::userFacingErrorMessage(
+                    is_string($result) ? $result : 'Unknown error'
+                ),
+            ]);
         }
 
         return response()->json(['success' => true]);
     }
-    public function phoneConfirmCode(Request $request, User $user)
+
+    public function phoneConfirmCode(AccountUserPhoneConfirmCodeRequest $request, User $user)
     {
-        $res = Gate::inspect('verify-phone', $user);
-        if ($res->denied()) {
-            Log::warning('phoneConfirmCode: denied', ['actor_id' => Auth::id(), 'target_id' => $user->id]);
-            abort(403, $res->message() ?: 'Недостаточно прав.');
-        }
+        $digits = $request->phoneDigits();
+        $code = trim((string) $request->validated('code'));
 
-        // Вход -> цифры 79…
-        $rawPhone = (string)$request->input('phone', '');
-        $digits = preg_replace('/\D+/', '', $rawPhone);
-        if (strlen($digits) === 11 && str_starts_with($digits, '8')) $digits = '7' . substr($digits, 1);
-        if (strlen($digits) === 10) $digits = '7' . $digits;
-
-        $code = trim((string)$request->input('code', ''));
-
-        if (!preg_match('/^7\d{10}$/', $digits) || !preg_match('/^\d{4,8}$/', $code)) {
-            return response()->json(['success' => false, 'message' => 'Неверные данные.'], 422);
-        }
-
-        // ✅ Сравниваем pending по цифрам (в БД он теперь хранится как +7…)
-        $pendingDigits = preg_replace('/\D+/', '', (string)$user->two_factor_phone_pending);
+        $pendingDigits = preg_replace('/\D+/', '', (string) $user->two_factor_phone_pending);
 
         Log::debug('phoneConfirmCode: compare', [
-            'user_id'       => $user->id,
-            'pending_raw'   => $user->two_factor_phone_pending,
+            'user_id' => $user->id,
+            'pending_raw' => $user->two_factor_phone_pending,
             'pendingDigits' => $pendingDigits,
-            'inputDigits'   => $digits,
+            'inputDigits' => $digits,
         ]);
 
-        if (!$pendingDigits || $pendingDigits !== $digits) {
-            return response()->json(['success' => false, 'message' => 'Этот номер не ожидается к подтверждению.'], 422);
+        if (! $pendingDigits || $pendingDigits !== $digits) {
+            throw ValidationException::withMessages([
+                'phone' => 'Этот номер не ожидается к подтверждению.',
+            ]);
         }
 
-        if (!$user->phone_change_new_code || !$user->phone_change_new_expires_at) {
-            return response()->json(['success' => false, 'message' => 'Код не запрошен.'], 422);
+        if (! $user->phone_change_new_code || ! $user->phone_change_new_expires_at) {
+            throw ValidationException::withMessages([
+                'code' => 'Код не запрошен.',
+            ]);
         }
         if (now()->greaterThan($user->phone_change_new_expires_at)) {
-            return response()->json(['success' => false, 'message' => 'Код истёк. Запросите новый.'], 422);
+            throw ValidationException::withMessages([
+                'code' => 'Код истёк. Запросите новый.',
+            ]);
         }
-        if (!Hash::check($code, $user->phone_change_new_code)) {
-            return response()->json(['success' => false, 'message' => 'Неверный код.'], 422);
+        if (! Hash::check($code, $user->phone_change_new_code)) {
+            throw ValidationException::withMessages([
+                'code' => 'Неверный код.',
+            ]);
         }
 
-        // ✅ Применяем номер в E.164 (+7…)
         $user->phone = '+' . $digits;
         $user->phone_verified_at = now();
         $user->two_factor_phone_pending = null;
@@ -614,7 +599,7 @@ class AccountController extends AdminBaseController
 
         Log::info('phoneConfirmCode: success', [
             'target_id' => $user->id,
-            'phone'     => $user->phone,
+            'phone' => '***'.substr($digits, -4),
         ]);
 
         if (Auth::id() === $user->id) {

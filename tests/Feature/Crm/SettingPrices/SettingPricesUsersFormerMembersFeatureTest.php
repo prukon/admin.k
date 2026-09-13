@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\SettingPrices;
 
+use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
@@ -18,6 +19,8 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
     private Team $dubl;
 
     private User $student;
+
+    private LessonPackage $package;
 
     private TeamUserSyncService $teamSync;
 
@@ -50,6 +53,10 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
         $this->teamSync->syncTeamsForStudent($this->student, [
             (int) $this->almaz->id,
             (int) $this->dubl->id,
+        ]);
+
+        $this->package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 150000,
         ]);
     }
 
@@ -137,10 +144,11 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
                 [
                     'new_month' => '2026-02-01',
                     'price' => 9999,
-                    'lesson_package_id' => null,
+                    'lesson_package_id' => $this->package->id,
                 ],
             ],
-        ])->assertStatus(422);
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'Группа не найдена или ученик в ней не состоит.');
 
         $this->assertDatabaseHas('users_prices', [
             'user_id' => $this->student->id,
@@ -303,7 +311,7 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
                 [
                     'new_month' => '2026-02-01',
                     'price' => 1500,
-                    'lesson_package_id' => null,
+                    'lesson_package_id' => $this->package->id,
                 ],
             ],
         ])->assertOk()

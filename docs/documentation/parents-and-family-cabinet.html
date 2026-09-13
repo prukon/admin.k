@@ -33,6 +33,8 @@
     <b>Назначение.</b> Справочник родителей (<code>parents</code>) для ФИО подписанта договора и семейного кабинета (несколько детей с одним <code>users.parent_id</code>).
     Вход в CRM — <b>только</b> под учёткой ученика (<code>users</code>, роль <code>user</code>). Отдельной учётки «мама/папа» нет.
     Контакты для SMS и оплат — <code>users.phone</code> / <code>users.email</code> учётки ученика, под которой выполнен вход.
+    Кнопка «Подтвердить» этот номер в ЛК закрыта скрытым правом <code>account.user.phone.verify</code>
+    (по умолчанию выкл., §<a href="#account-phone-verify">4.7</a>).
     Карточка <code>parents</code> (ФИО, <b>ФИО в родительном падеже</b>, паспорт, адрес, телефон, email родителя) общая для всех детей с тем же <code>parent_id</code>
     и редактируется из админки (§3) и из ЛК (§4) при наличии права.
     При заявке с лендинга карточка может быть <b>автоматически подобрана</b> к лиду
@@ -222,6 +224,7 @@ users (role=user) — ученик, вход в CRM
       <tr><td><code>users.full_name_genitive</code></td><td><code>users.full_name_genitive</code></td><td>ФИО ученика в родительном падеже: CRM и ЛК; <code>is_visible=0</code>, не в базовых ролях. Без права — поле не рендерится.
         См. <a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>.</td></tr>
       <tr><td><code>account.user.two_factor.update</code></td><td><code>account.user.two_factor.update</code></td><td>Переключатель «Двухфакторная аутентификация (SMS)» на <code>/account-settings/user/edit</code>. Скрытое (<code>is_visible=0</code>), <b>не</b> в базовых ролях: при создании партнёра выключено у всех. Без права — блок не рендерится, PATCH не меняет <code>two_factor_enabled</code> (уже включённая 2FA остаётся). Superadmin включает любой роли в матрице. См. <a href="#account-two-factor">§4.6</a>.</td></tr>
+      <tr><td><code>account.user.phone.verify</code></td><td><code>account.user.phone.verify</code> / Gate <code>verify-phone</code></td><td>Кнопка «Подтвердить» и SMS-код на <code>/account-settings/user/edit</code>. Ученик/тренер — свой номер; admin — ученик той же школы (<code>partner_id</code>); superadmin — <code>Gate::before</code>, без выдачи права. Скрытое (<code>is_visible=0</code>), <b>не</b> в базовых ролях: при создании партнёра выключено у всех. Без права — кнопки и модалки нет, POST send/confirm → 403. Не зависит от <code>account.user.phone.update</code> (поле может быть disabled). Superadmin включает любой роли в матрице. См. <a href="#account-phone-verify">§4.7</a>.</td></tr>
     </tbody>
   </table>
   <p>Базовая роль <code>user</code> получает <code>account.user.parent.update</code> и <code>users.sex</code> из <code>config/role_base_permissions.php</code> (сидер <code>PermissionSeeder</code>).
@@ -236,7 +239,13 @@ users (role=user) — ученик, вход в CRM
       (<a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>); 422 → ключ <code>full_name_genitive</code>.</li>
     <li>Сервис: <code>StudentParentSyncService::updateFromAccount</code> — обновляет <code>parentProfile</code> ученика; при отсутствии создаёт запись в <code>parents</code> и выставляет <code>users.parent_id</code>.</li>
     <li>Правка ФИО/профиля в ЛК меняет <b>общую</b> карточку — sibling с тем же <code>parent_id</code> видит изменения сразу (без отдельной учётки родителя).</li>
-    <li>Ответ всегда JSON (<code>success</code>, <code>message</code>); ошибки валидации — 422, ключи <code>parent_lastname</code>, <code>parent_full_name_genitive</code>, <code>full_name_genitive</code>, <code>sex</code> и т.д. (вывод под полями на фронте).</li>
+    <li>Ответ всегда JSON (<code>success</code>, <code>message</code>); ошибки валидации — 422, ключи <code>parent_lastname</code>, <code>parent_full_name_genitive</code>, <code>full_name_genitive</code>, <code>sex</code>, <code>phone</code> и т.д. (вывод под полями на фронте).</li>
+    <li>Подтверждённый <code>users.phone</code> (<code>phone_verified_at</code> не null) PATCH ЛК не меняет:
+      422 <code>errors.phone</code> «Номер подтверждён. Смена запрещена.»
+      Удаление подтверждённого номера при включённой 2FA тоже 422.
+      Сброс <code>phone_verified_at</code> — смена номера в CRM
+      (<code>users.phone.update</code>, <code>UserController</code>), не кнопка «Подтвердить»
+      (см. §<a href="#account-phone-verify">4.7</a>).</li>
     <li>ФИО родителя в родительном падеже: необязательное поле <code>parent_full_name_genitive</code> → <code>parents.full_name_genitive</code> (max 300). Пустая строка очищает значение. В ЛК одно только это поле без фамилии/имени → 422 на <code>parent_lastname</code>/<code>parent_firstname</code>.</li>
   </ul>
   <p class="small">Тесты: <code>AccountParentFullNameGenitiveFeatureTest</code>, <code>AccountChildFullNameGenitiveFeatureTest</code>.</p>
@@ -251,6 +260,8 @@ users (role=user) — ученик, вход в CRM
       <tr><td>PATCH</td><td><code>/account-settings/user</code></td><td>200 JSON <code>success</code></td></tr>
       <tr><td>PUT</td><td><code>/account-settings/user/password</code></td><td>См. §<a href="#account-own-password">4.3.1</a></td></tr>
       <tr><td>POST / DELETE</td><td><code>/account-settings/user/avatar</code></td><td>200 / 422</td></tr>
+      <tr><td>POST</td><td><code>/account/user/{user}/phone/send-code</code></td><td>200 при <code>account.user.phone.verify</code> (или <code>alreadyVerified</code>, SMS нет); без права / без <code>account.user.view</code> — 403; чужой партнёр — 403; 422 <code>errors.phone</code></td></tr>
+      <tr><td>POST</td><td><code>/account/user/{user}/phone/confirm-code</code></td><td>200 JSON <code>verified_at</code> при праве; 403 без права / чужой партнёр; истёкший код — 422 <code>errors.code</code>; иначе 422 <code>errors.phone</code> / <code>errors.code</code></td></tr>
     </tbody>
   </table>
 
@@ -354,7 +365,9 @@ users (role=user) — ученик, вход в CRM
     партнёра выключено у всех. Superadmin видит его в матрице «Права и роли» и
     включает любой роли партнёра. Админ школы строку не видит.
     Не путать с <code>settings.force2fa.admins</code> (кто включает глобалку
-    <code>force_2fa_admins</code>).
+    <code>force_2fa_admins</code>) и с подтверждением номера
+    (<a href="#account-phone-verify">§4.7</a>): для включения 2FA достаточно
+    телефона формата 79XXXXXXXXX, <code>phone_verified_at</code> не требуется.
     Анонс: <a href="/doc#account-two-factor-permission-index">/doc</a>.
   </div>
   <ul>
@@ -404,6 +417,71 @@ users (role=user) — ученик, вход в CRM
     <code>AccountTwoFactorPermissionUiContractsFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest::test_account_user_two_factor_ajax_submit_is_valid_javascript_and_attaches_errors_to_visible_field</code>,
     <code>AccountTwoFactorPermissionDocumentationContractTest</code>.</p>
+
+  <h3 id="account-phone-verify">4.7) Подтверждение телефона (SMS)</h3>
+  <div class="note">
+    Кнопка «Подтвердить» на <code>/account-settings/user/edit</code>
+    (<code>resources/views/account/users.blade.php</code>, <code>id="verify-phone-btn"</code>)
+    закрыта правом <code>account.user.phone.verify</code> (группа <code>account</code>,
+    <code>is_visible=0</code>, <code>sort_order</code> 61). Скрытое, <b>не</b> в базовых
+    ролях <code>user</code> / <code>admin</code> / <code>trainer</code>: при создании
+    партнёра выключено у всех. Superadmin видит его в матрице «Права и роли» и
+    включает любой роли партнёра. Админ школы строку не видит.
+    Не путать с <code>account.user.phone.update</code> (правка номера),
+    <code>account.user.two_factor.update</code> (переключатель 2FA) и
+    <code>/security/phone</code> (<code>PhoneChangeController</code> — смена
+    телефона на 2FA-challenge; право <code>account.user.phone.verify</code>
+    туда не применяется).
+    Анонс: <a href="/doc#account-phone-verify-permission-index">/doc</a>.
+  </div>
+  <ul>
+    <li>Доступ: гость GET → login, POST send/confirm → 302/401; без
+      <code>account.user.view</code> → 403. Без
+      <code>account.user.phone.verify</code> при наличии
+      <code>account.user.view</code> — GET 200, кнопки и модалки нет, POST → 403.
+      Ученик/тренер только свой URL; админ — ученик той же школы, не чужой партнёр;
+      superadmin видит кнопку без выдачи права роли.</li>
+    <li><code>POST /account/user/{user}/phone/send-code</code>
+      (<code>AccountUserPhoneSendCodeRequest</code> +
+      <code>AccountController@phoneSendCode</code>) и
+      <code>POST /account/user/{user}/phone/confirm-code</code>
+      (<code>AccountUserPhoneConfirmCodeRequest</code> +
+      <code>phoneConfirmCode</code>): Gate <code>verify-phone</code> требует право
+      и свой профиль (admin той же школы / superadmin может чужой URL). 422 ключи
+      <code>errors.phone</code> / <code>errors.code</code>. Отказ sms.ru —
+      422 <code>errors.phone</code>. Уже подтверждён тот же номер —
+      200 <code>alreadyVerified</code> без SMS. Истёкший код —
+      422 <code>errors.code</code> «Код истёк. Запросите новый.»
+      Confirm 200 JSON <code>verified_at</code>; пишет
+      <code>users.phone</code> как <code>+79…</code> и
+      <code>phone_verified_at</code>. Если актёр = цель — session
+      <code>2fa:passed</code>. Нормализация <code>8…</code> → <code>7…</code>.</li>
+    <li>После успеха PATCH <code>/account-settings/user</code> не меняет номер
+      (422 «Номер подтверждён. Смена запрещена.»). Сброс
+      <code>phone_verified_at</code> — смена номера в CRM при
+      <code>users.phone.update</code>. Без
+      <code>account.user.phone.update</code> поле телефона disabled;
+      кнопка при праве всё равно показывается, если номер полный
+      (JS <code>updateVerifyUI</code> не смотрит <code>:disabled</code>;
+      неполный номер — <code>hideBtn</code>). Два AJAX-пути send: клик кнопки
+      и «Отправить код ещё раз». Confirm без reload страницы.
+      Служебные колонки <code>two_factor_phone_pending</code> /
+      <code>phone_change_new_code</code> те же, что у <code>/security/phone</code>:
+      параллельный сценарий перезапишет pending-код.</li>
+    <li>Миграция <code>2026_09_13_004500_add_account_user_phone_verify_permission.php</code>
+      создаёт скрытое право в каталоге без выдачи ролям. Кастомные роли:
+      стартовый набор admin это право не содержит —
+      <a href="/docs/documentation/settings-roles-custom">settings-roles-custom</a>.</li>
+  </ul>
+  <p class="small">Тесты: <code>AccountPhoneVerifyPermissionCatalogFeatureTest</code>,
+    <code>AccountPhoneVerifyPermissionAccessFeatureTest</code>,
+    <code>AccountPhoneVerifyPermissionFullAccessFeatureTest</code>,
+    <code>AccountPhoneVerifyPermissionAjaxContractFeatureTest</code>,
+    <code>AccountPhoneVerifyPermissionNonAjaxSafetyNetFeatureTest</code>,
+    <code>AccountPhoneVerifyPermissionMarkupFeatureTest</code>,
+    <code>AccountPhoneVerifyPermissionUiContractsFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_account_user_phone_verify_inline_script_is_valid_javascript</code>,
+    <code>AccountPhoneVerifyPermissionDocumentationContractTest</code>.</p>
 
   <h2 id="family-cabinet">5) Семейный кабинет (переключение детей)</h2>
   <p class="small">Оплата за выбранного ребёнка (витрина, Init, отчёты) — <a href="/doc#family-student-payment-index">анонс на /doc</a>.</p>

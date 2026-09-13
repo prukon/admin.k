@@ -49,15 +49,21 @@ class AuthServiceProvider extends ServiceProvider
         };
 
         Gate::define('verify-phone', function (User $actor, User $target) use ($roleNameById) {
-            // Сам себе — всегда можно
+            if (! $actor->hasPermission('account.user.phone.verify')) {
+                return false;
+            }
+
             if ($actor->id === $target->id) {
                 return true;
             }
 
-            // Админ/суперадмин — по roles.name (без хардкода ID)
-            $roleName = $roleNameById((int)$actor->role_id);
+            $roleName = $roleNameById((int) $actor->role_id);
+            if ($roleName === 'superadmin') {
+                return true;
+            }
 
-            return in_array($roleName, ['superadmin', 'admin'], true);
+            return $roleName === 'admin'
+                && (int) $actor->partner_id === (int) $target->partner_id;
         });
 
         // Всё подряд разрешаем суперадмину (role.name = superadmin)
@@ -511,6 +517,12 @@ class AuthServiceProvider extends ServiceProvider
         // Изменение своего телефона
         Gate::define('account.user.phone.update', function (User $user) {
             return $user->hasPermission('account.user.phone.update');
+        });
+
+        // ЛК: подтверждение телефона SMS-кодом (свой номер; admin — та же школа).
+        // Скрытое; не в базовых ролях user/admin/trainer. Superadmin видит в матрице.
+        Gate::define('account.user.phone.verify', function (User $user) {
+            return $user->hasPermission('account.user.phone.verify');
         });
 
         // ЛК: переключатель SMS-2FA своего аккаунта.

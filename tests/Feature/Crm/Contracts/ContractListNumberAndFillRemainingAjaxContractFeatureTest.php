@@ -26,6 +26,9 @@ final class ContractListNumberAndFillRemainingAjaxContractFeatureTest extends Co
         $signed = $this->makeTemplateContract(Carbon::parse('2026-09-18 15:00:00', 'Europe/Moscow'), [
             'status' => Contract::STATUS_SIGNED,
         ]);
+        $revoked = $this->makeTemplateContract(Carbon::parse('2026-09-10 12:00:00', 'Europe/Moscow'), [
+            'status' => Contract::STATUS_REVOKED,
+        ]);
         $pdf = $this->makeListContract(['fill_expires_at' => null]);
 
         $response = $this->withHeaders($this->ajaxHeaders())
@@ -63,6 +66,10 @@ final class ContractListNumberAndFillRemainingAjaxContractFeatureTest extends Co
         $this->assertSame('18.09.2026 15:00:00', $rows[$signed->id]['fill_expires_at']);
         $this->assertSame('', $rows[$signed->id]['fill_expires_remaining']);
         $this->assertFalse($rows[$signed->id]['fill_expires_remaining_warn']);
+
+        $this->assertSame('10.09.2026 12:00:00', $rows[$revoked->id]['fill_expires_at']);
+        $this->assertSame('', $rows[$revoked->id]['fill_expires_remaining']);
+        $this->assertFalse($rows[$revoked->id]['fill_expires_remaining_warn']);
 
         $this->assertSame('', $rows[$pdf->id]['fill_expires_at']);
         $this->assertSame('', $rows[$pdf->id]['fill_expires_remaining']);

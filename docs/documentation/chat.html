@@ -52,6 +52,7 @@
     · оверлей Reverb: <a href="/doc#reverb-status-overlay-index">/doc#reverb-status-overlay-index</a>
     · оверлей «Онлайн»: <a href="/doc#online-users-overlay-index">/doc#online-users-overlay-index</a>
     · оверлей «Пульт»: <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a>
+    · копирование строки пульта: <a href="/doc#ops-row-copy-index">/doc#ops-row-copy-index</a>
     · ховер 500 пульта: <a href="/doc#ops-errors-detail-index">/doc#ops-errors-detail-index</a></div>
 
   <div class="ok">
@@ -1270,7 +1271,9 @@
     «Касса» без выплаты после задержки —
     <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>,
     «Договоры» (заполнение / SMS Подпислона) —
-    <a href="/doc#ops-contracts-expired-index">/doc#ops-contracts-expired-index</a>.
+    <a href="/doc#ops-contracts-expired-index">/doc#ops-contracts-expired-index</a>,
+    копирование строки —
+    <a href="/doc#ops-row-copy-index">/doc#ops-row-copy-index</a>.
     Не путать с §<a href="#online-users-overlay">5.2</a> (список людей) и §<a href="#reverb-overlay">5.1</a> (бейдж процесса/сокета).</p>
   <ol>
     <li>Стек <code>#system-monitors-stack</code>:
@@ -1306,6 +1309,10 @@
       Первый кадр «…» во всех <code>data-role</code>. Сбой <code>refresh()</code>
       (сеть / 403) ставит «—» и откатывает ховер <code>last_message</code>
       и пароль/код входа и ФИО договоров, не leftover.
+      У заголовка каждой строки кнопка <code>data-role="copy-row"</code>:
+      буфер — красные (<code>is-bad</code>) и жёлтые (<code>is-warn</code>),
+      статика ховера + живой текст, если отличается.
+      Анонс — <a href="/doc#ops-row-copy-index">/doc#ops-row-copy-index</a>.
   </ol>
 
   <h2 id="tests">6) Тесты</h2>
@@ -1527,6 +1534,7 @@
     <li><code>SystemMonitorsOpsContractsExpiredUxFeatureTest</code> — первый кадр «…», leftover 403, XSS title.</li>
     <li><code>SystemMonitorsOpsContractsExpiredAccessFeatureTest</code> — гость/403 без ФИО, native GET, мутации 405.</li>
     <li><code>OpsContractsExpiredDocumentationContractTest</code> — анонс <code>/doc#ops-contracts-expired-index</code>.</li>
+    <li><code>OpsRowCopyDocumentationContractTest</code> — анонс <code>/doc#ops-row-copy-index</code> совпадает с <code>copy-row</code>.</li>
     <li><code>ChatUnreadSidebarFlashUxFeatureTest</code> — вспышка бейджа в открытом диалоге: серверный <code>inbox.bump</code> несёт новый unread, клиент на странице чата не красит этот total (прогон реального JS), вне чата и в другом диалоге каунтер показывается.</li>
     <li><code>ChatPartnerScopeFullAccessFeatureTest</code> — partner-scope, дедуп 1-на-1
       (в т.ч. 0/1 живой участник, UNIQUE пары в треде), чужой тред 403 (включая PATCH read и PATCH draft), 422 под полями.</li>

@@ -48,6 +48,8 @@ final class AccountDocumentsFillRemainingDaysDocumentationContractTest extends T
         $this->assertStringContainsString('ContractClientFillRemainingDaysTest', $chunk);
         $this->assertStringContainsString('AccountDocumentsFillRemainingDaysDocumentationContractTest', $chunk);
         $this->assertStringContainsString('BladeInlineJsSyntaxTest', $chunk);
+        $this->assertStringContainsString('schoolListFillRemainingDaysLabel', $chunk);
+        $this->assertStringContainsString('contract-list-hide-remaining-signed-revoked-index', $chunk);
 
         $this->assertStringNotContainsString('ttl_hours Подпислона', $chunk);
         $this->assertStringNotContainsString('npm run build', $chunk);
@@ -69,6 +71,7 @@ final class AccountDocumentsFillRemainingDaysDocumentationContractTest extends T
         $this->assertStringContainsString('shouldShowClientFillRemainingDays', $fill);
         $this->assertStringContainsString('contracts.fillExpiresAt.view', $fill);
         $this->assertStringContainsString('contract-list-fill-expires-at', $fill);
+        $this->assertStringContainsString('/doc#contract-list-hide-remaining-signed-revoked-index', $fill);
 
         $this->assertStringContainsString('/doc#account-documents-fill-remaining-days-index', $contracts);
         $this->assertStringContainsString('account-documents-fill-remaining-days', $contracts);

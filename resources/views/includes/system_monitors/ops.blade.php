@@ -5,7 +5,10 @@
     aria-live="polite">
     <div class="ops-monitors__title">Пульт</div>
     <div class="ops-monitors__row">
-        <span class="ops-monitors__label">Сегодня</span>
+        <span class="ops-monitors__head">
+            <span class="ops-monitors__label">Сегодня</span>
+            <button type="button" class="ops-monitors__copy" data-role="copy-row" title="Копировать красные и жёлтые" aria-label="Копировать красные и жёлтые"><i class="fas fa-copy" aria-hidden="true"></i></button>
+        </span>
         <span class="ops-monitors__vals">
             @include('partials.ui.tooltip-hint', [
                 'title' => 'Оборотка T‑Bank за текущий календарный день (все школы, summ_cents > 0)',
@@ -30,7 +33,10 @@
         </span>
     </div>
     <div class="ops-monitors__row">
-        <span class="ops-monitors__label">Вчера</span>
+        <span class="ops-monitors__head">
+            <span class="ops-monitors__label">Вчера</span>
+            <button type="button" class="ops-monitors__copy" data-role="copy-row" title="Копировать красные и жёлтые" aria-label="Копировать красные и жёлтые"><i class="fas fa-copy" aria-hidden="true"></i></button>
+        </span>
         <span class="ops-monitors__vals">
             @include('partials.ui.tooltip-hint', [
                 'title' => 'Оборотка T‑Bank за вчерашний календарный день (все школы, summ_cents > 0)',
@@ -55,7 +61,10 @@
         </span>
     </div>
     <div class="ops-monitors__row">
-        <span class="ops-monitors__label">Очередь</span>
+        <span class="ops-monitors__head">
+            <span class="ops-monitors__label">Очередь</span>
+            <button type="button" class="ops-monitors__copy" data-role="copy-row" title="Копировать красные и жёлтые" aria-label="Копировать красные и жёлтые"><i class="fas fa-copy" aria-hidden="true"></i></button>
+        </span>
         <span class="ops-monitors__vals">
             @include('partials.ui.tooltip-hint', [
                 'title' => 'Воркер очереди: жив / давно нет heartbeat / вероятно умер / нет данных',
@@ -94,7 +103,10 @@
         </span>
     </div>
     <div class="ops-monitors__row">
-        <span class="ops-monitors__label">Касса</span>
+        <span class="ops-monitors__head">
+            <span class="ops-monitors__label">Касса</span>
+            <button type="button" class="ops-monitors__copy" data-role="copy-row" title="Копировать красные и жёлтые" aria-label="Копировать красные и жёлтые"><i class="fas fa-copy" aria-hidden="true"></i></button>
+        </span>
         <span class="ops-monitors__vals">
             @include('partials.ui.tooltip-hint', [
                 'title' => 'CONFIRMED без успешной выплаты после задержки автовыплаты партнёра; успешный возврат не считается (все школы)',
@@ -119,7 +131,10 @@
         </span>
     </div>
     <div class="ops-monitors__row">
-        <span class="ops-monitors__label">500</span>
+        <span class="ops-monitors__head">
+            <span class="ops-monitors__label">500</span>
+            <button type="button" class="ops-monitors__copy" data-role="copy-row" title="Копировать красные и жёлтые" aria-label="Копировать красные и жёлтые"><i class="fas fa-copy" aria-hidden="true"></i></button>
+        </span>
         <span class="ops-monitors__vals">
             @include('partials.ui.tooltip-hint', [
                 'title' => 'Сколько reportable-исключений (примерно HTTP 500) за 24 часа. Это не журнал my_logs',
@@ -144,7 +159,10 @@
         </span>
     </div>
     <div class="ops-monitors__row">
-        <span class="ops-monitors__label">Шлюзы</span>
+        <span class="ops-monitors__head">
+            <span class="ops-monitors__label">Шлюзы</span>
+            <button type="button" class="ops-monitors__copy" data-role="copy-row" title="Копировать красные и жёлтые" aria-label="Копировать красные и жёлтые"><i class="fas fa-copy" aria-hidden="true"></i></button>
+        </span>
         <span class="ops-monitors__vals">
             <span class="ops-monitors__gw">Т</span>
             @include('partials.ui.tooltip-hint', [
@@ -193,7 +211,10 @@
         </span>
     </div>
     <div class="ops-monitors__row">
-        <span class="ops-monitors__label">Вход</span>
+        <span class="ops-monitors__head">
+            <span class="ops-monitors__label">Вход</span>
+            <button type="button" class="ops-monitors__copy" data-role="copy-row" title="Копировать красные и жёлтые" aria-label="Копировать красные и жёлтые"><i class="fas fa-copy" aria-hidden="true"></i></button>
+        </span>
         <span class="ops-monitors__vals">
             @include('partials.ui.tooltip-hint', [
                 'title' => 'Неверный пароль или неизвестный email за 72 часа. Ховер: введённые email/пароль, IP, время. Пароль только здесь, не в my_logs',
@@ -211,7 +232,10 @@
         </span>
     </div>
     <div class="ops-monitors__row">
-        <span class="ops-monitors__label">Welcome</span>
+        <span class="ops-monitors__head">
+            <span class="ops-monitors__label">Welcome</span>
+            <button type="button" class="ops-monitors__copy" data-role="copy-row" title="Копировать красные и жёлтые" aria-label="Копировать красные и жёлтые"><i class="fas fa-copy" aria-hidden="true"></i></button>
+        </span>
         <span class="ops-monitors__vals">
             @include('partials.ui.tooltip-hint', [
                 'title' => 'Лид → клиент за 24 часа без успешно отправленного welcome-письма (ClientWelcomeCredentialsMail)',
@@ -229,7 +253,10 @@
         </span>
     </div>
     <div class="ops-monitors__row">
-        <span class="ops-monitors__label">Договоры</span>
+        <span class="ops-monitors__head">
+            <span class="ops-monitors__label">Договоры</span>
+            <button type="button" class="ops-monitors__copy" data-role="copy-row" title="Копировать красные и жёлтые" aria-label="Копировать красные и жёлтые"><i class="fas fa-copy" aria-hidden="true"></i></button>
+        </span>
         <span class="ops-monitors__vals">
             @include('partials.ui.tooltip-hint', [
                 'title' => 'Просрочено заполнение в кабинете: template + awaiting_client_fill, fill_expires_at в прошлом (все школы). Ховер: ученик, школа, срок заполнения',
@@ -266,15 +293,36 @@
     }
     .ops-monitors__row {
         display: flex;
-        align-items: baseline;
+        align-items: center;
         justify-content: space-between;
         gap: 10px;
         padding: 1px 0;
+    }
+    .ops-monitors__head {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        flex: 0 0 auto;
+        min-width: 0;
     }
     .ops-monitors__label {
         color: #9ca3af;
         flex: 0 0 auto;
     }
+    .ops-monitors__copy {
+        pointer-events: auto;
+        cursor: pointer;
+        border: 0;
+        background: transparent;
+        color: #9ca3af;
+        padding: 0 2px;
+        line-height: 1;
+        border-radius: 4px;
+        font-size: 10px;
+        flex: 0 0 auto;
+    }
+    .ops-monitors__copy:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+    .ops-monitors__copy.is-copied { color: #34d399; }
     .ops-monitors__vals {
         display: flex;
         flex-wrap: wrap;
@@ -310,6 +358,7 @@
         }
         var statusUrl = root.getAttribute('data-url');
         var pollTimer = null;
+        var COPY_TITLE = 'Копировать красные и жёлтые';
 
         function monitorsOn() {
             return document.body.classList.contains('system-monitors-on');
@@ -566,6 +615,66 @@
             setHint('contracts-sms-expired', formatContractRows(contracts.sms_expired, contracts.sms_expired_count));
         }
 
+        function hintAttr(wrap, name) {
+            if (!wrap || typeof wrap.getAttribute !== 'function') {
+                return '';
+            }
+            var value = wrap.getAttribute(name);
+            return value ? String(value) : '';
+        }
+
+        function staticHint(wrap) {
+            return hintAttr(wrap, 'data-ops-hint-default')
+                || hintAttr(wrap, 'data-bs-original-title')
+                || hintAttr(wrap, 'title')
+                || hintAttr(wrap, 'aria-label');
+        }
+
+        function liveHint(wrap) {
+            return hintAttr(wrap, 'data-bs-original-title')
+                || hintAttr(wrap, 'title')
+                || hintAttr(wrap, 'aria-label');
+        }
+
+        function rowProblemText(row) {
+            var labelEl = row && typeof row.querySelector === 'function'
+                ? row.querySelector('.ops-monitors__label')
+                : null;
+            var label = labelEl ? String(labelEl.textContent || '').trim() : '';
+            var header = 'Пульт · ' + label;
+            var nodes = [];
+            if (row && typeof row.querySelectorAll === 'function') {
+                nodes = row.querySelectorAll('[data-role].is-bad, [data-role].is-warn');
+            }
+            if (!nodes || !nodes.length) {
+                return header + ': красных и жёлтых показателей нет';
+            }
+            var blocks = [header, ''];
+            for (var i = 0; i < nodes.length; i++) {
+                var node = nodes[i];
+                var value = String((node && node.textContent) || '').trim() || '—';
+                var wrap = (node && typeof node.closest === 'function')
+                    ? node.closest('[data-kids-tooltip-hint]')
+                    : null;
+                var stat = staticHint(wrap);
+                var live = liveHint(wrap);
+                var line = value;
+                if (stat) {
+                    line = value + ' — ' + stat;
+                } else if (live) {
+                    line = value + ' — ' + live;
+                }
+                blocks.push(line);
+                if (stat && live && live !== stat) {
+                    blocks.push(live);
+                }
+                if (i < nodes.length - 1) {
+                    blocks.push('');
+                }
+            }
+            return blocks.join('\n');
+        }
+
         function refresh() {
             if (!monitorsOn() || !statusUrl) {
                 return;
@@ -607,6 +716,94 @@
             }
         }
 
+        function fallbackCopy(text) {
+            if (typeof document === 'undefined' || !document.body || typeof document.createElement !== 'function') {
+                return false;
+            }
+            var area = document.createElement('textarea');
+            area.value = text;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.left = '-9999px';
+            document.body.appendChild(area);
+            area.select();
+            var ok = false;
+            try {
+                ok = document.execCommand('copy');
+            } catch (e) {
+                ok = false;
+            }
+            document.body.removeChild(area);
+            return ok;
+        }
+
+        function markCopied(btn) {
+            if (!btn || !btn.classList) {
+                return;
+            }
+            btn.classList.add('is-copied');
+            if (typeof btn.setAttribute === 'function') {
+                btn.setAttribute('title', 'Скопировано');
+            }
+            if (btn._opsCopyTimer) {
+                clearTimeout(btn._opsCopyTimer);
+            }
+            btn._opsCopyTimer = setTimeout(function () {
+                btn.classList.remove('is-copied');
+                if (typeof btn.setAttribute === 'function') {
+                    btn.setAttribute('title', COPY_TITLE);
+                }
+                btn._opsCopyTimer = null;
+            }, 1500);
+        }
+
+        function copyRow(btn, row) {
+            var text = rowProblemText(row);
+            var done = function () { markCopied(btn); };
+            if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                navigator.clipboard.writeText(text).then(done).catch(function () {
+                    if (fallbackCopy(text)) {
+                        done();
+                    }
+                });
+                return;
+            }
+            if (fallbackCopy(text)) {
+                done();
+            }
+        }
+
+        function onCopyRowClick(e) {
+            if (e && typeof e.preventDefault === 'function') {
+                e.preventDefault();
+            }
+            if (e && typeof e.stopPropagation === 'function') {
+                e.stopPropagation();
+            }
+            var btn = e && e.currentTarget ? e.currentTarget : null;
+            if (!btn || typeof btn.closest !== 'function') {
+                return;
+            }
+            var row = btn.closest('.ops-monitors__row');
+            if (!row) {
+                return;
+            }
+            copyRow(btn, row);
+        }
+
+        function bindRowCopyButtons() {
+            if (!root || typeof root.querySelectorAll !== 'function') {
+                return;
+            }
+            var buttons = root.querySelectorAll('[data-role="copy-row"]');
+            if (!buttons || !buttons.length) {
+                return;
+            }
+            for (var i = 0; i < buttons.length; i++) {
+                buttons[i].addEventListener('click', onCopyRowClick);
+            }
+        }
+
         if (monitorsOn()) {
             startWatching();
         }
@@ -618,5 +815,7 @@
             }
             stopWatching();
         });
+
+        bindRowCopyButtons();
     })();
 </script>

@@ -20,6 +20,8 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
 
     private User $student;
 
+    private LessonPackage $package;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -39,6 +41,10 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
         ]);
 
         $this->student = $this->makeStudentWithTeams([$this->teamA, $this->teamB]);
+
+        $this->package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 150000,
+        ]);
     }
 
     public function test_user_year_prices_returns_prices_scoped_to_requested_team(): void
@@ -92,6 +98,7 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
     public function test_save_user_year_prices_does_not_change_other_team_price(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         UserPrice::query()->create([
             'user_id'   => $this->student->id,
@@ -114,7 +121,11 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
                 'team_id' => $this->teamA->id,
                 'year'    => 2024,
                 'prices'  => [
-                    ['new_month' => '2024-05-01', 'price' => 1500],
+                    [
+                        'new_month'         => '2024-05-01',
+                        'price'             => 1500,
+                        'lesson_package_id' => $this->package->id,
+                    ],
                 ],
             ])
             ->assertOk()
@@ -164,6 +175,7 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
     public function test_save_user_year_prices_rejects_team_where_student_not_member(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         $foreignTeam = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -175,7 +187,11 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
             'team_id' => $foreignTeam->id,
             'year'    => 2024,
             'prices'  => [
-                ['new_month' => '2024-07-01', 'price' => 900],
+                [
+                    'new_month'         => '2024-07-01',
+                    'price'             => 900,
+                    'lesson_package_id' => $this->package->id,
+                ],
             ],
         ])
             ->assertStatus(422)
@@ -191,13 +207,18 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
     public function test_save_user_year_prices_non_ajax_redirects_and_persists(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         $response = $this->post(route('setting-prices.user-year-prices.save'), [
             'user_id' => $this->student->id,
             'team_id' => $this->teamA->id,
             'year'    => 2024,
             'prices'  => [
-                ['new_month' => '2024-04-01', 'price' => 4500],
+                [
+                    'new_month'         => '2024-04-01',
+                    'price'             => 4500,
+                    'lesson_package_id' => $this->package->id,
+                ],
             ],
         ]);
 
@@ -315,6 +336,7 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
     public function test_set_price_all_users_scopes_price_to_selected_team(): void
     {
         $this->asAdmin();
+        $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
 
         UserPrice::query()->create([
             'user_id'   => $this->student->id,
@@ -329,9 +351,10 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
             'teamId'       => $this->teamB->id,
             'usersPrice'   => [
                 [
-                    'user_id' => $this->student->id,
-                    'price'   => 3300,
-                    'user'    => ['name' => $this->student->name],
+                    'user_id'           => $this->student->id,
+                    'price'             => 3300,
+                    'lesson_package_id' => $this->package->id,
+                    'user'              => ['name' => $this->student->name],
                 ],
             ],
         ])

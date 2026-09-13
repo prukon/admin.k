@@ -849,6 +849,40 @@ JS;
     }
 
     /**
+     * P1: ЛК подтверждение телефона — ошибки под полями, кнопка при disabled, node --check.
+     */
+    public function test_account_user_phone_verify_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/account/users.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("@can('account.user.phone.verify')", $content);
+        $this->assertStringContainsString('function fieldError(xhr, field, fallback)', $content);
+        $this->assertStringContainsString('setPhoneVerifyError', $content);
+        $this->assertStringContainsString('setCodeError(fieldError(xhr, \'code\'', $content);
+        $this->assertStringNotContainsString('$phone.is(\':disabled\')', $content);
+
+        $verifyStart = strpos($content, 'function updateVerifyUI()');
+        $this->assertNotFalse($verifyStart);
+        $verifyEnd = strpos($content, '@endcan', $verifyStart);
+        $this->assertNotFalse($verifyEnd);
+        $verifyChunk = substr($content, $verifyStart, $verifyEnd - $verifyStart);
+        $this->assertStringNotContainsString('alert(msg)', $verifyChunk);
+        $this->assertStringContainsString('$verifyBtn.on(\'click\'', $verifyChunk);
+        $this->assertStringContainsString('$resend.on(\'click\'', $verifyChunk);
+        $this->assertStringContainsString('$confirm.on(\'click\'', $verifyChunk);
+        $this->assertStringContainsString('setCodeError(fieldError(xhr, \'phone\'', $verifyChunk);
+        $this->assertStringNotContainsString('location.reload()', $verifyChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'function updateVerifyUI()',
+            'blade-js-account-user-phone-verify'
+        );
+    }
+
+    /**
      * P1: сайдбар «Учетная запись» — badge как у «Пользователи», скрыт при 0.
      */
     public function test_sidebar_account_menu_counter_badge_markup_contract(): void
@@ -4267,6 +4301,13 @@ JS;
         $this->assertStringContainsString('node.closest', $content);
         $this->assertStringContainsString("setAttribute('title'", $content);
         $this->assertStringContainsString('KidsCrmTooltip.dispose', $content);
+        $this->assertStringContainsString('data-role="copy-row"', $content);
+        $this->assertStringContainsString('function rowProblemText(', $content);
+        $this->assertStringContainsString('function bindRowCopyButtons(', $content);
+        $this->assertStringContainsString('[data-role].is-bad, [data-role].is-warn', $content);
+        $this->assertStringContainsString('красных и жёлтых показателей нет', $content);
+        $this->assertStringContainsString('navigator.clipboard', $content);
+        $this->assertStringContainsString('Копировать красные и жёлтые', $content);
         $this->assertStringNotContainsString('wrap.innerHTML', $content);
         $this->assertStringNotContainsString('errors.recent', $content);
         $this->assertStringNotContainsString('data-role="errors-recent"', $content);
