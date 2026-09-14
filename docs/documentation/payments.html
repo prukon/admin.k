@@ -118,7 +118,7 @@
       Подробно — <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a>,
       <a href="/doc#user-percent-discount-index">/doc</a>.</li>
     <li><b>is_paid</b>: автоматическая отметка из webhook (<code>monthly_fee</code>)</li>
-    <li><b>is_manual_paid</b>, <b>manual_paid_at</b>, <b>manual_paid_by</b>: ручной override из «Цены» (<code>setPrices.manualPaid.manage</code>); для UI/отчётов — accessor <code>effective_is_paid</code> (ручной важнее автоматического). Журнал <code>/schedule</code> (колонка с рублём) читает те же строки по группе и месяцу: галочка оплаты / сумма неоплаченной постоплаты — <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>, <a href="/doc#journal-postpay-payment-due-index">анонс суммы</a>, <a href="/doc#journal-monthly-payment-check">анонс галочки</a>.</li>
+    <li><b>is_manual_paid</b>, <b>manual_paid_at</b>, <b>manual_paid_by</b>: ручной override из «Цены» (<code>setPrices.manualPaid.manage</code>); для UI/отчётов — accessor <code>effective_is_paid</code> (ручной важнее автоматического). <code>mode=paid</code> при итоговых 0 ₽ → 422 на поле цены — <a href="/doc#setting-prices-manual-paid-zero-price-index">анонс</a>. Журнал <code>/schedule</code> (колонка с рублём) читает те же строки по группе и месяцу, но только с <code>price_cents &gt; 0</code>: галочка оплаты / сумма неоплаченной постоплаты — <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>, <a href="/doc#journal-postpay-payment-due-index">анонс суммы</a>, <a href="/doc#journal-monthly-payment-check">анонс галочки</a>.</li>
   </ul>
 
   <h3 id="users-prices-by-team">2.1) Начисления по группам: «Цены», витрина, webhook</h3>
@@ -135,7 +135,7 @@
         <li>«по ученикам»: список + <code>data-former-team-ids</code> (история <code>price_cents &gt; 0</code> за <b>любой</b> месяц); <code>userYearPrices</code> для бывшей группы — read-only; save/manual — только членство.</li>
       </ul>
     </li>
-    <li><b>Ручная оплата</b> (<code>setManualPaid</code>): обязательны <code>user_id</code>, <code>team_id</code>, месяц; ученик должен состоять в группе (<code>UserPriceTeamMembership::studentBelongsToTeam</code>). Бывшие участники — <b>422</b>.</li>
+    <li><b>Ручная оплата</b> (<code>setManualPaid</code>): обязательны <code>user_id</code>, <code>team_id</code>, месяц; ученик должен состоять в группе (<code>UserPriceTeamMembership::studentBelongsToTeam</code>). Бывшие участники — <b>422</b>. <code>mode=paid</code> при итоговых 0 ₽ — <b>422</b> <code>errors.price</code> (<a href="/doc#setting-prices-manual-paid-zero-price-index">анонс</a>).</li>
     <li><b>Dashboard → витрина</b>: в форму оплаты передаётся hidden <code>team_id</code> из ячейки месяца (<code>dashboard.blade.php</code> → <code>paymentUser.blade.php</code>). У ученика с 2+ группами в пользовательском режиме консоли отображается только начисление <b>выбранной</b> группы (селект «Выбор группы», § <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §5</a>). Ячейка месяца существует, только если на странице есть шапка учебного года — <a href="/docs/documentation/dashboard-cabinet#cabinet-season-years">§6.1</a>, <a href="/doc#cabinet-season-years-index">анонс</a>.</li>
     <li><b>Resolver суммы</b> — <code>App\Services\Payments\UserPriceMonthlyFeePaymentResolver</code>:
       <ul>

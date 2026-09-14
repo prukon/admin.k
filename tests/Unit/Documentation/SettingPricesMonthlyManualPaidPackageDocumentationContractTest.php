@@ -27,6 +27,7 @@ final class SettingPricesMonthlyManualPaidPackageDocumentationContractTest exten
         $this->assertStringContainsString('SettingPricesMonthlyManualPaidPackageMarkupFeatureTest', $html);
         $this->assertStringContainsString('SettingPricesMonthlyManualPaidPackageJsContractTest', $html);
         $this->assertStringContainsString('test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract', $html);
+        $this->assertStringContainsString('test_setting_prices_users_tab_manual_paid_zero_price_error_under_price_field_ux_contract', $html);
         $this->assertStringContainsString('setting-prices-monthly-package-error', $html);
         $this->assertStringContainsString('до флажка оплаты', $html);
         $this->assertStringContainsString('JSON.stringify(payload)', $html);
@@ -34,6 +35,10 @@ final class SettingPricesMonthlyManualPaidPackageDocumentationContractTest exten
         $this->assertStringContainsString('/doc#setting-prices-monthly-manual-paid-card-index', $html);
         $this->assertStringContainsString('.manual-paid-error', $html);
         $this->assertStringContainsString('поля карточки не применяет', $html);
+        $this->assertStringContainsString('Нельзя отметить оплату при стоимости 0 ₽.', $html);
+        $this->assertStringContainsString('mode=paid</code> при итоговых', $html);
+        $this->assertStringContainsString('mode=unpaid</code> при 0 ₽ можно', $html);
+        $this->assertStringContainsString('SetManualUserPricePaidRequest', $html);
     }
 
     public function test_doc_index_announces_manual_paid_card_without_contradicting_live_ux(): void
@@ -72,8 +77,11 @@ final class SettingPricesMonthlyManualPaidPackageDocumentationContractTest exten
         $this->assertStringContainsString('custom-payments/{id}/manual-paid', $chunk);
         $this->assertStringContainsString('SettingPricesMonthlyManualPaidAppliesPackageFeatureTest', $chunk);
         $this->assertStringContainsString('SettingPricesMonthlyManualPaidPackageDocumentationContractTest', $chunk);
+        $this->assertStringContainsString('test_setting_prices_users_tab_manual_paid_zero_price_error_under_price_field_ux_contract', $chunk);
         $this->assertStringContainsString('поля карточки <b>не</b> применяются', $chunk);
         $this->assertStringContainsString('Авто <code>is_paid</code> по-прежнему <b>не</b> перезаписывается', $chunk);
+        $this->assertStringContainsString('Нельзя отметить оплату при стоимости 0 ₽.', $chunk);
+        $this->assertStringContainsString('mode=unpaid</code> при 0 ₽ можно', $chunk);
 
         $this->assertStringNotContainsString('cron копирует абонементы', $chunk);
         $this->assertStringNotContainsString('вкладка «По ученикам» шлёт абонемент из карточки', $chunk);
@@ -96,6 +104,7 @@ final class SettingPricesMonthlyManualPaidPackageDocumentationContractTest exten
         $this->assertStringContainsString('/doc#setting-prices-monthly-manual-paid-card-index', $reports);
         $this->assertStringContainsString('/doc#setting-prices-monthly-manual-paid-card-index', $partners);
         $this->assertStringContainsString('ручная оплата с абонементом/суммой из карточки', $controller);
+        $this->assertStringContainsString('ручную оплату при 0 ₽ ставить нельзя', $controller);
 
         $fnStart = strpos($js, 'function postManualPaid');
         $this->assertNotFalse($fnStart);

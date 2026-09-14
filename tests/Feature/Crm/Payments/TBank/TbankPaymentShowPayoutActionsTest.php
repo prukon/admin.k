@@ -76,6 +76,7 @@ class TbankPaymentShowPayoutActionsTest extends CrmTestCase
         $resp->assertOk();
         $resp->assertSee('Выплатить сейчас');
         $resp->assertSee('Отложить до…');
+        $resp->assertSee('data-error-for="tinkoff"', false);
         $resp->assertDontSee('Выплата уже создана или в процессе');
     }
 

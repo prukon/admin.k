@@ -511,7 +511,9 @@
           (<code>setPrices.manualPaid.manage</code>, комментарий ≥ 3 символов,
           текущее членство в группе; AJAX JSON / non-AJAX <b>302</b> на users;
           на «По месяцам» при unpaid→paid ещё абонемент/сумма из карточки —
-          <a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>) —
+          <a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>;
+          <code>mode=paid</code> при итоговых 0 ₽ → 422
+          (<a href="/doc#setting-prices-manual-paid-zero-price-index">анонс</a>) —
           см. <a href="/docs/documentation/setting-prices-monthly-users#manual-paid-debts">setting-prices-monthly-users</a>.</li>
         <li>Доп. платёж: <code>POST …/custom-payments/{id}/manual-paid</code> —
           см. <a href="/docs/documentation/setting-prices-custom-payments#debts-report">setting-prices-custom-payments</a>.</li>
@@ -925,7 +927,7 @@
       GET/POST <code>/admin/reports/tbank-payments/columns-settings</code>; «Показать N» — <code>$tbankPaymentsPageLength</code>,
       <code>persistPageLength: true</code>.</li>
     <li><b>Кнопка «Комиссии»</b> в тулбаре вкладки: ссылка на <code>/admin/settings/tbank-commissions</code> (<code>admin.setting.tbankCommissions</code>), рендер <code>@can('settings.commission')</code> (<code>#tp-toolbar-commissions</code>). Без права кнопки нет. Сама страница комиссий остаётся в настройках.</li>
-    <li><b>Карточка</b>: <code>GET /admin/tinkoff/payments/{id}</code> — просмотр при <code>reports.tbank.payments.view</code> <b>или</b> <code>manage.payment.method.tbank</code>. Не-superadmin — только свой партнёр (чужой → <b>403</b>). Кнопки «Выплатить сейчас» / «Отложить» — только при <code>manage.payment.method.tbank</code>. «Закрыть сделку» в UI видна при <code>deal_id</code> и без этого права; POST <code>/tinkoff/deals/{deal}/close</code> — <code>can:manage.payment.method.tbank</code> (без права → <b>403</b>).</li>
+    <li><b>Карточка</b>: <code>GET /admin/tinkoff/payments/{id}</code> — просмотр при <code>reports.tbank.payments.view</code> <b>или</b> <code>manage.payment.method.tbank</code>. Не-superadmin — только свой партнёр (чужой → <b>403</b>). Кнопки «Выплатить сейчас» / «Отложить» — только при <code>manage.payment.method.tbank</code>. «Закрыть сделку» в UI видна при <code>deal_id</code> и без этого права; POST <code>/tinkoff/deals/{deal}/close</code> — <code>can:manage.payment.method.tbank</code> (без права → <b>403</b>). HTTP 4xx CloseSpDeal — 302 и текст банка под кнопкой, не 500 (<a href="/doc#tbank-deal-close-http-error-index">анонс</a>).</li>
     <li>Право <code>reports.tbank.payments.view</code>: <code>is_visible = 0</code>, в базовые роли <b>не входит</b>, миграция <code>2026_09_07_073200_add_reports_tbank_payments_view_permission.php</code> не трогает <code>permission_role</code> в <code>up()</code>.</li>
   </ul>
 

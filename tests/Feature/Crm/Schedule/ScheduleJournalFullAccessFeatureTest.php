@@ -28,6 +28,8 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
             ->assertSee('id="filter-year"', false)
             ->assertSee('id="filter-month"', false)
             ->assertSee('id="filter-team"', false)
+            ->assertSee('js-generic-multiselect-select', false)
+            ->assertSee('data-placeholder="Все группы"', false)
             ->assertSee('id="cellEditModal"', false)
             ->assertSee('id="flexiblePlaceModal"', false)
             ->assertSee('id="flexiblePlaceForm"', false)

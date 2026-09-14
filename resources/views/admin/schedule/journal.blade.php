@@ -28,18 +28,34 @@
                     <div class="text-danger small mt-1">{{ $message }}</div>
                 @enderror
             </div>
-            <div class="col-auto wrap-filter-team">
-                <select id="filter-team" class="form-select schedule-filter-team">
-                    <option value="all" @if($team_id=='all') selected @endif>Все группы</option>
-                    <option value="none" @if($team_id=='none') selected @endif>Без группы</option>
+            @php
+                $selectedTeamTokens = $selectedTeamTokens ?? [];
+                $journalTeamFilter = $journalTeamFilter ?? \App\Support\Schedule\ScheduleJournalTeamFilter::fromMixed($team_id ?? 'all');
+            @endphp
+            <div class="col-auto wrap-filter-team generic-multiselect-field">
+                <select id="filter-team"
+                        class="form-select schedule-filter-team js-generic-multiselect-select"
+                        name="team_ids[]"
+                        multiple
+                        data-placeholder="Все группы">
+                    <option value="none" @selected(in_array('none', $selectedTeamTokens, true))>Без группы</option>
                     @foreach($teams as $team)
                         <option value="{{ $team->id }}"
-                                @if($team_id == $team->id) selected @endif>{{ $team->title }}</option>
+                                @selected(in_array((string) $team->id, $selectedTeamTokens, true))>{{ $team->title }}</option>
                     @endforeach
                 </select>
-                @error('team')
-                    <div class="text-danger small mt-1">{{ $message }}</div>
-                @enderror
+                @php
+                    $teamFilterErrorMessages = collect($errors->get('team', []))
+                        ->merge($errors->get('team_ids', []))
+                        ->merge(collect($errors->getMessages())
+                            ->filter(static fn ($messages, $key) => str_starts_with((string) $key, 'team_ids.'))
+                            ->flatten())
+                        ->unique()
+                        ->values();
+                @endphp
+                @foreach($teamFilterErrorMessages as $teamFilterError)
+                    <div class="text-danger small mt-1">{{ $teamFilterError }}</div>
+                @endforeach
             </div>
 
             <div class="col-auto wrap-filter-fullscreen">
@@ -52,7 +68,9 @@
                 <form method="get" action="{{ route('schedule.index') }}" class="d-flex gap-2">
                     <input type="hidden" name="year" value="{{ $year }}">
                     <input type="hidden" name="month" value="{{ $month }}">
-                    <input type="hidden" name="team" value="{{ $team_id }}">
+                    @foreach($selectedTeamTokens as $teamToken)
+                        <input type="hidden" name="team_ids[]" value="{{ $teamToken }}">
+                    @endforeach
                     @if(request('fullscreen') == '1')
                         <input type="hidden" name="fullscreen" value="1">
                     @endif
@@ -134,12 +152,7 @@
                 @foreach($users as $index => $user)
                     @php
                         $studentTeamIds = $user->teams->pluck('id')->all();
-                        $journalContextTeamId = null;
-                        if (is_numeric($team_id) && $team_id !== 'none') {
-                            $journalContextTeamId = (int) $team_id;
-                        } elseif ($studentTeamIds !== []) {
-                            $journalContextTeamId = (int) $studentTeamIds[0];
-                        }
+                        $journalContextTeamId = $journalTeamFilter->contextTeamId($studentTeamIds);
                         $userAssignments = $journalAssignments[(int) $user->id] ?? [];
                         $settingPricesPlaceable = collect($userAssignments)->filter(
                             static fn ($a) => ! empty($a['placeable'])
@@ -207,7 +220,7 @@
                         <td class="text-center align-middle sticky-col-1 number-line">{{ ($users->firstItem() ?? 1) + $index }}</td>
                         <td class="schedule-user-name sticky-col-2">
                             <div>{{ $user?->full_name ?: 'Без имени' }}</div>
-                            @if($team_id === 'all' && $user->teams->isNotEmpty())
+                            @if(! $journalTeamFilter->isSingleTeam() && $user->teams->isNotEmpty())
                                 <small class="text-muted d-block">{{ $user->teams->pluck('title')->join(', ') }}</small>
                             @endif
                         </td>

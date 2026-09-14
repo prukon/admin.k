@@ -71,9 +71,12 @@
       </tr>
       <tr>
         <td>Клиенты <code>/admin/users</code>, журнал <code>/schedule</code></td>
-        <td>Режим «все» — только ученики своих групп. Чужой <code>team_id</code> / <code>?team=</code>:
-            AJAX/JSON — 422 под полем «Выберите группу из списка.»;
-            native GET журнала — 302 + <code>errors.team</code> (не 200 с чужими учениками).</td>
+        <td>Режим «все» (пустой Select2 / нет <code>team_ids</code>) — только ученики своих групп.
+            Чужой <code>team_id</code> / <code>?team=</code> / <code>team_ids[]</code>:
+            AJAX/JSON — 422 под полем «Выберите группу из списка.»
+            (<code>errors.team</code> или <code>errors.team_ids.0</code>);
+            native GET журнала — 302 + session errors (не 200 с чужими учениками).
+            Опция «Без группы» (<code>none</code>) правом не режется.</td>
       </tr>
       <tr>
         <td>Подписи и чекбоксы групп ученика</td>
@@ -121,7 +124,7 @@
     </thead>
     <tbody>
       <tr><td>AJAX/JSON чужой <code>team_id</code> / <code>?team=</code> / <code>team_ids.*</code> своей школы</td><td>422, <code>errors[поле]</code> «Выберите группу из списка.»</td></tr>
-      <tr><td>Native GET <code>/schedule?team=чужая</code></td><td>302, session <code>errors.team</code></td></tr>
+      <tr><td>Native GET <code>/schedule?team=чужая</code> или <code>team_ids[]=чужая</code></td><td>302, session <code>errors.team</code> / <code>errors.team_ids.0</code></td></tr>
       <tr><td>GET/PATCH/DELETE карточки чужой группы своей школы</td><td>403</td></tr>
       <tr><td>Карточка группы другого партнёра</td><td>404</td></tr>
       <tr><td>Консоль: чужой ученик / чужая группа в details</td><td>200 JSON <code>success: false</code></td></tr>
@@ -140,9 +143,9 @@
   <ul>
     <li><code>TrainerOwnTeamsScopeFeatureTest</code> — ядро: гость 302, без рабочих прав 403, без <code>groups.own</code> видны все группы, с правом — только свои; ученики «всех групп»; 422 чужого <code>team_id</code>; merge; чат; админ без профиля не режется; право не в base roles; консоль.</li>
     <li><code>TrainerOwnTeamsAccessFeatureTest</code> — гость HTML 302 / JSON не 200, без view 403 на GET/POST/PATCH/DELETE, с view без права страницы открываются, без <code>team_trainer</code> пустые списки (не все группы школы), чужой партнёр 422/404, без организации logout и <code>errors.email</code> «Ваша организация недоступна.», неверные методы не 500.</li>
-    <li><code>TrainerOwnTeamsAjaxContractFeatureTest</code> — <code>postJson</code>/<code>patchJson</code>/<code>getJson</code> с <code>X-Requested-With</code>: 422 <code>errors.team_id</code> / <code>errors.team</code> / <code>errors.team_ids.0</code> «Выберите группу из списка.»; store ученика/группы JSON 200; auto-attach <code>team_trainer</code>; пустой <code>team_ids</code> merge; фильтр <code>none</code>; sync журнала; поиск групп отчёта платежей.</li>
-    <li><code>TrainerOwnTeamsNonAjaxSafetyNetFeatureTest</code> — native POST группы → 302 + attach; native POST/PATCH ученика → 302 + merge; native GET <code>/schedule?team=чужая</code> → 302 + <code>errors.team</code> (не 200 с чужими учениками); native users/data и chat users — не пустой 200; консоль JSON без HTML.</li>
-    <li><code>TrainerOwnTeamsMarkupFeatureTest</code> — первый HTML: «Все группы» / «Без группы» / своя опция, чужой title нет; журнал <code>selected</code> на all / own / none; оба фильтра чата; консоль first-paint без чужого ученика; без права чужая опция есть; без <code>users.group.update</code> edit-select disabled (create остаётся редактируемым — <code>StoreRequest</code> принимает <code>team_ids</code>); заявки с сайта — dropdown без чужой группы.</li>
+    <li><code>TrainerOwnTeamsAjaxContractFeatureTest</code> — <code>postJson</code>/<code>patchJson</code>/<code>getJson</code> с <code>X-Requested-With</code>: 422 <code>errors.team_id</code> / <code>errors.team</code> / <code>errors.team_ids.0</code> «Выберите группу из списка.» (в т.ч. журнал <code>?team_ids[]=чужая</code>); store ученика/группы JSON 200; auto-attach <code>team_trainer</code>; пустой <code>team_ids</code> merge; фильтр <code>none</code>; sync журнала; поиск групп отчёта платежей.</li>
+    <li><code>TrainerOwnTeamsNonAjaxSafetyNetFeatureTest</code> — native POST группы → 302 + attach; native POST/PATCH ученика → 302 + merge; native GET <code>/schedule?team=чужая</code> и <code>team_ids[]=чужая</code> → 302 + session errors (не 200 с чужими учениками); native users/data и chat users — не пустой 200; консоль JSON без HTML.</li>
+    <li><code>TrainerOwnTeamsMarkupFeatureTest</code> — первый HTML: «Все группы» / «Без группы» / своя опция, чужой title нет; журнал — плейсхолдер «Все группы» без опции <code>all</code>, <code>selected</code> на own / none / <code>team_ids[]</code>; оба фильтра чата; консоль first-paint без чужого ученика; без права чужая опция есть; без <code>users.group.update</code> edit-select disabled (create остаётся редактируемым — <code>StoreRequest</code> принимает <code>team_ids</code>); заявки с сайта — dropdown без чужой группы.</li>
     <li><code>TrainerOwnTeamsFullAccessFeatureTest</code> — смоук GET затронутых URL 200 не пустой; AJAX create/patch/delete своей группы; delete чужой 403.</li>
     <li><code>BladeInlineJsSyntaxTest::test_groups_own_team_filters_and_edit_modal_fill_from_json_on_both_open_paths</code> — <code>editUserLink</code> и <code>editUserLink2</code> заполняют из <code>response.user.team_ids</code>; сброс <code>#filter-team</code> / <code>#contactsTeamFilter</code> / <code>createGroupMembersTeamFilter</code> на пустое; консоль пересобирает ФИО из <code>usersTeam</code>; журнал берёт <code>#filter-team</code> val; <code>node --check</code>.</li>
     <li><code>TrainerOwnTeamsDocumentationContractTest</code> — анонс <code>/doc#groups-own-index</code>, страница, seeder, конфиг, Gate.</li>

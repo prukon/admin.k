@@ -38,21 +38,16 @@ final class TrainerOwnTeamsMarkupFeatureTest extends TrainerOwnTeamsScopeTestCas
         $this->makeRestrictedTrainer(['schedule.view', 'groups.own'], $ownTeam);
 
         $html = $this->get('/schedule')->assertOk()->getContent();
-        $this->assertMatchesRegularExpression(
-            '/<option value="all"\s+selected/s',
-            $html
-        );
+        $this->assertStringContainsString('data-placeholder="Все группы"', $html);
+        $this->assertTrue((bool) preg_match('/<select[^>]*id="filter-team"[^>]*>(.*?)<\/select>/s', $html, $teamSelect));
+        $this->assertStringNotContainsString('value="all"', $teamSelect[1]);
+        $this->assertStringNotContainsString('selected', $teamSelect[1]);
         $this->assertStringContainsString($ownStudent->lastname, $html);
         $this->assertStringNotContainsString($otherStudent->lastname, $html);
-        $this->assertTeamSelectOptions(
-            $html,
-            'id="filter-team"',
-            'all',
-            'none',
-            $ownTeam->title,
-            $otherTeam->title,
-            (string) $ownTeam->id
-        );
+        $this->assertStringContainsString('value="none"', $teamSelect[1]);
+        $this->assertStringContainsString('value="'.$ownTeam->id.'"', $teamSelect[1]);
+        $this->assertStringContainsString($ownTeam->title, $teamSelect[1]);
+        $this->assertStringNotContainsString($otherTeam->title, $teamSelect[1]);
     }
 
     public function test_journal_own_team_query_selects_own_option_not_all(): void
@@ -66,10 +61,27 @@ final class TrainerOwnTeamsMarkupFeatureTest extends TrainerOwnTeamsScopeTestCas
             $html
         );
         $this->assertStringNotContainsString($otherTeam->title, $html);
-        $this->assertDoesNotMatchRegularExpression(
-            '/<option value="all"[^>]*selected/',
+        $this->assertStringNotContainsString('value="all"', $html);
+    }
+
+    public function test_journal_own_team_ids_query_selects_own_option_and_hides_foreign(): void
+    {
+        [$ownTeam, $otherTeam, $ownStudent, $otherStudent] = $this->seedTwoTeamsAndStudents();
+        $this->makeRestrictedTrainer(['schedule.view', 'groups.own'], $ownTeam);
+
+        $html = $this->get(route('schedule.index', [
+            'team_ids' => [$ownTeam->id],
+        ]))->assertOk()->getContent();
+        $this->assertMatchesRegularExpression(
+            '/<option value="'.$ownTeam->id.'"\s+selected/s',
             $html
         );
+        $this->assertStringContainsString($ownStudent->lastname, $html);
+        $this->assertStringNotContainsString($otherStudent->lastname, $html);
+        $this->assertStringNotContainsString($otherTeam->title, $html);
+        $this->assertTrue((bool) preg_match('/<select[^>]*id="filter-team"[^>]*>(.*?)<\/select>/s', $html, $teamSelect));
+        $this->assertStringContainsString('value="none"', $teamSelect[1]);
+        $this->assertStringNotContainsString('value="all"', $teamSelect[1]);
     }
 
     public function test_journal_none_filter_selects_without_group_and_does_not_show_grouped_foreign_student(): void

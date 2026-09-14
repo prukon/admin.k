@@ -22,7 +22,7 @@
                         </div>
                     @endif
 
-                    <form method="POST" action="{{ route('password.email') }}">
+                    <form id="forgot-password-form" method="POST" action="{{ route('password.email') }}">
                         @csrf
 
                         <div class="row mb-3">
@@ -44,7 +44,7 @@
 
                         <div class="row mb-0">
                             <div class="col-md-6 offset-md-4">
-                                <button type="submit" class="btn btn-primary btn-istok">
+                                <button type="submit" id="forgot-password-submit" class="btn btn-primary btn-istok">
 {{--                                    {{ __('Send Password Reset Link') }}--}}
                                     Отправить пароль на почту
                                 </button>
@@ -56,4 +56,28 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+(function () {
+    var form = document.getElementById('forgot-password-form');
+    if (!form) {
+        return;
+    }
+    form.addEventListener('submit', function (event) {
+        if (form.getAttribute('data-submitting') === '1') {
+            event.preventDefault();
+            return;
+        }
+        form.setAttribute('data-submitting', '1');
+        var button = document.getElementById('forgot-password-submit');
+        if (button) {
+            setTimeout(function () {
+                button.disabled = true;
+            }, 0);
+        }
+    });
+})();
+</script>
 @endsection

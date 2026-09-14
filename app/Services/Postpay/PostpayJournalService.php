@@ -11,6 +11,7 @@ use App\Models\UserTeamScheduleSlot;
 use App\Services\Schedule\JournalTeamScheduleSlotEnsureService;
 use App\Services\Schedule\ScheduleJournalMonthService;
 use App\Support\Money;
+use App\Support\Schedule\ScheduleJournalTeamFilter;
 use App\Support\UserPriceTeamMembership;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -167,13 +168,14 @@ final class PostpayJournalService
      *     hover: string
      * }>>
      */
-    public function postpayAbonementHintsByUser(array $userIds, string $monthFirstDayYmd, string $teamFilter): array
+    public function postpayAbonementHintsByUser(array $userIds, string $monthFirstDayYmd, mixed $teamFilter): array
     {
         if ($userIds === []) {
             return [];
         }
 
         $month = PostpayMonth::firstDayFromDate($monthFirstDayYmd);
+        $filter = ScheduleJournalTeamFilter::fromMixed($teamFilter);
 
         $query = UserPrice::query()
             ->whereIn('user_id', $userIds)
@@ -189,8 +191,8 @@ final class PostpayJournalService
             ->orderBy('user_id')
             ->orderBy('id');
 
-        if ($teamFilter !== 'all' && $teamFilter !== 'none' && is_numeric($teamFilter)) {
-            $query->where('team_id', (int) $teamFilter);
+        if ($filter->teamIds !== []) {
+            $query->whereIn('team_id', $filter->teamIds);
         }
 
         $byUser = [];
@@ -242,13 +244,14 @@ final class PostpayJournalService
      * @param  list<int>  $userIds
      * @return array<int, bool> user_id => locked for the viewed month
      */
-    public function postpayLockedUserFlags(array $userIds, string $monthFirstDayYmd, string $teamFilter): array
+    public function postpayLockedUserFlags(array $userIds, string $monthFirstDayYmd, mixed $teamFilter): array
     {
         if ($userIds === []) {
             return [];
         }
 
         $month = PostpayMonth::firstDayFromDate($monthFirstDayYmd);
+        $filter = ScheduleJournalTeamFilter::fromMixed($teamFilter);
 
         $query = UserPrice::query()
             ->whereIn('user_id', $userIds)
@@ -256,8 +259,8 @@ final class PostpayJournalService
             ->whereNotNull('lesson_package_id')
             ->with('lessonPackage');
 
-        if ($teamFilter !== 'all' && $teamFilter !== 'none' && is_numeric($teamFilter)) {
-            $query->where('team_id', (int) $teamFilter);
+        if ($filter->teamIds !== []) {
+            $query->whereIn('team_id', $filter->teamIds);
         }
 
         $flags = [];

@@ -206,6 +206,43 @@ SQL;
     }
 
     /**
+     * Фильтр журнала: пусто = все; none; несколько id — ученик в любой из групп (OR);
+     * none вместе с id — без группы или в выбранных.
+     *
+     * @param  QueryBuilder|\Illuminate\Database\Eloquent\Builder  $query
+     */
+    public static function applyJournalTeamFilter(
+        $query,
+        int $partnerId,
+        \App\Support\Schedule\ScheduleJournalTeamFilter $filter,
+        string $usersAlias = 'users',
+    ): void {
+        if ($filter->isAll()) {
+            return;
+        }
+
+        if ($filter->isNoneOnly()) {
+            self::applyStudentTeamFilter($query, $partnerId, 'none', $usersAlias);
+
+            return;
+        }
+
+        if (! $filter->includeNone) {
+            self::applyStudentInAnyTeamExists($query, $partnerId, $filter->teamIds, $usersAlias);
+
+            return;
+        }
+
+        $query->where(function ($outer) use ($partnerId, $filter, $usersAlias) {
+            $outer->where(function ($q) use ($partnerId, $usersAlias) {
+                self::applyStudentTeamFilter($q, $partnerId, 'none', $usersAlias);
+            })->orWhere(function ($q) use ($partnerId, $filter, $usersAlias) {
+                self::applyStudentInAnyTeamExists($q, $partnerId, $filter->teamIds, $usersAlias);
+            });
+        });
+    }
+
+    /**
      * @param  QueryBuilder|\Illuminate\Database\Eloquent\Builder  $query
      */
     public static function applyStudentInTeamExists($query, int $partnerId, int $teamId, string $usersAlias = 'users'): void

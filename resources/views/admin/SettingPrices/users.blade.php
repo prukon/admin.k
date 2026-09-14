@@ -451,8 +451,14 @@
                 toast.show();
             }
 
-            function postManualPaidForUser(userId, teamId, selectedDate, mode, comment, onError) {
+            function postManualPaidForUser(userId, teamId, selectedDate, mode, comment, $card, onError) {
                 const csrf = $('meta[name="csrf-token"]').attr('content');
+                const $row = $card && $card.length ? $card : $();
+                const $priceErr = $row.find('.setting-prices-monthly-price-error');
+                const $manualErr = $row.find('.manual-paid-error');
+                $priceErr.hide().text('');
+                $manualErr.hide().text('');
+
                 return $.ajax({
                     url: '/admin/setting-prices/manual-paid',
                     method: 'POST',
@@ -471,17 +477,35 @@
                     })
                 }).fail(function (xhr) {
                     let msg = 'Не удалось сохранить ручную отметку.';
+                    let fieldShown = false;
                     if (xhr.responseJSON) {
                         if (xhr.responseJSON.message) {
                             msg = xhr.responseJSON.message;
                         }
                         const errs = xhr.responseJSON.errors;
-                        if (errs && errs.record && errs.record[0]) {
-                            msg = errs.record[0];
+                        if (errs) {
+                            if (errs.price && errs.price[0]) {
+                                msg = errs.price[0];
+                                if ($priceErr.length) {
+                                    $priceErr.text(msg).show();
+                                    fieldShown = true;
+                                }
+                            }
+                            if (errs.record && errs.record[0]) {
+                                msg = errs.record[0];
+                            } else if (errs.comment && errs.comment[0]) {
+                                msg = errs.comment[0];
+                            } else if (errs.mode && errs.mode[0]) {
+                                msg = errs.mode[0];
+                            }
                         }
-                        if (errs && errs.comment && errs.comment[0]) {
-                            msg = errs.comment[0];
-                        }
+                    }
+                    if (fieldShown) {
+                        return;
+                    }
+                    if ($manualErr.length) {
+                        $manualErr.text(msg).show();
+                        return;
                     }
                     if (typeof onError === 'function') {
                         onError(msg);
@@ -585,7 +609,6 @@
                         packageDisabledAttr + ' aria-label="Абонемент">' +
                         buildPackageSelectOptions(packageId) +
                         '</select>';
-                    html += '<div class="setting-prices-monthly-package-error small text-danger mt-1" style="display:none"></div>';
                     html += '</div>';
                     html += '<div class="setting-prices-monthly-price flex-shrink-0">';
                     const priceInputHtml = '<input type="number" step="0.01" min="0" class="form-control form-control-sm user-price-input setting-prices-monthly-price-input" ' +
@@ -606,6 +629,8 @@
                     html += statusViewHtml;
                     html += '</div>';
                     html += '</div>';
+                    html += '<div class="setting-prices-monthly-package-error small text-danger mt-1" style="display:none"></div>';
+                    html += '<div class="setting-prices-monthly-price-error small text-danger mt-1" style="display:none"></div>';
                     html += '</div>';
                 });
 
@@ -972,7 +997,7 @@
                         'Подтверждение',
                         'Будет установлен статус: «' + labelWant + '». Укажите комментарий.',
                         function (comment) {
-                            postManualPaidForUser(currentUserId, currentTeamId, selectedDate, mode, comment, function (msg) {
+                            postManualPaidForUser(currentUserId, currentTeamId, selectedDate, mode, comment, $tr, function (msg) {
                                 showToast(msg, true);
                             }).done(function (res) {
                                 if (res && res.success) {

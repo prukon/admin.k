@@ -668,6 +668,15 @@ footer .social-networks {
     min-width: 0;
 }
 
+/* 422 под всей строкой карточки — не внутри колонки цены, иначе селект оплаты уезжает вправо */
+#right_bar .wrap-users .setting-prices-monthly-package-error,
+#right_bar .wrap-users .setting-prices-monthly-price-error {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
 #right_bar .wrap-users .setting-prices-monthly-edit-panel {
     max-width: 100%;
 }

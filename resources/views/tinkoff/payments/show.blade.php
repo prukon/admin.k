@@ -136,6 +136,7 @@
                                 @csrf
                                 <button class="btn btn-outline-danger btn-sm">Закрыть сделку</button>
                             </form>
+                            <div class="invalid-feedback mt-2" data-error-for="tinkoff" @if($errors->has('tinkoff') || $errors->has('deal')) style="display:block" @endif>{{ $errors->first('tinkoff') ?: $errors->first('deal') }}</div>
                         @else
                             <div class="text-muted">DealId ещё не присвоен (ждём вебхук с SpAccumulationId).</div>
                         @endif

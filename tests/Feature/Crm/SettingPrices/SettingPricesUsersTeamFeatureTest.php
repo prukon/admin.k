@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\SettingPrices;
 
+use App\Http\Requests\Admin\SetManualUserPricePaidRequest;
 use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\User;
@@ -300,6 +301,38 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
         $this->assertDatabaseHas('users_prices', [
             'id'             => $row->id,
             'is_manual_paid' => 1,
+        ]);
+    }
+
+    public function test_manual_paid_zero_price_returns_422_on_price_without_marking(): void
+    {
+        $this->asSuperadmin();
+
+        $row = UserPrice::query()->create([
+            'user_id'   => $this->student->id,
+            'team_id'   => $this->teamA->id,
+            'new_month' => '2024-10-01',
+            'price_cents'     => 0,
+            'is_paid'   => 0,
+            'lesson_package_id' => $this->package->id,
+        ]);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('setting-prices.manual-paid'), [
+                'user_id'      => $this->student->id,
+                'team_id'      => $this->teamA->id,
+                'selectedDate' => 'Октябрь 2024',
+                'mode'         => 'paid',
+                'comment'      => 'Нулевая сумма на вкладке по ученикам',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['price'])
+            ->assertJsonPath('errors.price.0', SetManualUserPricePaidRequest::ZERO_PRICE_MESSAGE);
+
+        $this->assertDatabaseHas('users_prices', [
+            'id'             => $row->id,
+            'price_cents'    => 0,
+            'is_manual_paid' => null,
         ]);
     }
 

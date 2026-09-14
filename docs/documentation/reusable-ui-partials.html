@@ -619,7 +619,11 @@ dataTable: {
     <code>#cellEditModal</code> / <code>#flexiblePlaceModal</code> —
     <code>trainer_profile_ids[]</code> + тот же <code>KidsCrmGenericMultiselectSelect2</code>
     (include в <code>admin/schedule/index.blade.php</code>).
-    См. <a href="/docs/documentation/schedule-journal#visited-trainer">schedule-journal §6</a>.
+    Фильтр групп журнала — тот же компонент: <code>#filter-team</code>,
+    <code>team_ids[]</code>, плейсхолдер «Все группы», опция «Без группы»,
+    применение при закрытии dropdown (кнопки «Применить» нет; не путать с заявками).
+    См. <a href="/docs/documentation/schedule-journal#visited-trainer">schedule-journal §6</a>
+    и <a href="/docs/documentation/schedule-journal#journal-team-filter">§2.2.1</a>.
   </div>
 
   <h4>Подключение (модалка)</h4>
@@ -685,7 +689,7 @@ dataTable: {
     <li><a href="/docs/documentation/admin-users#user-modals">/admin/users</a> — <code>team_ids[]</code> (<code>createStudentTeamIds</code>, <code>editStudentTeamIds</code>).</li>
     <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — <code>locationCreateTeamIds</code>, <code>locationEditTeamIds</code>, <code>admin_user_ids[]</code> (при <code>locations.manage</code>).</li>
     <li><a href="/docs/documentation/admin-districts">/admin/districts</a> — <code>districtCreateLocationIds</code>, <code>districtEditLocationIds</code> (<code>location_ids[]</code>).</li>
-    <li><a href="/docs/documentation/schedule-journal">/schedule</a> — модалка «Управление группами» (<code>journalUserTeamIds</code>).</li>
+    <li><a href="/docs/documentation/schedule-journal">/schedule</a> — модалка «Управление группами» (<code>journalUserTeamIds</code>); фильтр групп журнала — <code>#filter-team</code> (<a href="/docs/documentation/schedule-journal#journal-team-filter">§2.2.1</a>).</li>
     <li><a href="/docs/documentation/school-leads-widget#school-leads-email-notifications">/admin/school-leads</a> — модалка «Уведомления», <code>emails[]</code> (<code>tags: true</code>); фильтры «Секция» / «Объект» — тот же <code>KidsCrmGenericMultiselectSelect2</code> (<a href="/docs/documentation/school-leads-widget#school-leads-filter-select2">§5.1.7</a>).</li>
   </ul>
   <p class="small">

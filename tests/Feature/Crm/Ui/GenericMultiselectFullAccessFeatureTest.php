@@ -157,6 +157,27 @@ final class GenericMultiselectFullAccessFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('user-student-teams-multiselect', $html);
     }
 
+    public function test_schedule_journal_team_filter_uses_generic_multiselect(): void
+    {
+        $this->asAdmin();
+        $this->withoutVite();
+        $this->grantPermission('schedule.view');
+
+        Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Группа journal multiselect',
+            'is_enabled' => 1,
+        ]);
+
+        $this->get(route('schedule.index'))
+            ->assertOk()
+            ->assertSee('id="filter-team"', false)
+            ->assertSee('js-generic-multiselect-select', false)
+            ->assertSee('generic-multiselect-field', false)
+            ->assertSee('data-placeholder="Все группы"', false)
+            ->assertSee('KidsCrmGenericMultiselectSelect2', false);
+    }
+
     public function test_store_district_ajax_returns_json_with_district_and_message(): void
     {
         $this->asAdmin();

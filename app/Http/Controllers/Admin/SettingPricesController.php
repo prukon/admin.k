@@ -1140,6 +1140,12 @@ class SettingPricesController extends AdminBaseController
                 $row->refresh();
             }
 
+            if ($mode === 'paid' && (int) $row->price_cents <= 0) {
+                throw ValidationException::withMessages([
+                    'price' => [SetManualUserPricePaidRequest::ZERO_PRICE_MESSAGE],
+                ]);
+            }
+
             if ($mode === 'paid') {
                 $row->forceFill([
                     'is_manual_paid'  => true,

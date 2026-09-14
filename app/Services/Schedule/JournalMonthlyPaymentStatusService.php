@@ -6,6 +6,7 @@ namespace App\Services\Schedule;
 
 use App\Models\UserPrice;
 use App\Support\Money;
+use App\Support\Schedule\ScheduleJournalTeamFilter;
 use Illuminate\Support\Collection;
 
 /**
@@ -35,7 +36,7 @@ final class JournalMonthlyPaymentStatusService
         int $partnerId,
         array $userIds,
         string $monthFirstYmd,
-        string|int $teamFilter = 'all',
+        mixed $teamFilter = 'all',
     ): array {
         $userIds = array_values(array_unique(array_map('intval', $userIds)));
         $empty = [];
@@ -43,7 +44,9 @@ final class JournalMonthlyPaymentStatusService
             $empty[$userId] = $this->emptyStatus();
         }
 
-        if ($userIds === [] || (string) $teamFilter === 'none') {
+        $filter = ScheduleJournalTeamFilter::fromMixed($teamFilter);
+
+        if ($userIds === [] || $filter->isNoneOnly()) {
             return $empty;
         }
 
@@ -59,14 +62,14 @@ final class JournalMonthlyPaymentStatusService
                 $q->where('partner_id', $partnerId);
             });
 
-        if (is_numeric($teamFilter) && (int) $teamFilter > 0) {
-            $query->where('team_id', (int) $teamFilter);
+        if ($filter->teamIds !== []) {
+            $query->whereIn('team_id', $filter->teamIds);
         }
 
         /** @var Collection<int, UserPrice> $rows */
         $rows = $query->get();
         $byUser = $rows->groupBy(static fn (UserPrice $row) => (int) $row->user_id);
-        $isAllFilter = (string) $teamFilter === 'all';
+        $isAllFilter = $filter->usesAllGroupsPresentation();
 
         foreach ($userIds as $userId) {
             /** @var Collection<int, UserPrice> $group */

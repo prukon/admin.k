@@ -1035,17 +1035,17 @@ document.addEventListener('DOMContentLoaded', function () {
                                         aria-label="Абонемент">
                                         ${buildPackageSelectOptions(packageId)}
                                     </select>
-                                    <div class="setting-prices-monthly-package-error small text-danger mt-1" style="display:none"></div>
                                 </div>
                                 ${postpayVisitsHtml}
                                 <div class="setting-prices-monthly-price flex-shrink-0">
                                     ${priceCellInner}
-                                    <div class="setting-prices-monthly-price-error small text-danger mt-1" style="display:none"></div>
                                 </div>
                                 <div class="setting-prices-monthly-status flex-shrink-0 min-w-0">
                                     ${statusCellHtml}
                                 </div>
                             </div>
+                            <div class="setting-prices-monthly-package-error small text-danger mt-1" style="display:none"></div>
+                            <div class="setting-prices-monthly-price-error small text-danger mt-1" style="display:none"></div>
                             <div class="former-clear-error small text-danger mt-1" style="display:none"></div>
                         </div>`;
 

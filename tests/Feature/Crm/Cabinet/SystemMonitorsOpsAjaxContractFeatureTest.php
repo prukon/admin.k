@@ -525,12 +525,9 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
         $this->asSuperadmin();
         Http::fake(['*' => Http::response('nope', 502)]);
 
-        try {
-            TinkoffApiClient::post('https://securepay.tinkoff.ru', '/v2/Init', ['Amount' => 1]);
-            $this->fail('T‑Bank HTTP 502 после retry должен пробрасываться');
-        } catch (\Throwable $e) {
-            $this->assertStringContainsString('502', $e->getMessage());
-        }
+        $res = TinkoffApiClient::post('https://securepay.tinkoff.ru', '/v2/Init', ['Amount' => 1]);
+        $this->assertFalse((bool) ($res['Success'] ?? true));
+        $this->assertSame(502, (int) ($res['http_status'] ?? 0));
 
         $response = $this->actingAs($this->user)
             ->getJson($this->opsUrl(), $this->ajaxHeaders())

@@ -89,7 +89,7 @@
       <tr><td>Модалка «Управление группами»</td><td>Multiselect + <code>POST /schedule/user/{user}/sync-teams</code> (<code>SyncScheduleUserTeamsRequest</code>, поле <code>team_ids</code>). Пустой массив — снять со всех групп.</td></tr>
       <tr><td><code>POST …/set-group</code></td><td>Legacy attach одной группы / detach all (<code>team_id</code> пустой). UI журнала использует <code>sync-teams</code>.</td></tr>
       <tr><td><code>GET …/cell-context</code></td><td><code>team_ids</code>, <code>teams_label</code>, <code>context_team_id</code> — для дефолтного тренера и подписи в модалке ячейки.</td></tr>
-      <tr><td><code>GET user-schedule/info</code></td><td><code>user.team_ids</code>, <code>user.team_titles</code>; дни недели группы — по <code>context_team_id</code> (фильтр журнала или query).</td></tr>
+      <tr><td><code>GET user-schedule/info</code></td><td><code>user.team_ids</code>, <code>user.team_titles</code>; дни недели группы — по <code>context_team_id</code> (одна выбранная группа журнала или пересечение / query). Фильтр журнала — Select2 <code>team_ids[]</code>, см. <a href="/docs/documentation/schedule-journal#journal-team-filter">schedule-journal §2.2.1</a>.</td></tr>
     </tbody>
   </table>
   <div class="warn">

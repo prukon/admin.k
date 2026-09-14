@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Crm\SettingPrices;
 
 use App\Enums\AuditEvent;
+use App\Http\Requests\Admin\SetManualUserPricePaidRequest;
 use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\User;
@@ -136,6 +137,117 @@ final class SettingPricesMonthlyManualPaidAppliesPackageFeatureTest extends CrmT
             'lesson_package_id' => $this->packageA->id,
             'price_cents' => 500000,
             'is_manual_paid' => 1,
+        ]);
+    }
+
+    public function test_paid_with_zero_stored_price_returns_422_on_price_and_does_not_mark_paid(): void
+    {
+        $this->asSuperadmin();
+
+        $row = UserPrice::forceCreate([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-10-01',
+            'price_cents' => 0,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->packageA->id,
+        ]);
+
+        $this->postJson(route('setting-prices.manual-paid'), [
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'selectedDate' => 'Октябрь 2024',
+            'mode' => 'paid',
+            'comment' => 'Оплата при нулевой сумме',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['price'])
+            ->assertJsonPath('errors.price.0', SetManualUserPricePaidRequest::ZERO_PRICE_MESSAGE);
+
+        $this->assertDatabaseHas('users_prices', [
+            'id' => $row->id,
+            'price_cents' => 0,
+            'is_manual_paid' => null,
+        ]);
+    }
+
+    public function test_paid_with_card_price_zero_rolls_back_apply_and_does_not_mark_paid(): void
+    {
+        $this->asSuperadmin();
+        $row = $this->unpaidRubyRow();
+
+        $this->postJson(route('setting-prices.manual-paid'), $this->paidCardPayload([
+            'lesson_package_id' => $this->packageB->id,
+            'price' => 0,
+        ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['price'])
+            ->assertJsonPath('errors.price.0', SetManualUserPricePaidRequest::ZERO_PRICE_MESSAGE);
+
+        $this->assertDatabaseHas('users_prices', [
+            'id' => $row->id,
+            'lesson_package_id' => $this->packageA->id,
+            'price_cents' => 500000,
+            'is_manual_paid' => null,
+        ]);
+    }
+
+    public function test_paid_with_card_price_from_zero_row_applies_amount_then_marks_paid(): void
+    {
+        $this->asSuperadmin();
+
+        $row = UserPrice::forceCreate([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-10-01',
+            'price_cents' => 0,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->packageA->id,
+        ]);
+
+        $this->postJson(route('setting-prices.manual-paid'), $this->paidCardPayload([
+            'lesson_package_id' => $this->packageB->id,
+            'price' => 7000.0,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('users_prices', [
+            'id' => $row->id,
+            'lesson_package_id' => $this->packageB->id,
+            'price_cents' => 700000,
+            'is_manual_paid' => 1,
+        ]);
+    }
+
+    public function test_unpaid_with_zero_price_clears_manual_flag(): void
+    {
+        $this->asSuperadmin();
+
+        $row = UserPrice::forceCreate([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-10-01',
+            'price_cents' => 0,
+            'is_paid' => 0,
+            'is_manual_paid' => 1,
+            'lesson_package_id' => $this->packageA->id,
+        ]);
+
+        $this->postJson(route('setting-prices.manual-paid'), [
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'selectedDate' => 'Октябрь 2024',
+            'mode' => 'unpaid',
+            'comment' => 'Снять ошибочную отметку при нуле',
+        ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('users_prices', [
+            'id' => $row->id,
+            'price_cents' => 0,
+            'is_manual_paid' => 0,
         ]);
     }
 

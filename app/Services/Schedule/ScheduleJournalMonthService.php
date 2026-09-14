@@ -12,6 +12,7 @@ use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
 use App\Services\Postpay\PostpayMonth;
 use App\Support\Money;
+use App\Support\Schedule\ScheduleJournalTeamFilter;
 use App\Support\ScheduleOccurrenceTrainerIds;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -31,12 +32,14 @@ final class ScheduleJournalMonthService
         array $userIds,
         Carbon $startOfMonth,
         Carbon $endOfMonth,
-        string|int|null $teamFilter = 'all',
+        mixed $teamFilter = 'all',
         ?array $restrictToTeamIds = null,
     ): array {
         if ($userIds === []) {
             return [];
         }
+
+        $filter = ScheduleJournalTeamFilter::fromMixed($teamFilter);
 
         $query = UserTeamScheduleSlot::query()
             ->with([
@@ -50,9 +53,22 @@ final class ScheduleJournalMonthService
             ->whereDate('starts_at', '>=', $startOfMonth->format('Y-m-d'))
             ->whereDate('starts_at', '<=', $endOfMonth->format('Y-m-d'));
 
-        if (is_numeric($teamFilter)) {
-            $teamId = (int) $teamFilter;
-            $query->whereHas('slot', fn ($q) => $q->where('team_id', $teamId));
+        if ($filter->teamIds !== []) {
+            $ids = $filter->teamIds;
+            if (is_array($restrictToTeamIds)) {
+                $allowed = array_values(array_unique(array_filter(
+                    array_map('intval', $restrictToTeamIds),
+                    fn (int $id) => $id > 0
+                )));
+                if ($allowed === []) {
+                    return [];
+                }
+                $ids = array_values(array_intersect($ids, $allowed));
+                if ($ids === []) {
+                    return [];
+                }
+            }
+            $query->whereHas('slot', fn ($q) => $q->whereIn('team_id', $ids));
         } elseif (is_array($restrictToTeamIds)) {
             $restrictToTeamIds = array_values(array_unique(array_filter(
                 array_map('intval', $restrictToTeamIds),
@@ -325,13 +341,14 @@ final class ScheduleJournalMonthService
         int $partnerId,
         array $userIds,
         string $billingMonthYmd,
-        string|int|null $teamFilter = 'all',
+        mixed $teamFilter = 'all',
     ): array {
         if ($userIds === []) {
             return [];
         }
 
         $billingMonth = Carbon::parse($billingMonthYmd)->startOfMonth()->format('Y-m-d');
+        $filter = ScheduleJournalTeamFilter::fromMixed($teamFilter);
 
         $query = UserLessonPackage::query()
             ->with([
@@ -347,8 +364,8 @@ final class ScheduleJournalMonthService
             ->where('lessons_total', '>', 0)
             ->orderBy('id');
 
-        if (is_numeric($teamFilter)) {
-            $query->where('team_id', (int) $teamFilter);
+        if ($filter->teamIds !== []) {
+            $query->whereIn('team_id', $filter->teamIds);
         }
 
         $rows = $query->get();

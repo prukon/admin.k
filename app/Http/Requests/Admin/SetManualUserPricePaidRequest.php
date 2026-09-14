@@ -11,6 +11,8 @@ use Illuminate\Validation\Validator;
 
 class SetManualUserPricePaidRequest extends FormRequest
 {
+    public const ZERO_PRICE_MESSAGE = 'Нельзя отметить оплату при стоимости 0 ₽.';
+
     public function authorize(): bool
     {
         return true;

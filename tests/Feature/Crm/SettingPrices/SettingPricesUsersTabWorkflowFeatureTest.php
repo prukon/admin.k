@@ -77,6 +77,9 @@ final class SettingPricesUsersTabWorkflowFeatureTest extends StudentTeamPivotTes
         $this->assertStringContainsString('/admin/setting-prices/user-year-prices/save', $html);
         $this->assertStringContainsString('id="manualUserPricePaidModal"', $html);
         $this->assertStringContainsString('team_id: teamId', $html);
+        $this->assertStringContainsString('function postManualPaidForUser', $html);
+        $this->assertStringContainsString('setting-prices-monthly-price-error', $html);
+        $this->assertStringContainsString('errs.price', $html);
     }
 
     public function test_users_tab_workflow_team_context_load_save_and_reload_shows_updated_price(): void

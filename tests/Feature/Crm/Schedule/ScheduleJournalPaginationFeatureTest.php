@@ -216,7 +216,7 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
 
         $this->assertNotSame('', trim($html));
         $this->assertStringContainsString($student->full_name, $html);
-        $this->assertFilterOptionSelected($html, 'all');
+        $this->assertJournalTeamFilterIsAll($html);
     }
 
     public function test_month_without_leading_zero_is_accepted(): void
@@ -375,7 +375,8 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $this->assertStringContainsString('value="'.$overflow->lastname.'"', $form);
         $this->assertStringContainsString('name="year" value="2026"', $form);
         $this->assertStringContainsString('name="month" value="08"', $form);
-        $this->assertStringContainsString('name="team" value="all"', $form);
+        $this->assertStringNotContainsString('name="team"', $form);
+        $this->assertStringNotContainsString('name="team_ids[]"', $form);
     }
 
     public function test_search_from_second_page_without_page_param_shows_match_without_white_screen(): void
@@ -423,7 +424,7 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         ]))->assertOk()->getContent();
 
         $this->assertFilterOptionSelected($html, '07');
-        $this->assertFilterOptionSelected($html, 'all');
+        $this->assertJournalTeamFilterIsAll($html);
         $this->assertTrue($this->journalRowUserIds($html)->contains((int) $first->id));
         $this->assertFalse($this->journalRowUserIds($html)->contains((int) $overflow->id));
         $this->assertStringContainsString('value="'.$first->lastname.'"', $this->searchFormHtml($html));
@@ -635,6 +636,16 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         }
 
         $this->assertStringNotContainsString('class="schedule-journal-pagination', $html);
+    }
+
+    private function assertJournalTeamFilterIsAll(string $html): void
+    {
+        $this->assertStringContainsString('data-placeholder="Все группы"', $html);
+        $this->assertTrue(
+            (bool) preg_match('/<select[^>]*id="filter-team"[^>]*>(.*?)<\/select>/s', $html, $match),
+            'Селект фильтра группы'
+        );
+        $this->assertStringNotContainsString('selected', $match[1]);
     }
 
     private function assertFilterOptionSelected(string $html, string $value): void

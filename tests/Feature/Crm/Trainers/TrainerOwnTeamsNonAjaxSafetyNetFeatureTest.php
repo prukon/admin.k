@@ -159,6 +159,24 @@ final class TrainerOwnTeamsNonAjaxSafetyNetFeatureTest extends TrainerOwnTeamsSc
         );
     }
 
+    public function test_native_journal_foreign_team_ids_redirects_with_error_not_other_students(): void
+    {
+        [$ownTeam, $otherTeam, , $otherStudent] = $this->seedTwoTeamsAndStudents();
+        $this->makeRestrictedTrainer(['schedule.view', 'groups.own'], $ownTeam);
+
+        $response = $this->from(route('schedule.index'))
+            ->get(route('schedule.index', ['team_ids' => [$otherTeam->id]]));
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode(), 'Чужая группа журнала не должна открывать чужих учеников');
+        $response->assertRedirect();
+        $response->assertSessionHasErrors(['team_ids.0']);
+        $this->assertStringNotContainsString(
+            $otherStudent->lastname,
+            (string) $response->getContent()
+        );
+    }
+
     public function test_native_users_data_foreign_team_is_not_empty_ok_with_other_students(): void
     {
         [$ownTeam, $otherTeam, , $otherStudent] = $this->seedTwoTeamsAndStudents();

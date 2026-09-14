@@ -165,6 +165,74 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertSame(1, substr_count($content, "form method=\"POST\""));
     }
 
+    public function test_forgot_password_blade_disables_submit_and_is_not_ajax(): void
+    {
+        $path = resource_path('views/auth/passwords/email.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="forgot-password-form"', $content);
+        $this->assertStringContainsString('id="forgot-password-submit"', $content);
+        $this->assertStringContainsString("route('password.email')", $content);
+        $this->assertStringContainsString('method="POST"', $content);
+        $this->assertStringContainsString("getAttribute('data-submitting')", $content);
+        $this->assertStringContainsString('event.preventDefault()', $content);
+        $this->assertStringContainsString('button.disabled = true', $content);
+        $this->assertStringContainsString('setTimeout', $content);
+        $this->assertStringNotContainsString('$.ajax', $content);
+        $this->assertStringNotContainsString('fetch(', $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'forgot-password-form',
+            'blade-js-forgot-password'
+        );
+    }
+
+    public function test_forgot_password_disabled_is_inside_setTimeout_so_native_post_is_not_cancelled(): void
+    {
+        $path = resource_path('views/auth/passwords/email.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $timeoutPos = strpos($content, 'setTimeout');
+        $disabledPos = strpos($content, 'button.disabled = true');
+        $this->assertNotFalse($timeoutPos, 'нужен setTimeout вокруг disabled');
+        $this->assertNotFalse($disabledPos, 'кнопка гасится после submit');
+        $this->assertGreaterThan(
+            $timeoutPos,
+            $disabledPos,
+            'button.disabled = true синхронно в submit отменяет native POST (баг iPhone/даблтап)'
+        );
+        $this->assertMatchesRegularExpression(
+            '/setTimeout\s*\(\s*function\s*\(\s*\)\s*\{[^}]*button\.disabled\s*=\s*true/s',
+            $content
+        );
+
+        $submittingCheckPos = strpos($content, "getAttribute('data-submitting')");
+        $preventPos = strpos($content, 'event.preventDefault()');
+        $this->assertNotFalse($submittingCheckPos);
+        $this->assertNotFalse($preventPos);
+        $this->assertGreaterThan(
+            $submittingCheckPos,
+            $preventPos,
+            'preventDefault только если форма уже data-submitting, не на первом клике'
+        );
+        $this->assertSame(1, substr_count($content, "addEventListener('submit'"));
+        $this->assertSame(1, substr_count($content, 'event.preventDefault()'));
+
+        $this->assertTrue(
+            (bool) preg_match('/<button[^>]*id="forgot-password-submit"[^>]*>/', $content, $button),
+            'кнопка #forgot-password-submit в blade'
+        );
+        $this->assertStringNotContainsString('disabled', $button[0]);
+        $this->assertTrue(
+            (bool) preg_match('/<form[^>]*id="forgot-password-form"[^>]*>/', $content, $form),
+            'форма #forgot-password-form в blade'
+        );
+        $this->assertStringNotContainsString('data-submitting', $form[0]);
+    }
+
     public function test_partner_register_recaptcha_script_prevents_submit_until_token_and_is_not_ajax(): void
     {
         $path = resource_path('views/landing/partner-register.blade.php');
@@ -1473,13 +1541,14 @@ JS;
         // jQuery $.ajax по умолчанию ставит X-Requested-With: XMLHttpRequest;
         // backend также принимает expectsJson через Accept: application/json.
 
-        // Смена фильтра группы — полный GET (сервер пересчитывает галочку оплаты), не патч иконки в DOM.
-        $filterChangePos = strpos($content, "$('.schedule-filter-year, .schedule-filter-month, .schedule-filter-team').on('change'");
+        // Смена фильтра группы — полный GET после закрытия Select2, не патч иконки в DOM.
+        $filterChangePos = strpos($content, "$('.schedule-filter-year, .schedule-filter-month').on('change'");
         $this->assertNotFalse($filterChangePos);
-        $filterChunk = substr($content, (int) $filterChangePos, 700);
-        $this->assertStringContainsString("newUrl.searchParams.set('team', $('#filter-team').val())", $filterChunk);
-        $this->assertStringContainsString('window.location.href = newUrl.toString()', $filterChunk);
-        $this->assertStringNotContainsString('data-journal-payment-status', $filterChunk);
+        $this->assertStringContainsString('select2:close', $content);
+        $this->assertStringContainsString("newUrl.searchParams.append('team_ids[]', token)", $content);
+        $this->assertStringContainsString('scheduleJournalNavigateWithFilters', $content);
+        $this->assertStringContainsString('window.location.href = newUrl.toString()', $content);
+        $this->assertStringNotContainsString('data-journal-payment-status', substr($content, (int) $filterChangePos, 700));
         $this->assertStringNotContainsString('journalPaymentStatuses', $content);
 
         $output = [];
@@ -1659,6 +1728,16 @@ JS;
         $this->assertStringContainsString('.schedule-journal-table-stack .schedule-journal-pagination', $stylesChunk);
         $this->assertStringContainsString('body.layout-wide table.dataTable#schedule-table', $stylesChunk);
         $this->assertStringContainsString('body.layout-wide td.schedule-cell', $stylesChunk);
+        $this->assertStringContainsString('body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper', $stylesChunk);
+        $this->assertStringContainsString('max-width: 1280px', $stylesChunk);
+
+        $hotfixCss = (string) file_get_contents(public_path('css/schedule-journal-cells.css'));
+        $this->assertStringContainsString('body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper', $hotfixCss);
+        $wrapperOverridePos = strpos($hotfixCss, 'body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper {');
+        $this->assertNotFalse($wrapperOverridePos);
+        $wrapperChunk = substr($hotfixCss, $wrapperOverridePos, 180);
+        $this->assertStringContainsString('max-width: 1280px', $wrapperChunk);
+        $this->assertStringNotContainsString('max-width: 100%', $wrapperChunk);
 
         $journal = (string) file_get_contents(resource_path('views/admin/schedule/journal.blade.php'));
         $stackPos = strpos($journal, 'schedule-journal-table-stack');
@@ -1727,8 +1806,10 @@ JS;
         $this->assertStringNotContainsString('$userPrices[$user->id]', $content);
         $this->assertStringNotContainsString('is_paid == 1', $content);
         $this->assertStringContainsString('id="filter-team"', $content);
-        $this->assertStringContainsString('value="all"', $content);
+        $this->assertStringContainsString('data-placeholder="Все группы"', $content);
+        $this->assertStringContainsString('js-generic-multiselect-select', $content);
         $this->assertStringContainsString('value="none"', $content);
+        $this->assertStringNotContainsString('value="all"', $content);
 
         $hint = resource_path('views/partials/ui/tooltip-hint.blade.php');
         $this->assertFileExists($hint);
@@ -1746,7 +1827,8 @@ JS;
         ] as $jsPath) {
             $this->assertFileExists($jsPath);
             $js = (string) file_get_contents($jsPath);
-            $this->assertStringContainsString("newUrl.searchParams.set('team', $('#filter-team').val())", $js);
+            $this->assertStringContainsString("newUrl.searchParams.append('team_ids[]', token)", $js);
+            $this->assertStringContainsString('select2:close', $js);
             $this->assertStringContainsString('window.location.href = newUrl.toString()', $js);
             $this->assertStringContainsString('function applyJournalPaymentStatus', $js);
             $this->assertStringContainsString('function journalPaymentHintEl', $js);
@@ -1855,7 +1937,8 @@ JS;
         $this->assertStringContainsString('<form method="get" action="{{ route(\'schedule.index\') }}"', $journal);
         $this->assertStringContainsString('<input type="hidden" name="year" value="{{ $year }}">', $journal);
         $this->assertStringContainsString('<input type="hidden" name="month" value="{{ $month }}">', $journal);
-        $this->assertStringContainsString('<input type="hidden" name="team" value="{{ $team_id }}">', $journal);
+        $this->assertStringContainsString('name="team_ids[]"', $journal);
+        $this->assertStringNotContainsString('name="team"', $journal);
         $this->assertStringNotContainsString('name="page"', $journal);
         $this->assertStringContainsString('id="table-search"', $journal);
         $this->assertStringContainsString('name="q"', $journal);
@@ -1864,7 +1947,7 @@ JS;
         $this->assertStringContainsString('Найти', $journal);
         $this->assertStringContainsString("@error('year')", $journal);
         $this->assertStringContainsString("@error('month')", $journal);
-        $this->assertStringContainsString("@error('team')", $journal);
+        $this->assertStringContainsString("\$errors->get('team'", $journal);
         $this->assertStringContainsString("@error('q')", $journal);
         $this->assertStringContainsString('$users->lastPage() > 1', $journal);
         $this->assertStringContainsString('schedule-journal-pagination', $journal);
@@ -1890,21 +1973,21 @@ JS;
             $js = (string) file_get_contents($jsPath);
 
             $this->assertStringContainsString(
-                "$('.schedule-filter-year, .schedule-filter-month, .schedule-filter-team').on('change'",
+                "$('.schedule-filter-year, .schedule-filter-month').on('change'",
                 $js
             );
-            $setTeam = "newUrl.searchParams.set('team', $('#filter-team').val())";
+            $setTeam = "newUrl.searchParams.append('team_ids[]', token)";
             $deletePage = "newUrl.searchParams.delete('page')";
             $this->assertStringContainsString($setTeam, $js);
             $this->assertStringContainsString($deletePage, $js);
             $this->assertGreaterThan(
                 strpos($js, $setTeam),
                 strpos($js, $deletePage),
-                "{$jsPath}: delete('page') должен идти после set('team') при смене фильтра"
+                "{$jsPath}: delete('page') должен идти после team_ids[] при смене фильтра"
             );
             $filterChangePos = strpos(
                 $js,
-                "$('.schedule-filter-year, .schedule-filter-month, .schedule-filter-team').on('change'"
+                "$('.schedule-filter-year, .schedule-filter-month').on('change'"
             );
             $formatDatePos = strpos($js, 'function formatDateHuman(dateStr)');
             $this->assertNotFalse($filterChangePos);
@@ -1920,6 +2003,61 @@ JS;
             $this->assertStringNotContainsString("$('#table-search').on('keyup'", $js);
             $this->assertStringNotContainsString('table.search(this.value).draw()', $js);
             $this->assertStringContainsString('window.location.href = newUrl.toString()', $js);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($jsPath).' 2>&1', $output, $exitCode);
+            $this->assertSame(
+                0,
+                $exitCode,
+                "JS syntax error in {$jsPath}:\n".implode("\n", $output)
+            );
+        }
+    }
+
+    /**
+     * P1: фильтр групп журнала — Select2 apply on close, без change на каждый чекбокс,
+     * обе копии JS + journal.blade.php без inline <script> и без «Применить».
+     */
+    public function test_schedule_journal_team_filter_select2_apply_on_close_js_contract(): void
+    {
+        $blade = resource_path('views/admin/schedule/journal.blade.php');
+        $this->assertFileExists($blade);
+        $journal = (string) file_get_contents($blade);
+        $this->assertStringNotContainsString('<script', $journal);
+        $this->assertStringNotContainsString('Применить', $journal);
+        $this->assertStringContainsString('id="filter-team"', $journal);
+        $this->assertStringContainsString('js-generic-multiselect-select', $journal);
+        $this->assertStringContainsString('data-placeholder="Все группы"', $journal);
+        $this->assertStringContainsString('name="team_ids[]"', $journal);
+        $this->assertStringNotContainsString('value="all"', $journal);
+        $this->assertStringContainsString("\$errors->get('team'", $journal);
+        $this->assertStringContainsString("str_starts_with((string) \$key, 'team_ids.')", $journal);
+
+        foreach ([
+            resource_path('js/schedule.js'),
+            public_path('js/schedule-journal.js'),
+        ] as $jsPath) {
+            $this->assertFileExists($jsPath);
+            $js = (string) file_get_contents($jsPath);
+            $this->assertStringContainsString('select2:close', $js);
+            $this->assertStringContainsString('select2:clear', $js);
+            $this->assertStringContainsString('maybeNavigateTeamFilter', $js);
+            $this->assertStringContainsString('if (next === teamFilterSnapshot)', $js);
+            $this->assertStringNotContainsString("$('.schedule-filter-team').on('change'", $js);
+            $this->assertStringContainsString(
+                "$('.schedule-filter-year, .schedule-filter-month').on('change'",
+                $js
+            );
+            $this->assertStringContainsString("newUrl.searchParams.append('team_ids[]', token)", $js);
+            $this->assertStringContainsString("data.push({name: 'journal_team_ids[]', value: token})", $js);
+            $this->assertStringContainsString('data.journal_team_ids = tokens', $js);
+            $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.init', $js);
+            $initCallPos = strpos($js, "    initScheduleJournalTeamFilter();\n");
+            $dtPos = strpos($js, "$('#schedule-table').DataTable({");
+            $this->assertNotFalse($initCallPos, $jsPath);
+            $this->assertNotFalse($dtPos, $jsPath);
+            $this->assertLessThan($dtPos, $initCallPos, $jsPath);
 
             $output = [];
             $exitCode = 0;
@@ -2286,8 +2424,86 @@ JS;
     }
 
     /**
+     * P1: вкладка «По ученикам» — 422 нулевой ручной оплаты под строкой месяца, не toast.
+     */
+    public function test_setting_prices_users_tab_manual_paid_zero_price_error_under_price_field_ux_contract(): void
+    {
+        $usersPath = resource_path('views/admin/SettingPrices/users.blade.php');
+        $this->assertFileExists($usersPath);
+        $blade = (string) file_get_contents($usersPath);
+
+        $this->assertStringContainsString('function postManualPaidForUser(', $blade);
+        $this->assertStringContainsString('setting-prices-monthly-price-error', $blade);
+        $this->assertStringContainsString('errs.price', $blade);
+        $this->assertStringContainsString('$priceErr.text(msg).show()', $blade);
+        $this->assertStringContainsString('if (fieldShown)', $blade);
+        $this->assertStringContainsString('postManualPaidForUser(currentUserId, currentTeamId, selectedDate, mode, comment, $tr', $blade);
+
+        $fnStart = strpos($blade, 'function postManualPaidForUser(');
+        $this->assertNotFalse($fnStart);
+        $fnEnd = strpos($blade, 'function renderUserPricesTable(', $fnStart);
+        $this->assertNotFalse($fnEnd);
+        $fn = substr($blade, $fnStart, $fnEnd - $fnStart);
+        $this->assertStringContainsString('errs.price', $fn);
+        $this->assertStringContainsString('$priceErr.text(msg).show()', $fn);
+        $failPos = strpos($fn, '.fail(function');
+        $this->assertNotFalse($failPos);
+        $failChunk = substr($fn, $failPos);
+        $this->assertLessThan(
+            strpos($failChunk, 'if (typeof onError === \'function\')'),
+            strpos($failChunk, 'if (fieldShown)')
+        );
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $usersPath,
+            'function postManualPaidForUser',
+            'blade-js-setting-prices-users-manual-paid-zero-price'
+        );
+    }
+
+    /**
+     * P1: вкладка «По месяцам» — mode=paid шлёт price (пустое поле → 0), 422 под строкой карточки без пересборки колонки.
+     */
+    public function test_setting_prices_monthly_manual_paid_zero_price_error_under_price_field_ux_contract(): void
+    {
+        $path = resource_path('js/settings-prices.js');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/settings-prices.js (zero-price paid):\n".implode("\n", $output)
+        );
+
+        $start = strpos($content, 'function postManualPaid(');
+        $this->assertNotFalse($start, 'postManualPaid missing');
+        $end = strpos($content, 'function clearMonthlyCardFieldErrors(', $start);
+        $this->assertNotFalse($end);
+        $fn = substr($content, $start, $end - $start);
+
+        $this->assertStringContainsString("if (mode === 'paid')", $fn);
+        $this->assertStringContainsString('let price = 0', $fn);
+        $this->assertStringContainsString('payload.price = price', $fn);
+        $this->assertStringContainsString("showMonthlyCardFieldError(\$card, 'price'", $fn);
+
+        $failPos = strpos($fn, '.fail(function');
+        $this->assertNotFalse($failPos);
+        $failChunk = substr($fn, $failPos);
+        $this->assertStringContainsString('errs.price', $failChunk);
+        $this->assertStringContainsString("showMonthlyCardFieldError(\$card, 'price'", $failChunk);
+        $this->assertStringNotContainsString('renderUsersRightColumn', $failChunk);
+
+        $this->assertStringContainsString('setting-prices-monthly-price-error', $content);
+        $this->assertStringContainsString("field === 'price'", $content);
+    }
+
+    /**
      * P1: замена предоплаты у оплаченного месяца — селект доступен, цена не сбрасывается,
-     * 422 под селектом. Два JS-пути: Vite «По месяцам» и inline «По ученикам».
+     * 422 под строкой карточки. Два JS-пути: Vite «По месяцам» и inline «По ученикам».
      */
     public function test_setting_prices_flexible_replace_paid_select_ux_contract(): void
     {
@@ -2343,7 +2559,7 @@ JS;
 
     /**
      * P1: предоплата на оплаченный месяц без абона — селект доступен и без hasAbon,
-     * каталожная цена не подставляется, payload шлёт пакет, 422 под селектом.
+     * каталожная цена не подставляется, payload шлёт пакет, 422 под строкой карточки.
      * Два JS-пути: Vite «По месяцам» и inline «По ученикам».
      */
     public function test_setting_prices_paid_empty_prepaid_attach_ux_contract(): void
@@ -2409,7 +2625,7 @@ JS;
     }
 
     /**
-     * Цена без абонемента закрыта: disabled input, 0 при снятии абона, 422 под селектом.
+     * Цена без абонемента закрыта: disabled input, 0 при снятии абона, 422 под строкой карточки.
      */
     public function test_setting_prices_require_package_for_price_ux_contract(): void
     {
@@ -8020,7 +8236,7 @@ JS;
         $journalJs = public_path('js/schedule-journal.js');
         $this->assertFileExists($journalJs);
         $journal = (string) file_get_contents($journalJs);
-        $this->assertStringContainsString("newUrl.searchParams.set('team', $('#filter-team').val());", $journal);
+        $this->assertStringContainsString("newUrl.searchParams.append('team_ids[]', token)", $journal);
         $this->assertStringContainsString("window.location.href = newUrl.toString();", $journal);
         $output = [];
         $exitCode = 0;

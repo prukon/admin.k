@@ -209,7 +209,7 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
         $this->assertSame(1, $ids->count());
         $this->assertTrue($ids->contains((int) $studentA->id));
         $this->assertFalse($ids->contains((int) $studentB->id));
-        $this->assertStringContainsString('name="team" value="'.$teamA->id.'"', $this->searchFormHtml($html));
+        $this->assertStringContainsString('name="team_ids[]" value="'.$teamA->id.'"', $this->searchFormHtml($html));
     }
 
     public function test_search_with_no_matches_returns_empty_student_rows(): void

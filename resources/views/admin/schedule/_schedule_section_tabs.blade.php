@@ -2,7 +2,7 @@
     @can('schedule.view')
         <li class="nav-item" role="presentation">
             <a class="nav-link {{ ($activeTab ?? 'journal') === 'journal' ? 'active' : '' }}"
-               href="{{ route('schedule.index', request()->only(['year', 'month', 'team'])) }}"
+               href="{{ route('schedule.index', array_merge(request()->only(['year', 'month']), request()->exists('team_ids') ? ['team_ids' => request('team_ids')] : request()->only(['team']))) }}"
                role="tab">Журнал расписания</a>
         </li>
         <li class="nav-item" role="presentation">

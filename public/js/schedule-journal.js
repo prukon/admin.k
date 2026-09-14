@@ -6,6 +6,9 @@ document.addEventListener('DOMContentLoaded', function () {
         $('#btn-fullscreen').html('<i class="fas fa-compress"></i>');
     }
 
+    // До DataTable: иначе ~1с виден нативный <select multiple> без чипов.
+    initScheduleJournalTeamFilter();
+
     var numDays = $('.schedule-day-header').length;
     var dtColumns = [
         {orderable: false},
@@ -184,11 +187,48 @@ document.addEventListener('DOMContentLoaded', function () {
         return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     }
 
-    $('.schedule-filter-year, .schedule-filter-month, .schedule-filter-team').on('change', function () {
+    function scheduleJournalSelectedTeamTokens() {
+        var $team = $('#filter-team');
+        if (!$team.length) {
+            return [];
+        }
+        var raw = $team.val();
+        if (raw === null || raw === undefined || raw === '') {
+            return [];
+        }
+        var list = Array.isArray(raw) ? raw : [raw];
+        var tokens = [];
+        list.forEach(function (item) {
+            var token = String(item || '').trim();
+            if (token && token !== 'all') {
+                tokens.push(token);
+            }
+        });
+        return tokens;
+    }
+
+    function scheduleJournalTeamFilterSnapshot() {
+        return JSON.stringify(scheduleJournalSelectedTeamTokens().slice().sort());
+    }
+
+    function scheduleJournalClearTeamSearchParams(searchParams) {
+        searchParams.delete('team');
+        searchParams.delete('team_ids');
+        searchParams.delete('team_ids[]');
+    }
+
+    function scheduleJournalApplyTeamIdsToUrl(newUrl) {
+        scheduleJournalClearTeamSearchParams(newUrl.searchParams);
+        scheduleJournalSelectedTeamTokens().forEach(function (token) {
+            newUrl.searchParams.append('team_ids[]', token);
+        });
+    }
+
+    function scheduleJournalNavigateWithFilters() {
         var newUrl = new URL(window.location.href);
         newUrl.searchParams.set('year', $('#filter-year').val());
         newUrl.searchParams.set('month', $('#filter-month').val());
-        newUrl.searchParams.set('team', $('#filter-team').val());
+        scheduleJournalApplyTeamIdsToUrl(newUrl);
         newUrl.searchParams.delete('page');
         if ($('.schedule-fullscreen-wrapper').hasClass('fullscreen')) {
             newUrl.searchParams.set('fullscreen', '1');
@@ -196,6 +236,45 @@ document.addEventListener('DOMContentLoaded', function () {
             newUrl.searchParams.delete('fullscreen');
         }
         window.location.href = newUrl.toString();
+    }
+
+    function initScheduleJournalTeamFilter() {
+        var $team = $('#filter-team');
+        if (!$team.length) {
+            return;
+        }
+
+        var $parent = $('.schedule-fullscreen-wrapper');
+        if (window.KidsCrmGenericMultiselectSelect2) {
+            KidsCrmGenericMultiselectSelect2.init($team, {
+                dropdownParent: $parent.length ? $parent : $(document.body),
+                allowClear: true,
+                placeholder: $team.data('placeholder') || 'Все группы'
+            });
+        }
+
+        var teamFilterSnapshot = scheduleJournalTeamFilterSnapshot();
+
+        function maybeNavigateTeamFilter() {
+            var next = scheduleJournalTeamFilterSnapshot();
+            if (next === teamFilterSnapshot) {
+                return;
+            }
+            scheduleJournalNavigateWithFilters();
+        }
+
+        if ($team.data('select2')) {
+            $team.on('select2:close', maybeNavigateTeamFilter);
+            $team.on('select2:clear', maybeNavigateTeamFilter);
+        } else {
+            $team.on('change', function () {
+                scheduleJournalNavigateWithFilters();
+            });
+        }
+    }
+
+    $('.schedule-filter-year, .schedule-filter-month').on('change', function () {
+        scheduleJournalNavigateWithFilters();
     });
 
     var cellEditModal = new bootstrap.Modal(document.getElementById('cellEditModal'), {});
@@ -406,28 +485,43 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function scheduleJournalFilterTeamId() {
-        var filterVal = $('#filter-team').val();
-        if (filterVal && filterVal !== 'all' && filterVal !== 'none') {
-            return String(filterVal);
+        var tokens = scheduleJournalSelectedTeamTokens();
+        var numeric = tokens.filter(function (token) {
+            return token !== 'none';
+        });
+        var hasNone = tokens.indexOf('none') !== -1;
+        if (!hasNone && numeric.length === 1) {
+            return String(numeric[0]);
         }
         return '';
     }
 
     function journalTeamFilterForRequest() {
-        var v = $('#filter-team').val();
-        if (!v) {
+        var tokens = scheduleJournalSelectedTeamTokens();
+        if (!tokens.length) {
             return 'all';
         }
-        return String(v);
+        if (tokens.length === 1 && tokens[0] === 'none') {
+            return 'none';
+        }
+        if (tokens.length === 1 && tokens[0] !== 'none') {
+            return String(tokens[0]);
+        }
+        return 'all';
     }
 
     function withJournalTeamFilter(data) {
+        var tokens = scheduleJournalSelectedTeamTokens();
         var filter = journalTeamFilterForRequest();
         if (Array.isArray(data)) {
             data.push({name: 'journal_team_filter', value: filter});
+            tokens.forEach(function (token) {
+                data.push({name: 'journal_team_ids[]', value: token});
+            });
             return data;
         }
         data.journal_team_filter = filter;
+        data.journal_team_ids = tokens;
         return data;
     }
 

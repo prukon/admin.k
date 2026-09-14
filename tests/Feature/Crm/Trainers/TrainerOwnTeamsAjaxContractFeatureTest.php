@@ -35,6 +35,20 @@ final class TrainerOwnTeamsAjaxContractFeatureTest extends TrainerOwnTeamsScopeT
         );
     }
 
+    public function test_ajax_journal_rejects_foreign_team_ids(): void
+    {
+        [$ownTeam, $otherTeam] = $this->seedTwoTeamsAndStudents();
+        $this->makeRestrictedTrainer(['schedule.view', 'groups.own'], $ownTeam);
+
+        $this->assertFieldError(
+            $this->getJson(route('schedule.index', ['team_ids' => [$otherTeam->id]])),
+            'team_ids.0'
+        );
+
+        $this->getJson(route('schedule.index', ['team_ids' => [$ownTeam->id]]))
+            ->assertOk();
+    }
+
     public function test_ajax_chat_rejects_foreign_team_under_team_id(): void
     {
         [$ownTeam, $otherTeam] = $this->seedTwoTeamsAndStudents();

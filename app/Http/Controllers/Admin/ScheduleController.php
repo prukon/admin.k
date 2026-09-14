@@ -44,7 +44,9 @@ use App\Services\Postpay\PostpayJournalService;
 use App\Services\Postpay\PostpayUsersPriceSync;
 use App\Support\BuildsLogTable;
 use App\Support\Money;
+use App\Support\Schedule\ScheduleJournalTeamFilter;
 use App\Support\ScheduleOccurrenceTrainerIds;
+use App\Support\UserTeamQuery;
 use Carbon\Carbon;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use DomainException;
@@ -96,7 +98,9 @@ class ScheduleController extends AdminBaseController
         $data = $request->validated();
         $year = (int) ($data['year'] ?? date('Y'));
         $month = str_pad((string) ($data['month'] ?? date('m')), 2, '0', STR_PAD_LEFT);
-        $team_id = (string) ($data['team'] ?? 'all');
+        $journalTeamFilter = ScheduleJournalTeamFilter::fromIndexValidated($data);
+        $team_id = $journalTeamFilter->legacyScalar();
+        $selectedTeamTokens = $journalTeamFilter->tokens();
         $searchQ = trim((string) ($data['q'] ?? ''));
 
         $startOfMonth = Carbon::createFromDate($year, (int) $month, 1);
@@ -109,18 +113,18 @@ class ScheduleController extends AdminBaseController
             ->withSystemRoleUser();
 
         $actor = $request->user();
-        if ($team_id !== 'all' && $team_id !== 'none' && ctype_digit($team_id)) {
-            if (! $this->ownTeams->allowsTeamId($actor, $partnerId, (int) $team_id)) {
+        foreach ($journalTeamFilter->teamIds as $selectedTeamId) {
+            if (! $this->ownTeams->allowsTeamId($actor, $partnerId, $selectedTeamId)) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'team' => ['Выберите группу из списка.'],
                 ]);
             }
         }
 
-        if ($team_id !== 'all') {
-            $usersQuery->filterByStudentTeam($partnerId, $team_id);
-        } else {
+        if ($journalTeamFilter->isAll()) {
             $this->ownTeams->restrictStudentsQuery($usersQuery, $actor, $partnerId);
+        } else {
+            UserTeamQuery::applyJournalTeamFilter($usersQuery, $partnerId, $journalTeamFilter);
         }
 
         if ($searchQ !== '') {
@@ -153,25 +157,25 @@ class ScheduleController extends AdminBaseController
             $userIds,
             $startOfMonth,
             $endOfMonth,
-            $team_id,
+            $journalTeamFilter,
             $this->ownTeams->allowedTeamIds($actor, $partnerId),
         );
 
         $journalAssignments = $this->journalMonthService->fixedAssignmentsByUser($partnerId, $userIds);
 
         $monthFirst = $startOfMonth->format('Y-m-d');
-        $postpayByUser = $this->postpayJournal->postpayAbonementHintsByUser($userIds, $monthFirst, (string) $team_id);
+        $postpayByUser = $this->postpayJournal->postpayAbonementHintsByUser($userIds, $monthFirst, $journalTeamFilter);
         $postpayUsers = [];
         foreach (array_keys($postpayByUser) as $uid) {
             $postpayUsers[(int) $uid] = true;
         }
-        $postpayLockedUsers = $this->postpayJournal->postpayLockedUserFlags($userIds, $monthFirst, (string) $team_id);
+        $postpayLockedUsers = $this->postpayJournal->postpayLockedUserFlags($userIds, $monthFirst, $journalTeamFilter);
 
         $flexibleByUser = $this->journalMonthService->flexibleAssignableByUserForBillingMonth(
             $partnerId,
             $userIds,
             $monthFirst,
-            $team_id,
+            $journalTeamFilter,
         );
         $flexibleUsers = [];
         foreach ($flexibleByUser as $uid => $assignments) {
@@ -184,7 +188,7 @@ class ScheduleController extends AdminBaseController
             $partnerId,
             $userIds,
             $monthFirst,
-            (string) $team_id,
+            $journalTeamFilter,
         );
 
         $journalConsumingCounts = $this->journalMonthService->consumingCountsByUser($journalOccurrences);
@@ -196,11 +200,14 @@ class ScheduleController extends AdminBaseController
         $teams = $teams->get();
 
         $teamWeekdays = [];
-        if ($team_id !== 'all' && $team_id !== 'none' && is_numeric($team_id)) {
+        if ($journalTeamFilter->teamIds !== []) {
             $teamWeekdays = DB::table('team_weekdays')
-                ->where('team_id', (int) $team_id)
+                ->whereIn('team_id', $journalTeamFilter->teamIds)
                 ->pluck('weekday_id')
-                ->toArray();
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
         }
 
         $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
@@ -210,6 +217,8 @@ class ScheduleController extends AdminBaseController
             'year',
             'month',
             'team_id',
+            'journalTeamFilter',
+            'selectedTeamTokens',
             'searchQ',
             'users',
             'journalOccurrences',
@@ -1637,17 +1646,13 @@ class ScheduleController extends AdminBaseController
         return $result;
     }
 
-    private function journalTeamFilterFromRequest(Request $request): string
+    private function journalTeamFilterFromRequest(Request $request): ScheduleJournalTeamFilter
     {
-        $raw = trim((string) $request->input('journal_team_filter', 'all'));
-        if ($raw === 'none') {
-            return 'none';
-        }
-        if (ctype_digit($raw) && (int) $raw > 0) {
-            return $raw;
+        if ($request->exists('journal_team_ids')) {
+            return ScheduleJournalTeamFilter::fromTokens((array) $request->input('journal_team_ids', []));
         }
 
-        return 'all';
+        return ScheduleJournalTeamFilter::fromMixed($request->input('journal_team_filter', 'all'));
     }
 
     /**

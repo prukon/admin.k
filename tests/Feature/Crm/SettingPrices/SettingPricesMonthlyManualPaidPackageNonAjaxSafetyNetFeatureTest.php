@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\SettingPrices;
 
+use App\Http\Requests\Admin\SetManualUserPricePaidRequest;
 use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\User;
@@ -136,6 +137,29 @@ final class SettingPricesMonthlyManualPaidPackageNonAjaxSafetyNetFeatureTest ext
         $this->assertDatabaseHas('users_prices', [
             'id' => $this->row->id,
             'lesson_package_id' => $this->packageA->id,
+            'is_manual_paid' => null,
+        ]);
+    }
+
+    public function test_non_ajax_zero_price_paid_redirects_with_price_error(): void
+    {
+        $this->row->update(['price_cents' => 0]);
+
+        $this->from(route('admin.settingPrices.indexMenu'))
+            ->post(route('setting-prices.manual-paid'), [
+                'user_id' => $this->student->id,
+                'team_id' => $this->team->id,
+                'selectedDate' => 'Октябрь 2024',
+                'mode' => 'paid',
+                'comment' => 'Нулевая сумма non-ajax',
+            ])
+            ->assertStatus(302)
+            ->assertSessionHasErrors(['price'])
+            ->assertSessionHasErrors(['price' => SetManualUserPricePaidRequest::ZERO_PRICE_MESSAGE]);
+
+        $this->assertDatabaseHas('users_prices', [
+            'id' => $this->row->id,
+            'price_cents' => 0,
             'is_manual_paid' => null,
         ]);
     }

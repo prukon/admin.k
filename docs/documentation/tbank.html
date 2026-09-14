@@ -316,7 +316,10 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li>Действия: «Выплатить сейчас» и «Отложить» в UI — только при <code>manage.payment.method.tbank</code> (и если выплаты ещё нет или последняя <code>REJECTED</code>).
       «Закрыть сделку» на карточке видна при <code>deal_id</code> и у просмотра по <code>reports.tbank.payments.view</code>;
       POST <code>/tinkoff/deals/{deal}/close</code> — <code>can:manage.payment.method.tbank</code>.
-      См. п. <a href="#auto-payout">5</a> и <a href="/docs/documentation/tbank-refunds-payout-cancel">возвраты</a>.</li>
+      HTTP 4xx банка (в т.ч. 404 CloseSpDeal) — не 500: 302 и текст
+      <code>errors.tinkoff</code> под кнопкой (<code>data-error-for="tinkoff"</code>),
+      ответ в <code>payload.deal_close</code>.
+      См. <a href="/doc#tbank-deal-close-http-error-index">анонс</a>, п. <a href="#auto-payout">5</a> и <a href="/docs/documentation/tbank-refunds-payout-cancel">возвраты</a>.</li>
   </ul>
 
   <h2>6) Workflow оплаты (одностадийный)</h2>
@@ -499,12 +502,23 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   </ul>
 
   <h3>8.5 CloseSpDeal</h3>
+  <div class="note">
+    HTTP 4xx банка не должен становиться 500 CRM.
+    Анонс: <a href="/doc#tbank-deal-close-http-error-index">/doc#tbank-deal-close-http-error-index</a>.
+  </div>
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/Deals/TbankDealCloseTest.php</code>
       <ul>
         <li><b>CloseSpDeal</b>: success/fail сценарии, запись результата в <code>tinkoff_payments.payload.deal_close</code> для всех платежей сделки.</li>
+        <li>HTTP 404 банка → 302 (не 500), <code>errors.tinkoff</code> с «HTTP 404», текст под кнопкой на карточке, без retry.</li>
+        <li><code>Success=false</code> с <code>Message</code>/<code>Details</code> → тот же ключ на карточке.</li>
+        <li>Нет платежа с DealId → 302 / AJAX 422 <code>errors.tinkoff</code> (<code>TinkoffDealCloseRequest</code>).</li>
       </ul>
     </li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TinkoffApiClientHttpFeatureTest.php</code> —
+      404 без throw и без retry; 502 ретраится и возвращает JSON <code>http_status</code>.</li>
+    <li><code>tests/Unit/Documentation/TbankDealCloseDocumentationContractTest.php</code> —
+      анонс <a href="/doc#tbank-deal-close-http-error-index">/doc#tbank-deal-close-http-error-index</a>.</li>
   </ul>
 
   <h3>8.6 Sm-register (регистрация юр. лица)</h3>

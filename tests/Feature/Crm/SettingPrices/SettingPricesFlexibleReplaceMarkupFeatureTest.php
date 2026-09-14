@@ -8,7 +8,7 @@ use Tests\Feature\Crm\CrmTestCase;
 
 /**
  * Разметка: карточки учеников рисует JS; селект абонемента у оплаченного не disabled;
- * ошибка пакета под селектом на обеих вкладках.
+ * ошибка пакета под строкой карточки на обеих вкладках.
  */
 final class SettingPricesFlexibleReplaceMarkupFeatureTest extends CrmTestCase
 {

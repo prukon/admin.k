@@ -8,7 +8,7 @@ use Tests\Feature\Crm\CrmTestCase;
 
 /**
  * Разметка: у оплаченного месяца без абона селект доступен, сумма нет;
- * ошибка пакета под селектом. Карточки рисует JS.
+ * ошибка пакета под строкой карточки. Карточки рисует JS.
  */
 final class SettingPricesPaidEmptyPrepaidAttachMarkupFeatureTest extends CrmTestCase
 {

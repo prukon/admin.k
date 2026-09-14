@@ -159,3 +159,135 @@ body.layout-wide td.schedule-user-name {
 body.layout-wide td.schedule-cell {
     width: auto !important;
 }
+
+/* Фильтр групп: фиксированная ширина; нативный select скрыт до Select2 (FOUC на GET). */
+.schedule-fullscreen-wrapper .wrap-filter-team {
+    width: 320px;
+    min-width: 320px;
+    max-width: 320px;
+    min-height: calc(2.25rem + 2px);
+}
+
+.schedule-fullscreen-wrapper .wrap-filter-team:not(:has(.select2-container)) {
+    background: #f8fafc;
+    border: 1px solid #ced4da;
+    border-radius: var(--bs-border-radius, 0.375rem);
+}
+
+.schedule-fullscreen-wrapper .wrap-filter-team > select.schedule-filter-team:not(.select2-hidden-accessible) {
+    height: calc(2.25rem + 2px) !important;
+    min-height: calc(2.25rem + 2px) !important;
+    max-height: calc(2.25rem + 2px) !important;
+    overflow: hidden !important;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.schedule-fullscreen-wrapper .wrap-filter-team .select2-container {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100%;
+}
+
+.schedule-fullscreen-wrapper .wrap-filter-team.generic-multiselect-field .select2-container--bootstrap-5 .select2-selection.select2-selection--multiple {
+    height: auto !important;
+    min-height: calc(2.25rem + 2px) !important;
+    overflow: visible !important;
+}
+
+.schedule-fullscreen-wrapper .wrap-filter-team .select2-container .select2-selection__rendered {
+    flex-wrap: wrap !important;
+    overflow: visible !important;
+}
+
+.schedule-fullscreen-wrapper .wrap-filter-team .select2-selection__choice {
+    max-width: 100%;
+    white-space: normal !important;
+}
+
+@media only screen and (max-width: 768px) {
+    .schedule-fullscreen-wrapper .wrap-filter-team {
+        min-width: 160px;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* Vite-бандл ещё держит откатанные 36px ячеек. */
+    .schedule-day-header {
+        min-width: 15px;
+    }
+
+    td.schedule-cell {
+        min-width: 25px;
+        width: 25px;
+    }
+
+    .schedule-cell__swatch {
+        width: 1.45rem;
+        height: 1.45rem;
+    }
+
+    .schedule-cell.is-tapped::after {
+        content: none;
+        border: 0;
+        box-shadow: none;
+    }
+}
+
+/*
+ * Vite-бандл (public/build/assets/schedule-*.css) собран с откатанным тикетом:
+ * на .wrapper при журнале ставился max-width 100% (специфичность выше, чем
+ * .wrapper 1280px) — кабинет на /schedule растягивался на весь экран.
+ * Этот hotfix грузится после бандла, без npm run build.
+ */
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content-wrapper,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .container-fluid,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .schedule-section,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .tab-content {
+    overflow-x: visible;
+    min-width: 0;
+}
+
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper {
+    max-width: 1280px;
+}
+
+body.layout-wide:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper {
+    max-width: none;
+    width: 100%;
+}
+
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content-wrapper,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .container-fluid,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .schedule-section,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .tab-content {
+    max-width: none;
+}
+
+.schedule-fullscreen-wrapper:not(.fullscreen) {
+    max-width: none;
+    min-width: 0;
+    overflow-x: visible;
+}
+
+.schedule-fullscreen-wrapper,
+#schedule-journal-stage {
+    max-width: none;
+}
+
+.schedule-journal-table-stack {
+    display: inline-block;
+    width: max-content;
+    max-width: 100%;
+    vertical-align: top;
+}
+
+.schedule-table-container {
+    text-align: left;
+    width: auto;
+    max-width: none;
+    overflow-x: visible !important;
+}

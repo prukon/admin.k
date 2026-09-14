@@ -37,6 +37,9 @@
     HTML <code>403</code> для гостя — <code>layouts.app</code>, не кабинетный <code>admin2</code>
     (иначе <code>auth()->user()->role</code> на <code>null</code> превращал 403 в 500
     и писал ErrorException в строку «500» пульта).
+    Сброс пароля (<code>POST /password/email</code>, гонка 1062 без HTTP 500) —
+    <a href="/docs/documentation/password-reset">password-reset</a>,
+    <a href="/doc#password-reset-unique-index">анонс</a>.
   </div>
 
   <h2 id="lifetime">1) Срок сессии</h2>

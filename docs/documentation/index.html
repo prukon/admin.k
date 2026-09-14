@@ -28,6 +28,216 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="password-reset-unique-index">Сброс пароля: гонка POST /password/email не даёт HTTP 500 (2026‑09)</h2>
+  <div class="note">
+    Форма запроса ссылки <code>/password/reset</code>
+    (<code>password.request</code>): с <code>/login</code> — ссылка
+    «Забыл пароль.», прямой GET тоже. Native
+    <code>POST /password/email</code> (<code>password.email</code>),
+    не AJAX. У <code>ForgotPasswordController</code> <b>нет</b>
+    <code>guest</code> middleware (в отличие от <code>/login</code>):
+    гость — 200 HTML, не 302 на логин / не 401 / не 403;
+    залогиненный без CRM-права — тоже не 403.
+    Это <b>не</b> форма нового пароля
+    (<code>GET /password/reset/{token}</code>, <code>POST password.update</code>)
+    и <b>не</b> unique на <code>users.email</code> / не <code>my_logs</code>.
+    <br><br>
+    Laravel пишет токен в <code>password_reset_tokens</code> (PK = email)
+    через DELETE+INSERT без транзакции. Два параллельных клика оба проходят
+    throttle 60 с; один INSERT ловит MySQL 1062
+    (<code>UniqueConstraintViolationException</code>). С 2026‑09
+    <code>ForgotPasswordController</code> отвечает как на успех
+    (<code>Password::RESET_LINK_SENT</code>, flash <code>status</code> /
+    JSON 200 <code>message</code>): письмо уже ушло у победителя, проигравший
+    не шлёт второе и <b>не 500</b> (<code>OpsMonitor</code>
+    <code>errors.count</code> не растёт).
+    Валидация — <code>SendPasswordResetLinkRequest</code>
+    (<code>required|email|max:255</code>), ошибки под <code>email</code>
+    («Укажите email.» / «Введите корректный email.»).
+    Неизвестный email и throttle — HTML 302 / JSON 422
+    <code>errors.email</code>. Кнопка <code>#forgot-password-submit</code>:
+    на первом GET <b>не</b> <code>disabled</code>; после submit —
+    <code>data-submitting</code> и <code>disabled</code> в
+    <code>setTimeout(0)</code> (синхронный <code>disabled</code> отменяет
+    native POST).
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/password-reset">password-reset</a>,
+    вход / сессия —
+    <a href="/docs/documentation/session-lifetime">session-lifetime</a>.
+    Тесты: <code>PasswordResetAccessFeatureTest</code>,
+    <code>PasswordResetAjaxContractFeatureTest</code>,
+    <code>PasswordResetNonAjaxSafetyNetFeatureTest</code>,
+    <code>PasswordResetMarkupFeatureTest</code>,
+    <code>PasswordResetUxFeatureTest</code>,
+    <code>PasswordResetFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>PasswordResetDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="setting-prices-manual-paid-zero-price-index">Установка цен: ручную оплату при 0 ₽ ставить нельзя (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/setting-prices/monthly</code> и
+    <code>/admin/setting-prices/users</code> нельзя отметить месяц оплаченным,
+    если итоговая сумма 0 ₽. Раньше карандаш при нуле ставил
+    <code>is_manual_paid=1</code>: в «Ценах» горела зелёная галочка, а журнал
+    и задолженности нулевую строку не считают начислением
+    (<code>price_cents &gt; 0</code>).
+    Это тот же <code>POST /admin/setting-prices/manual-paid</code>, право
+    <code>setPrices.manualPaid.manage</code> (плюс <code>setPrices.view</code>).
+    Это <b>не</b> правило «сумма &gt; 0 только с абонементом»
+    (<a href="/doc#setting-prices-require-package-for-price-index">анонс</a>),
+    <b>не</b> доп. платежи (<code>POST …/custom-payments/{id}/manual-paid</code>)
+    и <b>не</b> ручная оплата назначения ULP.
+    Абонемент/сумма из карточки при unpaid→paid — отдельный контракт
+    (<a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>).
+    <br><br>
+    1) <b>Правило.</b>
+    Смотрите сумму в поле карточки, не «что лежало в БД до запроса».
+    После optional apply карточки (в той же транзакции, до флажка)
+    <code>mode=paid</code> при <code>price_cents ≤ 0</code> → <b>422</b>
+    <code>errors.price</code> «Нельзя отметить оплату при стоимости 0 ₽.»
+    (<code>SetManualUserPricePaidRequest::ZERO_PRICE_MESSAGE</code>);
+    apply откатывается, <code>is_manual_paid</code> не пишется.
+    Если в поле 9800 ₽ — сервер пишет сумму и оплату.
+    <code>mode=unpaid</code> при 0 ₽ можно (снять ошибочную отметку).
+    Старые строки 0 ₽ + ручная оплата <b>не</b> мигрировали.
+    Apply справа оплаченный месяц не трогает — автосброса флажка при нуле нет.
+    <br>
+    2) <b>Два JS-пути.</b>
+    «По месяцам» (<code>postManualPaid</code> в
+    <code>resources/js/settings-prices.js</code>): при <code>mode=paid</code>
+    всегда шлёт <code>payload.price</code> (пустое поле → <code>0</code>);
+    422 — блок <code>setting-prices-monthly-price-error</code> <b>под всей строкой</b>
+    карточки (все поля), селект оплаты не сдвигается, колонка не пересобирается.
+    «По ученикам» (<code>postManualPaidForUser</code>): цену <b>не</b> шлёт,
+    сервер берёт сохранённые <code>price_cents</code>; 422 тоже под строкой карточки,
+    toast не показывается. Карандаш при 0 ₽ с абонементом остаётся
+    (<code>hasAbon</code>, не «цена &gt; 0») — иначе нельзя снять флажок.
+    <br>
+    3) <b>HTTP.</b>
+    AJAX с <code>X-Requested-With</code>: 422 на <code>errors.price</code> или 200
+    <code>success</code> + <code>user_price</code>. Пустой comment → 422 на
+    <code>errors.comment</code>, не на цене. Non-AJAX POST → <b>302</b>
+    (session errors или вкладка «По ученикам»), не пустой 200.
+    Гость / без view / без manage → 302/401/403, БД не меняется.
+    GET/PATCH/DELETE на POST-руте → 404/405, не 500.
+    <br>
+    4) <b>Журнал и долги.</b>
+    Колонка рубля на <code>/schedule</code> и отчёт задолженностей по-прежнему
+    берут только <code>users_prices.price_cents &gt; 0</code>. Нулевая строка
+    с ручным флажком галочку в журнале не даёт и в долг не попадает.
+    <br>
+    5) <b>Тесты.</b>
+    <code>SettingPricesManualPaidZeroPriceFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceAccessFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceAjaxContractFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceNonAjaxSafetyNetFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceMarkupFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceJsContractTest</code>,
+    <code>SettingPricesManualPaidZeroPriceDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_manual_paid_zero_price_error_under_price_field_ux_contract</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_users_tab_manual_paid_zero_price_error_under_price_field_ux_contract</code>.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/setting-prices-monthly-users#manual-paid-zero-price">setting-prices-monthly-users §4.0.1</a>,
+    журнал — <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>,
+    долги — <a href="/docs/documentation/reports-admin#debts-effective-is-paid">reports-admin §3.1</a>.
+    Анонс: <a href="/doc#setting-prices-manual-paid-zero-price-index">/doc#setting-prices-manual-paid-zero-price-index</a>.
+  </div>
+
+    <h2 id="journal-team-filter-select2-index">Журнал: фильтр групп — Select2, несколько групп (2026‑09)</h2>
+  <div class="note">
+    На <code>/schedule</code> фильтр групп — тот же Select2, что поле «Тренеры»
+    в модалке «Редактирование группы» на <code>/admin/teams</code>
+    (<code>KidsCrmGenericMultiselectSelect2</code>: чекбоксы в dropdown, чипы, поиск).
+    Это <b>не</b> нативный одиночный <code>&lt;select&gt;</code> и <b>не</b> фильтр заявок:
+    у журнала нет кнопки «Применить», страница обновляется после <b>закрытия</b> списка.
+    Опции <code>value="all"</code> в разметке нет: «все группы» — пустой выбор
+    (плейсхолдер «Все группы»).
+    Поле фильтра фиксированной ширины (<code>320px</code>, на узком экране 100%).
+    Нативный <code>&lt;select multiple&gt;</code> скрыт до Select2;
+    <code>initScheduleJournalTeamFilter()</code> вызывается до DataTable,
+    чтобы на полном GET не вспыхивал дефолтный listbox.
+    Высота может расти под чипы (<code>height: auto</code>).
+    <br><br>
+    1) <b>Кого показывает.</b> Пусто — все ученики круга журнала (с учётом
+    <code>groups.own</code>). «Без группы» (<code>none</code>) — без pivot
+    <code>team_user</code>, право <code>groups.own</code> это не режет.
+    Несколько id — ученик, если состоит <b>хотя бы в одной</b> выбранной (OR, не AND).
+    <code>none</code> вместе с id — без группы <b>или</b> в выбранных.
+    Ученик в двух выбранных группах — одна строка.
+    <br>
+    2) <b>URL.</b> GET <code>team_ids[]</code>. Закладки
+    <code>?team=all|none|{id}</code> читаются; в форму поиска и пейджер
+    уходит уже <code>team_ids[]</code> (пустой фильтр — hidden нет).
+    Невалидный / чужой id — HTML <b>302</b> + текст под фильтром
+    (<code>errors.team_ids.*</code> / <code>errors.team</code>); JSON — <b>422</b>.
+    <br>
+    3) <b>Применение.</b> Год и месяц — сразу по <code>change</code>.
+    Группы — после <code>select2:close</code> / <code>select2:clear</code>,
+    только если набор изменился (не по каждому чекбоксу). Кнопки «Применить» нет.
+    Обе копии JS (<code>resources/js/schedule.js</code> и hotfix
+    <code>public/js/schedule-journal.js</code>) пишут <code>team_ids[]</code>,
+    сбрасывают <code>page</code> и <b>не</b> удаляют <code>q</code>.
+    <br>
+    4) <b>Занятия, оплата, дни недели.</b> Одна группа — как раньше одна.
+    Несколько id — <code>whereIn</code> по выбранным; колонка оплаты —
+    режим «все группы», но только эти id; подсветка дней — объединение.
+    «Без группы» — занятия не сужаются, колонка оплаты пустая.
+    Контекст модалки ячейки: ровно одна выбранная группа — она; иначе
+    пересечение с группами ученика.
+    <br>
+    5) <b>AJAX ячеек.</b> Клиент шлёт <code>journal_team_ids[]</code> и legacy
+    <code>journal_team_filter</code> (скаляр <code>all</code> / <code>none</code> / один id).
+    При нескольких группах скаляр был бы <code>all</code> — сервер берёт
+    <code>journal_team_ids[]</code>, иначе счётчик посещений и оплата считали бы
+    все группы школы. Объект фильтра:
+    <code>App\Support\Schedule\ScheduleJournalTeamFilter</code>.
+    <br><br>
+    Подробно — <a href="/docs/documentation/schedule-journal#journal-team-filter">schedule-journal §2.2.1</a>,
+    UI — <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a>,
+    <code>groups.own</code> — <a href="/docs/documentation/groups-own">groups-own</a>.
+    Тесты: <code>ScheduleJournalTeamFilterSelect2FeatureTest</code>,
+    <code>ScheduleJournalTeamFilterSelect2AccessFeatureTest</code>,
+    <code>ScheduleJournalTeamFilterSelect2AjaxContractFeatureTest</code>,
+    <code>ScheduleJournalTeamFilterSelect2NonAjaxSafetyNetFeatureTest</code>,
+    <code>ScheduleJournalTeamFilterSelect2FullAccessFeatureTest</code>,
+    <code>ScheduleJournalTeamFilterSelect2UiContractsFeatureTest</code>,
+    <code>ScheduleJournalTeamFilterTest</code>,
+    <code>GenericMultiselectFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_schedule_journal_team_filter_select2_apply_on_close_js_contract</code>,
+    <code>ScheduleJournalTeamFilterSelect2DocumentationContractTest</code>.
+    Анонс: <a href="/doc#journal-team-filter-select2-index">/doc#journal-team-filter-select2-index</a>.
+  </div>
+
+  <h2 id="tbank-deal-close-http-error-index">Закрыть сделку T‑Bank: HTTP 4xx без 500, текст банка на карточке (2026‑09)</h2>
+  <div class="note">
+    POST <code>/tinkoff/deals/{deal}/close</code> больше не отдаёт HTTP 500, когда
+    T‑Bank отвечает 4xx (типично <code>CloseSpDeal</code> → 404 на уже несуществующую
+    сделку). <code>TinkoffApiClient</code> ретраит только обрыв связи и 5xx
+    (<code>retry(..., throw: false)</code>); 404/400 возвращает JSON
+    <code>Success=false</code> и <code>http_status</code>, пишет
+    <code>[RESP]</code> в канал tinkoff. Контроллер
+    <code>TinkoffDealController::close</code> ловит и сетевой сбой: пишет
+    <code>tinkoff_payments.payload.deal_close</code>, редирект 302,
+    <code>errors.tinkoff</code> — <code>Message</code> / <code>Details</code>
+    банка или «Банк вернул ошибку при закрытии сделки (HTTP 404)».
+    На карточке <code>/admin/tinkoff/payments/{id}</code> текст под кнопкой
+    «Закрыть сделку» (<code>data-error-for="tinkoff"</code>), не только тост
+    layout. Request: <code>TinkoffDealCloseRequest</code> (нет платежа с таким
+    DealId → 302 / AJAX 422 <code>errors.tinkoff</code>).
+    Право POST по-прежнему <code>can:manage.payment.method.tbank</code>.
+    Закрытие сделки само по себе не гасит каунтер «Касса»
+    (<a href="/doc#ops-till-missing-payout-index">анонс</a>).
+    Анонс: <a href="/doc#tbank-deal-close-http-error-index">/doc#tbank-deal-close-http-error-index</a>.
+    Тесты: <code>TbankDealCloseTest</code>,
+    <code>TinkoffApiClientHttpFeatureTest</code>,
+    <code>SystemMonitorsOpsAjaxContractFeatureTest::test_tinkoff_http_error_is_recorded_at_the_call_site</code>
+    (502 без throw),
+    <code>TbankDealCloseDocumentationContractTest</code>.
+  </div>
+
   <h2 id="ops-row-copy-index">Пульт: копирование красных и жёлтых показателей строки (2026‑09)</h2>
   <div class="note">
     У каждой из девяти строк оверлея <b>Пульт</b> (<code>#js-ops-monitors</code>)
@@ -473,7 +683,7 @@
     вкладка «По ученикам»: inline JS, карточка месяца и «Применить» за год).
     Снятие абонемента на неоплаченном месяце обнуляет сумму; на оплаченном сумму не трогает.
     После выбора шаблона цена из каталога (кроме оплаченного).
-    Тексты 422 — под селектом <code>setting-prices-monthly-package-error</code>,
+    Тексты 422 — под строкой карточки <code>setting-prices-monthly-package-error</code>,
     форма не пересобирается.
     <br>
     3) <b>Тесты.</b>
@@ -581,7 +791,7 @@
     <code>errors.usersPrice.N.lesson_package_id</code> /
     <code>errors.prices.N.lesson_package_id</code> /
     <code>errors.lesson_package_id</code>
-    (текст под селектом <code>setting-prices-monthly-package-error</code>).
+    (текст под строкой карточки <code>setting-prices-monthly-package-error</code>).
     Без права типа предоплаты — <b>422</b> с текстом
     <code>LessonPackageTypePermission::denyPackageMessage('flexible')</code>.
     AJAX — JSON 200/422; HTML POST без <code>X-Requested-With</code> — <b>302</b> и запись в БД.
@@ -758,7 +968,7 @@
     Apply справа / save года / снимок группы: кого можно — сохраняем;
     остальных — <b>422</b> <code>errors.usersPrice.N.lesson_package_id</code> /
     <code>errors.prices.N.lesson_package_id</code> /
-    <code>errors.lesson_package_id</code> (текст под селектом
+    <code>errors.lesson_package_id</code> (текст под строкой карточки
     <code>setting-prices-monthly-package-error</code>).
     AJAX — JSON 200/422; HTML POST без <code>X-Requested-With</code> — <b>302</b> и запись в БД
     (не пустой 200). Гость — 302/401; без <code>setPrices.view</code> — 403.
@@ -887,8 +1097,8 @@
     Срабатывает при праве <b>и</b> профиле <code>trainer_profiles</code> (superadmin через <code>Gate::before</code>
     не режется — профиля нет).
     Фильтры и справочник групп, журнал/клиенты/консоль в режиме «все» — только ученики своих групп;
-    подписи групп ученика — пересечение; чужой <code>team_id</code> → AJAX <b>422</b> под полем
-    (native GET журнала — <b>302</b> + <code>errors.team</code>, не 200 с чужими учениками);
+    подписи групп ученика — пересечение; чужой <code>team_id</code> / <code>team_ids[]</code> → AJAX <b>422</b> под полем
+    (native GET журнала — <b>302</b> + <code>errors.team</code> / <code>errors.team_ids.0</code>, не 200 с чужими учениками);
     карточка чужой группы той же школы — <b>403</b>, другой организации — <b>404</b>;
     сохранение групп ученика не снимает чужие (merge);
     чат: сотрудники школы остаются, фильтр групп — свой.
@@ -2000,12 +2210,20 @@
     <b>до флажка</b> <code>is_manual_paid</code>. Уже назначенный id можно повторить без права на тип;
     новый тип без права → <b>422</b> <code>errors.lesson_package_id</code>, статус не ставится.
     Разложенный ULP, чужой пакет, отрицательная цена — тоже 422 по полю, без оплаты.
+    После apply (или без полей карточки — по текущей строке)
+    <code>mode=paid</code> при <code>price_cents = 0</code> → <b>422</b>
+    <code>errors.price</code> «Нельзя отметить оплату при стоимости 0 ₽.»;
+    apply откатывается. <code>mode=unpaid</code> при 0 ₽ можно.
+    Отдельный анонс этого правила —
+    <a href="/doc#setting-prices-manual-paid-zero-price-index">/doc#setting-prices-manual-paid-zero-price-index</a>.
     Если месяц уже эффективно оплачен, поля карточки <b>не</b> применяются (только флаг/комментарий).
     <br>
     3) <b>HTTP.</b>
     AJAX: <b>200</b> JSON <code>success</code> + <code>user_price</code> или <b>422</b>.
-    <code>errors.lesson_package_id</code> / <code>errors.price</code> — под селектом и суммой
-    (<code>setting-prices-monthly-package-error</code> / <code>setting-prices-monthly-price-error</code>).
+    <code>errors.lesson_package_id</code> / <code>errors.price</code> — под строкой карточки
+    (<code>setting-prices-monthly-package-error</code> / <code>setting-prices-monthly-price-error</code>),
+    в т.ч. «Нельзя отметить оплату при стоимости 0 ₽.»; селект оплаты не уезжает вправо.
+    На вкладке «По ученикам» те же классы тоже под строкой месяца.
     <code>errors.comment</code> (модалка, min 3) и <code>errors.record</code> — в
     <code>.manual-paid-error</code>, не под абонементом.
     Non-AJAX POST → <b>302</b> на <code>/admin/setting-prices/users</code> и запись в БД, не пустой 200.
@@ -2020,7 +2238,16 @@
     <code>SettingPricesMonthlyManualPaidPackageMarkupFeatureTest</code>,
     <code>SettingPricesMonthlyManualPaidPackageJsContractTest</code>,
     <code>SettingPricesMonthlyManualPaidPackageDocumentationContractTest</code>,
-    <code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract</code>.
+    <code>SettingPricesManualPaidZeroPriceFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceAccessFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceAjaxContractFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceNonAjaxSafetyNetFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceMarkupFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceJsContractTest</code>,
+    <code>SettingPricesManualPaidZeroPriceDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_manual_paid_zero_price_error_under_price_field_ux_contract</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_users_tab_manual_paid_zero_price_error_under_price_field_ux_contract</code>.
     <br><br>
     Подробно —
     <a href="/docs/documentation/setting-prices-monthly-users#manual-paid-card">setting-prices-monthly-users §4.0</a>.
@@ -5373,7 +5600,11 @@
     <code>POST /schedule/update</code> (в т.ч. <code>create_postpay</code>),
     <code>DELETE /schedule/occurrence/{utss}</code>,
     постановки предоплаты / пробного / разового.
-    Клиент шлёт <code>journal_team_filter</code> (текущий <code>#filter-team</code>).
+    Клиент шлёт <code>journal_team_ids[]</code> (набор из <code>#filter-team</code>)
+    и legacy <code>journal_team_filter</code> (скаляр: пусто → <code>all</code>,
+    одна группа → её id, несколько → <code>all</code>).
+    Сервер предпочитает <code>journal_team_ids[]</code>, иначе при нескольких
+    группах колонка считала бы все группы школы.
     JS <code>applyJournalPaymentStatus</code> (hotfix
     <code>public/js/schedule-journal.js</code>) перерисовывает
     <code>td.schedule-payment-status</code>. Раскладка fixed — по-прежнему
@@ -5428,18 +5659,20 @@
     <code>resources/css/schedule.css</code> и hotfix
     <code>public/css/schedule-journal-cells.css</code>).
     <br>
-    3) <b>Фильтр группы</b> тот же, что у <b>дней</b> таблицы (не как у галочки оплаты):
-    конкретная группа — только её UTSS; «Все группы» — сумма;
-    «Без группы» — без доп. фильтра по <code>team_id</code> (как дни, не пусто
-    принудительно). Смена фильтра — полный GET, сервер пересчитывает колонку.
+    3) <b>Фильтр группы</b> тот же, что у <b>дней</b> таблицы (не как у галочки оплаты при одной группе):
+    одна группа — только её UTSS; несколько id — <code>whereIn</code> выбранных;
+    пустой фильтр («Все группы») — сумма видимых групп; «Без группы» — без доп. фильтра по
+    <code>team_id</code> (как дни, не пусто принудительно). Смена фильтра — полный GET, сервер пересчитывает колонку.
     <br>
     4) <b>Live.</b> После AJAX без reload сервер кладёт
     <code>result.consuming_count</code> в ответы
     <code>POST /schedule/update</code>,
     <code>DELETE /schedule/occurrence/{utss}</code>,
     постановки предоплаты / пробного / разового.
-    Клиент шлёт <code>journal_team_filter</code> (текущий <code>#filter-team</code>);
-    нечисловой мусор, кроме <code>none</code>, сервер считает как <code>all</code>.
+    Клиент шлёт <code>journal_team_ids[]</code> и legacy <code>journal_team_filter</code>
+    (текущий <code>#filter-team</code>); при нескольких группах сервер берёт массив id,
+    не скаляр <code>all</code>.
+    Нечисловой мусор в legacy-скаляре, кроме <code>none</code>, сервер считает как <code>all</code>.
     JS <code>applyJournalConsumingCount</code> пишет число в
     <code>td.schedule-consuming-count</code> и обновляет <code>data-order</code>;
     при 0 очищает текст. Раскладка fixed по-прежнему
@@ -7990,7 +8223,11 @@
     Оплачено = <code>effective_is_paid</code> (ручная <code>is_manual_paid</code> важнее
     авто <code>is_paid</code> — как в «Ценах» и задолженностях).
     Абонементы ULP и доп. платежи <b>не</b> входят; постоплата — да (она тоже в
-    <code>users_prices</code>). Нулевая сумма игнорируется (это не долг).
+    <code>users_prices</code>).     Нулевая сумма игнорируется (это не долг).
+    Новую ручную оплату при 0 ₽ установка цен больше не ставит
+    (<a href="/doc#setting-prices-manual-paid-zero-price-index">анонс</a>);
+    уже лежащие строки 0 ₽ + <code>is_manual_paid</code> не мигрировали —
+    журнал их по-прежнему не считает начислением.
     Членство в pivot без начисления на галочку не влияет.
     <br>
     2) <b>«Все группы»:</b> нет оплаченных начислений и нет неоплаченной постоплаты с суммой —
@@ -8003,8 +8240,11 @@
     <br>
     3) <b>Фильтр конкретной группы</b> — зелёная галочка строго если оплачено начисление
     этой группы; неоплаченная постоплата этой группы — сумма; иначе пусто (жёлтого нет).
-    Смена фильтра — полный GET (<code>schedule.js</code> / <code>schedule-journal.js</code>,
-    <code>window.location.href</code>), сервер пересчитывает колонку.
+    Несколько выбранных id — как «Все группы», но только по этим начислениям
+    (см. <a href="#journal-team-filter-select2-index">анонс фильтра Select2</a>).
+    Смена фильтра — полный GET после закрытия Select2
+    (<code>schedule.js</code> / <code>schedule-journal.js</code>),
+    сервер пересчитывает колонку.
     После AJAX смены статуса / постановки / удаления — <code>result.payment_status</code>
     и <code>applyJournalPaymentStatus</code> без reload.
     <br>
@@ -8034,7 +8274,8 @@
     <br><br>
     1) <b>Выборка, не «все подряд».</b> Сначала круг журнала: свой партнёр,
     <code>is_enabled = 1</code>, системная роль <code>user</code>; затем год / месяц /
-    группа (<code>all</code> / <code>none</code> / id) и поиск <code>q</code>.
+    группа (<code>team_ids[]</code>: пусто = все, <code>none</code>, один или несколько id — OR;
+    legacy <code>team=all|none|id</code>) и поиск <code>q</code>.
     Страница — 100 строк <b>этой</b> выборки. Занятия, fixed/flexible ULP,
     постоплата и галочка оплаты месяца грузятся только для id текущей страницы
     (<code>fixedAssignmentsByUser()</code>, без N+1 по ученику).
@@ -8044,25 +8285,29 @@
     При 100 и меньше блока нет. Номера строк — сквозные
     (<code>firstItem + index</code>: на стр. 2 первая строка = 101).
     Ссылки пейджера сохраняют query string (<code>year</code> / <code>month</code> /
-    <code>team</code> / <code>q</code>).
+    <code>team_ids[]</code> или legacy <code>team</code> / <code>q</code>).
     <br>
     3) <b>Поиск «Найти»</b> — серверный GET <code>q</code> (фамилия, имя, склейка ФИО;
     max 191, trim). Форма <b>без</b> hidden <code>page</code>: поиск со 2-й страницы
     открывает 1-ю страницу совпадений, а не пустую <code>page=2</code>.
-    Скрытые поля держат год / месяц / группу (и <code>fullscreen=1</code>, если уже в URL).
+    Скрытые поля держат год / месяц / <code>team_ids[]</code> при выбранных группах
+    (и <code>fullscreen=1</code>, если уже в URL). Пустой фильтр групп — hidden <code>team_ids[]</code> нет.
     Кнопка «Найти» и Enter в поле — серверный GET с <code>q</code>
     (поиск по всей выборке, сброс <code>page</code>).
     Автопоиск при вводе нет. DataTables (<code>paging: false</code>) — только сортировка колонок на текущей странице.
     <br>
     4) <b>Смена года / месяца / группы</b> — полный GET
-    (<code>window.location.href</code>). Обе копии JS
+    (<code>window.location.href</code>). Год и месяц — по <code>change</code>.
+    Группы — после закрытия Select2 (<code>select2:close</code> / <code>select2:clear</code>),
+    см. <a href="#journal-team-filter-select2-index">анонс фильтра групп</a>.
+    Обе копии JS
     (<code>resources/js/schedule.js</code> и hotfix <code>public/js/schedule-journal.js</code>)
-    делают <code>searchParams.delete('page')</code> и <b>не</b> удаляют <code>q</code>.
+    пишут <code>team_ids[]</code>, делают <code>searchParams.delete('page')</code> и <b>не</b> удаляют <code>q</code>.
     <br>
     5) <b>Доступ и ошибки.</b> Право <code>schedule.view</code>; отдельного JSON-списка учеников нет
     (это HTML-страница). Невалидный HTML GET → <b>302</b> + текст под полем
-    (<code>errors.year|month|team|q|page</code>); JSON → <b>422</b> с теми же ключами.
-    Пустой <code>team</code> → <code>all</code>. Гость 302/401, без права 403,
+    (<code>errors.year|month|team|team_ids.*|q|page</code>); JSON → <b>422</b> с теми же ключами.
+    Пустой <code>team</code> / пустой <code>team_ids[]</code> → все группы. Гость 302/401, без права 403,
     без партнёра — logout и «Ваша организация недоступна.» под Email.
     <code>POST/PATCH/DELETE /schedule</code> → 405, не 500.
     <br><br>
@@ -8589,8 +8834,10 @@
     2) <b>Откуда ручная отметка:</b>
     «Установка цен» → вкладки «По месяцам» / «По ученикам»
     (<code>POST /admin/setting-prices/manual-paid</code>, право <code>setPrices.manualPaid.manage</code>;
-    на «По месяцам» при <code>mode=paid</code> ещё абонемент/сумма из карточки —
-    <a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс 2026‑09</a>)
+    На «По месяцам» unpaid→paid ещё абонемент/сумма из карточки —
+    <a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс 2026‑09</a>;
+    оплату при 0 ₽ ставить нельзя —
+    <a href="/doc#setting-prices-manual-paid-zero-price-index">анонс</a>)
     и «Дополнительные платежи»
     (<code>POST …/custom-payments/{id}/manual-paid</code>). Авто <code>is_paid</code> при ручной
     отметке <b>не</b> перезаписывается.
@@ -9597,7 +9844,7 @@
     <li><a href="/docs/documentation/dev-seed-data"><strong>Dev-фикстуры (SEED_DEV_DATA)</strong>: цепочка Dev*-сидеров, юр. лица/справочники/T‑Bank/history, GuardsDevSeedData, ограничения prod</a></li>
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank; только СБП — без «Других способов» и без «Выберите ниже», <a href="/doc#payment-vitrina-sbp-only-index">анонс</a>), публичная СБП месяца из писем уведомлений (<code>/pm/{code}</code>, <a href="/doc#payment-notifications-sbp-link-index">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
-    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, <b>корзина неоплаченного начисления бывшего</b> (<a href="/doc#setting-prices-monthly-former-charge-clear-index">анонс</a>), apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>), <b>абонемент и сумма из карточки при ручной оплате</b> (<a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>), <b>замена предоплаты в разложенном/оплаченном месяце</b> (<a href="/doc#setting-prices-flexible-replace-index">анонс</a>), <b>предоплата на оплаченный месяц без абонемента</b> (<a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>), <b>цену без абонемента ставить нельзя</b> (<a href="/doc#setting-prices-require-package-for-price-index">анонс</a>), <b>плашка группы только вместе со списком учеников</b> (<a href="/doc#setting-prices-monthly-team-select-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, <b>корзина неоплаченного начисления бывшего</b> (<a href="/doc#setting-prices-monthly-former-charge-clear-index">анонс</a>), apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>), <b>абонемент и сумма из карточки при ручной оплате</b> (<a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>), <b>ручную оплату при 0 ₽ ставить нельзя</b> (<a href="/doc#setting-prices-manual-paid-zero-price-index">анонс</a>), <b>замена предоплаты в разложенном/оплаченном месяце</b> (<a href="/doc#setting-prices-flexible-replace-index">анонс</a>), <b>предоплата на оплаченный месяц без абонемента</b> (<a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>), <b>цену без абонемента ставить нельзя</b> (<a href="/doc#setting-prices-require-package-for-price-index">анонс</a>), <b>плашка группы только вместе со списком учеников</b> (<a href="/doc#setting-prices-monthly-team-select-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, автособытия «ученик добавил группу» (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer) и <b>«договор подписан»</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>, только admin школы, 7 суток), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
     <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>оверлей «Пульт»</b> («Касса» — <a href="/doc#ops-till-missing-payout-index">анонс</a>, копирование строки — <a href="/doc#ops-row-copy-index">анонс</a>), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>карточка чужой школы</b> (<a href="/doc#chat-peer-card-cross-partner-index">анонс</a>: superadmin при живом общем треде, 403 <code>errors.user</code> по-русски), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>название партнёра в модалках</b> (<a href="/doc#chat-partner-name-index">анонс</a>: под ФИО в «Контакт» и под именем в «Группа», не вкладка «Аккаунт», не шапка), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>удаление своих сообщений</b> (<a href="/doc#chat-own-message-delete-index">анонс</a>: скрытое <code>messages.own.delete</code>, только автор, подтверждение), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
@@ -9617,7 +9864,7 @@
     <li><a href="/docs/documentation/settings-permission-groups">Матрица прав: группы permissions (permission_groups), аккордеон на «Права и роли», группа «Расписание школы» (<a href="/doc#school-schedule-permission-group-index">анонс</a>), группа «Оплата платформы» (<a href="/doc#platform-payments-methods-index">анонс</a>), ховер возможностей (<a href="/doc#permission-capability-hints-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/audit-my-logs">Аудит CRM (my_logs): AuditEvent, AuditLogger, колонки event/level</a></li>
     <li><a href="/docs/documentation/settings-logs">Настройки → Логи: вкладка журнала, фильтры, доступ, SUPERADMIN_ALL_OR_FILTER</a></li>
-    <li><a href="/docs/documentation/tbank">T‑Bank (мультирасчёты): глобальный терминал, комиссии (<b>«История»</b> — <a href="/doc#tbank-commissions-history-index">анонс</a>; <b>«Колонки»</b> / persist N на <code>/admin/settings/tbank-commissions</code> — <a href="/doc#tbank-commissions-columns-index">анонс</a>), автовыплата per метод, карточка платежа (организация, timeline; просмотр ещё по <code>reports.tbank.payments.view</code>), вкладка отчётов <a href="/doc#reports-tbank-payments-index">«Платежи T‑Bank»</a> (колонки «Чек» / «Комиссия платформы» — <a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>, фильтр «Не было выплаты» — <a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>, колонка «Статус выплаты» — <a href="/doc#reports-tbank-payments-payout-status-index">анонс</a>), пульт «Касса» без выплаты после задержки — <a href="/doc#ops-till-missing-payout-index">анонс</a>, workflow. Кошелёк и абонплата CRM — <a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a>, не этот терминал</a></li>
+    <li><a href="/docs/documentation/tbank">T‑Bank (мультирасчёты): глобальный терминал, комиссии (<b>«История»</b> — <a href="/doc#tbank-commissions-history-index">анонс</a>; <b>«Колонки»</b> / persist N на <code>/admin/settings/tbank-commissions</code> — <a href="/doc#tbank-commissions-columns-index">анонс</a>), автовыплата per метод, карточка платежа (организация, timeline; просмотр ещё по <code>reports.tbank.payments.view</code>; <b>CloseSpDeal</b> 4xx без 500 — <a href="/doc#tbank-deal-close-http-error-index">анонс</a>), вкладка отчётов <a href="/doc#reports-tbank-payments-index">«Платежи T‑Bank»</a> (колонки «Чек» / «Комиссия платформы» — <a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>, фильтр «Не было выплаты» — <a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>, колонка «Статус выплаты» — <a href="/doc#reports-tbank-payments-payout-status-index">анонс</a>), пульт «Касса» без выплаты после задержки — <a href="/doc#ops-till-missing-payout-index">анонс</a>, workflow. Кошелёк и абонплата CRM — <a href="/doc#tbank-acquiring-platform-index">обычный эквайринг</a>, не этот терминал</a></li>
     <li><a href="/docs/documentation/tbank-admin-payouts">T‑Bank: админка выплат (список, DataTables, колонка «Организация», <b>«Показать N»</b> / <code>page_length</code>, карточка, изоляция по партнёру)</a></li>
     <li><a href="/docs/documentation/tbank-refunds-payout-cancel">T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты</a></li>
     <li><a href="/docs/documentation/tbank#sbp-qr-ui">T‑Bank: СБП (QR) в интерфейсе — GetQr/Data, страница <code>/tinkoff/qr/…</code>, доступы</a></li>
@@ -9629,7 +9876,7 @@
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), <b>сумма неоплаченного месяца в колонке рубля</b> (<a href="/doc#journal-postpay-payment-due-index">анонс</a>), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = визиты с <code>consumes_lesson</code> × ставка, затем <b>скидка по снимку строки</b></a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <b>тип flexible в UI — «Предоплата»</b> — <a href="/doc#flexible-ui-label-index">анонс</a>; <b>автосписание</b> <code>auto_attendance_enabled</code> — чекбокс при <code>scheduleSlots.view</code>, <a href="/doc#lesson-package-auto-attendance-index">анонс</a>; <b>заморозка</b> шаблона — тот же <code>@can</code>, <a href="/doc#lesson-package-freeze-permission-index">анонс</a>; <b>срок действия</b> в модалке и таблице — <a href="/doc#lesson-package-duration-permission-index">анонс</a>; <b>edit fill</b> не затирает занятия/срок 8/30 — <a href="/doc#lesson-package-edit-fill-defaults-index">анонс</a>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, причина ошибки sms.ru в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь (<b>URL</b> — <code>lessonPackages.view</code>; <b>сайдбар</b> — <code>scheduleSlots.view</code>, не в базовом admin — <a href="/doc#school-schedule-permission-group-index">анонс группы</a>), фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, предоплата/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>; право скрытое), JSON/API, аудит «История»</a></li>
-    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; <b>локальный прелоадер таблицы</b> (§2.3, <a href="/doc#journal-table-preloader-index">анонс</a>); <b>таблица по содержимому</b> (§2.4, <a href="/doc#journal-table-content-width-index">анонс</a>); <b>пагинация 100</b> и серверный поиск <code>q</code> (§2.2, <a href="/doc#journal-pagination-index">анонс</a>); раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>предоплата</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Предоплата» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка / <b>сумма неоплаченной постоплаты</b> <code>{N}₽</code> — §5.2, <a href="/doc#journal-postpay-payment-due-index">анонс суммы</a>, <a href="/doc#journal-monthly-payment-check">анонс галочки</a>); <b>колонка «кол-во тренировок»</b> по <code>consumes_lesson</code> (§5.3, <a href="/doc#journal-consuming-count-column">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
+    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; <b>фильтр групп Select2</b> (несколько id = OR, §2.2.1, <a href="/doc#journal-team-filter-select2-index">анонс</a>); <b>локальный прелоадер таблицы</b> (§2.3, <a href="/doc#journal-table-preloader-index">анонс</a>); <b>таблица по содержимому</b> (§2.4, <a href="/doc#journal-table-content-width-index">анонс</a>); <b>пагинация 100</b> и серверный поиск <code>q</code> (§2.2, <a href="/doc#journal-pagination-index">анонс</a>); раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>предоплата</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Предоплата» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка / <b>сумма неоплаченной постоплаты</b> <code>{N}₽</code> — §5.2, <a href="/doc#journal-postpay-payment-due-index">анонс суммы</a>, <a href="/doc#journal-monthly-payment-check">анонс галочки</a>); <b>колонка «кол-во тренировок»</b> по <code>consumes_lesson</code> (§5.3, <a href="/doc#journal-consuming-count-column">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: схемы <code>classic</code>, <code>kansas</code> и <code>sales</code> («% от продаж», <a href="/doc#trainer-salary-sales-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#sales">§13</a> / <a href="/docs/documentation/schedule-trainer-salary#sales-percent-saved-flash">§13.1 подсветка %</a>), <b>типы тренера</b> (<a href="/doc#trainer-types-kansas-index">анонс</a>), <b>модалка «Настройки месяца»</b> и таблица черновика (<a href="/doc#trainer-salary-kansas-month-settings-index">анонс</a>), <b>целые средние Канзаса</b> (факт 15.1 → 16, база без дробей, <a href="/doc#trainer-salary-kansas-integer-averages-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#kansas-integer-averages">§12.1</a>), включение superadmin в матрице, смена схемы месяца без слепка, черновик, слепки vN / batch, <code>view</code>/<code>manage</code> — <a href="/doc#trainer-salary-kansas-index">анонс Канзаса</a></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>
@@ -9656,6 +9903,7 @@
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
     <li><a href="/docs/documentation/partner-self-registration"><strong>Саморегистрация школы с лендинга</strong>: кнопка «Регистрация» (школа, не ученик), <code>/partner/register</code>, native POST → 302 <code>/cabinet</code>, флаг <code>PARTNER_SELF_REGISTRATION_ENABLED</code>, заглушка при закрытии — <a href="/doc#partner-self-registration-index">анонс</a></a></li>
     <li><a href="/docs/documentation/session-lifetime"><strong>Сессия 30 дней / «Запомнить меня» / 403</strong>: дефолт <code>SESSION_LIFETIME=43200</code> (факт = env), галка на <code>/login</code> с первого GET, гостевой HTML 403 без <code>admin2</code>, Echo <code>/broadcasting/auth</code> 403 не 500 — <a href="/doc#session-lifetime-index">анонс</a></a></li>
+    <li><a href="/docs/documentation/password-reset"><strong>Сброс пароля</strong>: форма <code>/password/reset</code> (ссылка «Забыл пароль.» с <code>/login</code>), native <code>POST /password/email</code>, без <code>guest</code> middleware, 1062 на <code>password_reset_tokens</code> не 500 (успех как письмо ушло), кнопка <code>disabled</code> в <code>setTimeout(0)</code> — <a href="/doc#password-reset-unique-index">анонс</a></a></li>
     <li><a href="/docs/documentation/tests-standards">Требования к единообразию Feature‑тестов (партнёр, авторизация, права, <b>фикстуры юр. лиц T‑Bank/CloudKassir</b>, <b>лог последнего PHPUnit</b> — <a href="/doc#phpunit-last-log-index">анонс</a>)</a></li>
   </ul>
 

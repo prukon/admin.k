@@ -107,7 +107,13 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $html = (string) $page->getContent();
 
         $page->assertSee($student->full_name, false);
-        $this->assertFilterOptionSelected($html, 'all');
+        $this->assertStringContainsString('data-placeholder="Все группы"', $html);
+        $this->assertTrue(
+            (bool) preg_match('/<select[^>]*id="filter-team"[^>]*>(.*?)<\/select>/s', $html, $teamSelect),
+            'Селект фильтра группы'
+        );
+        $this->assertStringNotContainsString('selected', $teamSelect[1]);
+        $this->assertStringNotContainsString('value="all"', $teamSelect[1]);
         $cell = $this->paymentCellHtml($html, (int) $student->id);
         $this->assertNotSame('', $cell);
         $this->assertStringContainsString('data-journal-payment-status="partial"', $cell);

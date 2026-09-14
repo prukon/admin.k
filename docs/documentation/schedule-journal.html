@@ -75,6 +75,15 @@
   </div>
 
   <div class="ok">
+    <strong>Фильтр групп Select2 (2026‑09).</strong>
+    Несколько групп, чекбоксы и поиск — <code>KidsCrmGenericMultiselectSelect2</code>
+    как «Тренеры» в редактировании группы. Пусто — все; <code>none</code> — без группы;
+    несколько id — OR. GET <code>team_ids[]</code>, legacy <code>?team=</code>.
+    Применение при закрытии dropdown. Подробно — <a href="#journal-team-filter">§2.2.1</a>;
+    анонс — <a href="/doc#journal-team-filter-select2-index">/doc</a>.
+  </div>
+
+  <div class="ok">
     <strong>Пагинация списка и поиск <code>q</code> (2026‑08).</strong>
     Таблица журнала — по 100 учеников текущей выборки (фильтры + ФИО), не все сразу.
     Занятия и абонементы грузятся только для страницы.     «Найти» и Enter в поле — серверный GET без hidden <code>page</code>; автопоиска при вводе нет.
@@ -128,7 +137,7 @@
   <div class="note">
     Право <code>groups.own</code> (не в базовых ролях): селект групп журнала — только <code>team_trainer</code> актора;
     режим «Все группы» — только ученики этих групп; «Без группы» (<code>team=none</code>) — ученики без pivot, не режется правом.
-    Чужой <code>?team=</code>: AJAX/JSON — 422 «Выберите группу из списка.»; native GET — 302 + <code>errors.team</code>
+    Чужой <code>?team=</code> / <code>team_ids[]</code>: AJAX/JSON — 422 «Выберите группу из списка.»; native GET — 302 + <code>errors.team</code> / <code>errors.team_ids.*</code>
     (не 200 с чужими учениками). Sync групп ученика в журнале — тот же merge скрытых <code>team_ids</code>.
     Подробно — <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>.
   </div>
@@ -202,7 +211,7 @@
   <h3>Реализация</h3>
   <ul>
     <li>Scope модели <code>User::scopeWithSystemRoleUser()</code> — <code>whereHas('role')</code> с <code>name = user</code> и <code>is_sistem = true</code>.</li>
-    <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>all</code> / <code>none</code> / id) и поиск <code>q</code> — по pivot <code>team_user</code> (<code>User::filterByStudentTeam</code>) и ФИО. Список учеников пагинируется, занятия и абонементы грузятся только для текущей страницы — см. <a href="#journal-pagination">§2.2</a>.</li>
+    <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>team_ids[]</code>: пусто = все, <code>none</code>, один или несколько id — OR; legacy <code>team=all|none|id</code>) и поиск <code>q</code> — по pivot <code>team_user</code> (<code>UserTeamQuery::applyJournalTeamFilter</code>) и ФИО. Список учеников пагинируется, занятия и абонементы грузятся только для текущей страницы — см. <a href="#journal-pagination">§2.2</a>, фильтр групп — <a href="#journal-team-filter">§2.2.1</a>.</li>
     <li>API: <code>findScheduleStudentForPartner()</code> и <code>assertScheduleStudent()</code> — те же условия; иначе <b>404</b>.</li>
   </ul>
   <p>
@@ -240,9 +249,9 @@
     <tbody>
       <tr><td>Больше 100 учеников в выборке</td><td>Пейджер <code>.schedule-journal-pagination</code> внутри <code>.schedule-journal-table-stack</code> («Показаны N–M из K учеников» слева + Laravel links справа <b>по ширине таблицы</b>, не экрана). Номера строк — <code>$users-&gt;firstItem() + $index</code> (на стр. 2 первая строка = 101).</td></tr>
       <tr><td>100 и меньше</td><td>Пейджера нет: не навязываем блок «из N учеников» и не рисуем <code>page=2</code>.</td></tr>
-      <tr><td>Поиск</td><td>GET-форма «Найти» и Enter в поле <code>q</code> — серверный поиск по всей выборке (фамилия / имя / склейка ФИО; max 191, trim). Скрытые <code>year</code> / <code>month</code> / <code>team</code> (и <code>fullscreen=1</code>, если уже в URL). <b>Нет</b> hidden <code>page</code>: поиск со 2-й страницы открывает 1-ю страницу совпадений. Автопоиска при вводе нет. DataTables (<code>paging: false</code>) — только сортировка колонок на текущей странице.</td></tr>
-      <tr><td>Смена года / месяца / группы</td><td>Полный GET (<code>window.location.href</code>). Обе копии JS (<code>resources/js/schedule.js</code> и hotfix <code>public/js/schedule-journal.js</code>) делают <code>searchParams.delete('page')</code> после <code>set('team')</code> и <b>не</b> удаляют <code>q</code>.</td></tr>
-      <tr><td>Валидация</td><td><code>GetScheduleJournalIndexRequest</code>: HTML GET → 302 + session <code>errors[field]</code> под фильтром; JSON (<code>Accept: application/json</code>) → <b>422</b> <code>errors.year|month|team|q|page</code>. Пустой <code>team</code> → <code>all</code>. <code>POST/PATCH/DELETE /schedule</code> → 405, не 500.</td></tr>
+      <tr><td>Поиск</td><td>GET-форма «Найти» и Enter в поле <code>q</code> — серверный поиск по всей выборке (фамилия / имя / склейка ФИО; max 191, trim). Скрытые <code>year</code> / <code>month</code> / <code>team_ids[]</code> (и <code>fullscreen=1</code>, если уже в URL). Пустой фильтр групп — hidden <code>team_ids[]</code> нет. <b>Нет</b> hidden <code>page</code>: поиск со 2-й страницы открывает 1-ю страницу совпадений. Автопоиска при вводе нет. DataTables (<code>paging: false</code>) — только сортировка колонок на текущей странице.</td></tr>
+      <tr><td>Смена года / месяца / группы</td><td>Полный GET (<code>window.location.href</code>). Год и месяц — по <code>change</code>. Группы — после <code>select2:close</code> / <code>select2:clear</code>, если набор изменился (не по каждому чекбоксу). Обе копии JS (<code>resources/js/schedule.js</code> и hotfix <code>public/js/schedule-journal.js</code>) пишут <code>team_ids[]</code>, делают <code>searchParams.delete('page')</code> и <b>не</b> удаляют <code>q</code>.</td></tr>
+      <tr><td>Валидация</td><td><code>GetScheduleJournalIndexRequest</code>: HTML GET → 302 + session <code>errors[field]</code> под фильтром; JSON (<code>Accept: application/json</code>) → <b>422</b> <code>errors.year|month|team|team_ids.*|q|page</code>. Пустой <code>team</code> / пустой <code>team_ids[]</code> → все группы. <code>POST/PATCH/DELETE /schedule</code> → 405, не 500.</td></tr>
     </tbody>
   </table>
   <p class="small">
@@ -254,7 +263,59 @@
     <code>ScheduleJournalSearchFeatureTest</code>,
     <code>ScheduleJournalSearchAccessFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest::test_schedule_journal_pagination_and_search_js_contract</code>
-    (<code>node --check</code> обеих копий JS + контракт: нет keyup/автопоиска, сброс <code>page</code> при смене фильтра).
+    (<code>node --check</code> обеих копий JS + контракт: нет keyup/автопоиска, сброс <code>page</code> при смене фильтра),
+    <code>ScheduleJournalTeamFilterSelect2FeatureTest</code> (§<a href="#journal-team-filter">2.2.1</a>),
+    <code>ScheduleJournalTeamFilterSelect2AccessFeatureTest</code>,
+    <code>ScheduleJournalTeamFilterSelect2AjaxContractFeatureTest</code>,
+    <code>ScheduleJournalTeamFilterSelect2NonAjaxSafetyNetFeatureTest</code>,
+    <code>ScheduleJournalTeamFilterSelect2FullAccessFeatureTest</code>,
+    <code>ScheduleJournalTeamFilterSelect2UiContractsFeatureTest</code>.
+  </p>
+
+  <h2 id="journal-team-filter">2.2.1) Фильтр групп (Select2 generic-multiselect)</h2>
+  <p>
+    Тот же include <code>partials.select2.generic-multiselect</code> и API
+    <code>KidsCrmGenericMultiselectSelect2</code>, что поле «Тренеры» в модалке
+    «Редактирование группы» на <code>/admin/teams</code> (чекбоксы в dropdown, чипы, поиск).
+    Include уже на <code>admin/schedule/index.blade.php</code> (тренеры в модалках ячейки).
+  </p>
+  <table>
+    <thead>
+      <tr><th>Выбор</th><th>URL</th><th>Ученики</th><th>Занятия / оплата / постоплата</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Пусто (плейсхолдер «Все группы»)</td><td>без <code>team_ids</code></td><td>как раньше «все», с учётом <code>groups.own</code></td><td>без сужения по группе; колонка оплаты — режим «все группы»</td></tr>
+      <tr><td>«Без группы»</td><td><code>team_ids[]=none</code> или legacy <code>team=none</code></td><td>без pivot <code>team_user</code>, право <code>groups.own</code> не режет</td><td>занятия не сужаются; колонка оплаты пустая</td></tr>
+      <tr><td>Одна группа</td><td><code>team_ids[]={id}</code> или <code>team={id}</code></td><td>состоят в этой группе</td><td><code>where</code> этой группы; оплата как одна группа; дни недели этой группы</td></tr>
+      <tr><td>Несколько id</td><td>несколько <code>team_ids[]</code></td><td>хотя бы одна из выбранных (OR, не AND)</td><td><code>whereIn</code>; оплата как «все», но только выбранные; дни недели — объединение</td></tr>
+      <tr><td><code>none</code> + id</td><td>оба токена</td><td>без группы <b>или</b> в выбранных</td><td>занятия по выбранным id; оплата — all-like по этим id</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Применение: год/месяц — <code>change</code>; группы — <code>select2:close</code> и <code>select2:clear</code>, если набор изменился. Кнопки «Применить» нет.</li>
+    <li>Поле фильтра <b>фиксированной ширины</b> (<code>320px</code>, ≤768px — 100% строки). Высота <code>auto</code> — чипы переносятся внутри этой ширины. Нативный <code>&lt;select multiple&gt;</code> скрыт (<code>opacity: 0</code>), пока нет <code>.select2-container</code>; <code>initScheduleJournalTeamFilter()</code> в обеих копиях JS вызывается <b>до</b> DataTable, чтобы полный GET не показывал дефолтный listbox ~1с. CSS: <code>schedule.css</code>, hotfix <code>schedule-journal-cells.css</code>, inline в <code>index.blade.php</code>.</li>
+    <li>AJAX ячеек: <code>journal_team_ids[]</code> + legacy <code>journal_team_filter</code> (скаляр all/none/один id).</li>
+    <li>Контекст модалки (<code>context_team_id</code>): ровно одна выбранная группа — она; иначе пересечение с группами ученика / первая группа.</li>
+    <li>Объект фильтра: <code>App\Support\Schedule\ScheduleJournalTeamFilter</code>.</li>
+  </ul>
+  <p class="small">
+    Тесты: <code>ScheduleJournalTeamFilterSelect2FeatureTest</code>
+    (OR, пустой фильтр ≠ пустая таблица, занятия/оплата/дни недели, пейджер и вкладка сохраняют <code>team_ids[]</code>,
+    422/302 под полем),
+    <code>ScheduleJournalTeamFilterSelect2AccessFeatureTest</code> (гость / без <code>schedule.view</code> / 405),
+    <code>ScheduleJournalTeamFilterSelect2AjaxContractFeatureTest</code>
+    (<code>journal_team_ids[]</code> важнее legacy <code>journal_team_filter=all</code> при нескольких группах),
+    <code>ScheduleJournalTeamFilterSelect2NonAjaxSafetyNetFeatureTest</code>,
+    <code>ScheduleJournalTeamFilterSelect2FullAccessFeatureTest</code>,
+    <code>ScheduleJournalTeamFilterSelect2UiContractsFeatureTest</code>
+    (первый HTML без selected, apply on <code>select2:close</code>, нет кнопки «Применить»),
+    <code>ScheduleJournalTeamFilterTest</code>,
+    <code>TrainerOwnTeamsMarkupFeatureTest</code> / <code>TrainerOwnTeamsAjaxContractFeatureTest</code>
+    / <code>TrainerOwnTeamsNonAjaxSafetyNetFeatureTest</code>
+    (журнал без опции <code>all</code>, selected на own/none, чужой <code>team_ids[]</code> — 422/302),
+    <code>GenericMultiselectFullAccessFeatureTest::test_schedule_journal_team_filter_uses_generic_multiselect</code>,
+    <code>BladeInlineJsSyntaxTest::test_schedule_journal_team_filter_select2_apply_on_close_js_contract</code>.
+    Анонс — <a href="/doc#journal-team-filter-select2-index">/doc</a>.
   </p>
 
   <h2 id="journal-table-preloader">2.3) Локальный прелоадер таблицы журнала</h2>
@@ -318,7 +379,11 @@
       <code>#schedule-table_wrapper</code> <code>max-content; min-width: 0; margin: 0</code>;
       в overlay и при <code>body.layout-wide</code> — те же селекторы с
       <code>width: 100%</code>, <code>.schedule-day-header</code> / <code>td.schedule-cell</code>
-      <code>width: auto</code>.</li>
+      <code>width: auto</code>.
+      Кабинет на <code>/schedule</code> остаётся
+      <code>.wrapper { max-width: 1280px }</code> (как остальные страницы).
+      Hotfix <code>schedule-journal-cells.css</code> перебивает stale Vite-бандл,
+      который растягивал колонку на ширину окна.</li>
     <li><b>JS</b> (обе копии): DataTables <code>autoWidth: false</code>. После клика
       <code>#btn-fullscreen</code> — <code>table.columns.adjust()</code>.
       <code>#layout-wide-toggle</code> уже вызывает <code>columns.adjust()</code> на видимых таблицах.</li>
@@ -580,6 +645,9 @@
     <b>Оплаченная</b> постоплата — зелёная галочка, как обычный месяц.
     Ноль визитов (<code>price_cents = 0</code>) — пусто.
     Обычный неоплаченный месяц (не postpay) — по-прежнему пусто.
+    Новую ручную оплату при 0 ₽ установка цен больше не ставит
+    (<a href="/doc#setting-prices-manual-paid-zero-price-index">анонс</a>);
+    уже существующие нулевые строки с <code>is_manual_paid</code> журнал не считает начислением.
     Ховер галочки — <code>@include('partials.ui.tooltip-hint')</code>
     (KidsCrmTooltip, scope <code>hint</code>, уже на <code>#schedule-table</code>).
     Маркер в DOM: <code>data-journal-payment-status="paid|partial|due"</code>.
@@ -609,6 +677,7 @@
       <tr><td>«Все группы»</td><td>Два и больше начислений, все оплачены</td><td>зелёная галочка</td><td>«Все группы оплачены»</td></tr>
       <tr><td>«Все группы»</td><td>Часть оплачена, среди неоплаченных есть постоплата</td><td>сумма неоплаченной постоплаты</td><td>«Оплачено: …» / «Не оплачено: …»</td></tr>
       <tr><td>«Все группы»</td><td>Часть оплачена, неоплаченные не postpay</td><td>жёлтая галочка</td><td>«Оплачено: …» + перевод строки + «Не оплачено: …» (названия групп через запятую; порядок <code>teams.order_by</code>, title; нет названия — «Группа»)</td></tr>
+      <tr><td>Несколько выбранных <code>team_ids[]</code></td><td>как «Все группы», но только начисления выбранных id</td><td>то же</td><td>то же</td></tr>
       <tr><td>Конкретная группа</td><td>Начисление этой группы оплачено</td><td>зелёная галочка</td><td>нет</td></tr>
       <tr><td>Конкретная группа</td><td>Неоплаченная постоплата этой группы, <code>price_cents &gt; 0</code></td><td>сумма <code>{N}₽</code></td><td>—</td></tr>
       <tr><td>Конкретная группа</td><td>Не оплачено (не postpay) / нет начисления / <code>price_cents = 0</code></td><td>пусто</td><td>—</td></tr>
@@ -657,8 +726,9 @@
     (§5.2, только postpay-визиты своей группы).
     Ноль — пустая ячейка (<code>data-journal-consuming-count="0"</code>,
     <code>data-order="0"</code>).
-    Фильтр группы совпадает с <b>днями</b> таблицы (не с галочкой оплаты §5.2):
-    id группы — только её UTSS; <code>all</code> — сумма; <code>none</code> —
+    Фильтр группы совпадает с <b>днями</b> таблицы (не с галочкой оплаты §5.2 при одной группе):
+    один id — только её UTSS; несколько id — <code>whereIn</code> выбранных;
+    пустой фильтр — сумма видимых групп; <code>none</code> —
     без доп. фильтра по <code>team_id</code>.
     Данные — из уже загруженных <code>$journalOccurrences</code>
     (<code>ScheduleJournalMonthService::consumingCountsByUser</code>).
@@ -671,8 +741,9 @@
     После AJAX <code>POST /schedule/update</code>, постановки предоплаты / пробного / разового
     и <code>DELETE /schedule/occurrence/{utss}</code> ответ содержит
     <code>result.consuming_count</code> (пересчёт за месяц с учётом
-    <code>journal_team_filter</code> = текущий <code>#filter-team</code>;
-    нечисловой мусор, кроме <code>none</code>, → <code>all</code>).
+    <code>journal_team_ids[]</code> (набор из <code>#filter-team</code>) и legacy
+    <code>journal_team_filter</code>; при нескольких группах сервер берёт массив id,
+    не скаляр <code>all</code>. Нечисловой мусор в legacy-скаляре, кроме <code>none</code>, → <code>all</code>).
     JS (<code>applyJournalConsumingCount</code> в <code>schedule.js</code>
     и hotfix <code>schedule-journal.js</code>) пишет число в
     <code>td.schedule-consuming-count</code> без reload, обновляет
@@ -1371,7 +1442,7 @@
       <li><code>resources/js/schedule.js</code> — AJAX ячеек (update/delete без reload), place-fixed, place-flexible,
       empty-cell place-trial/place-single; мультиселект тренеров;
       CRUD статусов — inline JS в partial; hotfix <code>public/js/schedule-journal.js</code></li>
-      <li><code>resources/css/schedule.css</code>, hotfix <code>public/css/schedule-journal-cells.css</code> —
+      <li>      <code>resources/css/schedule.css</code>, hotfix <code>public/css/schedule-journal-cells.css</code> —
         ячейки статусов, ширина таблицы журнала §<a href="#journal-table-content-width">2.4</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы</a> — тот же контур + время</li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы</a> — назначения, автосписание</li>

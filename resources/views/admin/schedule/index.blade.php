@@ -46,6 +46,50 @@
     <link rel="stylesheet" href="{{ asset('css/schedule-journal-cells.css') }}?v={{ @filemtime(public_path('css/schedule-journal-cells.css')) ?: time() }}">
     @if(($activeTab ?? 'journal') === 'journal')
         <style>
+            .schedule-fullscreen-wrapper .wrap-filter-team {
+                width: 320px;
+                min-width: 320px;
+                max-width: 320px;
+                min-height: calc(2.25rem + 2px);
+            }
+            .schedule-fullscreen-wrapper .wrap-filter-team:not(:has(.select2-container)) {
+                background: #f8fafc;
+                border: 1px solid #ced4da;
+                border-radius: var(--bs-border-radius, 0.375rem);
+            }
+            .schedule-fullscreen-wrapper .wrap-filter-team > select.schedule-filter-team:not(.select2-hidden-accessible) {
+                height: calc(2.25rem + 2px) !important;
+                min-height: calc(2.25rem + 2px) !important;
+                max-height: calc(2.25rem + 2px) !important;
+                overflow: hidden !important;
+                opacity: 0;
+                pointer-events: none;
+            }
+            .schedule-fullscreen-wrapper .wrap-filter-team .select2-container {
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: 100%;
+            }
+            .schedule-fullscreen-wrapper .wrap-filter-team.generic-multiselect-field .select2-container--bootstrap-5 .select2-selection.select2-selection--multiple {
+                height: auto !important;
+                min-height: calc(2.25rem + 2px) !important;
+                overflow: visible !important;
+            }
+            .schedule-fullscreen-wrapper .wrap-filter-team .select2-container .select2-selection__rendered {
+                flex-wrap: wrap !important;
+                overflow: visible !important;
+            }
+            .schedule-fullscreen-wrapper .wrap-filter-team .select2-selection__choice {
+                max-width: 100%;
+                white-space: normal !important;
+            }
+            @media only screen and (max-width: 768px) {
+                .schedule-fullscreen-wrapper .wrap-filter-team {
+                    min-width: 160px;
+                    width: 100%;
+                    max-width: 100%;
+                }
+            }
             #schedule-journal-stage {
                 position: relative;
             }
@@ -101,6 +145,24 @@
                 min-height: 0;
                 height: auto;
                 overflow: auto;
+            }
+            /* Vite-бандл ещё ставит .wrapper { max-width: 100% } на /schedule — вернуть 1280px. */
+            body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper {
+                max-width: 1280px;
+                overflow-x: visible;
+            }
+            body.layout-wide:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper {
+                max-width: none;
+                width: 100%;
+            }
+            body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content-wrapper,
+            body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content,
+            body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .container-fluid,
+            body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .schedule-section,
+            body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .tab-content,
+            .schedule-fullscreen-wrapper:not(.fullscreen) {
+                max-width: none;
+                overflow-x: visible;
             }
             /* Не резинить колонки; не центрировать: DataTables table.dataTable { margin: 0 auto },
                style.css .dataTables_wrapper { min-width: 100% }.

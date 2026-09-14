@@ -79,9 +79,14 @@
     <br><br>
     <b>Ручная оплата и абонемент в карточке:</b> на «По месяцам» смена статуса
     «неоплачено → оплачено» сохраняет выбранный в селекте абонемент и сумму
-    (apply до флажка <code>is_manual_paid</code>). Анонс —
+    (apply до флажка <code>is_manual_paid</code>).
+    Ручную оплату при итоговых 0 ₽ ставить нельзя
+    (422 на поле цены; снять отметку при нуле можно).
+    Анонс —
+    <a href="/doc#setting-prices-manual-paid-zero-price-index">/doc#setting-prices-manual-paid-zero-price-index</a>,
+    карточка unpaid→paid —
     <a href="/doc#setting-prices-monthly-manual-paid-card-index">/doc</a>, подробно —
-    <a href="#manual-paid-card">§4.0</a>.
+    <a href="#manual-paid-card">§4.0</a> / <a href="#manual-paid-zero-price">§4.0.1</a>.
     <br><br>
     <b>Выбор группы на «По месяцам»:</b> оранжевая плашка слева появляется
     только вместе со списком учеников справа (пульс строки без спиннера у селекта,
@@ -370,7 +375,7 @@
       Слева (<code>set-team-price</code> / <code>set-price-all-teams</code>) абонемент группы и так обязателен
       («Выберите абонемент для группы.») — это правило туда не ставили.</li>
     <li>Цена <code>&gt; 0</code> и нет абонемента → <b>422</b> на поле пакета,
-      текст «Нельзя установить цену без абонемента.» под селектом
+      текст «Нельзя установить цену без абонемента.» под строкой карточки
       (<code>setting-prices-monthly-package-error</code>).</li>
     <li>Цена <code>0</code> + «Без абонемента» — снятие начисления, <b>200</b>.</li>
     <li>Историческая строка (сумма уже стоит, пакета нет): тот же payload — no-op <b>200</b>;
@@ -383,7 +388,7 @@
     <li>UI: без абонемента поле цены disabled; снятие абона на неоплаченном обнуляет сумму;
       оплаченный месяц при снятии абона сумму не обнуляет; после выбора шаблона подставляется каталог (кроме оплаченного).
       Vite «По месяцам»: «Применить» справа и карандаш; вкладка «По ученикам»: карточка месяца и «Применить» за год —
-      оба пути шлют <code>lesson_package_id</code> и рисуют 422 под селектом.</li>
+      оба пути шлют <code>lesson_package_id</code> и рисуют 422 под строкой карточки.</li>
     <li>Массовое «Применить» справа: ошибка Request на одной строке валит весь POST
       (в отличие от ULP-sync 422 в контроллере, где остальные строки сохраняются).</li>
     <li>Ручная отметка оплаты (<code>POST …/manual-paid</code>) это правило не дублирует.</li>
@@ -477,7 +482,7 @@
           Как Apply справа: предоплата→предоплата и пусто→предоплата на оплаченном
           (сумма заморожена); объём &lt; списанного → <b>422</b>
           <code>errors.prices.{i}.lesson_package_id</code>
-          (фронт рисует под селектом).
+          (фронт рисует под строкой карточки).
           Цена &gt; 0 без абонемента — FormRequest (§ <a href="#require-package-for-price">3.3</a>):
           <b>422</b> на том же поле («Нельзя установить цену без абонемента.»),
           до контроллера / ULP-sync</td>
@@ -489,6 +494,8 @@
         <td>Нужны <code>setPrices.manualPaid.manage</code> + членство. Бывший → <b>422</b>.
           Пишет <code>is_manual_paid</code> / note / by / at, <b>не</b> трогает авто <code>is_paid</code>.
           Опционально <code>lesson_package_id</code> и <code>price</code> — см. §<a href="#manual-paid-card">manual-paid карточка</a>.
+          <code>mode=paid</code> при итоговых 0 ₽ → <b>422</b> <code>errors.price</code>
+          («Нельзя отметить оплату при стоимости 0 ₽.»); <code>mode=unpaid</code> при нуле можно.
           Правило «цена &gt; 0 только с абонементом» (§ <a href="#require-package-for-price">3.3</a>) сюда не ставили.
           См. §<a href="#manual-paid-debts">manual-paid → задолженности</a></td>
       </tr>
@@ -516,10 +523,16 @@
     <b>до флажка оплаты</b>, затем пишет <code>is_manual_paid</code>.
     Если apply даёт <b>422</b> (в т.ч. <code>errors.lesson_package_id</code> / <code>errors.price</code>,
     разложенный не-prepaid, объём предоплаты меньше списанного) —
-    статус не ставится. Фронт показывает тексты под селектом абонемента
-    (<code>setting-prices-monthly-package-error</code>) и полем цены
-    (<code>setting-prices-monthly-price-error</code>);
+    статус не ставится. После apply (или без полей карточки — по текущей строке)
+    <code>mode=paid</code> при итоговых <code>price_cents = 0</code> → <b>422</b>
+    <code>errors.price</code> «Нельзя отметить оплату при стоимости 0 ₽.»;
+    apply в той же транзакции откатывается, флажок не пишется.
+    <code>mode=unpaid</code> при 0 ₽ можно (снять ошибочную отметку).
+    Фронт показывает тексты под строкой карточки
+    (<code>setting-prices-monthly-package-error</code> /
+    <code>setting-prices-monthly-price-error</code>), селект оплаты не сдвигается;
     <code>errors.comment</code> / <code>errors.record</code> — в <code>.manual-paid-error</code>.
+    На вкладке «По ученикам» те же блоки тоже под строкой месяца.
     <code>mode=unpaid</code> поля карточки игнорирует (снятие оплаты не применяет абонемент/сумму).
     Селект абонемента у оплаченного месяца на Apply остаётся доступным
     (замена предоплаты — <a href="/doc#setting-prices-flexible-replace-index">анонс</a>;
@@ -537,12 +550,46 @@
     Анонс — <a href="/doc#setting-prices-monthly-manual-paid-card-index">/doc#setting-prices-monthly-manual-paid-card-index</a>.
   </div>
 
+  <h3 id="manual-paid-zero-price">4.0.1) Нельзя отметить оплату при 0 ₽</h3>
+  <div class="ok">
+    Смотрите сумму в поле карточки, не «что в БД до apply».
+    <code>mode=paid</code> при итоговых 0 ₽ → <b>422</b>
+    <code>errors.price</code> «Нельзя отметить оплату при стоимости 0 ₽.»
+    (<code>SetManualUserPricePaidRequest::ZERO_PRICE_MESSAGE</code>).
+    На «По месяцам» <code>postManualPaid</code> при <code>mode=paid</code> всегда кладёт
+    <code>payload.price</code> (пустое поле → <code>0</code>); ошибка — под строкой карточки
+    (<code>setting-prices-monthly-price-error</code>), селект оплаты не уезжает вправо,
+    колонка не пересобирается.
+    На «По ученикам» <code>postManualPaidForUser</code> цену <b>не</b> шлёт: сервер берёт
+    сохранённые <code>price_cents</code>; <code>errors.price</code> тоже под строкой месяца,
+    toast не показывается. Если в поле 9800 ₽ — оплата проходит (apply пишет сумму, затем флажок).
+    <code>mode=unpaid</code> при 0 ₽ можно (снять ошибочную отметку).
+    Карандаш при 0 ₽ с абонементом остаётся (<code>hasAbon</code>, не «цена &gt; 0») — иначе нельзя снять флажок.
+    Журнал по-прежнему не рисует галочку на нулевой сумме
+    (<a href="/docs/documentation/schedule-journal#payment-column">§5.2</a>).
+    Задолженности тоже берут только <code>price_cents &gt; 0</code>.
+    Старые строки 0 ₽ + ручная оплата не мигрировали.
+    Анонс — <a href="/doc#setting-prices-manual-paid-zero-price-index">/doc#setting-prices-manual-paid-zero-price-index</a>.
+    Пакет тестов: <code>SettingPricesManualPaidZeroPriceFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceAccessFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceAjaxContractFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceNonAjaxSafetyNetFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceMarkupFeatureTest</code>,
+    <code>SettingPricesManualPaidZeroPriceJsContractTest</code>,
+    <code>SettingPricesManualPaidZeroPriceDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_manual_paid_zero_price_error_under_price_field_ux_contract</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_users_tab_manual_paid_zero_price_error_under_price_field_ux_contract</code>.
+  </div>
+
   <h2 id="manual-paid-debts">4.1) Ручная оплата месяца и отчёт «Задолженности»</h2>
   <div class="ok">
     Отчёт <code>/admin/reports/debts</code> считает долг по <code>effective_is_paid</code>
     (ручной override важнее webhook <code>is_paid</code>). После успешного
     <code>POST …/manual-paid</code> с <code>mode=paid</code> месяц исчезает из таблицы и из
     <code>debts/total</code>; с <code>mode=unpaid</code> при авто <code>is_paid=1</code> — снова появляется.
+    Месячные долги — только <code>price_cents &gt; 0</code>: нулевая строка в отчёт не попадает,
+    даже с ручным флажком. Новую оплату при 0 ₽ установка цен больше не ставит
+    (<a href="/doc#setting-prices-manual-paid-zero-price-index">анонс</a>).
     Подробно: <a href="/docs/documentation/reports-admin#debts-effective-is-paid">reports-admin §3.1</a>,
     поля — <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>.
   </div>
@@ -632,7 +679,7 @@
       вкладка «По ученикам»: wrapper + inline JS, цена открыта только при <code>hasAbon</code></li>
     <li><code>SettingPricesRequirePackageForPriceJsContractTest</code> — UX-баг: цена disabled без абона
       (<code>hasAbon</code>, не <code>!canManage || !hasAbon</code>); снятие обнуляет только неоплаченный;
-      422 под селектом на «Применить» и карандаше; оба пути save на «По ученикам»</li>
+      422 под строкой карточки на «Применить» и карандаше; оба пути save на «По ученикам»</li>
     <li><code>SettingPricesRequirePackageForPositivePriceTest</code> — helper: новая сумма без пакета / смена legacy / с пакетом / legacy no-op / ноль / ключ пакета отсутствует</li>
     <li><code>BladeInlineJsSyntaxTest::test_setting_prices_require_package_for_price_ux_contract</code> — <code>node --check</code> Vite + inline users, оба пути save</li>
     <li><code>SettingPricesRequirePackageForPriceDocumentationContractTest</code> — §require-package-for-price и анонс <code>/doc#setting-prices-require-package-for-price-index</code></li>
@@ -667,7 +714,7 @@
     <li><code>SettingPricesFlexibleReplaceNonAjaxSafetyNetFeatureTest</code> — HTML POST без AJAX: 302 + БД;
       объём/неизвестный пакет → 302 + session errors по полю</li>
     <li><code>SettingPricesFlexibleReplaceMarkupFeatureTest</code> — первый HTML monthly без карточек (рисует Vite);
-      вкладка «По ученикам»: селект оплаченного не disabled, ошибка под селектом</li>
+      вкладка «По ученикам»: селект оплаченного не disabled, ошибка под строкой карточки</li>
     <li><code>SettingPricesFlexibleReplaceJsContractTest</code> — UX-баг: <code>packageSelectDisabled = ''</code>,
       <code>if (pkg &amp;&amp; !isPaid)</code>, оба пути save на «По ученикам» шлют пакет у оплаченного</li>
     <li><code>BladeInlineJsSyntaxTest::test_setting_prices_flexible_replace_paid_select_ux_contract</code> —
@@ -690,14 +737,17 @@
     <li><code>SettingPricesMonthlyManualPaidAppliesPackageFeatureTest</code> — UX-баг: смена абонемента в селекте
       без Apply, затем «оплачено» сохраняет ромашку+сумму; без полей — только статус;
       <code>mode=unpaid</code> пакет игнорирует; 422 на пакет/цену/разложенный ULP не ставит оплату;
-      тот же уже назначенный пакет можно повторить без права на тип</li>
+      тот же уже назначенный пакет можно повторить без права на тип;
+      <code>mode=paid</code> при 0 ₽ → 422 <code>errors.price</code> (карточка с 0 откатывает apply);
+      нулевая строка + цена из карточки — apply и оплата; <code>mode=unpaid</code> при 0 ₽ снимает флажок</li>
     <li><code>SettingPricesMonthlyManualPaidPackageAccessFeatureTest</code> — guest / 403 без view / 403 без
       <code>manualPaid.manage</code> / 200 с правами; GET/PATCH/DELETE → 404/405; чужой ученик → 404</li>
     <li><code>SettingPricesMonthlyManualPaidPackageAjaxContractFeatureTest</code> — JSON с
       <code>X-Requested-With</code>; 422 <code>errors.comment</code> / <code>team_id</code> /
-      <code>mode</code> / <code>lesson_package_id</code> / <code>price</code> с текстами Request</li>
+      <code>mode</code> / <code>lesson_package_id</code> / <code>price</code> с текстами Request
+      (в т.ч. «Нельзя отметить оплату при стоимости 0 ₽.»)</li>
     <li><code>SettingPricesMonthlyManualPaidPackageNonAjaxSafetyNetFeatureTest</code> — POST без AJAX:
-      302 + БД (абонемент и оплата); невалидный пакет/цена/комментарий — 302 + session errors, без оплаты</li>
+      302 + БД (абонемент и оплата); невалидный пакет/цена/комментарий / 0 ₽ paid — 302 + session errors, без оплаты</li>
     <li><code>SettingPricesMonthlyManualPaidPackageMarkupFeatureTest</code> — модалка комментария на «По месяцам»
       (стандартный <code>modal-dialog</code>); вкладка «По ученикам» без monthly Vite-модуля карточки</li>
     <li><code>SettingPricesMonthlyManualPaidPackageJsContractTest</code> —
@@ -743,6 +793,30 @@
       <code>/doc#setting-prices-monthly-manual-paid-card-index</code> совпадают с кодом</li>
     <li><code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract</code> —
       <code>node --check</code> + контракт: payload из селекта карточки, не старый stringify без абонемента</li>
+    <li><code>SettingPricesManualPaidZeroPriceFeatureTest</code> — UX-баг: «Оплачено» при 0 ₽ не ставит флажок;
+      поле 9800 ₽ — сумма и оплата; вкладка «По ученикам» без price в payload при &gt; 0 проходит;
+      0 в поле на положительной строке откатывает apply; <code>mode=unpaid</code> при 0 снимает флажок;
+      year-prices / getTeamPrice после 422 остаются неоплаченными</li>
+    <li><code>SettingPricesManualPaidZeroPriceAccessFeatureTest</code> — гость 302/401, без view / без
+      <code>manualPaid.manage</code> → 403; с правами paid при 0 → 422 не 200; GET/PATCH/DELETE → 404/405;
+      чужой ученик → 404</li>
+    <li><code>SettingPricesManualPaidZeroPriceAjaxContractFeatureTest</code> — JSON с <code>X-Requested-With</code>:
+      422 <code>errors.price</code> с текстом Request; карточка 9800 → 200 + <code>user_price</code>;
+      unpaid при 0 → 200; пустой comment → 422 на <code>comment</code>, не на <code>price</code></li>
+    <li><code>SettingPricesManualPaidZeroPriceNonAjaxSafetyNetFeatureTest</code> — POST без AJAX: paid при 0 → 302 +
+      session <code>errors.price</code>, БД без флажка; unpaid / поле 9800 → 302 + запись</li>
+    <li><code>SettingPricesManualPaidZeroPriceMarkupFeatureTest</code> — первый HTML monthly без карточек;
+      карандаш по <code>hasAbon</code>, не по цене &gt; 0; year-prices <code>has_price_row</code> при 0 ₽;
+      модалка стандартной ширины; ошибка под строкой карточки, не в колонке суммы</li>
+    <li><code>SettingPricesManualPaidZeroPriceJsContractTest</code> — оба JS-пути: Vite <code>postManualPaid</code>
+      шлёт <code>payload.price</code> (пустое → 0) и 422 под строкой карточки без rebuild;
+      users <code>postManualPaidForUser</code> цену не шлёт, <code>errs.price</code> под строкой месяца, <code>fieldShown</code> до toast</li>
+    <li><code>SettingPricesManualPaidZeroPriceDocumentationContractTest</code> — §4.0.1 и анонс
+      <code>/doc#setting-prices-monthly-manual-paid-card-index</code></li>
+    <li><code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_manual_paid_zero_price_error_under_price_field_ux_contract</code> —
+      <code>node --check</code> Vite: пустое поле → <code>payload.price = 0</code>, 422 под строкой карточки без rebuild</li>
+    <li><code>BladeInlineJsSyntaxTest::test_setting_prices_users_tab_manual_paid_zero_price_error_under_price_field_ux_contract</code> —
+      вкладка «По ученикам»: <code>errors.price</code> под строкой месяца (<code>setting-prices-monthly-price-error</code>)</li>
     <li><code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_prolong_vite_module_ux_contract</code> —
       <code>node --check</code> + UX: <code>getSelectedMonthLabel</code> в теле POST, превью на
       <code>show.bs.modal</code>, confirm disabled пока нет <code>can_apply</code>, после успеха
@@ -776,6 +850,13 @@
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyManualPaidPackageMarkupFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyManualPaidPackageJsContractTest.php \
   tests/Unit/Documentation/SettingPricesMonthlyManualPaidPackageDocumentationContractTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesManualPaidZeroPriceFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesManualPaidZeroPriceAccessFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesManualPaidZeroPriceAjaxContractFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesManualPaidZeroPriceNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesManualPaidZeroPriceMarkupFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesManualPaidZeroPriceJsContractTest.php \
+  tests/Unit/Documentation/SettingPricesManualPaidZeroPriceDocumentationContractTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersAccessFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUserPercentDiscountFeatureTest.php \
@@ -793,7 +874,7 @@
   tests/Unit/Documentation/SettingPricesMonthlyTeamSelectDocumentationContractTest.php
 php artisan test --env=testing \
   tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php \
-  --filter='test_setting_prices_require_package_for_price_ux_contract|test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract|test_setting_prices_monthly_prolong_vite_module_ux_contract|test_setting_prices_monthly_team_select_loading_ux_contract'</code></pre>
+  --filter='test_setting_prices_require_package_for_price_ux_contract|test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract|test_setting_prices_monthly_manual_paid_zero_price_error_under_price_field_ux_contract|test_setting_prices_users_tab_manual_paid_zero_price_error_under_price_field_ux_contract|test_setting_prices_monthly_prolong_vite_module_ux_contract|test_setting_prices_monthly_team_select_loading_ux_contract'</code></pre>
 
   <h2 id="related">7) Связанные страницы</h2>
   <p class="small">
@@ -811,6 +892,7 @@ php artisan test --env=testing \
     <a href="/docs/documentation/dashboard-cabinet#cabinet-season-years">учебный сезон на консоли</a> ·
     <a href="/doc#cabinet-season-years-index">анонс сезона 2026–2027</a> ·
     <a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс ручной оплаты с карточкой</a> ·
+    <a href="/doc#setting-prices-manual-paid-zero-price-index">анонс: оплату при 0 ₽ ставить нельзя</a> ·
     <a href="/docs/documentation/set-prices-package-assignments">packageAssignments.view</a>
   </p>
 </div>
