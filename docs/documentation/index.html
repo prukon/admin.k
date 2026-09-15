@@ -28,6 +28,80 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+    <h2 id="reports-debts-hide-deleted-users-index">Задолженности: скрывать soft-deleted учеников (2026‑09)</h2>
+  <div class="note">
+    Отчёт <b>«Задолженности»</b> (<code>/admin/reports/debts</code>, право
+    <code>reports.view</code>) не показывает начисления удалённых учеников.
+    Join на <code>users</code> идёт через Query Builder, SoftDeletes-scope
+    модели сам не действует. Во всех трёх точках
+    (<code>debts</code> / <code>getDebts</code> / <code>debts/total</code>)
+    для месячных <code>users_prices</code> и доп. платежей
+    <code>user_custom_payment</code> стоит
+    <code>whereNull(users.deleted_at)</code>
+    (<code>DeptReportController::applyDebtReportNotDeletedUserFilter</code>).
+    Фильтр <code>status</code> (активные / неактивные / все) смотрит только
+    <code>users.is_enabled</code> и удалённых не возвращает.
+    Чекбокса «Удаленные» нет — в отличие от вкладки назначений абонементов.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/reports-admin#debts">reports-admin §3</a>,
+    фильтр активности —
+    <a href="/docs/documentation/reports-admin#user-status-filter">§2.3</a>.
+    Тесты: <code>DeptReportTest</code>
+    (<code>test_debts_exclude_soft_deleted_users_from_table_and_total</code>,
+    <code>test_debts_exclude_soft_deleted_users_when_status_all</code>),
+    <code>ReportsDebtsHideDeletedUsersDocumentationContractTest</code>.
+  </div>
+
+    <h2 id="reports-ltv-monthly-paid-team-index">Отчёты LTV и «Платежи по месяцам»: колонка «Группа» — оплаченная группа (2026‑09)</h2>
+  <div class="note">
+    Право <code>reports.view</code>. Как в отчёте «Платежи»: колонка и фильтр
+    смотрят на <b>оплаченную</b> группу (<code>payments.team_id</code>), а не на
+    все текущие группы ученика через запятую.
+    Зачем: ученик в двух группах платит каждую отдельно; склейка названий
+    выглядела как двойная оплата одной группы.
+    <br><br>
+    <b>Где колонка «Группа».</b>
+    «Платежи по месяцам» (<code>/admin/reports/payments/monthly</code>):
+    сводка месяцев колонки не имеет (месяц / количество / сумма);
+    оплаченная группа — во <b>вложенной</b> таблице месяца
+    (<code>sqlPaymentLedgerTeamTitleExpr</code>). Два платежа за разные группы
+    в одном месяце — две строки, без concat.
+    LTV (<code>/admin/reports/ltv</code>): колонка в <b>основной</b> таблице —
+    уникальные оплаченные группы
+    (<code>sqlPaymentLedgerTeamTitlesAggregate</code>).
+    Во вложенной HTML-таблице LTV колонки «Группа» нет (дата / сумма / месяц / провайдер);
+    JSON <code>team_title</code> — оплаченная группа; шапка раскрытия берёт агрегат родителя.
+    Живое <code>teams.title</code> важнее снимка <code>payments.team_title</code>.
+    Legacy без <code>payments.team_id</code> — все группы из pivot.
+    <br><br>
+    <b>Фильтр</b> <code>filter_team_id</code> (Select2, при первом открытии пустой —
+    «Все группы»): <code>UserTeamQuery::applyPaymentLedgerTeamFilters</code>
+    (снимок оплаты, fallback на pivot только если <code>team_id IS NULL</code>).
+    Действует на data / total / вложенную таблицу месяца и на
+    <code>GET /admin/reports/ltv/{user}/payments</code>
+    (UI шлёт <code>ltvReportFilterParams</code> / <code>paymentsMonthlyFilterParams</code>
+    в <code>ajax.data</code>). Фильтр ученика на детализации LTV не дублируется
+    (уже <code>user_id</code> в URL). Фильтр тренера по-прежнему pivot.
+    Это не задолженности (<code>users_prices.team_id</code>).
+    Data/детализация без AJAX → 404. Гость 302/401, без права 403.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/reports-admin#team-filter-payments">reports-admin §2.0</a>,
+    §4 LTV / §5 monthly,
+    <a href="/docs/documentation/reports-payments#team-filter">reports-payments §1.1</a>,
+    <a href="/docs/documentation/payments#payments-team-snapshot">payments §2.2</a>,
+    <a href="/docs/documentation/student-team-membership">student-team-membership §5</a>.
+    Тесты: <code>PaymentMonthlyReportTeamPivotFeatureTest</code>,
+    <code>LtvReportTeamPivotFeatureTest</code>
+    (в т.ч. UX двух платежей за разные группы и вложенный LTV с фильтром),
+    <code>ReportsLtvMonthlyPaidTeamFullAccessFeatureTest</code>,
+    <code>ReportsLtvMonthlyPaidTeamMarkupFeatureTest</code>,
+    <code>ReportsLtvMonthlyPaidTeamNonAjaxSafetyNetFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_monthly_and_ltv_nested_ajax_copy_paid_team_filter_and_reset_clears_select2</code>,
+    <code>ReportsLtvMonthlyPaidTeamDocumentationContractTest</code>.
+  </div>
+
   <h2 id="password-reset-unique-index">Сброс пароля: гонка POST /password/email не даёт HTTP 500 (2026‑09)</h2>
   <div class="note">
     Форма запроса ссылки <code>/password/reset</code>
@@ -3867,7 +3941,7 @@
     Только ФИО ученика (<code>users.lastname</code> / <code>users.name</code> /
     <code>TRIM(CONCAT(...))</code>; в платежах ещё снимок <code>payments.user_name</code>)
     и название группы (снимок <code>payments.team_title</code>, <code>teams.title</code> по
-    <code>payments.team_id</code>, pivot <code>team_user</code>; в LTV — только pivot).
+    <code>payments.team_id</code>, pivot <code>team_user</code>; в LTV — то же, не только pivot).
     Сумма, месяц, дата операции, локация, агрегаты LTV (<code>total_price</code> /
     <code>payment_count</code> / даты / <code>is_enabled</code>) в <code>search.value</code> не входят.
     Data: <code>GET …/getPayments</code> и <code>GET …/ltv/data</code> только AJAX
@@ -9871,8 +9945,8 @@
     <li><a href="/docs/documentation/queues-monitoring">Очереди в админке: мониторинг, доступы, queue.log, restart worker; просроченный Init <code>overdueScheduled</code> ≠ «Касса» пульта — <a href="/doc#ops-till-missing-payout-index">анонс</a></a></li>
     <li><a href="/docs/documentation/tbank#payout-settings">T‑Bank: интервал джобы отложенных выплат, автовыплаты в правилах комиссий, защита от дублей</a></li>
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
-    <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, <b>«Показать N»</b> (<code>page_length</code>), <b>шапка и горизонтальный скролл на экране</b> (§3.1, <a href="/doc#reports-tables-sticky-header-index">анонс</a>), <b>поиск DataTables</b> только ФИО и группа (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>), права, история T‑Bank; вкладка T‑Bank «Чек» / комиссия без <code>reports.additional.value.view</code> (<a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>), фильтр «Не было выплаты» (<a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>), колонка «Статус выплаты» (<a href="/doc#reports-tbank-payments-payout-status-index">анонс</a>); ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
-    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / intents / fiscal / tbank-payments; задолженности и письма — без opt-in), <b>шапка и горизонтальный скролл</b> (§1.3, payments / monthly / LTV / debts / intents / fiscal / tbank / emails — <a href="/doc#reports-tables-sticky-header-index">анонс</a>), payment-intents / payments / fiscal / emails / <b>«Платежи T‑Bank»</b> (§9, <a href="/doc#reports-tbank-payments-index">анонс</a>, колонки «Чек» / «Комиссия платформы» — <a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>, фильтр «Не было выплаты» — <a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>, колонка «Статус выплаты» — <a href="/doc#reports-tbank-payments-payout-status-index">анонс</a>); <b>поиск DataTables</b> (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>: Платежи/LTV — ФИО+группа; monthly — ещё месяц; intents — ФИО/партнёр/ID; T‑Bank — Order/Deal/id/партнёр); фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4, в т.ч. T‑Bank); <b>«Чеки»</b> — только <code>source=marketplace</code>, продажи платформы не входят (<a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
+    <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>; те же правила у LTV/monthly — <a href="/doc#reports-ltv-monthly-paid-team-index">анонс</a>), локация, <b>активность ученика</b> (<code>status</code>), колонки, <b>«Показать N»</b> (<code>page_length</code>), <b>шапка и горизонтальный скролл на экране</b> (§3.1, <a href="/doc#reports-tables-sticky-header-index">анонс</a>), <b>поиск DataTables</b> только ФИО и группа (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>), права, история T‑Bank; вкладка T‑Bank «Чек» / комиссия без <code>reports.additional.value.view</code> (<a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>), фильтр «Не было выплаты» (<a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>), колонка «Статус выплаты» (<a href="/doc#reports-tbank-payments-payout-status-index">анонс</a>); ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
+    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / intents / fiscal / tbank-payments; задолженности и письма — без opt-in), <b>шапка и горизонтальный скролл</b> (§1.3, payments / monthly / LTV / debts / intents / fiscal / tbank / emails — <a href="/doc#reports-tables-sticky-header-index">анонс</a>), payment-intents / payments / fiscal / emails / <b>«Платежи T‑Bank»</b> (§9, <a href="/doc#reports-tbank-payments-index">анонс</a>, колонки «Чек» / «Комиссия платформы» — <a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>, фильтр «Не было выплаты» — <a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>, колонка «Статус выплаты» — <a href="/doc#reports-tbank-payments-payout-status-index">анонс</a>); <b>поиск DataTables</b> (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>: Платежи/LTV — ФИО+группа; monthly — ещё месяц; intents — ФИО/партнёр/ID; T‑Bank — Order/Deal/id/партнёр); фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4, в т.ч. T‑Bank); <b>«Чеки»</b> — только <code>source=marketplace</code>, продажи платформы не входят (<a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1), <b>без soft-deleted учеников</b> (<a href="/doc#reports-debts-hide-deleted-users-index">анонс</a>); <b>LTV / «Платежи по месяцам»</b> — колонка и фильтр оплаченной группы (<a href="/doc#reports-ltv-monthly-paid-team-index">анонс</a>); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), <b>сумма неоплаченного месяца в колонке рубля</b> (<a href="/doc#journal-postpay-payment-due-index">анонс</a>), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = визиты с <code>consumes_lesson</code> × ставка, затем <b>скидка по снимку строки</b></a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <b>тип flexible в UI — «Предоплата»</b> — <a href="/doc#flexible-ui-label-index">анонс</a>; <b>автосписание</b> <code>auto_attendance_enabled</code> — чекбокс при <code>scheduleSlots.view</code>, <a href="/doc#lesson-package-auto-attendance-index">анонс</a>; <b>заморозка</b> шаблона — тот же <code>@can</code>, <a href="/doc#lesson-package-freeze-permission-index">анонс</a>; <b>срок действия</b> в модалке и таблице — <a href="/doc#lesson-package-duration-permission-index">анонс</a>; <b>edit fill</b> не затирает занятия/срок 8/30 — <a href="/doc#lesson-package-edit-fill-defaults-index">анонс</a>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, причина ошибки sms.ru в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь (<b>URL</b> — <code>lessonPackages.view</code>; <b>сайдбар</b> — <code>scheduleSlots.view</code>, не в базовом admin — <a href="/doc#school-schedule-permission-group-index">анонс группы</a>), фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, предоплата/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>; право скрытое), JSON/API, аудит «История»</a></li>

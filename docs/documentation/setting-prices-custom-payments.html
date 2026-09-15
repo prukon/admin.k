@@ -177,6 +177,8 @@
     как для месячных <code>users_prices</code>.
     Записи без <code>date_end</code> (типичный create из UI, даты nullable) в этот отчёт
     <b>не</b> попадают — это условие SQL отчёта, не баг ручной оплаты.
+    Soft-deleted ученик (<code>users.deleted_at</code>) тоже <b>не</b> попадает —
+    <a href="/doc#reports-debts-hide-deleted-users-index">анонс</a>.
     Подробно: <a href="/docs/documentation/reports-admin#debts-effective-is-paid">reports-admin §3.1</a>.
   </div>
 

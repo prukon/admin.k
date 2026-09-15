@@ -122,11 +122,15 @@ class LtvReportController extends AdminBaseController
 
         $partnerId = $this->requirePartnerId();
 
-        $teamTitlesSub = UserTeamQuery::sqlStudentTeamTitlesSubquery($partnerId);
+        $teamTitlesAgg = UserTeamQuery::sqlPaymentLedgerTeamTitlesAggregate($partnerId);
 
         // Агрегация по таблице payments
         $baseQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
+            ->leftJoin('teams as payment_paid_team', function ($join) {
+                $join->on('payment_paid_team.id', '=', 'payments.team_id')
+                    ->whereNull('payment_paid_team.deleted_at');
+            })
             ->where('payments.summ_cents', '>', 0)
             ->where('users.partner_id', $partnerId);
 
@@ -135,7 +139,7 @@ class LtvReportController extends AdminBaseController
         $baseQuery->selectRaw("
                 users.id as user_id,
                 TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) as user_name,
-                {$teamTitlesSub} as team_title,
+                {$teamTitlesAgg} as team_title,
                 SUM(payments.summ_cents) as total_price_cents,
                 COUNT(payments.id) as payment_count,
                 MIN(payments.operation_date) as first_payment_date,
@@ -267,7 +271,7 @@ class LtvReportController extends AdminBaseController
      */
     private function buildLtvUserPaymentsQuery(Request $request, int $partnerId, int $userId)
     {
-        $teamTitlesSub = UserTeamQuery::sqlStudentTeamTitlesSubquery($partnerId);
+        $teamTitleExpr = UserTeamQuery::sqlPaymentLedgerTeamTitleExpr($partnerId);
 
         $payments = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
@@ -288,7 +292,7 @@ class LtvReportController extends AdminBaseController
                 payments.payment_id,
                 payments.payment_status,
                 TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) as user_name,
-                {$teamTitlesSub} as team_title
+                {$teamTitleExpr} as team_title
             ")
             ->orderBy('payments.operation_date', 'desc');
     }
@@ -361,6 +365,14 @@ class LtvReportController extends AdminBaseController
                     "TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) LIKE ?",
                     [$like]
                 )
+                ->orWhere('payments.team_title', 'like', $like)
+                ->orWhereExists(function ($sub) use ($like): void {
+                    $sub->selectRaw('1')
+                        ->from('teams')
+                        ->whereColumn('teams.id', 'payments.team_id')
+                        ->where('teams.title', 'like', $like)
+                        ->whereNull('teams.deleted_at');
+                })
                 ->orWhereExists(function ($sub) use ($like, $partnerId): void {
                     $sub->selectRaw('1')
                         ->from('team_user')
@@ -375,7 +387,9 @@ class LtvReportController extends AdminBaseController
     }
 
     /**
-     * Фильтры отчёта LTV (как у «Платежи по месяцам»). Для детализации по ученику — без фильтра по ученику/группе.
+     * Фильтры отчёта LTV (как у «Платежи» / «Платежи по месяцам»).
+     * Для детализации по ученику — без фильтра по ученику (строка уже конкретный user_id);
+     * фильтр оплаченной группы и тренера применяется, как шлёт UI (`ltvReportFilterParams`).
      *
      * @param  \Illuminate\Database\Query\Builder  $paymentsQuery
      */
@@ -395,20 +409,20 @@ class LtvReportController extends AdminBaseController
                         ->orWhere('payments.user_name', 'like', $needle);
                 });
             }
-
-            UserTeamQuery::applyReportTeamFilters(
-                $paymentsQuery,
-                $partnerId,
-                $request->query('filter_team_id'),
-                $request->filled('team_title') ? (string) $request->query('team_title') : null,
-            );
-
-            UserTeamQuery::applyReportTrainerTeamFilter(
-                $paymentsQuery,
-                $partnerId,
-                $request->query('filter_trainer_profile_id'),
-            );
         }
+
+        UserTeamQuery::applyPaymentLedgerTeamFilters(
+            $paymentsQuery,
+            $partnerId,
+            $request->query('filter_team_id'),
+            $request->filled('team_title') ? (string) $request->query('team_title') : null,
+        );
+
+        UserTeamQuery::applyReportTrainerTeamFilter(
+            $paymentsQuery,
+            $partnerId,
+            $request->query('filter_trainer_profile_id'),
+        );
 
         /** @var \App\Models\User|null $filterActor */
         $filterActor = Auth::user();

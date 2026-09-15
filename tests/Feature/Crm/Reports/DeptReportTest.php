@@ -573,6 +573,105 @@ class DeptReportTest extends CrmTestCase
             ->assertJson(['total_raw' => 1200.0]);
     }
 
+    /**
+     * Soft-deleted ученик не попадает в таблицу, SSR-сумму и /debts/total:
+     * ни месячное начисление, ни доп. платёж. Живой ученик остаётся.
+     */
+    public function test_debts_exclude_soft_deleted_users_from_table_and_total(): void
+    {
+        Carbon::setTestNow('2026-02-15');
+
+        $alive = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $deleted = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+
+        $this->insertUserPrice($alive, [
+            'is_paid' => 0,
+            'price' => 100,
+            'new_month' => '2026-01-01',
+        ]);
+        $this->insertCustomPayment($alive, 5000, '2025-11-01', '2025-11-30');
+
+        $this->insertUserPrice($deleted, [
+            'is_paid' => 0,
+            'price' => 5000,
+            'new_month' => '2026-01-01',
+        ]);
+        $this->insertCustomPayment($deleted, 600000, '2025-12-01', '2025-12-31');
+
+        $deleted->delete();
+        $this->assertNotNull(User::withTrashed()->find($deleted->id)?->deleted_at);
+
+        $this->get(route('reports.debts.total'))
+            ->assertOk()
+            ->assertJson(['total_raw' => 150.0]);
+
+        $this->get(route('debts'))
+            ->assertOk()
+            ->assertViewHas('totalUnpaidPrice', '150');
+
+        $userIds = $this->debtsReportUserIds();
+        $this->assertContains($alive->id, $userIds);
+        $this->assertNotContains($deleted->id, $userIds);
+
+        $this->get(route('reports.debts.total', ['filter_user_id' => $deleted->id]))
+            ->assertOk()
+            ->assertJson(['total_raw' => 0]);
+    }
+
+    /**
+     * status=all снимает только is_enabled; soft-deleted всё равно скрыты.
+     */
+    public function test_debts_exclude_soft_deleted_users_when_status_all(): void
+    {
+        Carbon::setTestNow('2026-02-15');
+
+        $active = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $inactive = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 0,
+        ]);
+        $deleted = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+
+        $this->insertUserPrice($active, [
+            'is_paid' => 0,
+            'price' => 100,
+            'new_month' => '2026-01-01',
+        ]);
+        $this->insertUserPrice($inactive, [
+            'is_paid' => 0,
+            'price' => 200,
+            'new_month' => '2026-01-01',
+        ]);
+        $this->insertUserPrice($deleted, [
+            'is_paid' => 0,
+            'price' => 5000,
+            'new_month' => '2026-01-01',
+        ]);
+
+        $deleted->delete();
+
+        $this->get(route('reports.debts.total', ['status' => '']))
+            ->assertOk()
+            ->assertJson(['total_raw' => 300.0]);
+
+        $userIds = $this->debtsReportUserIds(['status' => '']);
+        $this->assertContains($active->id, $userIds);
+        $this->assertContains($inactive->id, $userIds);
+        $this->assertNotContains($deleted->id, $userIds);
+    }
+
     public function test_debts_page_shows_user_status_filter(): void
     {
         $this->get(route('debts'))
@@ -685,5 +784,40 @@ class DeptReportTest extends CrmTestCase
 
         $prices = collect($response->json('data'))->pluck('price')->map(fn ($p) => (float) $p)->sort()->values()->all();
         $this->assertSame([250.0, 400.0], $prices);
+    }
+
+    /**
+     * @param  array<string, mixed>  $query
+     * @return list<int>
+     */
+    private function debtsReportUserIds(array $query = []): array
+    {
+        $response = $this->get(route('debts.getDebts', $query), [
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json',
+        ]);
+        $response->assertOk();
+
+        return collect($response->json('data'))
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function insertCustomPayment(User $user, int $amountCents, string $dateStart, string $dateEnd): void
+    {
+        DB::table('user_custom_payment')->insert([
+            'user_id' => $user->id,
+            'partner_id' => $user->partner_id,
+            'is_paid' => 0,
+            'is_manual_paid' => null,
+            'amount_cents' => $amountCents,
+            'date_start' => $dateStart,
+            'date_end' => $dateEnd,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }

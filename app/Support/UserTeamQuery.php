@@ -48,6 +48,54 @@ SQL;
     }
 
     /**
+     * Название оплаченной группы одной строки payments (как PaymentTeamTitleDisplay).
+     * team_id > 0 → teams.title / снимок; иначе снимок; иначе все группы ученика.
+     */
+    public static function sqlPaymentLedgerTeamTitleExpr(
+        int $partnerId,
+        string $paymentsAlias = 'payments',
+        string $usersAlias = 'users',
+    ): string {
+        $paidTitle = self::sqlPaymentPaidTeamTitleExpr($paymentsAlias);
+        $pivot = self::sqlStudentTeamTitlesSubquery($partnerId, $usersAlias);
+
+        return "COALESCE({$paidTitle}, {$pivot}, 'Без команды')";
+    }
+
+    /**
+     * Уникальные оплаченные группы по строкам payments (сводка LTV).
+     * Нужен LEFT JOIN teams AS {$paidTeamAlias} ON id = payments.team_id.
+     * Пустой снимок у всех платежей → fallback на текущий pivot ученика.
+     */
+    public static function sqlPaymentLedgerTeamTitlesAggregate(
+        int $partnerId,
+        string $paymentsAlias = 'payments',
+        string $usersAlias = 'users',
+        string $paidTeamAlias = 'payment_paid_team',
+    ): string {
+        $paidTitle = "COALESCE(NULLIF(TRIM({$paidTeamAlias}.title), ''), NULLIF(TRIM({$paymentsAlias}.team_title), ''))";
+        $pivot = self::sqlStudentTeamTitlesSubquery($partnerId, $usersAlias);
+
+        return "COALESCE(NULLIF(GROUP_CONCAT(DISTINCT ({$paidTitle}) SEPARATOR ', '), ''), {$pivot}, 'Без команды')";
+    }
+
+    /**
+     * Живое название оплаченной группы или снимок payments.team_title (без pivot).
+     */
+    public static function sqlPaymentPaidTeamTitleExpr(string $paymentsAlias = 'payments'): string
+    {
+        return <<<SQL
+NULLIF(TRIM(CASE
+  WHEN {$paymentsAlias}.team_id IS NOT NULL AND {$paymentsAlias}.team_id > 0 THEN COALESCE(
+    (SELECT NULLIF(TRIM(t.title), '') FROM teams t WHERE t.id = {$paymentsAlias}.team_id AND t.deleted_at IS NULL LIMIT 1),
+    NULLIF(TRIM({$paymentsAlias}.team_title), '')
+  )
+  ELSE NULLIF(TRIM({$paymentsAlias}.team_title), '')
+END), '')
+SQL;
+    }
+
+    /**
      * @param  QueryBuilder|\Illuminate\Database\Eloquent\Builder  $query
      */
     public static function applyStudentTeamTitleLikeExists($query, int $partnerId, string $like, string $usersAlias = 'users'): void
@@ -63,7 +111,8 @@ SQL;
     }
 
     /**
-     * Фильтр отчёта «Платежи»: filter_team_id / team_title с учётом payments.team_id (снимок оплаты).
+     * Фильтр отчётов «Платежи», «Платежи по месяцам», LTV:
+     * filter_team_id / team_title с учётом payments.team_id (снимок оплаты).
      *
      * @param  QueryBuilder|\Illuminate\Database\Eloquent\Builder  $query
      */

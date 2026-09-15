@@ -301,6 +301,7 @@ class DeptReportController extends AdminBaseController
             );
         }
 
+        $this->applyDebtReportNotDeletedUserFilter($query);
         $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
         $this->applyDebtReportLocationFilter($query, $request, $partnerId);
         $this->applyDebtReportUserStatusFilter($query, $request);
@@ -345,6 +346,7 @@ class DeptReportController extends AdminBaseController
             );
         }
 
+        $this->applyDebtReportNotDeletedUserFilter($query);
         $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
         $this->applyDebtReportLocationFilter($query, $request, $partnerId);
         $this->applyDebtReportUserStatusFilter($query, $request);
@@ -359,6 +361,17 @@ class DeptReportController extends AdminBaseController
                 });
             }
         }
+    }
+
+    /**
+     * Join на users идёт через Query Builder — SoftDeletes-scope модели не действует.
+     * Удалённые ученики всегда скрыты, независимо от фильтра status / is_enabled.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function applyDebtReportNotDeletedUserFilter($query): void
+    {
+        $query->whereNull('users.deleted_at');
     }
 
     /**

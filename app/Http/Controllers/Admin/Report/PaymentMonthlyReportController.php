@@ -335,7 +335,7 @@ class PaymentMonthlyReportController extends AdminBaseController
         $start = Carbon::createFromFormat('Y-m', $yearMonth)->startOfMonth();
         $end = $start->copy()->endOfMonth();
 
-        $teamTitlesSub = UserTeamQuery::sqlStudentTeamTitlesSubquery($partnerId);
+        $teamTitleExpr = UserTeamQuery::sqlPaymentLedgerTeamTitleExpr($partnerId);
 
         $paymentsQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
@@ -352,7 +352,7 @@ class PaymentMonthlyReportController extends AdminBaseController
                 'users.name as user_firstname',
                 'users.lastname as user_lastname',
             )
-            ->selectRaw("{$teamTitlesSub} as team_title");
+            ->selectRaw("{$teamTitleExpr} as team_title");
 
         $this->applyMonthlyReportFilters($paymentsQuery, $request, $partnerId);
 
@@ -490,7 +490,7 @@ class PaymentMonthlyReportController extends AdminBaseController
             });
         }
 
-        UserTeamQuery::applyReportTeamFilters(
+        UserTeamQuery::applyPaymentLedgerTeamFilters(
             $paymentsQuery,
             $partnerId,
             $request->query('filter_team_id'),

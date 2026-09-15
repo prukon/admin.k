@@ -6011,6 +6011,87 @@ JS;
     }
 
     /**
+     * P1: фильтр оплаченной группы уходит и в основную таблицу, и во вложенную
+     * (два JS-пути: paymentsMonthlyFilterParams / ltvReportFilterParams → ajax.data).
+     * Сброс очищает Select2 группы, не пересоздаёт таблицу.
+     */
+    public function test_monthly_and_ltv_nested_ajax_copy_paid_team_filter_and_reset_clears_select2(): void
+    {
+        $monthlyPath = resource_path('views/admin/report/payment_monthly.blade.php');
+        $ltvPath = resource_path('views/admin/report/ltv.blade.php');
+        $monthly = (string) file_get_contents($monthlyPath);
+        $ltv = (string) file_get_contents($ltvPath);
+
+        $monthlyParamsPos = strpos($monthly, 'function paymentsMonthlyFilterParams()');
+        $this->assertNotFalse($monthlyParamsPos);
+        $monthlyParams = substr($monthly, $monthlyParamsPos, 1800);
+        $this->assertStringContainsString("name=\\\"filter_team_id\\\"]", $monthlyParams);
+        $this->assertStringContainsString('filter_team_id: tid', $monthlyParams);
+
+        $monthlyNestedPos = strpos($monthly, 'function initMonthlyPaymentsDetailTable');
+        $this->assertNotFalse($monthlyNestedPos);
+        $monthlyCreate = strpos($monthly, "KidsCrmDataTable.create('#payments-monthly-table'");
+        $this->assertNotFalse($monthlyCreate);
+        $monthlyNested = substr($monthly, $monthlyNestedPos, $monthlyCreate - $monthlyNestedPos);
+        $this->assertStringContainsString('var extra = paymentsMonthlyFilterParams();', $monthlyNested);
+        $this->assertStringContainsString('d[key] = extra[key];', $monthlyNested);
+        $this->assertStringContainsString("{ data: 'team_title', name: 'team_title' }", $monthlyNested);
+
+        $monthlyResetPos = strpos($monthly, "$('#paymentsMonthlyFiltersResetBtn').on('click'");
+        $this->assertNotFalse($monthlyResetPos);
+        $monthlyReset = substr($monthly, $monthlyResetPos, 1600);
+        $this->assertStringContainsString('$payMonthlyFilterTeam.val(null).trigger(\'change\')', $monthlyReset);
+        $this->assertStringContainsString('dtApi.reload()', $monthlyReset);
+        $this->assertStringNotContainsString('KidsCrmDataTable.create', $monthlyReset);
+
+        $ltvParamsPos = strpos($ltv, 'function ltvReportFilterParams()');
+        $this->assertNotFalse($ltvParamsPos);
+        $ltvParams = substr($ltv, $ltvParamsPos, 1800);
+        $this->assertStringContainsString('[name="filter_team_id"]', $ltvParams);
+        $this->assertStringContainsString('filter_team_id: tid', $ltvParams);
+
+        $ltvNestedPos = strpos($ltv, 'function initLtvUserPaymentsDetailTable');
+        $this->assertNotFalse($ltvNestedPos);
+        $ltvCreate = strpos($ltv, "KidsCrmDataTable.create('#ltv-table'");
+        $this->assertNotFalse($ltvCreate);
+        $ltvNested = substr($ltv, $ltvNestedPos, $ltvCreate - $ltvNestedPos);
+        $this->assertStringContainsString('var extra = ltvReportFilterParams();', $ltvNested);
+        $this->assertStringContainsString('d[key] = extra[key];', $ltvNested);
+
+        $ltvMainAjax = substr($ltv, $ltvCreate, 2500);
+        $this->assertStringContainsString('var extra = ltvReportFilterParams();', $ltvMainAjax);
+        $this->assertStringContainsString('d[key] = extra[key];', $ltvMainAjax);
+
+        $ltvResetPos = strpos($ltv, "$('#ltvReportFiltersResetBtn').on('click'");
+        $this->assertNotFalse($ltvResetPos);
+        $ltvReset = substr($ltv, $ltvResetPos, 1600);
+        $this->assertStringContainsString('$ltvFilterTeam.val(null).trigger(\'change\')', $ltvReset);
+        $this->assertStringContainsString('dtApi.reload()', $ltvReset);
+        $this->assertStringNotContainsString('KidsCrmDataTable.create', $ltvReset);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $monthlyPath,
+            'function paymentsMonthlyFilterParams()',
+            'blade-js-monthly-paid-team-filter'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $monthlyPath,
+            'function initMonthlyPaymentsDetailTable',
+            'blade-js-monthly-nested-paid-team-filter'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvPath,
+            'function ltvReportFilterParams()',
+            'blade-js-ltv-paid-team-filter'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvPath,
+            'function initLtvUserPaymentsDetailTable',
+            'blade-js-ltv-nested-paid-team-filter'
+        );
+    }
+
+    /**
      * P1: поле поиска DataTables на четырёх отчётах не выключается и не сбрасывается
      * пересозданием таблицы при «Применить» / «Сброс»; вложенные LTV/monthly без search box.
      */

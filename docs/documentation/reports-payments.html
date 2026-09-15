@@ -48,7 +48,7 @@
       <ul>
         <li>платёж попадает, если <code>payments.team_id = выбранная группа</code>;</li>
         <li><b>или</b> (<code>payments.team_id IS NULL</code> <i>и</i> ученик состоит в выбранной группе по pivot) — для старых записей без снимка;</li>
-        <li>реализация: <code>UserTeamQuery::applyPaymentLedgerTeamFilters</code> (отличается от LTV/monthly, где фильтр только по pivot — <code>applyReportTeamFilters</code>).</li>
+        <li>реализация: <code>UserTeamQuery::applyPaymentLedgerTeamFilters</code> (те же правила у LTV и «Платежи по месяцам», <a href="/doc#reports-ltv-monthly-paid-team-index">анонс</a>).</li>
         <li>право <code>groups.own</code>: Select2 <code>GET …/payments/teams-search</code> отдаёт только группы тренера;
             без выбранной группы строки отчёта не сужаются. Чужой <code>filter_team_id</code> игнорируется (как «все»), не 422.
             См. <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>.</li>
@@ -56,7 +56,7 @@
     </li>
     <li><b>Текстовый поиск</b> по колонке «Группа» (<code>team_title</code> в query): совпадение по снимку <code>payments.team_title</code>, названию <code>teams</code> для <code>payments.team_id</code> или любой группе ученика в pivot.</li>
     <li><b>Пользовательский отчёт</b> <code>/reports/payments</code> (<code>myPayments.view</code>): та же логика колонки через <code>PaymentTeamTitleDisplay</code>.</li>
-    <li>LTV, «Платежи по месяцам», задолженности — см. <a href="/docs/documentation/student-team-membership">student-team-membership §5</a> и <a href="/docs/documentation/reports-admin">reports-admin</a>.</li>
+    <li>LTV, «Платежи по месяцам», задолженности — см. <a href="/docs/documentation/student-team-membership">student-team-membership §5</a> и <a href="/docs/documentation/reports-admin">reports-admin §2.0</a>.</li>
   </ul>
 
   <h2 id="datatable-search">1.2) Поиск DataTables (поле над таблицей)</h2>

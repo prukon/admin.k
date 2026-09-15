@@ -84,7 +84,7 @@
   </div>
   <ul>
     <li><b>Платежи</b> — только ФИО и группа. Подробно: <a href="/docs/documentation/reports-payments#datatable-search">reports-payments §1.2</a>.</li>
-    <li><b>LTV</b> — только ФИО и группа (pivot). Агрегаты в SQL не попадают. §4 ниже.</li>
+    <li><b>LTV</b> — только ФИО и группа (снимок <code>payments.team_title</code>, <code>teams.title</code> по <code>payments.team_id</code>, pivot). Агрегаты в SQL не попадают. §4 ниже.</li>
     <li><b>Платежи по месяцам</b> — ФИО, группа и заголовок месяца (<code>YYYY-MM</code> / «Январь 2026»). §5 ниже.</li>
     <li><b>Платежные запросы</b> — ФИО, партнёр, <code>provider_inv_id</code>, числовой <code>id</code>. §6 ниже.</li>
     <li>Пустая строка / пробелы — без доп. фильтра. <code>%</code> и <code>_</code> экранируются.</li>
@@ -207,13 +207,18 @@
     <li><b><code>locations.view</code></b> — не открывает отчёты само по себе, но даёт фильтр «Локация» в отчётах платежей и задолженностей (см. §2.1).</li>
   </ul>
 
-  <h2 id="team-filter-payments">2.0) Фильтр «Группа» в отчёте «Платежи»</h2>
+  <h2 id="team-filter-payments">2.0) Фильтр «Группа» в отчётах «Платежи», «Платежи по месяцам», LTV</h2>
   <div class="note">
     Параметр <code>filter_team_id</code> — id группы партнёра (Select2, <code>GET /admin/reports/payments/teams-search</code>).
-    Логика отличается от LTV и «Платежи по месяцам»: там фильтр только по членству ученика в pivot (<code>applyReportTeamFilters</code>).
-    В основном отчёте «Платежи» используется <code>UserTeamQuery::applyPaymentLedgerTeamFilters</code> — учитывается снимок <code>payments.team_id</code>
-    с fallback на pivot для legacy-строк (<code>payments.team_id IS NULL</code>).
-    Колонка «Группа» для новых месячных оплат показывает оплаченную группу, не все группы ученика.
+    В «Платежи», «Платежи по месяцам» и LTV используется <code>UserTeamQuery::applyPaymentLedgerTeamFilters</code> —
+    учитывается снимок <code>payments.team_id</code> с fallback на pivot для legacy-строк (<code>payments.team_id IS NULL</code>).
+    Колонка «Группа»: при <code>payments.team_id</code> — оплаченная группа; в LTV-сводке — уникальные оплаченные группы платежа
+    (<code>sqlPaymentLedgerTeamTitlesAggregate</code>); без снимка — все группы ученика через запятую.
+    Живое <code>teams.title</code> важнее снимка <code>payments.team_title</code>.
+    Вложенная LTV (<code>…/ltv/{user}/payments</code>) и детализация месяца применяют тот же
+    <code>filter_team_id</code> (JS копирует <code>paymentsMonthlyFilterParams</code> /
+    <code>ltvReportFilterParams</code> в <code>ajax.data</code>).
+    Анонс: <a href="/doc#reports-ltv-monthly-paid-team-index">/doc</a>.
     Подробно: <a href="/docs/documentation/reports-payments#team-filter">reports-payments §1.1</a>, <a href="/docs/documentation/payments#payments-team-snapshot">payments §2.2</a>.
   </div>
 
@@ -404,7 +409,9 @@
     <li><b>JS:</b> параметр <code>status</code> добавляется в объект фильтров при AJAX (<code>…FilterParams()</code>); кнопка «Сброс» возвращает значение <code>active</code> (не «Все ученики»). Значение <code>active</code> не считается «нестандартным» фильтром — панель фильтров по умолчанию свёрнута.</li>
     <li><b>LTV — не путать с колонкой «Статус»:</b> колонка <code>is_enabled</code> (badge «Активен» / «Отключен») показывает статус ученика в строке таблицы; фильтр «Активность ученика» задаёт, <i>каких</i> учеников включать в выборку.</li>
     <li><b>Не путать с отчётом «Payment intents»:</b> там колонка/ключ <code>status</code> — статус платёжного намерения провайдера; параметр фильтра активности ученика используется только в отчётах Платежи / monthly / LTV / Задолженности.</li>
-    <li><b>Задолженности:</b> фильтр применяется и к месячным (<code>users_prices</code>), и к периодным (<code>user_custom_payment</code>) источникам через общий join <code>users</code>.</li>
+    <li><b>Задолженности:</b> фильтр применяется и к месячным (<code>users_prices</code>), и к периодным (<code>user_custom_payment</code>) источникам через общий join <code>users</code>.
+      Soft-deleted ученики (<code>users.deleted_at</code>) в этот отчёт <b>не</b> входят независимо от <code>status</code> —
+      <a href="#debts">§3</a>.</li>
     <li><b>Доступ:</b> без <code>reports.view</code> страница и все endpoints (в т.ч. с <code>status</code> в query) — <b>403</b>; гость — редирект / 401 / 403. На вкладке «Назначение абонементов» — <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code> (см. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>, <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>).</li>
     <li>Подробнее про отчёт «Платежи»: <a href="/docs/documentation/reports-payments#user-status-filter">reports-payments §2.2</a>.</li>
   </ul>
@@ -468,6 +475,13 @@
           <code>date_end &lt; сегодня</code>. Даты в админке при создании необязательны и колонка
           «Период» в UI доп. платежей не показывается; <b>без заполненного
           <code>date_end</code> в прошлом запись в этот отчёт не попадёт</b>.</li>
+        <li><b>Удалённые ученики</b> — всегда скрыты (<code>whereNull('users.deleted_at')</code>
+          в <code>applyDebtReportNotDeletedUserFilter</code>, оба источника).
+          Join на <code>users</code> через Query Builder, поэтому SoftDeletes-scope модели
+          сам не действует: без явного фильтра soft-deleted с <code>is_enabled=1</code>
+          попадали в таблицу и сумму (в т.ч. при <code>status=</code> «все»).
+          Чекбокса «Удаленные» в этом отчёте <b>нет</b> (в отличие от назначений абонементов).
+          Анонс — <a href="/doc#reports-debts-hide-deleted-users-index">/doc#reports-debts-hide-deleted-users-index</a>.</li>
       </ul>
     </li>
     <li><b>Колонки (настройки)</b>:
@@ -531,14 +545,16 @@
     <b>Фильтр «Группа» (<code>filter_team_id</code>):</b> для месячных долгов — <code>users_prices.team_id = …</code>; для периодных доп. платежей — ученик состоит в группе (pivot). Текстовый <code>team_title</code> — по любой группе ученика в pivot.
     <br><b>Фильтр локации</b> — §2.1: через группы ученика в pivot (<code>team_user</code> → <code>teams.location_id</code>), не по <code>users_prices.team_id</code>. Платёжные отчёты — <code>payments.location_id</code>.
     <br><b>Фильтр «Активность ученика»</b> — §2.3: параметр <code>status</code>; по умолчанию только активные (<code>users.is_enabled = 1</code>); сброс фильтров в UI снова ставит <code>active</code>.
+    Soft-deleted ученики скрыты всегда, этот фильтр их не возвращает.
     <br>Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>; гость — <b>302/401/403</b>.
   </div>
 
   <h2 id="ltv-vs-partners-turnover">4) Отчёт “Платежи по ученикам (LTV)”</h2>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/ltv</code> (middleware <code>can:reports.view</code>)</li>
+    <li>Колонка «Группа» в основной таблице: уникальные оплаченные группы ученика (<code>sqlPaymentLedgerTeamTitlesAggregate</code>). В JSON детализации <code>team_title</code> — оплаченная группа (<code>sqlPaymentLedgerTeamTitleExpr</code>); вложенная HTML-таблица колонки «Группа» не показывает (в отличие от monthly). Фильтр <code>filter_team_id</code> — §<a href="#team-filter-payments">2.0</a> (в т.ч. на <code>GET /admin/reports/ltv/{user}/payments</code>: UI шлёт его из <code>ltvReportFilterParams</code>).</li>
     <li><b>DataTables</b>: <code>GET /admin/reports/ltv/data</code> (AJAX; UI — <code>KidsCrmDataTable.create('#ltv-table')</code>; шапка и горизонтальный скролл — §<a href="#reports-tables-sticky-header">1.3</a>)</li>
-    <li><b>Детализация</b>: <code>GET /admin/reports/ltv/{user}/payments</code> (AJAX, только с заголовком <code>X-Requested-With: XMLHttpRequest</code>)</li>
+    <li><b>Детализация</b>: <code>GET /admin/reports/ltv/{user}/payments</code> (AJAX, только с заголовком <code>X-Requested-With: XMLHttpRequest</code>; без AJAX — <b>404</b>). Фильтр ученика на детализации не дублируется (уже <code>user_id</code> в URL); группа/тренер/локация/статус — как в сводке.</li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/ltv/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
     <li><b>Колонки (настройки)</b>:
       <ul>
@@ -557,7 +573,7 @@
   <div class="note">
     <b>Детализация LTV — два формата ответа</b> (один endpoint, различие по наличию параметра <code>draw</code>):
     <ul>
-      <li><b>Без <code>draw</code></b> (legacy, раскрытие строки): JSON <code>{ user_id, payments: […] }</code> — массив всех платежей ученика.</li>
+      <li><b>Без <code>draw</code></b> (legacy): JSON <code>{ user_id, payments: […] }</code> — платежи ученика по тем же фильтрам формы, что и сводка (кроме <code>filter_user_id</code>: уже в URL).</li>
       <li><b>С <code>draw</code></b> (server-side DataTables во вложенной таблице): стандартный ответ DataTables
         (<code>draw</code>, <code>recordsTotal</code>, <code>recordsFiltered</code>, <code>data[]</code>) плюс мета-поля
         <code>meta_payments_count</code> и <code>meta_sum_total</code> (счётчик и сумма по тем же фильтрам, что и детализация).</li>
@@ -585,6 +601,7 @@
   <h2>5) Отчёт “Платежи по месяцам”</h2>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/payments/monthly</code> (middleware <code>can:reports.view</code>)</li>
+    <li>Колонка «Группа» в детализации месяца: оплаченная группа (<code>sqlPaymentLedgerTeamTitleExpr</code>), legacy без снимка — все группы ученика. Два платежа за разные группы в одном месяце — две строки, без склейки названий. Фильтр <code>filter_team_id</code> — §<a href="#team-filter-payments">2.0</a> (сводка месяцев, total и вложенная таблица).</li>
     <li><b>DataTables (месяцы)</b>: <code>GET /admin/reports/payments/monthly/data</code> (AJAX; UI — <code>KidsCrmDataTable.create('#payments-monthly-table')</code>; шапка и горизонтальный скролл — §<a href="#reports-tables-sticky-header">1.3</a>)</li>
     <li><b>Детализация месяца</b>: <code>GET /admin/reports/payments/monthly/{yearMonth}/payments</code> (AJAX, <code>yearMonth</code> = <code>YYYY-MM</code>)</li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/payments/monthly/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
@@ -968,18 +985,27 @@
     <li><code>tests/Feature/Crm/Reports/FiscalReceiptsReportTest.php</code> — totals, partners-search, DataTables fields; чеки <code>source=platform</code> исключены из data/total</li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsPageFullAccessFeatureTest.php</code> — guest/403/smoke intents, видимость <code>piCanFilterPartner</code></li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsReportTest.php</code> — в т.ч. <code>payment_date</code> в JSON (формат «месяц год»), client context, partner_id filter</li>
-    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS: <code>outgoing_emails</code>, <code>fiscal_receipts</code>, <code>tbank_payments</code> (<code>test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate</code>, <code>test_tbank_payments_payout_status_cell_and_view_switch_thead_contract</code>), <code>payment_intents</code>, <code>payment_monthly</code>, <code>debt</code> (+ контракт refreshDebtReportTotal / default status=active; settings-prices.js + manual-paid; поиск DataTables payments/LTV/monthly/intents; reload без пересоздания таблицы; закрепление шапки отчётов — <code>test_admin_reports_sticky_header_and_hscroll_vite_contract_and_valid_javascript</code>, <code>test_admin_reports_sticky_header_nested_tables_column_toggle_and_filter_reload_keep_pin</code>, <code>test_extra_report_sticky_header_inline_script_keeps_pin_without_fixed_columns</code>)</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS: <code>outgoing_emails</code>, <code>fiscal_receipts</code>, <code>tbank_payments</code> (<code>test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate</code>, <code>test_tbank_payments_payout_status_cell_and_view_switch_thead_contract</code>), <code>payment_intents</code>, <code>payment_monthly</code> / LTV <code>test_monthly_and_ltv_nested_ajax_copy_paid_team_filter_and_reset_clears_select2</code>, <code>debt</code> (+ контракт refreshDebtReportTotal / default status=active; settings-prices.js + manual-paid; поиск DataTables payments/LTV/monthly/intents; reload без пересоздания таблицы; закрепление шапки отчётов — <code>test_admin_reports_sticky_header_and_hscroll_vite_contract_and_valid_javascript</code>, <code>test_admin_reports_sticky_header_nested_tables_column_toggle_and_filter_reload_keep_pin</code>, <code>test_extra_report_sticky_header_inline_script_keeps_pin_without_fixed_columns</code>)</li>
     <li><code>tests/Feature/Crm/Reports/ReportsTablesStickyHeaderFeatureTest.php</code> — закрепление thead и липкого горизонтального скролла на payments / monthly / LTV / debts / intents / fiscal / tbank / emails: fallback без плагина, <code>scrollLeft</code> не <code>margin-left</code>, фильтр не recreate, вложенные LTV/monthly без FixedHeader, колонки payments/tbank/intents/fiscal/emails rebind, intents/fiscal без <code>fixedColumns</code>, первое открытие extra — колонки checked и фильтры свёрнуты, повтор с фильтром не снимает pin и не снимает checked, невалидный status T‑Bank — 302/422 по полю</li>
     <li><code>tests/Feature/Crm/Reports/ReportsTablesStickyHeaderFullAccessFeatureTest.php</code> — гость HTML 302 / JSON 401; без <code>reports.view</code> → 403 на payments/monthly/LTV/debts; без права вкладки → 403 на intents/fiscal/tbank/emails; viewer с правом и superadmin 200 + bind; admin без права вкладки 403; повторное открытие с фильтром; POST/PATCH/PUT/DELETE → 405; data AJAX JSON 200 без sticky-скрипта, emails без AJAX → 404, tbank data без AJAX — JSON; учётка без организации</li>
     <li><code>tests/Unit/Documentation/ReportsTablesStickyHeaderDocumentationContractTest.php</code> — анонс <code>/doc#reports-tables-sticky-header-index</code>, Vite-вход <code>admin-reports-tables.css</code> / <code>admin-reports-tables-sticky.js</code>, <code>@vite</code>, нет <code>public/css</code></li>
-    <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code>, фильтр локации, unit-кейсы <code>is_manual_paid</code>)</li>
+    <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code>, фильтр локации, unit-кейсы <code>is_manual_paid</code>,
+      <code>test_debts_exclude_soft_deleted_users_from_table_and_total</code>,
+      <code>test_debts_exclude_soft_deleted_users_when_status_all</code>)</li>
+    <li><code>tests/Unit/Documentation/ReportsDebtsHideDeletedUsersDocumentationContractTest.php</code> — анонс <a href="/doc#reports-debts-hide-deleted-users-index">/doc#reports-debts-hide-deleted-users-index</a></li>
     <li><code>tests/Feature/Crm/Reports/DebtsReportManualPaidFeatureTest.php</code> — UX: ручная оплата из установки цен / доп. платежей ↔ отчёт задолженностей (effective_is_paid), guest/403, Blade/JS-контракт</li>
     <li><code>tests/Feature/Crm/Reports/ReportsDatatableSearchFeatureTest.php</code> — поиск DataTables в «Платежи» и LTV: гость/403, UX-баг пустого ФИО и Ajax error tn/7, границы (сумма/месяц/локация/даты/%/_/пробелы), filter+search, без <code>locations.view</code>, Blade <code>searchable</code></li>
     <li><code>tests/Feature/Crm/Reports/ReportsMonthlyIntentsDatatableSearchFeatureTest.php</code> — поиск DataTables в monthly и payment-intents: гость/403, ФИО/группа/«Январь 2026»/«Февраль 2026» не цепляет январь/YYYY-MM, ID провайдера и партнёр; сумма/UA/%/_ не цепляются; вложенная monthly по ФИО и группе; filter+search; без <code>locations.view</code>; admin не видит чужого партнёра; Blade <code>searchable</code></li>
     <li><code>tests/Feature/Crm/Reports/ReportsDatatableSearchFullAccessFeatureTest.php</code> — HTTP-матрица поиска на всех четырёх страницах: guest/403/с правом/SA, non-AJAX, методы, вложенные monthly/LTV, total без учёта <code>search.value</code>, админ без организации</li>
     <li><code>tests/Unit/Documentation/ReportsDatatableSearchDocumentationContractTest.php</code> — анонс <code>/doc#reports-datatable-search-index</code> совпадает с контроллерами и Blade</li>
     <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code>, фильтр локации, поиск DataTables по ФИО/имени и группе; запрос с <code>columns[]</code> как в UI, чтобы не пропустить 42S22 по агрегатам)</li>
+    <li><code>tests/Feature/Crm/Reports/LtvReportTeamPivotFeatureTest.php</code> — колонка и фильтр оплаченной группы; UX двух оплаченных групп без третьей membership; вложенная таблица чтит <code>filter_team_id</code></li>
     <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code> (включая фильтр локации; сортировка детализации по <code>summ</code> → <code>summ_cents</code>, не 500)</li>
+    <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTeamPivotFeatureTest.php</code> — колонка и фильтр оплаченной группы в детализации месяца; UX двух платежей без concat; live <code>teams.title</code>; сводка месяцев по фильтру</li>
+    <li><code>tests/Feature/Crm/Reports/ReportsLtvMonthlyPaidTeamFullAccessFeatureTest.php</code> — guest / без <code>reports.view</code> / с правом / SA; 422 <code>errors.columns</code> / <code>page_length</code>; невалидный месяц 400; чужой партнёр; PUT/PATCH/DELETE</li>
+    <li><code>tests/Feature/Crm/Reports/ReportsLtvMonthlyPaidTeamMarkupFeatureTest.php</code> — пустой Select2 «Группа» при первом открытии; selected из query; без <code>trainers.view</code> группа видна</li>
+    <li><code>tests/Feature/Crm/Reports/ReportsLtvMonthlyPaidTeamNonAjaxSafetyNetFeatureTest.php</code> — data/детализация без AJAX → 404; columns-settings 302/422 по полям</li>
+    <li><code>tests/Unit/Documentation/ReportsLtvMonthlyPaidTeamDocumentationContractTest.php</code> — анонс <code>/doc#reports-ltv-monthly-paid-team-index</code></li>
     <li><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> — отчёт «Платежи»: колонка и фильтр</li>
     <li><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> — запись <code>payments.location_id</code> при оплате</li>
     <li><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> — фильтр <code>filter_trainer_profile_id</code> по группам тренера</li>
@@ -996,12 +1022,21 @@ php artisan test --env=testing tests/Feature/Crm/Reports/TbankPaymentsPayoutStat
 php artisan test --env=testing tests/Feature/Crm/Reports/TbankPaymentsPayoutStatusFullAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/TbankPaymentsPayoutStatusNonAjaxSafetyNetFeatureTest.php
 php artisan test --env=testing tests/Unit/Documentation/ReportsTbankPaymentsDocumentationContractTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/DeptReportTest.php
+php artisan test --env=testing tests/Unit/Documentation/ReportsDebtsHideDeletedUsersDocumentationContractTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/FiscalReceiptsPageFullAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/ReportsDatatableSearchFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/ReportsMonthlyIntentsDatatableSearchFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/ReportsDatatableSearchFullAccessFeatureTest.php
 php artisan test --env=testing tests/Unit/Documentation/ReportsDatatableSearchDocumentationContractTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/PaymentMonthlyReportTeamPivotFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/LtvReportTeamPivotFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsLtvMonthlyPaidTeamFullAccessFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsLtvMonthlyPaidTeamMarkupFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsLtvMonthlyPaidTeamNonAjaxSafetyNetFeatureTest.php
+php artisan test --env=testing tests/Unit/Documentation/ReportsLtvMonthlyPaidTeamDocumentationContractTest.php
+php artisan test --env=testing --filter=test_monthly_and_ltv_nested_ajax_copy_paid_team_filter_and_reset_clears_select2
 php artisan test --env=testing tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFullAccessFeatureTest.php</code></pre>
   <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/reusable-ui-partials">UI: KidsCrmDataTable</a> · <a href="/docs/documentation/reports-payments">Отчёт «Платежи»</a></p>
 </div>
