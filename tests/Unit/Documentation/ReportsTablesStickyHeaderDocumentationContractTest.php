@@ -35,6 +35,9 @@ final class ReportsTablesStickyHeaderDocumentationContractTest extends TestCase
         $this->assertStringContainsString('KidsCrmDataTable.create(\'#payments-table\')', $chunk);
         $this->assertStringContainsString('#payments-monthly-table', $chunk);
         $this->assertStringContainsString('#ltv-table', $chunk);
+        $this->assertStringContainsString('#ltv-teams-table', $chunk);
+        $this->assertStringContainsString('/admin/reports/ltv/teams', $chunk);
+        $this->assertStringContainsString('reports.ltv.teams.view', $chunk);
         $this->assertStringContainsString('#debts-table', $chunk);
         $this->assertStringContainsString('#tbank-payments-table', $chunk);
         $this->assertStringContainsString('#payment-intents-table', $chunk);
@@ -121,6 +124,7 @@ final class ReportsTablesStickyHeaderDocumentationContractTest extends TestCase
             'admin/report/payment.blade.php' => '#payments-table',
             'admin/report/payment_monthly.blade.php' => '#payments-monthly-table',
             'admin/report/ltv.blade.php' => '#ltv-table',
+            'admin/report/ltv_teams.blade.php' => '#ltv-teams-table',
             'admin/report/debt.blade.php' => '#debts-table',
             'admin/report/tbank_payments.blade.php' => '#tbank-payments-table',
             'admin/report/payment_intents.blade.php' => '#payment-intents-table',

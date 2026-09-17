@@ -405,7 +405,11 @@
                         }
 
                         const itemsKey = col.itemsKey || (name + '_items');
-                        return window.KidsCrmTooltip.renderList(value, row[itemsKey] || []);
+                        const listOptions = (col.listOptions && typeof col.listOptions === 'object')
+                            ? col.listOptions
+                            : {};
+
+                        return window.KidsCrmTooltip.renderList(value, row[itemsKey] || [], listOptions);
                     },
                 };
                 break;

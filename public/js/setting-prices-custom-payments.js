@@ -154,10 +154,10 @@
                     }
                 },
                 columns: [
-                    { key: 'id', type: 'id' },
+                    { key: 'id', type: 'id', searchable: false },
                     { key: 'user_name', type: 'text', data: 'user_name' },
                     { key: 'team_label', type: 'text', data: 'team_label', orderable: false },
-                    { key: 'amount', type: 'money', data: 'amount' },
+                    { key: 'amount', type: 'money', data: 'amount', searchable: false },
                     {
                         key: 'note',
                         type: 'text',

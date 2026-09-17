@@ -50,6 +50,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'debts report tab' => ['admin/report/debt.blade.php'];
         yield 'payments report tab' => ['admin/report/payment.blade.php'];
         yield 'ltv report tab' => ['admin/report/ltv.blade.php'];
+        yield 'ltv teams report tab' => ['admin/report/ltv_teams.blade.php'];
         yield 'payments monthly report tab' => ['admin/report/payment_monthly.blade.php'];
         yield 'generic multiselect partial' => ['partials/select2/generic-multiselect.blade.php'];
         yield 'schedule journal statuses settings' => ['admin/shared/occurrence_statuses_crud.blade.php'];
@@ -2910,6 +2911,7 @@ JS;
             'admin/partners/tabs/payouts.blade.php',
             'admin/report/fiscal_receipts.blade.php',
             'admin/report/ltv.blade.php',
+            'admin/report/ltv_teams.blade.php',
             'admin/report/payment.blade.php',
             'admin/report/payment_intents.blade.php',
             'admin/report/payment_monthly.blade.php',
@@ -2950,6 +2952,11 @@ JS;
                 'file' => resource_path('views/admin/report/ltv.blade.php'),
                 'pageLength' => 'pageLength: @json((int) ($ltvPageLength ?? 10))',
                 'prefix' => 'blade-js-ltv-page-length',
+            ],
+            "KidsCrmDataTable.create('#ltv-teams-table'" => [
+                'file' => resource_path('views/admin/report/ltv_teams.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($ltvTeamsPageLength ?? 10))',
+                'prefix' => 'blade-js-ltv-teams-page-length',
             ],
             "KidsCrmDataTable.create('#payment-intents-table'" => [
                 'file' => resource_path('views/admin/report/payment_intents.blade.php'),
@@ -3034,6 +3041,22 @@ JS;
             'function initLtvUserPaymentsDetailTable',
             'blade-js-ltv-detail-page-length'
         );
+
+        $ltvTeams = (string) file_get_contents(resource_path('views/admin/report/ltv_teams.blade.php'));
+        $ltvTeamsFn = strpos($ltvTeams, 'function initLtvTeamPaymentsDetailTable');
+        $this->assertNotFalse($ltvTeamsFn);
+        $ltvTeamsCreate = strpos($ltvTeams, "KidsCrmDataTable.create('#ltv-teams-table'");
+        $this->assertNotFalse($ltvTeamsCreate);
+        $ltvTeamsDetail = substr($ltvTeams, $ltvTeamsFn, $ltvTeamsCreate - $ltvTeamsFn);
+        $this->assertStringContainsString('pageLength: 10', $ltvTeamsDetail);
+        $this->assertStringNotContainsString('persistPageLength', $ltvTeamsDetail);
+        $this->assertStringNotContainsString('$ltvTeamsPageLength', $ltvTeamsDetail);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            resource_path('views/admin/report/ltv_teams.blade.php'),
+            'function initLtvTeamPaymentsDetailTable',
+            'blade-js-ltv-teams-detail-page-length'
+        );
     }
 
     /**
@@ -3055,6 +3078,11 @@ JS;
             ],
             resource_path('views/admin/report/ltv.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#ltv-table'",
+                'submit' => '$ltvFiltersForm.on(\'submit\'',
+                'reload' => 'dtApi.reload({ keepPage: true });',
+            ],
+            resource_path('views/admin/report/ltv_teams.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#ltv-teams-table'",
                 'submit' => '$ltvFiltersForm.on(\'submit\'',
                 'reload' => 'dtApi.reload({ keepPage: true });',
             ],
@@ -5939,6 +5967,33 @@ JS;
             "KidsCrmDataTable.create('#ltv-table'",
             'blade-js-ltv-datatable-search'
         );
+
+        $ltvTeamsPath = resource_path('views/admin/report/ltv_teams.blade.php');
+        $ltvTeams = (string) file_get_contents($ltvTeamsPath);
+        $this->assertStringContainsString("KidsCrmDataTable.create('#ltv-teams-table'", $ltvTeams);
+        $this->assertStringContainsString("name: 'team_title'", $ltvTeams);
+        $this->assertStringContainsString("name: 'user_names'", $ltvTeams);
+        $this->assertStringContainsString("type: 'list'", $ltvTeams);
+        $this->assertStringContainsString("itemsKey: 'user_names_items'", $ltvTeams);
+        $this->assertStringContainsString("kids-hover-list-tooltip--two-col", $ltvTeams);
+        $this->assertStringContainsString('listOptions', $ltvTeams);
+        $this->assertStringContainsString("name: 'avg_attendance', searchable: false", $ltvTeams);
+        $this->assertDoesNotMatchRegularExpression(
+            "/name:\\s*'team_title'\\s*,\\s*searchable:\\s*false/",
+            $ltvTeams
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            "/name:\\s*'user_names'\\s*,\\s*searchable:\\s*false/",
+            $ltvTeams
+        );
+        $this->assertStringContainsString("name: 'total_price', searchable: false", $ltvTeams);
+        $this->assertStringContainsString("name: 'payment_count', searchable: false", $ltvTeams);
+        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $ltvTeams);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvTeamsPath,
+            "KidsCrmDataTable.create('#ltv-teams-table'",
+            'blade-js-ltv-teams-datatable-search'
+        );
     }
 
     /**
@@ -6089,6 +6144,41 @@ JS;
             'function initLtvUserPaymentsDetailTable',
             'blade-js-ltv-nested-paid-team-filter'
         );
+
+        $ltvTeamsPath = resource_path('views/admin/report/ltv_teams.blade.php');
+        $ltvTeams = (string) file_get_contents($ltvTeamsPath);
+        $ltvTeamsParamsPos = strpos($ltvTeams, 'function ltvTeamsReportFilterParams()');
+        $this->assertNotFalse($ltvTeamsParamsPos);
+        $ltvTeamsParams = substr($ltvTeams, $ltvTeamsParamsPos, 1800);
+        $this->assertStringContainsString('[name="filter_team_id"]', $ltvTeamsParams);
+        $this->assertStringContainsString('filter_team_id: tid', $ltvTeamsParams);
+        $this->assertStringContainsString('period: currentPeriod', $ltvTeamsParams);
+
+        $ltvTeamsNestedPos = strpos($ltvTeams, 'function initLtvTeamPaymentsDetailTable');
+        $this->assertNotFalse($ltvTeamsNestedPos);
+        $ltvTeamsCreate = strpos($ltvTeams, "KidsCrmDataTable.create('#ltv-teams-table'");
+        $this->assertNotFalse($ltvTeamsCreate);
+        $ltvTeamsNested = substr($ltvTeams, $ltvTeamsNestedPos, $ltvTeamsCreate - $ltvTeamsNestedPos);
+        $this->assertStringContainsString('var extra = ltvTeamsReportFilterParams();', $ltvTeamsNested);
+        $this->assertStringContainsString('d[key] = extra[key];', $ltvTeamsNested);
+        $this->assertStringContainsString("data: 'user_name'", $ltvTeamsNested);
+        $this->assertStringContainsString("name: 'user_name'", $ltvTeamsNested);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvTeamsPath,
+            'function ltvTeamsReportFilterParams()',
+            'blade-js-ltv-teams-paid-team-filter'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvTeamsPath,
+            "\$('.js-ltv-teams-period-btn').on('click'",
+            'blade-js-ltv-teams-period-tabs'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvTeamsPath,
+            'function initLtvTeamPaymentsDetailTable',
+            'blade-js-ltv-teams-nested-paid-team-filter'
+        );
     }
 
     /**
@@ -6106,6 +6196,11 @@ JS;
             resource_path('views/admin/report/ltv.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#ltv-table'",
                 'reset' => '$(\'#ltvReportFiltersResetBtn\').on(\'click\'',
+                'nested_rtip' => true,
+            ],
+            resource_path('views/admin/report/ltv_teams.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#ltv-teams-table'",
+                'reset' => '$(\'#ltvTeamsReportFiltersResetBtn\').on(\'click\'',
                 'nested_rtip' => true,
             ],
             resource_path('views/admin/report/payment_monthly.blade.php') => [
@@ -6510,6 +6605,7 @@ JS;
             resource_path('views/admin/report/payment.blade.php') => '#payments-table',
             resource_path('views/admin/report/payment_monthly.blade.php') => '#payments-monthly-table',
             resource_path('views/admin/report/ltv.blade.php') => '#ltv-table',
+            resource_path('views/admin/report/ltv_teams.blade.php') => '#ltv-teams-table',
             resource_path('views/admin/report/debt.blade.php') => '#debts-table',
             resource_path('views/admin/report/tbank_payments.blade.php') => '#tbank-payments-table',
             resource_path('views/admin/report/payment_intents.blade.php') => '#payment-intents-table',
@@ -6635,6 +6731,17 @@ JS;
         $this->assertStringContainsString('$ltvFiltersForm.on(\'submit\'', $ltv);
         $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $ltv);
         $this->assertSame(1, substr_count($ltv, "KidsCrmDataTable.create('#ltv-table'"));
+
+        $ltvTeams = (string) file_get_contents(resource_path('views/admin/report/ltv_teams.blade.php'));
+        $ltvTeamsCreate = strpos($ltvTeams, "KidsCrmDataTable.create('#ltv-teams-table'");
+        $this->assertNotFalse($ltvTeamsCreate);
+        $ltvTeamsNested = substr($ltvTeams, (int) strpos($ltvTeams, 'function initLtvTeamPaymentsDetailTable'), $ltvTeamsCreate - (int) strpos($ltvTeams, 'function initLtvTeamPaymentsDetailTable'));
+        $this->assertStringContainsString("dom: 'rtip'", $ltvTeamsNested);
+        $this->assertStringNotContainsString('fixedHeader', $ltvTeamsNested);
+        $this->assertStringNotContainsString('KidsCrmReportTableSticky', $ltvTeamsNested);
+        $this->assertStringContainsString('$ltvFiltersForm.on(\'submit\'', $ltvTeams);
+        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $ltvTeams);
+        $this->assertSame(1, substr_count($ltvTeams, "KidsCrmDataTable.create('#ltv-teams-table'"));
 
         $monthly = (string) file_get_contents(resource_path('views/admin/report/payment_monthly.blade.php'));
         $monthlyCreate = strpos($monthly, "KidsCrmDataTable.create('#payments-monthly-table'");
@@ -9748,6 +9855,8 @@ JS;
             $this->assertStringContainsString('e.preventDefault()', $js, $path);
             $this->assertStringContainsString('setEditFieldErrors', $js, $path);
             $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $js, $path);
+            $this->assertMatchesRegularExpression("/key:\\s*'id'[\\s\\S]{0,80}searchable:\\s*false/", $js);
+            $this->assertMatchesRegularExpression("/key:\\s*'amount'[\\s\\S]{0,80}searchable:\\s*false/", $js);
 
             $output = [];
             $exitCode = 0;

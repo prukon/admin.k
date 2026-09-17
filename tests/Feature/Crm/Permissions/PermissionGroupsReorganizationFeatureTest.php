@@ -43,7 +43,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
     {
         return [
             'mainMenu'        => 18,
-            'reports'         => 10,
+            'reports'         => 11,
             'schedule'        => 5,
             'schoolSchedule'  => 6,
             'directories'     => 8,
@@ -105,6 +105,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'partner.view',
             ],
             'reports' => [
+                'reports.ltv.teams.view',
                 'reports.payment.intents.view',
                 'reports.fiscal.receipts.view',
                 'reports.emails.view',
@@ -367,7 +368,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
         $slugs = $groups->pluck('slug')->all();
 
         $this->assertContains('mainMenu', $slugs);
-        $this->assertNotContains('reports', $slugs);
+        $this->assertContains('reports', $slugs);
         $this->assertContains('users', $slugs);
         $this->assertContains('account', $slugs);
         $this->assertContains('inAppNotifications', $slugs);

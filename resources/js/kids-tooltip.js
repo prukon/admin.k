@@ -75,6 +75,24 @@
             });
     }
 
+    function sanitizeListTooltipExtraClass(value) {
+        const raw = String(value || '').trim();
+        if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(raw)) {
+            return '';
+        }
+
+        return raw;
+    }
+
+    function listTooltipClassName(extraClass) {
+        const extra = sanitizeListTooltipExtraClass(extraClass);
+        if (extra === '') {
+            return LIST_TOOLTIP_CLASS;
+        }
+
+        return LIST_TOOLTIP_CLASS + ' ' + extra;
+    }
+
     function buildListTooltipTitle(items) {
         const listItems = items
             .map(function (item) {
@@ -121,7 +139,7 @@
         new bootstrap.Tooltip(el, {
             html: true,
             placement: el.getAttribute('data-bs-placement') || 'top',
-            customClass: LIST_TOOLTIP_CLASS,
+            customClass: el.getAttribute('data-bs-custom-class') || LIST_TOOLTIP_CLASS,
             trigger: 'hover focus',
         });
     }
@@ -296,11 +314,13 @@
                 return escapeHtml(visibleLabel);
             }
 
+            const tooltipClass = listTooltipClassName(options.customClass);
+
             return '<span class="js-kids-hover-list-dropdown kids-hover-list-dropdown__trigger" '
                 + 'data-bs-toggle="tooltip" '
                 + 'data-bs-html="true" '
                 + 'data-bs-placement="top" '
-                + 'data-bs-custom-class="' + LIST_TOOLTIP_CLASS + '" '
+                + 'data-bs-custom-class="' + escapeHtml(tooltipClass) + '" '
                 + 'data-kids-hover-list-items="' + escapeHtml(JSON.stringify(titles)) + '" '
                 + 'title="' + escapeHtml(buildListTooltipTitle(titles)) + '" '
                 + 'tabindex="0" '

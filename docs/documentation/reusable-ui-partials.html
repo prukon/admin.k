@@ -91,7 +91,7 @@
       <tr><td><code>/admin/school-leads</code></td><td><code>admin/school-leads/index.blade.php</code> (вкладка «Заявки» → <code>tabs/leads.blade.php</code>)</td></tr>
       <tr><td><code>/admin/lesson-packages/assignments</code></td><td><code>admin/lessonPackages/tabs/assignments.blade.php</code> (вкладка «Назначение абонементов»: Назначить / <b>История</b> / Фильтры / Колонки; logs-data категории <code>user_lesson_package</code>)</td></tr>
       <tr><td><code>/admin/lesson-packages</code>, <code>/admin/directories/lesson-packages</code></td><td><code>admin/lessonPackages/tabs/packages.blade.php</code> (шаблоны абонементов: Добавить / История / Фильтры / Колонки)</td></tr>
-      <tr><td>Отчёты «Платежи», «Задолженности», LTV, «Платежи по месяцам», «Платежные запросы», «Чеки», «Исходящие письма»</td><td><code>admin/report/*.blade.php</code> (вкладки в <code>admin/report/index.blade.php</code>)</td></tr>
+      <tr><td>Отчёты «Платежи», «Задолженности», LTV, «Платежи по группам», «Платежи по месяцам», «Платежные запросы», «Чеки», «Исходящие письма»</td><td><code>admin/report/*.blade.php</code> (вкладки в <code>admin/report/index.blade.php</code>)</td></tr>
       <tr><td><code>/admin/settings/logs</code></td><td><code>admin/setting/logs.blade.php</code></td></tr>
       <tr><td><code>/admin/settings/tbank-commissions</code></td><td><code>admin/setting/tbankCommissions.blade.php</code> (Настройки выплат / Добавить / <b>История</b> / Фильтры / Колонки; logs-data категории <code>tbank_commission</code>; <a href="/doc#tbank-commissions-history-index">анонс «История»</a>)</td></tr>
       <tr><td>Модалка «История изменений»</td><td><code>includes/logModal.blade.php</code> — договоры, шаблоны, справочники, заявки, users, teams, schedule, отчёты (<a href="#logmodal">§ logModal</a>)</td></tr>
@@ -134,7 +134,7 @@
       </tr>
       <tr>
         <td><code>renderList(shortLabel, itemsArray, options?)</code></td>
-        <td>Краткая подпись + список пунктов в HTML-tooltip. При 0–1 пункте tooltip не показывается (опция <code>minItemsForHover</code>).</td>
+        <td>Краткая подпись + список пунктов в HTML-tooltip. При 0–1 пункте tooltip не показывается (опция <code>minItemsForHover</code>). Опция <code>customClass</code> — один дополнительный класс пузырька (латиница/цифры/<code>_</code>/<code>-</code>); <code>init</code> берёт его из <code>data-bs-custom-class</code>.</td>
       </tr>
       <tr>
         <td><code>init(root, { scopes? })</code></td>
@@ -291,7 +291,7 @@ function reloadTable() {
       <tr><td><code>text-long</code></td><td><code>dt-col-text</code></td><td><b>Устаревший алиас</b> — то же, что <code>text</code>. В новых таблицах используйте только <code>text</code>.</td></tr>
       <tr><td><code>datetime</code></td><td><code>dt-col-text dt-col-text--wrap</code></td><td>Дата+время в две строки (<code>pay-cell-datetime</code>); пустое → прочерк. API: <code>KidsCrmDataTable.renderDateTime</code>.</td></tr>
       <tr><td><code>inline-actions</code></td><td><code>dt-col-inline-actions</code></td><td>Кнопки «Показать» / «Копировать»; пустое → прочерк как у <code>text</code>. Опции <code>inlineActions.modalTitle</code>, <code>inlineActions.format</code> (<code>meta-pretty</code>).</td></tr>
-      <tr><td><code>list</code></td><td><code>dt-col-list</code></td><td>Краткая подпись + список в tooltip; опции <code>itemsKey</code>, <code>emptyHtml</code></td></tr>
+      <tr><td><code>list</code></td><td><code>dt-col-list</code></td><td>Краткая подпись + список в tooltip; опции <code>itemsKey</code>, <code>emptyHtml</code>, <code>listOptions</code> (в т.ч. <code>customClass</code> → <code>KidsCrmTooltip.renderList</code>)</td></tr>
       <tr><td><code>badge</code></td><td><code>dt-col-badge</code></td><td>Badge статуса; опция <code>badgeKey</code> (поле row, по умолчанию <code>is_enabled</code>). Можно свой <code>render</code>.</td></tr>
       <tr><td><code>count</code></td><td><code>dt-col-count</code></td><td>Число (счётчик групп и т.п.)</td></tr>
       <tr><td><code>money</code></td><td><code>dt-col-count</code></td><td>Сумма с форматированием <code>ru-RU</code> + « руб» (число — по правому краю через <code>.dt-col-money-value</code>; пусто → «—» слева, как в <code>text</code>)</td></tr>
@@ -300,7 +300,7 @@ function reloadTable() {
       <tr><td><code>icon</code></td><td><code>dt-col-icon</code></td><td>Font Awesome / иконка-ссылка: массив в <code>data</code> или <code>row[itemsKey]</code> (<code>{ iconClass, href?, title, ariaLabel, linkClass?, color? }</code>). Несколько иконок — в <code>span.kids-dt-icon-group</code>. Свой <code>render</code> — для сложной логики (чеки в отчёте «Платежи»). API: <code>KidsCrmDataTable.renderIcon</code>.</td></tr>
       <tr><td><code>inline-select</code></td><td><code>dt-col-inline-select</code></td><td>Badge + скрытый <code>&lt;select&gt;</code> для inline-редактирования статуса. Опции <code>inlineSelect</code>: <code>statusKey</code>, <code>labelKey</code>, <code>options[]</code>, <code>badgeClassFn</code>, <code>badgeSelector</code>, <code>selectSelector</code>. API: <code>KidsCrmDataTable.renderInlineSelect</code>.</td></tr>
       <tr><td><code>actions</code></td><td><code>dt-col-actions</code></td><td>Колонка кнопок (edit/delete, возврат, договор и т.п.); обязателен <code>render</code></td></tr>
-      <tr><td><code>custom</code></td><td><code>dt-col-*</code> в <code>column.className</code></td><td>Обход пресета — только если нет подходящего типа. В новых таблицах предпочитайте <code>text</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>. Осталось в отчётах LTV и «Платежи по месяцам» — chevron раскрытия (<code>details-control</code>, §3.1).</td></tr>
+      <tr><td><code>custom</code></td><td><code>dt-col-*</code> в <code>column.className</code></td><td>Обход пресета — только если нет подходящего типа. В новых таблицах предпочитайте <code>text</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>. Осталось в отчётах LTV, «Платежи по группам» и «Платежи по месяцам» — chevron раскрытия (<code>details-control</code>, §3.1).</td></tr>
     </tbody>
   </table>
 
@@ -348,7 +348,7 @@ function reloadTable() {
         <td>«—» / ссылка на договор / «Создать договор» (встроенная модалка) — см. <a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">school-leads-widget §5.5.2–5.8</a>.</td>
       </tr>
       <tr>
-        <td>LTV, «Платежи по месяцам» — chevron</td>
+        <td>LTV, «Платежи по группам», «Платежи по месяцам» — chevron</td>
         <td><code>custom</code></td>
         <td><code>custom</code> (пока)</td>
         <td>Колонка <code>details-control</code>; планируется тип <code>expand</code>.</td>
@@ -444,7 +444,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     <li><b>text / list / schedule:</b> <code>width: 1%</code> (shrink-to-content) + cap <code>--dt-col-ellipsis-max</code> (18rem) + ellipsis; полный текст — в tooltip через <code>KidsCrmTooltip</code> только если строка обрезана.</li>
     <li><b>datetime:</b> класс <code>dt-col-text--wrap</code>, разметка <code>pay-cell-datetime</code> (стили в <code>admin-list-toolbar.css</code>).</li>
     <li><b>inline-actions:</b> узкая колонка под две кнопки (<code>dt-col-inline-actions</code>).</li>
-    <li><b>details-control</b> (chevron в LTV / «Платежи по месяцам»): <code>width: 1%</code>, компактная кнопка <code>.details-control-btn</code>.</li>
+    <li><b>details-control</b> (chevron в LTV / «Платежи по группам» / «Платежи по месяцам»): <code>width: 1%</code>, компактная кнопка <code>.details-control-btn</code>.</li>
     <li><b>Вертикальное выравнивание:</b> <code>vertical-align: middle</code> на всех <code>th</code>/<code>td</code> managed-таблиц.</li>
   </ul>
   <p>Не задавайте inline <code>min-width</code> / <code>width</code> в <code>&lt;th&gt;</code> — ширина только через <code>dt-col-*</code> в определении колонок.</p>
@@ -455,7 +455,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     <li>У <code>.dataTables_wrapper</code> — <code>overflow-x: visible</code>.</li>
     <li>Скролл только у области таблицы: обёртка <code>.kids-dt-scroll-x</code> (добавляется сразу после <code>DataTable()</code> и повторно на <code>init.dt</code> через <code>KidsCrmDataTable.ensureTableScrollHost</code>, идемпотентно) или встроенный <code>.dataTables_scroll</code> при <code>scrollX</code> / <code>fixedColumns</code>.</li>
     <li>    На <code>/admin/school-leads</code>, <code>/admin/users</code> и вкладках отчётов
-      (<code>/admin/reports/payments</code>, monthly, LTV, debts,
+      (<code>/admin/reports/payments</code>, monthly, LTV, «Платежи по группам», debts,
       payment-intents, fiscal-receipts, tbank-payments, emails) дополнительно:
       FixedHeader для <code>thead</code> и липкий клон полосы <code>.kids-dt-sticky-hscroll</code> (не пресет).
       CSS — Vite-бандлы <code>school-leads-table.css</code> / <code>admin-users-table.css</code> /
@@ -518,6 +518,7 @@ dataTable: {
       <tr><td>Все платежи</td><td><a href="/docs/documentation/reports-payments"><code>/admin/reports/payments</code></a></td><td><code>reports_payments</code></td></tr>
       <tr><td>Платежи по месяцам</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payments/monthly</code></a></td><td><code>reports_payments_monthly</code></td></tr>
       <tr><td>LTV</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/ltv</code></a></td><td><code>reports_ltv</code></td></tr>
+      <tr><td>Платежи по группам</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/ltv/teams</code></a></td><td><code>reports_ltv_teams</code></td></tr>
       <tr><td>Платежные запросы</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payment-intents</code></a></td><td><code>reports_payment_intents</code></td></tr>
       <tr><td>Фискальные чеки</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/fiscal-receipts</code></a></td><td><code>reports_fiscal_receipts</code></td></tr>
       <tr><td>Платежи T‑Bank</td><td><a href="/docs/documentation/reports-admin#reports-tbank-payments"><code>/admin/reports/tbank-payments</code></a>
@@ -555,7 +556,7 @@ dataTable: {
     <li><a href="/docs/documentation/reports-payments">/admin/reports/payments</a> — <code>icon</code> (чек), <code>actions</code> (возврат); 0 <code>custom</code></li>
     <li><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> — <code>inline-select</code> (динамические статусы), filter multiselect статусов (§4.1), фильтры «Секция»/«Объект» — <code>generic-multiselect</code> (§4.2 / school-leads-widget §5.1.7), порядок колонок ребёнок→родитель→статус→объект→секция→телефон, затем <code>contract</code> (§5.5.3 / §5.6); редактирование по клику на ФИО (§5.5.2–5.5.3); без колонки <code>actions</code>; 0 <code>custom</code></li>
     <li><a href="/docs/documentation/reports-admin#reports-outgoing-emails">/admin/reports/emails</a> — <code>datetime</code> (создано/отправлено), <code>link</code> (колонка «Кому» → модалка), колонка «Партнер» (id + title, как в чеках), фильтр партнёра только для SA (<a href="/docs/documentation/reports-admin#partner-filter-cross-report">§2.4</a>)</li>
-    <li><a href="/docs/documentation/reports-admin">Прочие отчёты админки</a> — debt, LTV, monthly, payment-intents, fiscal-receipts (<code>table_key</code> см. §9 там)</li>
+    <li><a href="/docs/documentation/reports-admin">Прочие отчёты админки</a> — debt, LTV, «Платежи по группам», monthly, payment-intents, fiscal-receipts (<code>table_key</code> см. §9 там)</li>
     <li><a href="/docs/documentation/settings-logs">/admin/settings/logs</a> — журнал <code>my_logs</code> без columns-settings (фиксированные колонки)</li>
     <li><a href="/docs/documentation/tbank#commissions-ui">/admin/settings/tbank-commissions</a> — server-side таблица правил комиссий, dropdown «Колонки», <code>table_key = tbank_commissions_index</code>, opt-in <code>persistPageLength</code>, кнопка «История» (<a href="/doc#tbank-commissions-history-index">анонс</a>)</li>
   </ul>
@@ -569,7 +570,7 @@ dataTable: {
   </ul>
 
   <h3>Вложенные (дочерние) таблицы в отчётах</h3>
-  <p>В LTV и «Платежи по месяцам» при раскрытии строки детализация платежей использует обычный <code>$('#…').DataTable({ serverSide: true, dom: 'rtip' })</code>, не <code>KidsCrmDataTable.create</code> — у дочерней таблицы нет dropdown «Колонки» и нет поля поиска.
+  <p>В LTV, «Платежи по группам» и «Платежи по месяцам» при раскрытии строки детализация платежей использует обычный <code>$('#…').DataTable({ serverSide: true, dom: 'rtip' })</code>, не <code>KidsCrmDataTable.create</code> — у дочерней таблицы нет dropdown «Колонки» и нет поля поиска.
     Backend поддерживает два формата одного endpoint: legacy JSON без <code>draw</code> и server-side DataTables с <code>draw</code> + <code>meta_payments_count</code> / <code>meta_sum_total</code> (см. <a href="/docs/documentation/reports-admin">reports-admin</a> §4–5).
     Глобальный поиск основных таблиц четырёх отчётов — <a href="/doc#reports-datatable-search-index">/doc</a>, <a href="/docs/documentation/reports-admin#reports-datatable-search">reports-admin §1.2</a>.</p>
 

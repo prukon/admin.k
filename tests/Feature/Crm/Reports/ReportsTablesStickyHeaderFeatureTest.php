@@ -11,7 +11,7 @@ use Tests\Feature\Crm\CrmTestCase;
 
 /**
  * Закрепление thead (FixedHeader) и липкий горизонтальный скролл
- * на вкладках отчётов: payments, monthly, LTV, debts,
+ * на вкладках отчётов: payments, monthly, LTV, «Платежи по группам», debts,
  * payment-intents, fiscal-receipts, tbank-payments, emails.
  *
  * HTTP-проверка без Vite-манифеста (`withoutVite`): плагин и bind в разметке,
@@ -47,6 +47,7 @@ final class ReportsTablesStickyHeaderFeatureTest extends CrmTestCase
             'payments' => ['payments', 'payments-table', "KidsCrmDataTable.create('#payments-table'", ['status' => 'inactive']],
             'monthly'  => ['reports.payments.monthly', 'payments-monthly-table', "KidsCrmDataTable.create('#payments-monthly-table'", ['status' => 'inactive']],
             'ltv'      => ['reports.ltv', 'ltv-table', "KidsCrmDataTable.create('#ltv-table'", ['status' => 'inactive']],
+            'ltv-teams'=> ['reports.ltv.teams', 'ltv-teams-table', "KidsCrmDataTable.create('#ltv-teams-table'", ['status' => 'inactive']],
             'debts'    => ['debts', 'debts-table', "KidsCrmDataTable.create('#debts-table'", ['status' => 'inactive']],
             'intents'  => ['reports.payment-intents.index', 'payment-intents-table', "KidsCrmDataTable.create('#payment-intents-table'", []],
             'fiscal'   => ['reports.fiscal-receipts.index', 'fiscal-receipts-table', "KidsCrmDataTable.create('#fiscal-receipts-table'", []],
@@ -136,6 +137,18 @@ final class ReportsTablesStickyHeaderFeatureTest extends CrmTestCase
         $this->assertStringContainsString("dom: 'rtip'", $monthlyNested);
         $this->assertStringNotContainsString('fixedHeader', $monthlyNested);
         $this->assertStringNotContainsString('KidsCrmReportTableSticky', $monthlyNested);
+        $this->assertStringNotContainsString('dataTables.fixedHeader.min.js', $monthlyNested);
+
+        $ltvTeams = (string) $this->get(route('reports.ltv.teams'))->assertOk()->getContent();
+        $ltvTeamsNested = $this->functionChunk(
+            $ltvTeams,
+            'initLtvTeamPaymentsDetailTable',
+            "KidsCrmDataTable.create('#ltv-teams-table'"
+        );
+        $this->assertStringContainsString("dom: 'rtip'", $ltvTeamsNested);
+        $this->assertStringNotContainsString('fixedHeader', $ltvTeamsNested);
+        $this->assertStringNotContainsString('KidsCrmReportTableSticky', $ltvTeamsNested);
+        $this->assertStringNotContainsString('dataTables.fixedHeader.min.js', $ltvTeamsNested);
     }
 
     public function test_extra_report_column_toggles_and_filter_reload_keep_pin_without_recreate(): void

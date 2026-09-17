@@ -19,14 +19,14 @@
 
         {{--Отчеты--}}
 {{--        @can('reports')--}}
-        @can('reports.view')
+        @if(auth()->user()?->can('reports.view') || auth()->user()?->can('reports.ltv.teams.view'))
         <li class="nav-item">
-                <a href="/admin/reports/payments" class="nav-link">
+                <a href="{{ auth()->user()?->can('reports.view') ? '/admin/reports/payments' : route('reports.ltv.teams') }}" class="nav-link">
                     <i class="nav-icon fa-solid fa-folder"></i>
                     <p>Отчеты</p>
                 </a>
             </li>
-        @endcan
+        @endif
 
         {{--Платежи юзера--}}
         @can('myPayments.view')

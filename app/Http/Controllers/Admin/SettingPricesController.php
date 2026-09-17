@@ -507,7 +507,47 @@ class SettingPricesController extends AdminBaseController
             ->addColumn('manual_paid_note', function ($row) {
                 return (string) ($row->manual_paid_note ?? '');
             })
+            // Без второго аргумента true: иначе Yajra autoFilter ищет
+            // user_custom_payment.user_name / amount (это alias, не колонки) → 42S22.
+            ->filter(function ($query) use ($request, $partnerId): void {
+                $this->applyCustomPaymentsDataTableSearch($query, $request, $partnerId);
+            })
             ->make(true);
+    }
+
+    /**
+     * Глобальный поиск DataTables (search.value): ФИО ученика, название группы, примечание.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $query
+     */
+    private function applyCustomPaymentsDataTableSearch($query, Request $request, int $partnerId): void
+    {
+        $keyword = trim((string) $request->input('search.value', ''));
+        if ($keyword === '') {
+            return;
+        }
+
+        $like = '%'.addcslashes($keyword, '%_\\').'%';
+        $query->where(function ($q) use ($like, $partnerId): void {
+            $q->where('users.lastname', 'like', $like)
+                ->orWhere('users.name', 'like', $like)
+                ->orWhereRaw(
+                    "TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) LIKE ?",
+                    [$like]
+                )
+                ->orWhere('teams.title', 'like', $like)
+                ->orWhereExists(function ($sub) use ($like, $partnerId): void {
+                    $sub->selectRaw('1')
+                        ->from('team_user')
+                        ->join('teams as search_teams', 'search_teams.id', '=', 'team_user.team_id')
+                        ->whereColumn('team_user.user_id', 'users.id')
+                        ->where('team_user.partner_id', $partnerId)
+                        ->where('search_teams.partner_id', $partnerId)
+                        ->whereNull('search_teams.deleted_at')
+                        ->where('search_teams.title', 'like', $like);
+                })
+                ->orWhere('user_custom_payment.note', 'like', $like);
+        });
     }
 
     /**

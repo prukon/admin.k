@@ -224,12 +224,23 @@
     <code>test_new_partner_does_not_assign_reports_payments_commission_total_to_base_roles</code>,
     <code>ReportsTbankPaymentsPermissionCatalogFeatureTest</code>.
   </div>
-  <p class="small">
+    <p class="small">
     С 2026‑09 у роли <code>admin</code> нового партнёра по умолчанию входят
     <code>schedule.view</code> (журнал <code>/schedule</code> и колонка «Расписание» в группах) и
     <code>users.discount.manage</code> (персональная скидка ученика, <code>is_visible=1</code>).
     У <code>user</code> / <code>trainer</code> их нет. Существующим партнёрам выдача не накатывается.
     Тест: <code>UserPercentDiscountFeatureTest::test_permission_is_visible_and_in_admin_role_base_permissions</code>.
+  </p>
+  <p class="small">
+    С 2026‑09 видимое <code>reports.ltv.teams.view</code> входит в базовые роли
+    <code>admin</code> и <code>trainer</code> нового партнёра (вкладка
+    «Платежи по группам»). Существующим школам миграция
+    <code>2026_09_17_093700_add_reports_ltv_teams_view_permission.php</code>
+    право создаёт, но <code>permission_role</code> не заполняет.
+    Тесты: <code>ReportsLtvTeamsPermissionCatalogFeatureTest</code>,
+    <code>LtvTeamsReportFeatureTest</code>.
+    См. <a href="/docs/documentation/reports-admin#ltv-teams">reports-admin §4.1</a>,
+    анонс <a href="/doc#reports-ltv-teams-index">/doc</a>.
   </p>
   <p class="small">
     С 2026‑09 скрытое <code>account.user.two_factor.update</code> <b>не</b> входит в базовые роли
@@ -264,7 +275,7 @@
 
   <h2>8) Роль <code>trainer</code> и право <code>trainers.view</code></h2>
   <div class="note">
-    Роль <code>trainer</code> в конфиге получает ограниченный набор (личный кабинет, профиль, просмотр партнёра) — без доступа к админским отчётам и CRUD пользователей.
+    Роль <code>trainer</code> в конфиге получает ограниченный набор (личный кабинет, профиль, просмотр партнёра) плюс видимое <code>reports.ltv.teams.view</code> (вкладка «Платежи по группам»; без <code>reports.view</code> сайдбар «Отчеты» ведёт сразу на неё — <a href="/doc#reports-ltv-teams-index">анонс</a>). CRUD пользователей и остальные админские отчёты в базовый набор тренера не входят.
     Роль <code>admin</code> по умолчанию включает <code>trainers.view</code> (раздел «Тренеры», фильтр в отчётах, привязка к группам).
     Право <code>groups.own</code> («Только свои группы (тренер)») в базовый набор <code>trainer</code> и <code>admin</code> <b>не входит</b> — школа включает его роли тренера в матрице. Без права тренер с рабочими правами видит все группы школы. Подробно: <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>.
     Подробно: <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.

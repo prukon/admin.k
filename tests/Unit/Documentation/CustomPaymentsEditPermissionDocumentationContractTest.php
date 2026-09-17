@@ -19,7 +19,7 @@ final class CustomPaymentsEditPermissionDocumentationContractTest extends TestCa
         $this->assertStringContainsString('id="custom-payments-edit-permission-index"', $html);
         $start = strpos($html, 'id="custom-payments-edit-permission-index"');
         $this->assertNotFalse($start);
-        $end = strpos($html, 'id="users-contract-create-index"');
+        $end = strpos($html, 'id="custom-payments-datatable-search-index"');
         $this->assertNotFalse($end);
         $this->assertGreaterThan($start, $end);
         $chunk = substr($html, $start, $end - $start);

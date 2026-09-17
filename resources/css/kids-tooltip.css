@@ -50,6 +50,24 @@
     margin-bottom: 0;
 }
 
+/* «Платежи по группам» → «Ученики»: 10 строк, второй столбец, обрезка */
+.tooltip.kids-hover-list-tooltip--two-col .tooltip-inner {
+    max-width: min(44rem, 92vw);
+}
+
+.tooltip.kids-hover-list-tooltip--two-col .kids-hover-list-tooltip__list {
+    max-height: calc(10 * 1.45em + 9 * 0.15rem);
+    column-count: 2;
+    column-fill: auto;
+    column-gap: 1.25rem;
+    overflow: hidden;
+}
+
+.tooltip.kids-hover-list-tooltip--two-col .kids-hover-list-tooltip__list li {
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+}
+
 /* Hover-список: триггер в ячейке таблицы / Select2 */
 .kids-hover-list-dropdown__trigger {
     cursor: help;

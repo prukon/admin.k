@@ -65,6 +65,17 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
             'view_var'      => 'ltvPageLength',
             'sample_columns'=> ['user_name' => true, 'team_title' => false],
         ]];
+        yield 'ltv_teams' => [[
+            'auth'          => 'admin',
+            'permission'    => 'reports.ltv.teams.view',
+            'index_route'   => 'reports.ltv.teams',
+            'get_url'       => '/admin/reports/ltv/teams/columns-settings',
+            'save_url'      => '/admin/reports/ltv/teams/columns-settings',
+            'table_key'     => 'reports_ltv_teams',
+            'create'        => "KidsCrmDataTable.create('#ltv-teams-table'",
+            'view_var'      => 'ltvTeamsPageLength',
+            'sample_columns'=> ['team_title' => true, 'user_names' => false],
+        ]];
         yield 'payment_intents' => [[
             'auth'          => 'superadmin',
             'permission'    => 'reports.payment.intents.view',

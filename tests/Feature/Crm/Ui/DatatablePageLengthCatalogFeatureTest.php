@@ -118,6 +118,18 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
                 'permission'  => 'reports.view',
             ],
             [
+                'label'       => 'Платежи по группам',
+                'url'         => '/admin/reports/ltv/teams',
+                'index_route' => 'reports.ltv.teams',
+                'save_url'    => '/admin/reports/ltv/teams/columns-settings',
+                'table_key'   => 'reports_ltv_teams',
+                'view_var'    => 'ltvTeamsPageLength',
+                'create'      => "KidsCrmDataTable.create('#ltv-teams-table'",
+                'blade'       => 'admin/report/ltv_teams.blade.php',
+                'auth'        => 'admin',
+                'permission'  => 'reports.ltv.teams.view',
+            ],
+            [
                 'label'       => 'Платежные запросы',
                 'url'         => '/admin/reports/payment-intents',
                 'index_route' => 'reports.payment-intents.index',
@@ -222,7 +234,7 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
         sort($expected);
 
         $this->assertSame($expected, $hits);
-        $this->assertCount(11, $hits);
+        $this->assertCount(12, $hits);
     }
 
     /**

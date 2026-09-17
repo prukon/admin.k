@@ -4,6 +4,7 @@
         <h4 class="pt-3 pb-3  text-start">Отчеты</h4>
         <div class="">
             <ul class="nav nav-tabs" id="myTab" role="tablist">
+                @can('reports.view')
                 <li class="nav-item" role="presentation">
                     <a class="nav-link {{ $activeTab == 'payment' ? 'active' : '' }}" href="/admin/reports/payments"
                         role="tab">Все платежи</a>
@@ -19,11 +20,21 @@
                     <a class="nav-link {{ $activeTab == 'ltv' ? 'active' : '' }}" href="/admin/reports/ltv"
                         role="tab">Платежи по ученикам</a>
                 </li>
+                @endcan
 
+                @can('reports.ltv.teams.view')
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link {{ $activeTab == 'ltv-teams' ? 'active' : '' }}" href="{{ route('reports.ltv.teams') }}"
+                        role="tab">Платежи по группам</a>
+                </li>
+                @endcan
+
+                @can('reports.view')
                 <li class="nav-item" role="presentation">
                     <a class="nav-link {{ $activeTab == 'debt' ? 'active' : '' }}" href="/admin/reports/debts"
                         role="tab">Задолженности</a>
                 </li>
+                @endcan
 
                 @can('reports.payment.intents.view')
                     <li class="nav-item" role="presentation">
@@ -96,6 +107,22 @@
                         'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
                         'canViewLocations' => $canViewLocations ?? false,
                         'activeLocations' => $activeLocations ?? collect(),
+                    ])
+                @elseif($activeTab === 'ltv-teams')
+                    @include('admin.report.ltv_teams', [
+                        'totalPaidPrice' => $totalPaidPrice,
+                        'filters' => $filters ?? [],
+                        'paymentsFilterUser' => $paymentsFilterUser ?? null,
+                        'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
+                        'canViewLocations' => $canViewLocations ?? false,
+                        'activeLocations' => $activeLocations ?? collect(),
+                        'ltvTeamsPeriod' => $ltvTeamsPeriod ?? 'current',
+                        'ltvTeamsPeriodLabels' => $ltvTeamsPeriodLabels ?? [
+                            'current' => '',
+                            'previous' => '',
+                            'all' => 'Все время',
+                        ],
+                        'ltvTeamsPageLength' => $ltvTeamsPageLength ?? 10,
                     ])
                 @elseif($activeTab === 'payment-intents')
                     <!-- Контент вкладки платежные запросы -->

@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\PartnerSettingController;
 use App\Http\Controllers\Admin\Report\DeptReportController;
 use App\Http\Controllers\Admin\Report\FiscalReceiptReportController;
 use App\Http\Controllers\Admin\Report\LtvReportController;
+use App\Http\Controllers\Admin\Report\LtvTeamsReportController;
 use App\Http\Controllers\Admin\Report\OutgoingEmailReportController;
 use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
 use App\Http\Controllers\Admin\Report\PaymentMonthlyReportController;
@@ -276,15 +277,18 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/get-team-details', [DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
     });
 
+    Route::middleware(['canany:reports.view,reports.ltv.teams.view'])->group(function () {
+        Route::get('/admin/reports/payments/users-search', [PaymentReportController::class, 'usersSearch'])->name('reports.payments.users.search');
+        Route::get('/admin/reports/payments/teams-search', [PaymentReportController::class, 'teamsSearch'])->name('reports.payments.teams.search');
+        Route::get('/admin/reports/payments/trainers-search', [PaymentReportController::class, 'trainersSearch'])->name('reports.payments.trainers.search');
+    });
+
     //Отчеты -> вкладка Платежи, задолженности, LTV (feature test +)
     Route::middleware(['can:reports.view'])->group(function () {
         //Отчеты -> Платежи
         Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
         Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
         Route::get('/admin/reports/payments/total', [PaymentReportController::class, 'paymentsTotal'])->name('reports.payments.total');
-        Route::get('/admin/reports/payments/users-search', [PaymentReportController::class, 'usersSearch'])->name('reports.payments.users.search');
-        Route::get('/admin/reports/payments/teams-search', [PaymentReportController::class, 'teamsSearch'])->name('reports.payments.teams.search');
-        Route::get('/admin/reports/payments/trainers-search', [PaymentReportController::class, 'trainersSearch'])->name('reports.payments.trainers.search');
         Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])->name('payments.refund')->whereNumber('payment');
         Route::get('/admin/reports/payments/{payment}/tbank-history', [PaymentReportController::class, 'tbankHistory'])
             ->middleware('can:viewing.all.logs')
@@ -319,6 +323,15 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('/admin/reports/payments/monthly/columns-settings', [PaymentMonthlyReportController::class, 'saveColumnsSettings'])->name('reports.payments.monthly.columns-settings.save');
         // Детализация по конкретному месяцу (формат yearMonth: 2025-01)
         Route::get('/admin/reports/payments/monthly/{yearMonth}/payments', [PaymentMonthlyReportController::class, 'getMonthPayments'])->name('reports.payments.monthly.payments');
+    });
+
+    Route::middleware(['can:reports.ltv.teams.view'])->group(function () {
+        Route::get('/admin/reports/ltv/teams', [LtvTeamsReportController::class, 'index'])->name('reports.ltv.teams');
+        Route::get('/admin/reports/ltv/teams/total', [LtvTeamsReportController::class, 'total'])->name('reports.ltv.teams.total');
+        Route::get('/admin/reports/ltv/teams/data', [LtvTeamsReportController::class, 'getLtvTeams'])->name('reports.ltv.teams.data');
+        Route::get('/admin/reports/ltv/teams/columns-settings', [LtvTeamsReportController::class, 'getColumnsSettings'])->name('reports.ltv.teams.columns-settings.get');
+        Route::post('/admin/reports/ltv/teams/columns-settings', [LtvTeamsReportController::class, 'saveColumnsSettings'])->name('reports.ltv.teams.columns-settings.save');
+        Route::get('/admin/reports/ltv/teams/{team}/payments', [LtvTeamsReportController::class, 'getTeamPayments'])->whereNumber('team')->name('reports.ltv.teams.payments');
     });
 
     // Отчёты -> "Платежные запросы"

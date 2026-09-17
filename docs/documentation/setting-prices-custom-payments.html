@@ -123,6 +123,23 @@
     <li>JS: <code>resources/js/setting-prices-custom-payments.js</code> (на стенде без vite build может отдаваться из <code>public/js/setting-prices-custom-payments.js</code>).</li>
   </ul>
 
+  <h3 id="datatable-search">3.1.1) Поиск DataTables (поле над таблицей)</h3>
+  <div class="note">
+    Глобальный поиск (<code>search.value</code>) ищет <b>ФИО ученика, название группы и примечание</b>.
+    Сумма и id в это поле не входят. Как в отчёте «Платежи»: свой фильтр вместо autoFilter Yajra.
+    Анонс: <a href="/doc#custom-payments-datatable-search-index">/doc</a>.
+  </div>
+  <ul>
+    <li><b>ФИО</b>: <code>users.lastname</code>, <code>users.name</code>, <code>TRIM(CONCAT(lastname, name))</code>.</li>
+    <li><b>Группа</b>: <code>teams.title</code> для <code>user_custom_payment.team_id</code> (уже left join), любая группа ученика в pivot <code>team_user</code>.</li>
+    <li><b>Примечание</b>: <code>user_custom_payment.note</code>.</li>
+    <li><b>Реализация</b>: <code>SettingPricesController::applyCustomPaymentsDataTableSearch</code> и Yajra <code>filter($callback)</code> <b>без</b> второго аргумента <code>true</code>.
+      <code>filter($cb, true)</code> включает autoFilter: тогда ищется alias <code>user_custom_payment.user_name</code> / <code>amount</code> → SQL <code>42S22</code>.</li>
+    <li>В UI у колонок id и сумма стоит <code>searchable: false</code> (оба JS-пути).</li>
+    <li>Пустая строка и пробелы (<code>trim</code>) — как отсутствие поиска. Символы <code>%</code> и <code>_</code> экранируются и не работают как LIKE-wildcard.</li>
+    <li>Data-эндпоинт AJAX-заголовок <b>не</b> требует.</li>
+  </ul>
+
   <h3>3.2) Модалка создания</h3>
   <ul>
     <li>Поля: ученик (Select2 AJAX), группа (Select2 AJAX после выбора ученика), сумма (<code>step=0.01</code>, копейки разрешены), <b>«Описание (отображается у ученика)»</b> (<code>note</code>).</li>
@@ -207,6 +224,9 @@
   <ul>
     <li><code>CustomPaymentsTeamAccessFeatureTest</code> — доступ view/store, <code>teams-for-user</code>, store AJAX/non-AJAX JSON, валидация <code>team_id</code></li>
     <li><code>CustomPaymentsTeamColumnFeatureTest</code> — <code>team_label</code>, заголовки таблицы (Описание, без Период)</li>
+    <li><code>CustomPaymentsDatatableSearchFeatureTest</code> — <code>search.value</code>: ФИО (фамилия / имя / CONCAT) / группа платежа / pivot / note; сумма, id и «Оплачено» не ищутся; 42S22-регресс с живыми колонками; guest/403; чужой партнёр; <code>%</code> и <code>_</code> не wildcard; <code>recordsFiltered</code>; оба JS-пути <code>searchable: false</code> у id/amount</li>
+    <li><code>CustomPaymentsDatatableSearchFullAccessFeatureTest</code> — HTTP-матрица: guest / без <code>customPayments.view</code> / без <code>setPrices.view</code> / с правом / SA / non-AJAX 200 JSON / методы не 500 / админ без организации</li>
+    <li><code>CustomPaymentsDatatableSearchDocumentationContractTest</code> — анонс <code>/doc#custom-payments-datatable-search-index</code> совпадает с §3.1.1</li>
     <li><code>CustomPaymentsEditPermissionFeatureTest</code> — UX: кнопка «Редактировать» без <code>manualPaid.manage</code>, селект статуса скрыт; PUT/DELETE по view; смена <code>is_paid</code> — 403 <code>errors.is_paid</code>; вкладка <code>@can</code>; оба JS-пути</li>
     <li><code>CustomPaymentsEditPermissionDocumentationContractTest</code> — анонс <code>/doc#custom-payments-edit-permission-index</code> совпадает с §1 и JS (кнопка edit не завязана на <code>manualPaid</code>)</li>
     <li><code>CustomPaymentsCrudAccessFeatureTest</code> — update/delete по <code>customPayments.view</code>, смена статуса + comment только с <code>manualPaid.manage</code>, запрет суммы у оплаченного, users-search только <code>user</code>, guest/403</li>
@@ -221,6 +241,9 @@
 php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsCrudAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamColumnFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsDatatableSearchFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsDatatableSearchFullAccessFeatureTest.php
+php artisan test --env=testing tests/Unit/Documentation/CustomPaymentsDatatableSearchDocumentationContractTest.php
 php artisan test --env=testing tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php --filter=custom_payments_edit_js
 php artisan test --env=testing tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php --filter=custom_payment
 php artisan test --env=testing tests/Unit/Documentation/CustomPaymentsEditPermissionDocumentationContractTest.php

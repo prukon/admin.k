@@ -1,11 +1,12 @@
 /* Закреплённая шапка и липкий горизонтальный скролл таблиц отчётов.
-   /admin/reports/payments, /monthly, /ltv, /debts,
+   /admin/reports/payments, /monthly, /ltv, /ltv/teams, /debts,
    /payment-intents, /fiscal-receipts, /tbank-payments, /emails.
    Не пресет KidsCrmDataTable. */
 
 #payments-table thead th,
 #payments-monthly-table thead th,
 #ltv-table thead th,
+#ltv-teams-table thead th,
 #debts-table thead th,
 #tbank-payments-table thead th,
 #payment-intents-table thead th,
@@ -26,6 +27,7 @@ table.fixedHeader-locked thead th {
 #payments-table_wrapper .kids-dt-sticky-hscroll,
 #payments-monthly-table_wrapper .kids-dt-sticky-hscroll,
 #ltv-table_wrapper .kids-dt-sticky-hscroll,
+#ltv-teams-table_wrapper .kids-dt-sticky-hscroll,
 #debts-table_wrapper .kids-dt-sticky-hscroll,
 #tbank-payments-table_wrapper .kids-dt-sticky-hscroll,
 #payment-intents-table_wrapper .kids-dt-sticky-hscroll,
@@ -46,6 +48,7 @@ table.fixedHeader-locked thead th {
 #payments-table_wrapper .kids-dt-sticky-hscroll[hidden],
 #payments-monthly-table_wrapper .kids-dt-sticky-hscroll[hidden],
 #ltv-table_wrapper .kids-dt-sticky-hscroll[hidden],
+#ltv-teams-table_wrapper .kids-dt-sticky-hscroll[hidden],
 #debts-table_wrapper .kids-dt-sticky-hscroll[hidden],
 #tbank-payments-table_wrapper .kids-dt-sticky-hscroll[hidden],
 #payment-intents-table_wrapper .kids-dt-sticky-hscroll[hidden],
@@ -57,6 +60,7 @@ table.fixedHeader-locked thead th {
 #payments-table_wrapper .kids-dt-sticky-hscroll-spacer,
 #payments-monthly-table_wrapper .kids-dt-sticky-hscroll-spacer,
 #ltv-table_wrapper .kids-dt-sticky-hscroll-spacer,
+#ltv-teams-table_wrapper .kids-dt-sticky-hscroll-spacer,
 #debts-table_wrapper .kids-dt-sticky-hscroll-spacer,
 #tbank-payments-table_wrapper .kids-dt-sticky-hscroll-spacer,
 #payment-intents-table_wrapper .kids-dt-sticky-hscroll-spacer,
@@ -73,6 +77,7 @@ table.fixedHeader-locked thead th {
 #payments-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
 #payments-monthly-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
 #ltv-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
+#ltv-teams-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
 #debts-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
 #tbank-payments-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
 #payment-intents-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar,
@@ -84,6 +89,7 @@ table.fixedHeader-locked thead th {
 #payments-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
 #payments-monthly-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
 #ltv-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
+#ltv-teams-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
 #debts-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
 #tbank-payments-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
 #payment-intents-table_wrapper .kids-dt-scroll-x.kids-dt-scroll-x--has-sticky-bar::-webkit-scrollbar,
