@@ -129,6 +129,7 @@
                             'previous' => '',
                             'all' => 'Все время',
                         ],
+                        'ltvTeamsMode' => $ltvTeamsMode ?? 'operation',
                         'ltvTeamsPageLength' => $ltvTeamsPageLength ?? 10,
                     ])
                 @elseif($activeTab === 'ltv-locations')
@@ -145,6 +146,7 @@
                             'previous' => '',
                             'all' => 'Все время',
                         ],
+                        'ltvLocationsMode' => $ltvLocationsMode ?? 'operation',
                         'ltvLocationsPageLength' => $ltvLocationsPageLength ?? 10,
                     ])
                 @elseif($activeTab === 'payment-intents')

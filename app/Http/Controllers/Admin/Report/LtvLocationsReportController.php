@@ -81,6 +81,7 @@ class LtvLocationsReportController extends AdminBaseController
             ),
             'ltvLocationsPeriod' => $request->period(),
             'ltvLocationsPeriodLabels' => $request->periodLabels(),
+            'ltvLocationsMode' => $request->mode(),
         ]);
     }
 
@@ -414,10 +415,17 @@ class LtvLocationsReportController extends AdminBaseController
             }
         }
 
-        $periodRange = $request->periodDateRange();
-        if ($periodRange !== null) {
-            $paymentsQuery->whereDate('payments.operation_date', '>=', $periodRange['from']);
-            $paymentsQuery->whereDate('payments.operation_date', '<=', $periodRange['to']);
+        if ($request->mode() === 'subscription') {
+            $ym = $request->periodSubscriptionYearMonth();
+            if ($ym !== null) {
+                $paymentsQuery->where('payments.payment_month', 'like', $ym.'%');
+            }
+        } else {
+            $periodRange = $request->periodDateRange();
+            if ($periodRange !== null) {
+                $paymentsQuery->whereDate('payments.operation_date', '>=', $periodRange['from']);
+                $paymentsQuery->whereDate('payments.operation_date', '<=', $periodRange['to']);
+            }
         }
 
         if ($request->filled('operation_date_from')) {

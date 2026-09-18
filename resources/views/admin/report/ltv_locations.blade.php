@@ -14,6 +14,9 @@
         'previous' => '',
         'all' => 'Все время',
     ];
+    $ltvLocationsMode = in_array(($ltvLocationsMode ?? 'operation'), ['operation', 'subscription'], true)
+        ? ($ltvLocationsMode ?? 'operation')
+        : 'operation';
     $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
     $payFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
@@ -49,7 +52,15 @@
                         <button type="button" class="btn btn-outline-secondary js-ltv-locations-period-btn {{ $ltvLocationsPeriod === 'all' ? 'active' : '' }}"
                                 data-period="all" id="ltv-locations-period-btn-all">{{ $ltvLocationsPeriodLabels['all'] }}</button>
                     </div>
+                    <span class="small text-muted mb-0">Группировка:</span>
+                    <div class="btn-group btn-group-sm js-ltv-locations-group-mode" role="group" aria-label="Режим группировки" id="ltv-locations-group-mode-switch">
+                        <button type="button" class="btn btn-outline-secondary js-ltv-locations-group-mode-btn {{ $ltvLocationsMode === 'subscription' ? 'active' : '' }}"
+                                data-mode="subscription" id="ltv-locations-group-mode-btn-subscription">По месяцу абонемента</button>
+                        <button type="button" class="btn btn-outline-secondary js-ltv-locations-group-mode-btn {{ $ltvLocationsMode === 'operation' ? 'active' : '' }}"
+                                data-mode="operation" id="ltv-locations-group-mode-btn-operation">По дате платежа</button>
+                    </div>
                     <div class="invalid-feedback" data-error-for="period" @error('period') style="display:block" @enderror>@error('period'){{ $message }}@enderror</div>
+                    <div class="invalid-feedback" data-error-for="mode" @error('mode') style="display:block" @enderror>@error('mode'){{ $message }}@enderror</div>
                 </div>
             </div>
             <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
@@ -264,6 +275,7 @@
             var $ltvLocationsReportTotalStat = $('#ltvLocationsReportTotalStat');
             var $ltvLocationsReportTotalValueInner = $('.payments-report-total-value-inner');
             var currentPeriod = @json($ltvLocationsPeriod);
+            var currentMode = @json($ltvLocationsMode);
 
             function ltvLocationsReportParseTotalToInt(str) {
                 return parseInt(String(str || '').replace(/\s/g, ''), 10) || 0;
@@ -365,7 +377,8 @@
                     operation_date_from: $ltvFiltersForm.find('[name="operation_date_from"]').val() || '',
                     operation_date_to: $ltvFiltersForm.find('[name="operation_date_to"]').val() || '',
                     payment_provider: $ltvFiltersForm.find('[name="payment_provider"]').val() || '',
-                    period: currentPeriod
+                    period: currentPeriod,
+                    mode: currentMode
                 };
             }
 
@@ -791,6 +804,24 @@
                     destroyLtvLocationsDetailTable(locationId);
                 });
                 ltvLocationsSyncPeriodInUrl();
+                refreshLtvLocationsReportTotal();
+                dtApi.reload();
+            });
+
+            $('.js-ltv-locations-group-mode-btn').on('click', function () {
+                var mode = $(this).data('mode');
+                if (mode !== 'operation' && mode !== 'subscription') {
+                    return;
+                }
+                if (mode === currentMode) {
+                    return;
+                }
+                currentMode = mode;
+                $('.js-ltv-locations-group-mode-btn').removeClass('active');
+                $(this).addClass('active');
+                Object.keys(ltvLocationsDetailTables).forEach(function (locationId) {
+                    destroyLtvLocationsDetailTable(locationId);
+                });
                 refreshLtvLocationsReportTotal();
                 dtApi.reload();
             });

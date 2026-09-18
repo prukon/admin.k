@@ -6208,6 +6208,7 @@ JS;
         $this->assertStringContainsString('[name="filter_team_id"]', $ltvTeamsParams);
         $this->assertStringContainsString('filter_team_id: tid', $ltvTeamsParams);
         $this->assertStringContainsString('period: currentPeriod', $ltvTeamsParams);
+        $this->assertStringContainsString('mode: currentMode', $ltvTeamsParams);
 
         $ltvTeamsNestedPos = strpos($ltvTeams, 'function initLtvTeamPaymentsDetailTable');
         $this->assertNotFalse($ltvTeamsNestedPos);
@@ -6231,6 +6232,11 @@ JS;
         );
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $ltvTeamsPath,
+            "\$('.js-ltv-teams-group-mode-btn').on('click'",
+            'blade-js-ltv-teams-group-mode'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvTeamsPath,
             'function initLtvTeamPaymentsDetailTable',
             'blade-js-ltv-teams-nested-paid-team-filter'
         );
@@ -6243,6 +6249,7 @@ JS;
         $this->assertStringContainsString('[name="filter_team_id"]', $ltvLocationsParams);
         $this->assertStringContainsString('filter_team_id: tid', $ltvLocationsParams);
         $this->assertStringContainsString('period: currentPeriod', $ltvLocationsParams);
+        $this->assertStringContainsString('mode: currentMode', $ltvLocationsParams);
 
         $ltvLocationsNestedPos = strpos($ltvLocations, 'function initLtvLocationPaymentsDetailTable');
         $this->assertNotFalse($ltvLocationsNestedPos);
@@ -6265,6 +6272,11 @@ JS;
             $ltvLocationsPath,
             "\$('.js-ltv-locations-period-btn').on('click'",
             'blade-js-ltv-locations-period-tabs'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvLocationsPath,
+            "\$('.js-ltv-locations-group-mode-btn').on('click'",
+            'blade-js-ltv-locations-group-mode'
         );
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $ltvLocationsPath,

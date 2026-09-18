@@ -86,6 +86,117 @@ final class LtvTeamsReportPeriodTabsFeatureTest extends CrmTestCase
             ->assertSessionHasErrors(['period']);
     }
 
+    public function test_page_renders_group_mode_tabs_with_operation_default(): void
+    {
+        $this->asAdmin();
+        $html = $this->get(route('reports.ltv.teams'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('id="ltv-teams-group-mode-switch"', $html);
+        $this->assertStringContainsString('id="ltv-teams-group-mode-btn-subscription"', $html);
+        $this->assertStringContainsString('id="ltv-teams-group-mode-btn-operation"', $html);
+        $this->assertStringContainsString('По месяцу абонемента', $html);
+        $this->assertStringContainsString('По дате платежа', $html);
+        $this->assertStringContainsString('data-error-for="mode"', $html);
+        $this->assertStringContainsString('mode: currentMode', $html);
+        $this->assertStringContainsString("\$('.js-ltv-teams-group-mode-btn').on('click'", $html);
+        $this->assertMatchesRegularExpression(
+            '/js-ltv-teams-group-mode-btn\s+active[^>]*id="ltv-teams-group-mode-btn-operation"/',
+            $html
+        );
+    }
+
+    public function test_subscription_mode_query_marks_subscription_tab_active(): void
+    {
+        $this->asAdmin();
+        $html = $this->get(route('reports.ltv.teams', ['mode' => 'subscription']))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/js-ltv-teams-group-mode-btn\s+active[^>]*id="ltv-teams-group-mode-btn-subscription"/',
+            $html
+        );
+    }
+
+    public function test_invalid_mode_ajax_returns_422_and_non_ajax_redirects(): void
+    {
+        $this->asAdmin();
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('reports.ltv.teams.data', ['draw' => 1, 'mode' => 'nope']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['mode']);
+
+        $this->from(route('reports.ltv.teams'))
+            ->get(route('reports.ltv.teams', ['mode' => 'nope']))
+            ->assertRedirect(route('reports.ltv.teams'))
+            ->assertSessionHasErrors(['mode']);
+    }
+
+    public function test_subscription_current_uses_payment_month_and_includes_future_operation_days(): void
+    {
+        $this->asAdmin();
+        $this->seedPeriodPayments();
+
+        $rows = $this->ltvTeamsRows(['mode' => 'subscription']);
+        $this->assertCount(1, $rows);
+        $this->assertSame(2, (int) $rows[0]['payment_count']);
+        $this->assertEquals(1700.0, (float) $rows[0]['total_price']);
+
+        $this->get(route('reports.ltv.teams.total', ['mode' => 'subscription']))
+            ->assertOk()
+            ->assertJson([
+                'total_formatted' => number_format(1700, 0, '', ' '),
+                'total_raw' => 1700.0,
+            ]);
+    }
+
+    public function test_subscription_previous_filters_by_payment_month_not_operation_date(): void
+    {
+        $this->asAdmin();
+        $team = $this->seedPeriodPayments();
+        $student = User::query()->where('partner_id', $this->partner->id)->where('lastname', 'Периодов')->firstOrFail();
+        Payment::factory()->create([
+            'user_id' => $student->id,
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'team_title' => 'Группа-период',
+            'summ_cents' => 50000,
+            'operation_date' => '2026-09-10 10:00:00',
+            'payment_month' => '2026-08-01',
+        ]);
+
+        $operationCurrent = $this->ltvTeamsRows([]);
+        $this->assertSame(2, (int) $operationCurrent[0]['payment_count']);
+        $this->assertEquals(1500.0, (float) $operationCurrent[0]['total_price']);
+
+        $subscriptionCurrent = $this->ltvTeamsRows(['mode' => 'subscription']);
+        $this->assertSame(2, (int) $subscriptionCurrent[0]['payment_count']);
+        $this->assertEquals(1700.0, (float) $subscriptionCurrent[0]['total_price']);
+
+        $subscriptionPrevious = $this->ltvTeamsRows(['mode' => 'subscription', 'period' => 'previous']);
+        $this->assertSame(2, (int) $subscriptionPrevious[0]['payment_count']);
+        $this->assertEquals(1300.0, (float) $subscriptionPrevious[0]['total_price']);
+    }
+
+    public function test_nested_payments_follow_subscription_mode(): void
+    {
+        $this->asAdmin();
+        $team = $this->seedPeriodPayments();
+
+        $json = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('reports.ltv.teams.payments', [
+                'team' => $team->id,
+                'draw' => 1,
+                'start' => 0,
+                'length' => 10,
+                'mode' => 'subscription',
+            ]))
+            ->assertOk()
+            ->json();
+
+        $this->assertSame(2, (int) ($json['meta_payments_count'] ?? 0));
+        $this->assertEquals(1700.0, (float) ($json['meta_sum_total'] ?? 0));
+    }
+
     public function test_default_current_excludes_previous_month_and_future_days(): void
     {
         $this->asAdmin();
@@ -290,6 +401,7 @@ final class LtvTeamsReportPeriodTabsFeatureTest extends CrmTestCase
             'team_title' => 'Группа-период',
             'summ_cents' => 100000,
             'operation_date' => '2026-09-05 10:00:00',
+            'payment_month' => '2026-09-01',
         ]);
         Payment::factory()->create([
             'user_id' => $student->id,
@@ -298,6 +410,7 @@ final class LtvTeamsReportPeriodTabsFeatureTest extends CrmTestCase
             'team_title' => 'Группа-период',
             'summ_cents' => 80000,
             'operation_date' => '2026-08-15 10:00:00',
+            'payment_month' => '2026-08-01',
         ]);
         Payment::factory()->create([
             'user_id' => $student->id,
@@ -306,6 +419,7 @@ final class LtvTeamsReportPeriodTabsFeatureTest extends CrmTestCase
             'team_title' => 'Группа-период',
             'summ_cents' => 70000,
             'operation_date' => '2026-09-20 10:00:00',
+            'payment_month' => '2026-09-01',
         ]);
 
         return $team;

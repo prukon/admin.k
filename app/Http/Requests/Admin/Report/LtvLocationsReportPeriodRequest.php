@@ -10,6 +10,8 @@ class LtvLocationsReportPeriodRequest extends FormRequest
 {
     public const PERIODS = ['current', 'previous', 'all'];
 
+    public const MODES = ['operation', 'subscription'];
+
     public const MONTH_NAMES = [
         1  => 'Январь',
         2  => 'Февраль',
@@ -36,12 +38,17 @@ class LtvLocationsReportPeriodRequest extends FormRequest
         if ($period === null || $period === '') {
             $this->merge(['period' => 'current']);
         }
+        $mode = $this->input('mode');
+        if ($mode === null || $mode === '') {
+            $this->merge(['mode' => 'operation']);
+        }
     }
 
     public function rules(): array
     {
         return [
             'period' => ['nullable', 'string', 'in:'.implode(',', self::PERIODS)],
+            'mode' => ['nullable', 'string', 'in:'.implode(',', self::MODES)],
         ];
     }
 
@@ -49,6 +56,7 @@ class LtvLocationsReportPeriodRequest extends FormRequest
     {
         return [
             'period' => 'Период',
+            'mode' => 'Группировка',
         ];
     }
 
@@ -57,6 +65,8 @@ class LtvLocationsReportPeriodRequest extends FormRequest
         return [
             'period.string' => 'Поле «:attribute» должно быть строкой.',
             'period.in' => 'Поле «:attribute» содержит недопустимое значение.',
+            'mode.string' => 'Поле «:attribute» должно быть строкой.',
+            'mode.in' => 'Поле «:attribute» содержит недопустимое значение.',
         ];
     }
 
@@ -68,6 +78,34 @@ class LtvLocationsReportPeriodRequest extends FormRequest
         }
 
         return 'current';
+    }
+
+    public function mode(): string
+    {
+        $mode = $this->validated()['mode'] ?? null;
+        if ($mode === 'subscription') {
+            return 'subscription';
+        }
+
+        return 'operation';
+    }
+
+    /**
+     * YYYY-MM для таба в режиме subscription. null — «Все время».
+     */
+    public function periodSubscriptionYearMonth(): ?string
+    {
+        $period = $this->period();
+        if ($period === 'all') {
+            return null;
+        }
+
+        $now = now();
+        if ($period === 'previous') {
+            return $now->copy()->startOfMonth()->subMonth()->format('Y-m');
+        }
+
+        return $now->format('Y-m');
     }
 
     /**
