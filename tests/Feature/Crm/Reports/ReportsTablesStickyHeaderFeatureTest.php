@@ -48,6 +48,7 @@ final class ReportsTablesStickyHeaderFeatureTest extends CrmTestCase
             'monthly'  => ['reports.payments.monthly', 'payments-monthly-table', "KidsCrmDataTable.create('#payments-monthly-table'", ['status' => 'inactive']],
             'ltv'      => ['reports.ltv', 'ltv-table', "KidsCrmDataTable.create('#ltv-table'", ['status' => 'inactive']],
             'ltv-teams'=> ['reports.ltv.teams', 'ltv-teams-table', "KidsCrmDataTable.create('#ltv-teams-table'", ['status' => 'inactive']],
+            'ltv-locations'=> ['reports.ltv.locations', 'ltv-locations-table', "KidsCrmDataTable.create('#ltv-locations-table'", ['status' => 'inactive']],
             'debts'    => ['debts', 'debts-table', "KidsCrmDataTable.create('#debts-table'", ['status' => 'inactive']],
             'intents'  => ['reports.payment-intents.index', 'payment-intents-table', "KidsCrmDataTable.create('#payment-intents-table'", []],
             'fiscal'   => ['reports.fiscal-receipts.index', 'fiscal-receipts-table', "KidsCrmDataTable.create('#fiscal-receipts-table'", []],
@@ -149,6 +150,17 @@ final class ReportsTablesStickyHeaderFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('fixedHeader', $ltvTeamsNested);
         $this->assertStringNotContainsString('KidsCrmReportTableSticky', $ltvTeamsNested);
         $this->assertStringNotContainsString('dataTables.fixedHeader.min.js', $ltvTeamsNested);
+
+        $ltvLocations = (string) $this->get(route('reports.ltv.locations'))->assertOk()->getContent();
+        $ltvLocationsNested = $this->functionChunk(
+            $ltvLocations,
+            'initLtvLocationPaymentsDetailTable',
+            "KidsCrmDataTable.create('#ltv-locations-table'"
+        );
+        $this->assertStringContainsString("dom: 'rtip'", $ltvLocationsNested);
+        $this->assertStringNotContainsString('fixedHeader', $ltvLocationsNested);
+        $this->assertStringNotContainsString('KidsCrmReportTableSticky', $ltvLocationsNested);
+        $this->assertStringNotContainsString('dataTables.fixedHeader.min.js', $ltvLocationsNested);
     }
 
     public function test_extra_report_column_toggles_and_filter_reload_keep_pin_without_recreate(): void

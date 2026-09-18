@@ -44,6 +44,7 @@ class PermissionSeeder extends Seeder
 
             // group_slug reports
             ['name' => 'reports.ltv.teams.view',         'description' => 'Отчёт «Платежи по группам»',                    'group_slug' => 'reports', 'is_visible' => 1, 'sort_order' => 15],
+            ['name' => 'reports.ltv.locations.view',     'description' => 'Отчёт «Платежи по объектам»',                   'group_slug' => 'reports', 'is_visible' => 1, 'sort_order' => 16],
             ['name' => 'reports.payment.intents.view',   'description' => 'Страница "Платежные запросы"',                  'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'reports.fiscal.receipts.view',   'description' => 'Страница "Чеки"',                               'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'reports.emails.view',            'description' => 'Страница "Исходящие письма"',                  'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 16],

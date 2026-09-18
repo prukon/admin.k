@@ -19,9 +19,9 @@
 
         {{--Отчеты--}}
 {{--        @can('reports')--}}
-        @if(auth()->user()?->can('reports.view') || auth()->user()?->can('reports.ltv.teams.view'))
+        @if(auth()->user()?->can('reports.view') || auth()->user()?->can('reports.ltv.teams.view') || auth()->user()?->can('reports.ltv.locations.view'))
         <li class="nav-item">
-                <a href="{{ auth()->user()?->can('reports.view') ? '/admin/reports/payments' : route('reports.ltv.teams') }}" class="nav-link">
+                <a href="{{ auth()->user()?->can('reports.view') ? '/admin/reports/payments' : (auth()->user()?->can('reports.ltv.teams.view') ? route('reports.ltv.teams') : route('reports.ltv.locations')) }}" class="nav-link">
                     <i class="nav-icon fa-solid fa-folder"></i>
                     <p>Отчеты</p>
                 </a>

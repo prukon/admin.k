@@ -51,6 +51,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'payments report tab' => ['admin/report/payment.blade.php'];
         yield 'ltv report tab' => ['admin/report/ltv.blade.php'];
         yield 'ltv teams report tab' => ['admin/report/ltv_teams.blade.php'];
+        yield 'ltv locations report tab' => ['admin/report/ltv_locations.blade.php'];
         yield 'payments monthly report tab' => ['admin/report/payment_monthly.blade.php'];
         yield 'generic multiselect partial' => ['partials/select2/generic-multiselect.blade.php'];
         yield 'schedule journal statuses settings' => ['admin/shared/occurrence_statuses_crud.blade.php'];
@@ -2911,6 +2912,7 @@ JS;
             'admin/partners/tabs/payouts.blade.php',
             'admin/report/fiscal_receipts.blade.php',
             'admin/report/ltv.blade.php',
+            'admin/report/ltv_locations.blade.php',
             'admin/report/ltv_teams.blade.php',
             'admin/report/payment.blade.php',
             'admin/report/payment_intents.blade.php',
@@ -2957,6 +2959,11 @@ JS;
                 'file' => resource_path('views/admin/report/ltv_teams.blade.php'),
                 'pageLength' => 'pageLength: @json((int) ($ltvTeamsPageLength ?? 10))',
                 'prefix' => 'blade-js-ltv-teams-page-length',
+            ],
+            "KidsCrmDataTable.create('#ltv-locations-table'" => [
+                'file' => resource_path('views/admin/report/ltv_locations.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($ltvLocationsPageLength ?? 10))',
+                'prefix' => 'blade-js-ltv-locations-page-length',
             ],
             "KidsCrmDataTable.create('#payment-intents-table'" => [
                 'file' => resource_path('views/admin/report/payment_intents.blade.php'),
@@ -3057,6 +3064,22 @@ JS;
             'function initLtvTeamPaymentsDetailTable',
             'blade-js-ltv-teams-detail-page-length'
         );
+
+        $ltvLocations = (string) file_get_contents(resource_path('views/admin/report/ltv_locations.blade.php'));
+        $ltvLocationsFn = strpos($ltvLocations, 'function initLtvLocationPaymentsDetailTable');
+        $this->assertNotFalse($ltvLocationsFn);
+        $ltvLocationsCreate = strpos($ltvLocations, "KidsCrmDataTable.create('#ltv-locations-table'");
+        $this->assertNotFalse($ltvLocationsCreate);
+        $ltvLocationsDetail = substr($ltvLocations, $ltvLocationsFn, $ltvLocationsCreate - $ltvLocationsFn);
+        $this->assertStringContainsString('pageLength: 10', $ltvLocationsDetail);
+        $this->assertStringNotContainsString('persistPageLength', $ltvLocationsDetail);
+        $this->assertStringNotContainsString('$ltvLocationsPageLength', $ltvLocationsDetail);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            resource_path('views/admin/report/ltv_locations.blade.php'),
+            'function initLtvLocationPaymentsDetailTable',
+            'blade-js-ltv-locations-detail-page-length'
+        );
     }
 
     /**
@@ -3083,6 +3106,11 @@ JS;
             ],
             resource_path('views/admin/report/ltv_teams.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#ltv-teams-table'",
+                'submit' => '$ltvFiltersForm.on(\'submit\'',
+                'reload' => 'dtApi.reload({ keepPage: true });',
+            ],
+            resource_path('views/admin/report/ltv_locations.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#ltv-locations-table'",
                 'submit' => '$ltvFiltersForm.on(\'submit\'',
                 'reload' => 'dtApi.reload({ keepPage: true });',
             ],
@@ -5994,6 +6022,33 @@ JS;
             "KidsCrmDataTable.create('#ltv-teams-table'",
             'blade-js-ltv-teams-datatable-search'
         );
+
+        $ltvLocationsPath = resource_path('views/admin/report/ltv_locations.blade.php');
+        $ltvLocations = (string) file_get_contents($ltvLocationsPath);
+        $this->assertStringContainsString("KidsCrmDataTable.create('#ltv-locations-table'", $ltvLocations);
+        $this->assertStringContainsString("name: 'location_name'", $ltvLocations);
+        $this->assertStringContainsString("name: 'user_names'", $ltvLocations);
+        $this->assertStringContainsString("type: 'list'", $ltvLocations);
+        $this->assertStringContainsString("itemsKey: 'user_names_items'", $ltvLocations);
+        $this->assertStringContainsString("kids-hover-list-tooltip--two-col", $ltvLocations);
+        $this->assertStringContainsString('listOptions', $ltvLocations);
+        $this->assertStringContainsString("name: 'avg_attendance', searchable: false", $ltvLocations);
+        $this->assertDoesNotMatchRegularExpression(
+            "/name:\\s*'location_name'\\s*,\\s*searchable:\\s*false/",
+            $ltvLocations
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            "/name:\\s*'user_names'\\s*,\\s*searchable:\\s*false/",
+            $ltvLocations
+        );
+        $this->assertStringContainsString("name: 'total_price', searchable: false", $ltvLocations);
+        $this->assertStringContainsString("name: 'payment_count', searchable: false", $ltvLocations);
+        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $ltvLocations);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvLocationsPath,
+            "KidsCrmDataTable.create('#ltv-locations-table'",
+            'blade-js-ltv-locations-datatable-search'
+        );
     }
 
     /**
@@ -6179,6 +6234,43 @@ JS;
             'function initLtvTeamPaymentsDetailTable',
             'blade-js-ltv-teams-nested-paid-team-filter'
         );
+
+        $ltvLocationsPath = resource_path('views/admin/report/ltv_locations.blade.php');
+        $ltvLocations = (string) file_get_contents($ltvLocationsPath);
+        $ltvLocationsParamsPos = strpos($ltvLocations, 'function ltvLocationsReportFilterParams()');
+        $this->assertNotFalse($ltvLocationsParamsPos);
+        $ltvLocationsParams = substr($ltvLocations, $ltvLocationsParamsPos, 1800);
+        $this->assertStringContainsString('[name="filter_team_id"]', $ltvLocationsParams);
+        $this->assertStringContainsString('filter_team_id: tid', $ltvLocationsParams);
+        $this->assertStringContainsString('period: currentPeriod', $ltvLocationsParams);
+
+        $ltvLocationsNestedPos = strpos($ltvLocations, 'function initLtvLocationPaymentsDetailTable');
+        $this->assertNotFalse($ltvLocationsNestedPos);
+        $ltvLocationsCreate = strpos($ltvLocations, "KidsCrmDataTable.create('#ltv-locations-table'");
+        $this->assertNotFalse($ltvLocationsCreate);
+        $ltvLocationsNested = substr($ltvLocations, $ltvLocationsNestedPos, $ltvLocationsCreate - $ltvLocationsNestedPos);
+        $this->assertStringContainsString('var extra = ltvLocationsReportFilterParams();', $ltvLocationsNested);
+        $this->assertStringContainsString('d[key] = extra[key];', $ltvLocationsNested);
+        $this->assertStringContainsString("data: 'user_name'", $ltvLocationsNested);
+        $this->assertStringContainsString("name: 'user_name'", $ltvLocationsNested);
+        $this->assertStringContainsString("data: 'team_title'", $ltvLocationsNested);
+        $this->assertStringContainsString("name: 'team_title'", $ltvLocationsNested);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvLocationsPath,
+            'function ltvLocationsReportFilterParams()',
+            'blade-js-ltv-locations-paid-team-filter'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvLocationsPath,
+            "\$('.js-ltv-locations-period-btn').on('click'",
+            'blade-js-ltv-locations-period-tabs'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $ltvLocationsPath,
+            'function initLtvLocationPaymentsDetailTable',
+            'blade-js-ltv-locations-nested-paid-team-filter'
+        );
     }
 
     /**
@@ -6201,6 +6293,11 @@ JS;
             resource_path('views/admin/report/ltv_teams.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#ltv-teams-table'",
                 'reset' => '$(\'#ltvTeamsReportFiltersResetBtn\').on(\'click\'',
+                'nested_rtip' => true,
+            ],
+            resource_path('views/admin/report/ltv_locations.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#ltv-locations-table'",
+                'reset' => '$(\'#ltvLocationsReportFiltersResetBtn\').on(\'click\'',
                 'nested_rtip' => true,
             ],
             resource_path('views/admin/report/payment_monthly.blade.php') => [
@@ -6606,6 +6703,7 @@ JS;
             resource_path('views/admin/report/payment_monthly.blade.php') => '#payments-monthly-table',
             resource_path('views/admin/report/ltv.blade.php') => '#ltv-table',
             resource_path('views/admin/report/ltv_teams.blade.php') => '#ltv-teams-table',
+            resource_path('views/admin/report/ltv_locations.blade.php') => '#ltv-locations-table',
             resource_path('views/admin/report/debt.blade.php') => '#debts-table',
             resource_path('views/admin/report/tbank_payments.blade.php') => '#tbank-payments-table',
             resource_path('views/admin/report/payment_intents.blade.php') => '#payment-intents-table',
@@ -6742,6 +6840,17 @@ JS;
         $this->assertStringContainsString('$ltvFiltersForm.on(\'submit\'', $ltvTeams);
         $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $ltvTeams);
         $this->assertSame(1, substr_count($ltvTeams, "KidsCrmDataTable.create('#ltv-teams-table'"));
+
+        $ltvLocations = (string) file_get_contents(resource_path('views/admin/report/ltv_locations.blade.php'));
+        $ltvLocationsCreate = strpos($ltvLocations, "KidsCrmDataTable.create('#ltv-locations-table'");
+        $this->assertNotFalse($ltvLocationsCreate);
+        $ltvLocationsNested = substr($ltvLocations, (int) strpos($ltvLocations, 'function initLtvLocationPaymentsDetailTable'), $ltvLocationsCreate - (int) strpos($ltvLocations, 'function initLtvLocationPaymentsDetailTable'));
+        $this->assertStringContainsString("dom: 'rtip'", $ltvLocationsNested);
+        $this->assertStringNotContainsString('fixedHeader', $ltvLocationsNested);
+        $this->assertStringNotContainsString('KidsCrmReportTableSticky', $ltvLocationsNested);
+        $this->assertStringContainsString('$ltvFiltersForm.on(\'submit\'', $ltvLocations);
+        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $ltvLocations);
+        $this->assertSame(1, substr_count($ltvLocations, "KidsCrmDataTable.create('#ltv-locations-table'"));
 
         $monthly = (string) file_get_contents(resource_path('views/admin/report/payment_monthly.blade.php'));
         $monthlyCreate = strpos($monthly, "KidsCrmDataTable.create('#payments-monthly-table'");

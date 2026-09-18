@@ -28,6 +28,111 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="reports-ltv-locations-period-tabs-index">Отчёты «Платежи по объектам»: табы периода (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/reports/ltv/locations</code> (таблица
+    <code>#ltv-locations-table</code>, право
+    <code>reports.ltv.locations.view</code>) btn-group
+    <code>#ltv-locations-period-switch</code> как у T‑Bank
+    (<code>#tp-view-switch</code>): текущий месяц /
+    предыдущий месяц / «Все время».
+    Include в <code>admin/report/index.blade.php</code> передаёт
+    <code>ltvLocationsPeriod</code> / <code>ltvLocationsPeriodLabels</code>.
+    Query <code>period=current|previous|all</code>, пустое = <code>current</code>.
+    Request <code>LtvLocationsReportPeriodRequest</code>:
+    <code>'period' => ['nullable', 'string', 'in:current,previous,all']</code>,
+    атрибут «Период», ошибки под
+    <code>data-error-for="period"</code>.
+    Режет <code>payments.operation_date</code> через
+    <code>whereDate</code>. <code>$payFilterKeys</code> период не открывает.
+    Клик — AJAX <code>dtApi.reload()</code> +
+    <code>refreshLtvLocationsReportTotal()</code>, без recreate;
+    <code>ltvLocationsReportFilterParams()</code> шлёт
+    <code>period: currentPeriod</code>;
+    <code>ltvLocationsSyncPeriodInUrl</code>.
+    Кнопки: <code>#ltv-locations-period-btn-current</code> /
+    <code>#ltv-locations-period-btn-previous</code> /
+    <code>#ltv-locations-period-btn-all</code>.
+    Тесты: <code>LtvLocationsReportPeriodTabsFeatureTest</code>,
+    <code>ReportsLtvLocationsPeriodTabsDocumentationContractTest</code>.
+    Подробно — <a href="/docs/documentation/reports-admin#ltv-locations">reports-admin §4.2</a>,
+    анонс вкладки — <a href="/doc#reports-ltv-locations-index">/doc#reports-ltv-locations-index</a>,
+    «Ср. посещаемость» —
+    <a href="/doc#reports-ltv-locations-avg-attendance-index">/doc#reports-ltv-locations-avg-attendance-index</a>,
+    этот анонс — <a href="/doc#reports-ltv-locations-period-tabs-index">/doc#reports-ltv-locations-period-tabs-index</a>.
+  </div>
+
+  <h2 id="reports-ltv-locations-avg-attendance-index">Отчёты «Платежи по объектам»: столбец «Ср. посещаемость» (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/reports/ltv/locations</code> (таблица
+    <code>#ltv-locations-table</code>) после «Ученики» —
+    <code>avg_attendance</code>. Занятие = пара
+    <code>team_schedule_slot_id</code> × <code>occurrence_date</code>
+    с актуальным статусом <code>code = attended</code>.
+    Среднее по всем занятиям групп с текущим
+    <code>teams.location_id</code> = объект:
+    <code>ROUND(SUM(headcount) / COUNT(*), 0)</code>
+    (<code>LocationAverageAttendanceAggregator</code>).
+    Табы периода и фильтр «Оплаченный месяц» как у групп.
+    У «Без объекта» и без занятий — «—».
+    Сортировка основной таблицы <code>order: [[4, 'desc']]</code> (сумма).
+    Тесты: <code>LtvLocationsReportFeatureTest</code>,
+    <code>ReportsLtvLocationsAvgAttendanceDocumentationContractTest</code>.
+    Подробно — <a href="/docs/documentation/reports-admin#ltv-locations">reports-admin §4.2</a>,
+    анонс — <a href="/doc#reports-ltv-locations-avg-attendance-index">/doc#reports-ltv-locations-avg-attendance-index</a>.
+  </div>
+
+  <h2 id="reports-ltv-locations-index">Отчёты: вкладка «Платежи по объектам» (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/reports/ltv/locations</code> (вкладки той же страницы, что
+    <code>/admin/reports/ltv</code>) отчёт <b>«Платежи по объектам»</b>:
+    одна строка на снимок объекта (<code>payments.location_id</code>),
+    не на текущую привязку группы. Это не «Платежи по группам» и не LTV учеников.
+    Право <code>reports.ltv.locations.view</code> (группа <code>reports</code>,
+    <code>is_visible=1</code>, <code>sort_order</code> 16).
+    В базовых ролях <code>admin</code> и <code>trainer</code> нового партнёра.
+    Существующим школам миграция <code>permission_role</code> не трогает —
+    выдачу делает superadmin в матрице.
+    <br><br>
+    1) <b>Строка.</b> Группировка <code>GROUP BY payments.location_id</code>
+    (<code>COALESCE(..., 0)</code> в JSON). Без снимка — одна строка
+    «Без объекта» (<code>location_id = 0</code>). Название — живое
+    <code>locations.name</code>. Колонка «Ученики» — <code>GROUP_CONCAT</code>
+    ФИО плативших. Статус объекта: «Активен» / «Отключен» по
+    <code>locations.is_enabled</code>; у «Без объекта» — «—».
+    <br>
+    2) <b>Детализация.</b> Chevron → вложенная таблица платежей объекта
+    (<code>GET /admin/reports/ltv/locations/{location}/payments</code>, только AJAX;
+    <code>{location}=0</code> — <code>whereNull(payments.location_id)</code>).
+    Колонки ФИО и «Группа». <code>dom: 'rtip'</code>, N=10, без persist.
+    Раскрытие проверяет <code>location_id !== undefined && !== null</code>
+    (ноль не falsy).
+    <br>
+    3) <b>Меню.</b> Сайдбар «Отчеты», если есть <code>reports.view</code>
+    <b>или</b> <code>reports.ltv.teams.view</code>
+    <b>или</b> <code>reports.ltv.locations.view</code>. Без
+    <code>reports.view</code> href: вкладка групп, иначе эта.
+    Select2 ученик/группа/тренер —
+    <code>canany:reports.view,reports.ltv.teams.view,reports.ltv.locations.view</code>.
+    <code>groups.own</code> режет чужие группы
+    (<code>TrainerOwnTeamsScope</code>).
+    <br>
+    4) <b>Таблица.</b> <code>KidsCrmDataTable.create('#ltv-locations-table')</code>,
+    <code>table_key = reports_ltv_locations</code>, «Показать N»
+    (<code>$ltvLocationsPageLength</code>), шапка и горизонтальный скролл как у LTV.
+    Поиск DataTables — название объекта и ФИО, не сумма.
+    Data/total/columns без права → <b>403</b>; data без AJAX → <b>404</b>.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/reports-admin#ltv-locations">reports-admin §4.2</a>,
+    право — <a href="/docs/documentation/partners-permissions">partners-permissions</a>,
+    снимок объекта — <a href="/docs/documentation/student-team-membership">student-team-membership</a>.
+    Тесты: <code>LtvLocationsReportFeatureTest</code>,
+    <code>ReportsLtvLocationsPermissionCatalogFeatureTest</code>,
+    <code>ReportsLtvLocationsDocumentationContractTest</code>.
+    Анонс: <a href="/doc#reports-ltv-locations-index">/doc#reports-ltv-locations-index</a>.
+  </div>
+
   <h2 id="tbank-sm-patch-bankaccount-index">T‑Bank: PATCH точки только bankAccount, автовыплата и снятие блокировки (2026‑09)</h2>
   <div class="note">
     PDF sm-register v1.11 §2.2: если в PATCH есть <code>bankAccount</code>, обязательны
@@ -2594,7 +2699,10 @@
     право <code>reports.view</code>),
     на <code>/admin/reports/ltv/teams</code>
     (таблица <code>#ltv-teams-table</code>,
-    право <code>reports.ltv.teams.view</code>)
+    право <code>reports.ltv.teams.view</code>),
+    на <code>/admin/reports/ltv/locations</code>
+    (таблица <code>#ltv-locations-table</code>,
+    право <code>reports.ltv.locations.view</code>)
     и на <code>/admin/reports/payment-intents</code>,
     <code>/admin/reports/fiscal-receipts</code>,
     <code>/admin/reports/tbank-payments</code>,
@@ -8224,6 +8332,7 @@
         <tr><td>Платежи по месяцам</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payments/monthly</code></a></td><td><code>reports_payments_monthly</code></td><td><code>reports.view</code></td></tr>
         <tr><td>LTV</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/ltv</code></a></td><td><code>reports_ltv</code></td><td><code>reports.view</code></td></tr>
         <tr><td>Платежи по группам</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/ltv/teams</code></a></td><td><code>reports_ltv_teams</code></td><td><code>reports.ltv.teams.view</code></td></tr>
+        <tr><td>Платежи по объектам</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/ltv/locations</code></a></td><td><code>reports_ltv_locations</code></td><td><code>reports.ltv.locations.view</code></td></tr>
         <tr><td>Платежные запросы</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payment-intents</code></a></td><td><code>reports_payment_intents</code></td><td><code>reports.payment.intents.view</code></td></tr>
         <tr><td>Фискальные чеки</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/fiscal-receipts</code></a></td><td><code>reports_fiscal_receipts</code></td><td><code>reports.fiscal.receipts.view</code></td></tr>
         <tr><td>Платежи T‑Bank</td><td><a href="/docs/documentation/reports-admin#reports-tbank-payments"><code>/admin/reports/tbank-payments</code></a></td><td><code>reports_tbank_payments</code></td><td><code>reports.tbank.payments.view</code></td></tr>
@@ -8236,7 +8345,7 @@
     (<code>$leadsPageLength</code>, <code>$usersPageLength</code>,
     <code>$teamsPageLength</code>,
     <code>$paymentsPageLength</code>, <code>$paymentsMonthlyPageLength</code>,
-    <code>$ltvPageLength</code>, <code>$ltvTeamsPageLength</code>, <code>$paymentIntentsPageLength</code>,
+    <code>$ltvPageLength</code>, <code>$ltvTeamsPageLength</code>, <code>$ltvLocationsPageLength</code>, <code>$paymentIntentsPageLength</code>,
     <code>$fiscalReceiptsPageLength</code>, <code>$tbankPaymentsPageLength</code>, <code>$payoutsPageLength</code>,
     <code>$tbankCommissionsPageLength</code>).
     Пресет получает <code>dataTable.pageLength</code> — первый AJAX сразу с нужным <code>length</code>.

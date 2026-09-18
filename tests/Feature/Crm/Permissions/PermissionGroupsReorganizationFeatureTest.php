@@ -106,6 +106,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             ],
             'reports' => [
                 'reports.ltv.teams.view',
+                'reports.ltv.locations.view',
                 'reports.payment.intents.view',
                 'reports.fiscal.receipts.view',
                 'reports.emails.view',

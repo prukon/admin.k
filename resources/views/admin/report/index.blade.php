@@ -29,6 +29,13 @@
                 </li>
                 @endcan
 
+                @can('reports.ltv.locations.view')
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link {{ $activeTab == 'ltv-locations' ? 'active' : '' }}" href="{{ route('reports.ltv.locations') }}"
+                        role="tab">Платежи по объектам</a>
+                </li>
+                @endcan
+
                 @can('reports.view')
                 <li class="nav-item" role="presentation">
                     <a class="nav-link {{ $activeTab == 'debt' ? 'active' : '' }}" href="/admin/reports/debts"
@@ -123,6 +130,22 @@
                             'all' => 'Все время',
                         ],
                         'ltvTeamsPageLength' => $ltvTeamsPageLength ?? 10,
+                    ])
+                @elseif($activeTab === 'ltv-locations')
+                    @include('admin.report.ltv_locations', [
+                        'totalPaidPrice' => $totalPaidPrice,
+                        'filters' => $filters ?? [],
+                        'paymentsFilterUser' => $paymentsFilterUser ?? null,
+                        'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
+                        'canViewLocations' => $canViewLocations ?? false,
+                        'activeLocations' => $activeLocations ?? collect(),
+                        'ltvLocationsPeriod' => $ltvLocationsPeriod ?? 'current',
+                        'ltvLocationsPeriodLabels' => $ltvLocationsPeriodLabels ?? [
+                            'current' => '',
+                            'previous' => '',
+                            'all' => 'Все время',
+                        ],
+                        'ltvLocationsPageLength' => $ltvLocationsPageLength ?? 10,
                     ])
                 @elseif($activeTab === 'payment-intents')
                     <!-- Контент вкладки платежные запросы -->

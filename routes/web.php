@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\PartnerSettingController;
 use App\Http\Controllers\Admin\Report\DeptReportController;
 use App\Http\Controllers\Admin\Report\FiscalReceiptReportController;
 use App\Http\Controllers\Admin\Report\LtvReportController;
+use App\Http\Controllers\Admin\Report\LtvLocationsReportController;
 use App\Http\Controllers\Admin\Report\LtvTeamsReportController;
 use App\Http\Controllers\Admin\Report\OutgoingEmailReportController;
 use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
@@ -277,7 +278,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/get-team-details', [DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
     });
 
-    Route::middleware(['canany:reports.view,reports.ltv.teams.view'])->group(function () {
+    Route::middleware(['canany:reports.view,reports.ltv.teams.view,reports.ltv.locations.view'])->group(function () {
         Route::get('/admin/reports/payments/users-search', [PaymentReportController::class, 'usersSearch'])->name('reports.payments.users.search');
         Route::get('/admin/reports/payments/teams-search', [PaymentReportController::class, 'teamsSearch'])->name('reports.payments.teams.search');
         Route::get('/admin/reports/payments/trainers-search', [PaymentReportController::class, 'trainersSearch'])->name('reports.payments.trainers.search');
@@ -332,6 +333,15 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/ltv/teams/columns-settings', [LtvTeamsReportController::class, 'getColumnsSettings'])->name('reports.ltv.teams.columns-settings.get');
         Route::post('/admin/reports/ltv/teams/columns-settings', [LtvTeamsReportController::class, 'saveColumnsSettings'])->name('reports.ltv.teams.columns-settings.save');
         Route::get('/admin/reports/ltv/teams/{team}/payments', [LtvTeamsReportController::class, 'getTeamPayments'])->whereNumber('team')->name('reports.ltv.teams.payments');
+    });
+
+    Route::middleware(['can:reports.ltv.locations.view'])->group(function () {
+        Route::get('/admin/reports/ltv/locations', [LtvLocationsReportController::class, 'index'])->name('reports.ltv.locations');
+        Route::get('/admin/reports/ltv/locations/total', [LtvLocationsReportController::class, 'total'])->name('reports.ltv.locations.total');
+        Route::get('/admin/reports/ltv/locations/data', [LtvLocationsReportController::class, 'getLtvLocations'])->name('reports.ltv.locations.data');
+        Route::get('/admin/reports/ltv/locations/columns-settings', [LtvLocationsReportController::class, 'getColumnsSettings'])->name('reports.ltv.locations.columns-settings.get');
+        Route::post('/admin/reports/ltv/locations/columns-settings', [LtvLocationsReportController::class, 'saveColumnsSettings'])->name('reports.ltv.locations.columns-settings.save');
+        Route::get('/admin/reports/ltv/locations/{location}/payments', [LtvLocationsReportController::class, 'getLocationPayments'])->whereNumber('location')->name('reports.ltv.locations.payments');
     });
 
     // Отчёты -> "Платежные запросы"

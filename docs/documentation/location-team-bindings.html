@@ -145,6 +145,10 @@ team_schedule_slots.location_id — объект слота расписания
         <td><code>payments.location_id</code> — снимок <code>teams.location_id</code> оплаченной группы при первом создании строки платежа (webhook)</td>
       </tr>
       <tr>
+        <td>Платежи по объектам</td>
+        <td>Сводка по снимку <code>payments.location_id</code>. Без снимка — строка «Без объекта». Право <code>reports.ltv.locations.view</code>. См. <a href="/docs/documentation/reports-admin#ltv-locations">reports-admin §4.2</a></td>
+      </tr>
+      <tr>
         <td>Задолженности</td>
         <td>pivot <code>team_user</code> → <code>teams.location_id</code>. <code>filter_location_id=none</code> — нет групп в pivot или группа с <code>location_id IS NULL</code></td>
       </tr>

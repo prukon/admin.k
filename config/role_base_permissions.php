@@ -44,11 +44,13 @@ return [
             'inAppNotifications.view',
             'messages.view',
             'reports.ltv.teams.view',
+            'reports.ltv.locations.view',
         ],
         'admin' => [
             'dashboard.view',
             'reports.view',
             'reports.ltv.teams.view',
+            'reports.ltv.locations.view',
             // 'reports.payments.commission_total.view',
             'reports.payments.payout_amount.column.view',
             'setPrices.view',

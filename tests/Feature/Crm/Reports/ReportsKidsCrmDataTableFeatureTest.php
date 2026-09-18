@@ -74,6 +74,33 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
         );
     }
 
+    public function test_ltv_locations_columns_settings_forbidden_without_permission(): void
+    {
+        $actor = $this->createUserWithoutPermission('reports.ltv.locations.view', $this->partner);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $this->get(route('reports.ltv.locations.columns-settings.get'))->assertForbidden();
+        $this->postJson(route('reports.ltv.locations.columns-settings.save'), [
+            'columns' => ['location_name' => true],
+        ])->assertForbidden();
+    }
+
+    public function test_ltv_locations_columns_settings_saved_and_loaded(): void
+    {
+        $this->assertColumnsSettingsRoundTrip(
+            'reports_ltv_locations',
+            route('reports.ltv.locations.columns-settings.get'),
+            route('reports.ltv.locations.columns-settings.save'),
+            [
+                'location_name' => true,
+                'user_names' => false,
+                'total_price' => true,
+                'payment_count' => true,
+            ],
+        );
+    }
+
     public function test_monthly_columns_settings_forbidden_without_reports_view(): void
     {
         $this->assertColumnsSettingsForbiddenWithoutReportsView(
