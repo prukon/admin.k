@@ -33,7 +33,8 @@ final class ReportsLtvTeamsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('reports_ltv_teams', $chunk);
         $this->assertStringContainsString('$ltvTeamsPageLength', $chunk);
         $this->assertStringContainsString('groups.own', $chunk);
-        $this->assertStringContainsString('canany:reports.view,reports.ltv.teams.view', $chunk);
+        $this->assertStringContainsString('can:reports.ltv.teams.view', $chunk);
+        $this->assertStringContainsString('ltv/teams/users-search', $chunk);
         $this->assertStringContainsString('LtvTeamsReportFeatureTest', $chunk);
         $this->assertStringContainsString('ReportsLtvTeamsPermissionCatalogFeatureTest', $chunk);
         $this->assertStringContainsString('ReportsLtvTeamsDocumentationContractTest', $chunk);
@@ -116,7 +117,10 @@ final class ReportsLtvTeamsDocumentationContractTest extends TestCase
 
         $routes = (string) file_get_contents(dirname(__DIR__, 3).'/routes/web.php');
         $this->assertStringContainsString("can:reports.ltv.teams.view", $routes);
-        $this->assertStringContainsString("canany:reports.view,reports.ltv.teams.view", $routes);
+        $this->assertStringContainsString("reports.ltv.teams.users.search", $routes);
+        $this->assertStringContainsString("reports.ltv.teams.teams.search", $routes);
+        $this->assertStringContainsString("reports.ltv.teams.trainers.search", $routes);
+        $this->assertStringNotContainsString('canany:', $routes);
 
         $sidebar = (string) file_get_contents(dirname(__DIR__, 3).'/resources/views/includes/sidebar.blade.php');
         $this->assertStringContainsString("can('reports.ltv.teams.view')", $sidebar);

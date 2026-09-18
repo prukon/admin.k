@@ -278,14 +278,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/get-team-details', [DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
     });
 
-    Route::middleware(['canany:reports.view,reports.ltv.teams.view,reports.ltv.locations.view'])->group(function () {
+    //Отчеты -> вкладка Платежи, задолженности, LTV (feature test +)
+    Route::middleware(['can:reports.view'])->group(function () {
         Route::get('/admin/reports/payments/users-search', [PaymentReportController::class, 'usersSearch'])->name('reports.payments.users.search');
         Route::get('/admin/reports/payments/teams-search', [PaymentReportController::class, 'teamsSearch'])->name('reports.payments.teams.search');
         Route::get('/admin/reports/payments/trainers-search', [PaymentReportController::class, 'trainersSearch'])->name('reports.payments.trainers.search');
-    });
-
-    //Отчеты -> вкладка Платежи, задолженности, LTV (feature test +)
-    Route::middleware(['can:reports.view'])->group(function () {
         //Отчеты -> Платежи
         Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
         Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
@@ -327,6 +324,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     Route::middleware(['can:reports.ltv.teams.view'])->group(function () {
+        Route::get('/admin/reports/ltv/teams/users-search', [PaymentReportController::class, 'usersSearch'])->name('reports.ltv.teams.users.search');
+        Route::get('/admin/reports/ltv/teams/teams-search', [PaymentReportController::class, 'teamsSearch'])->name('reports.ltv.teams.teams.search');
+        Route::get('/admin/reports/ltv/teams/trainers-search', [PaymentReportController::class, 'trainersSearch'])->name('reports.ltv.teams.trainers.search');
         Route::get('/admin/reports/ltv/teams', [LtvTeamsReportController::class, 'index'])->name('reports.ltv.teams');
         Route::get('/admin/reports/ltv/teams/total', [LtvTeamsReportController::class, 'total'])->name('reports.ltv.teams.total');
         Route::get('/admin/reports/ltv/teams/data', [LtvTeamsReportController::class, 'getLtvTeams'])->name('reports.ltv.teams.data');
@@ -336,6 +336,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     Route::middleware(['can:reports.ltv.locations.view'])->group(function () {
+        Route::get('/admin/reports/ltv/locations/users-search', [PaymentReportController::class, 'usersSearch'])->name('reports.ltv.locations.users.search');
+        Route::get('/admin/reports/ltv/locations/teams-search', [PaymentReportController::class, 'teamsSearch'])->name('reports.ltv.locations.teams.search');
+        Route::get('/admin/reports/ltv/locations/trainers-search', [PaymentReportController::class, 'trainersSearch'])->name('reports.ltv.locations.trainers.search');
         Route::get('/admin/reports/ltv/locations', [LtvLocationsReportController::class, 'index'])->name('reports.ltv.locations');
         Route::get('/admin/reports/ltv/locations/total', [LtvLocationsReportController::class, 'total'])->name('reports.ltv.locations.total');
         Route::get('/admin/reports/ltv/locations/data', [LtvLocationsReportController::class, 'getLtvLocations'])->name('reports.ltv.locations.data');

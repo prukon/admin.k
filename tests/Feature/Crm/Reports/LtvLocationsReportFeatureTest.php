@@ -41,6 +41,9 @@ final class LtvLocationsReportFeatureTest extends CrmTestCase
             ->get(route('reports.ltv.locations.data', ['draw' => 1]))
             ->assertForbidden();
         $this->get(route('reports.ltv.locations.total'))->assertForbidden();
+        $this->getJson(route('reports.ltv.locations.users.search', ['q' => '']))->assertForbidden();
+        $this->getJson(route('reports.ltv.locations.teams.search', ['q' => '']))->assertForbidden();
+        $this->getJson(route('reports.ltv.locations.trainers.search', ['q' => '']))->assertForbidden();
     }
 
     public function test_guest_cannot_open_page(): void
@@ -49,6 +52,7 @@ final class LtvLocationsReportFeatureTest extends CrmTestCase
 
         $this->get(route('reports.ltv.locations'))->assertRedirect();
         $this->getJson(route('reports.ltv.locations.total'))->assertStatus(401);
+        $this->getJson(route('reports.ltv.locations.users.search', ['q' => '']))->assertStatus(401);
     }
 
     public function test_trainer_without_reports_view_can_open_tab_and_sees_menu(): void
@@ -61,6 +65,17 @@ final class LtvLocationsReportFeatureTest extends CrmTestCase
         $this->assertStringContainsString('id="ltv-locations-table"', $html);
         $this->assertStringNotContainsString('Платежи по ученикам', $html);
         $this->assertStringContainsString('Отчеты', $html);
+        $this->assertStringContainsString('/admin/reports/ltv/locations/users-search', $html);
+        $this->assertStringContainsString('/admin/reports/ltv/locations/teams-search', $html);
+        $this->assertStringNotContainsString('/admin/reports/payments/users-search', $html);
+        $this->assertStringNotContainsString('/admin/reports/payments/teams-search', $html);
+
+        $this->getJson(route('reports.ltv.locations.users.search', ['q' => '']))->assertOk();
+        $this->getJson(route('reports.ltv.locations.teams.search', ['q' => '']))->assertOk();
+        $this->getJson(route('reports.ltv.locations.trainers.search', ['q' => '']))->assertOk();
+        $this->getJson(route('reports.payments.users.search', ['q' => '']))->assertForbidden();
+        $this->getJson(route('reports.payments.teams.search', ['q' => '']))->assertForbidden();
+        $this->getJson(route('reports.payments.trainers.search', ['q' => '']))->assertForbidden();
     }
 
     public function test_admin_page_shows_tab_next_to_teams_ltv(): void

@@ -144,7 +144,7 @@
                         id="pay-ltv-locations-filter-user"
                         name="filter_user_id"
                         data-placeholder="Все ученики"
-                        data-search-url="{{ route('reports.payments.users.search') }}">
+                        data-search-url="{{ route('reports.ltv.locations.users.search') }}">
                     <option value=""></option>
                     @if($paymentsFilterUser)
                         <option value="{{ $paymentsFilterUser['id'] }}" selected>{{ $paymentsFilterUser['text'] }}</option>
@@ -157,7 +157,7 @@
                         id="pay-ltv-locations-filter-team"
                         name="filter_team_id"
                         data-placeholder="Все группы"
-                        data-search-url="{{ route('reports.payments.teams.search') }}">
+                        data-search-url="{{ route('reports.ltv.locations.teams.search') }}">
                     <option value=""></option>
                     @if($paymentsFilterTeam)
                         <option value="{{ $paymentsFilterTeam['id'] }}" selected>{{ $paymentsFilterTeam['text'] }}</option>
@@ -171,7 +171,7 @@
                         id="pay-ltv-locations-filter-trainer"
                         name="filter_trainer_profile_id"
                         data-placeholder="Все тренеры"
-                        data-search-url="{{ route('reports.payments.trainers.search') }}">
+                        data-search-url="{{ route('reports.ltv.locations.trainers.search') }}">
                     <option value=""></option>
                     @if($paymentsFilterTrainer)
                         <option value="{{ $paymentsFilterTrainer['id'] }}" selected>{{ $paymentsFilterTrainer['text'] }}</option>

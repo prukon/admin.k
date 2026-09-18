@@ -623,7 +623,7 @@
         <li>Поиск DataTables: название группы и ФИО (<code>applyLtvTeamsDataTableSearch</code>, <code>filter($callback)</code> без второго аргумента). Сумма / ср. посещаемость / счётчик / даты / статус в LIKE не входят.</li>
       </ul>
     </li>
-    <li>Сайдбар «Отчеты»: <code>reports.view</code> <b>или</b> <code>reports.ltv.teams.view</code>. Без <code>reports.view</code> href = эта вкладка; Select2 ученик/группа/тренер — <code>canany</code>.</li>
+    <li>Сайдбар «Отчеты»: <code>reports.view</code> <b>или</b> <code>reports.ltv.teams.view</code>. Без <code>reports.view</code> href = эта вкладка; Select2 ученик/группа/тренер — <code>can:reports.ltv.teams.view</code> на <code>GET …/ltv/teams/users-search|teams-search|trainers-search</code> (не общий <code>payments/*-search</code>).</li>
     <li>Право видимое; новым <code>admin</code>/<code>trainer</code> — из <code>role_base_permissions.php</code>. Миграция <code>2026_09_17_093700_add_reports_ltv_teams_view_permission.php</code> в <code>up()</code> не пишет <code>permission_role</code>.</li>
   </ul>
   <div class="note">
@@ -655,7 +655,7 @@
         <li>Поиск DataTables: название объекта и ФИО (<code>applyLtvLocationsDataTableSearch</code>, <code>filter($callback)</code> без второго аргумента). Сумма / ср. посещаемость / счётчик / даты / статус в LIKE не входят.</li>
       </ul>
     </li>
-    <li>Сайдбар «Отчеты»: <code>reports.view</code> <b>или</b> <code>reports.ltv.teams.view</code> <b>или</b> <code>reports.ltv.locations.view</code>. Без <code>reports.view</code> href = группы, иначе эта вкладка; Select2 — <code>canany</code>.</li>
+    <li>Сайдбар «Отчеты»: <code>reports.view</code> <b>или</b> <code>reports.ltv.teams.view</code> <b>или</b> <code>reports.ltv.locations.view</code>. Без <code>reports.view</code> href = группы, иначе эта вкладка; Select2 — <code>can:reports.ltv.locations.view</code> на <code>GET …/ltv/locations/users-search|teams-search|trainers-search</code> (не общий <code>payments/*-search</code>).</li>
     <li>Право видимое; новым <code>admin</code>/<code>trainer</code> — из <code>role_base_permissions.php</code>. Миграция <code>2026_09_18_085500_add_reports_ltv_locations_view_permission.php</code> в <code>up()</code> не пишет <code>permission_role</code>.</li>
   </ul>
   <div class="note">
