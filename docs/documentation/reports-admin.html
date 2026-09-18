@@ -249,7 +249,7 @@
         <td>Платежи</td>
         <td><code>/admin/reports/payments</code></td>
         <td><code>payments.location_id</code></td>
-        <td>Опциональный снимок <code>payments.location_id</code> (если был передан при первом create); колонка «Локация»</td>
+        <td>Снимок <code>payments.location_id</code> = <code>teams.location_id</code> оплаченной группы на момент webhook; колонка «Локация»</td>
         <td><code>pay-filter-location</code></td>
       </tr>
       <tr>
@@ -276,9 +276,9 @@
     </tbody>
   </table>
   <ul>
-    <li>Запись <code>payments.location_id</code> при первой фиксации оплаты — <a href="/docs/documentation/payments">payments.html</a>, колонка и фильтр — <a href="/docs/documentation/reports-payments">reports-payments.html</a>.</li>
-    <li>Старые строки <code>payments</code> без локации: <code>location_id IS NULL</code> попадают в «Без локации».</li>
-    <li>Снимок <code>payments.location_id</code> задаётся только при первом создании платежа (если передан явно), см. <a href="/docs/documentation/payments">payments.html</a>.</li>
+    <li>Запись <code>payments.location_id</code> при первой фиксации оплаты — снимок объекта оплаченной группы, <a href="/docs/documentation/payments#payments-team-snapshot">payments §2.2</a>; колонка и фильтр — <a href="/docs/documentation/reports-payments">reports-payments.html</a>.</li>
+    <li>Старые строки <code>payments</code> без локации (до записи объекта в webhook): <code>location_id IS NULL</code> попадают в «Без локации».</li>
+    <li>Снимок <code>payments.location_id</code> задаётся только при первом создании платежа из <code>teams.location_id</code> оплаченной группы, см. <a href="/docs/documentation/payments#payments-team-snapshot">payments §2.2</a>.</li>
     <li>Привязка группы к объекту: <code>teams.location_id</code> на <code>/admin/teams</code> и sync <code>team_ids</code> на <code>/admin/locations</code>. Обзор: <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</li>
     <li><b>Задолженности — различие <code>none</code> и платежных отчётов:</b> для долгов <code>filter_location_id=none</code> — ученики без групп в pivot <i>или</i> с группой без объекта (<code>teams.location_id IS NULL</code>, <code>UserTeamQuery::applyDebtLocationNoneFilter</code>). Для платежей/LTV/monthly <code>none</code> — только строки с <code>payments.location_id IS NULL</code>.</li>
     <li><b>Задолженности — конкретный объект L:</b> ученик попадает, если <b>хотя бы одна</b> его группа в pivot имеет <code>teams.location_id = L</code>; ученик без групп в выборку по L <b>не</b> входит.</li>
@@ -594,7 +594,7 @@
     итоги tfoot — <a href="/docs/documentation/account-partner-organization#partners-index-totals">§3.1.2</a>,
     <a href="/doc#admin-partners-list-metrics">анонс колонок</a>,
     <a href="/doc#admin-partners-list-totals-index">анонс итогов</a>.
-    Фильтр локации — §2.1: <code>payments.location_id</code> (опциональный снимок при create); тот же параметр в <code>ltv/data</code>, <code>ltv/total</code> и <code>ltv/{user}/payments</code>.
+    Фильтр локации — §2.1: <code>payments.location_id</code> (снимок <code>teams.location_id</code> оплаченной группы при webhook); тот же параметр в <code>ltv/data</code>, <code>ltv/total</code> и <code>ltv/{user}/payments</code>.
     Фильтр «Активность ученика» — §2.3: <code>status</code> в тех же endpoints; при <code>status=active</code> детализация неактивного ученика возвращает пустой набор / нулевую сумму.
   </div>
   <div class="note">
@@ -1048,7 +1048,7 @@
     <li><code>tests/Feature/Crm/Reports/ReportsLtvMonthlyPaidTeamNonAjaxSafetyNetFeatureTest.php</code> — data/детализация без AJAX → 404; columns-settings 302/422 по полям</li>
     <li><code>tests/Unit/Documentation/ReportsLtvMonthlyPaidTeamDocumentationContractTest.php</code> — анонс <code>/doc#reports-ltv-monthly-paid-team-index</code></li>
     <li><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> — отчёт «Платежи»: колонка и фильтр</li>
-    <li><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> — запись <code>payments.location_id</code> при оплате</li>
+    <li><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> — запись <code>payments.location_id</code> с объекта оплаченной группы при webhook</li>
     <li><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> — фильтр <code>filter_trainer_profile_id</code> по группам тренера</li>
     <li><code>tests/Feature/Crm/Reports/ReportsTrainerAccessFeatureTest.php</code> — доступ к отчётам, видимость фильтра, <code>trainers-search</code></li>
   </ul>

@@ -142,7 +142,7 @@ team_schedule_slots.location_id — объект слота расписания
     <tbody>
       <tr>
         <td>Платежи, LTV, платежи по месяцам</td>
-        <td><code>payments.location_id</code> — снимок при первом создании строки платежа</td>
+        <td><code>payments.location_id</code> — снимок <code>teams.location_id</code> оплаченной группы при первом создании строки платежа (webhook)</td>
       </tr>
       <tr>
         <td>Задолженности</td>
@@ -188,6 +188,7 @@ team_schedule_slots.location_id — объект слота расписания
       <li><code>tests/Feature/Crm/LessonPackages/SchoolScheduleLocationFilterFeatureTest.php</code> — фильтр «Объект» на календаре (week none/id, store none, UI, smoke 200)</li>
       <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code> — UI календаря с группами <code>location_id</code></li>
       <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> — снимок <code>payments.location_id</code> с группы при T‑Bank / Robokassa</li>
     </ul>
     <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/Teams/TeamLocationBindingFeatureTest.php \

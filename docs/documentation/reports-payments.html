@@ -80,9 +80,9 @@
   <h2>2) Локация (при праве <code>locations.view</code>)</h2>
   <ul>
     <li><b>Колонка</b> «Локация» — после «Группа», ключ в настройках колонок: <code>location</code>.</li>
-    <li><b>Источник</b>: поле <code>payments.location_id</code> (снимок при первом создании платежа, если был передан явно).</li>
+    <li><b>Источник</b>: поле <code>payments.location_id</code> — снимок <code>teams.location_id</code> оплаченной группы при первой записи платежа (webhook).</li>
     <li><b>Фильтр</b>: параметр <code>filter_location_id</code> — id активной локации партнёра или <code>none</code> («Без локации»).</li>
-    <li>Старые платежи (до миграции) имеют <code>location_id = NULL</code> и отображаются как «Без локации».</li>
+    <li>Старые платежи (до записи объекта в webhook) имеют <code>location_id = NULL</code> и отображаются как «Без локации».</li>
     <li>Без права <code>locations.view</code> колонка, фильтр и ключ <code>location</code> в columns-settings недоступны; переданный <code>filter_location_id</code> в запросе игнорируется.</li>
     <li>Тот же фильтр (без отдельной колонки) есть в отчётах «Платежи по месяцам», LTV и «Задолженности» — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1).</li>
   </ul>
@@ -363,7 +363,7 @@ net_to_partner   = gross - commission_total</pre>
     (анонс <code>/doc#reports-tbank-payments-receipt-commission-index</code>: вкладка T‑Bank без <code>reports.additional.value.view</code> и без ветки Robokassa),
     <br><code>tests/Feature/Crm/Reports/PaymentReportTeamPivotFeatureTest.php</code> (колонка/фильтр с <code>payments.team_id</code> и legacy),
     <br><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> (колонка/фильтр локации, <code>locations.view</code>),
-    <br><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> (запись <code>payments.location_id</code> при оплате),
+    <br><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> (запись <code>payments.location_id</code> с <code>teams.location_id</code> оплаченной группы при T‑Bank / Robokassa),
     <br><code>tests/Feature/Crm/Reports/PaymentReportTbankHistoryTest.php</code>,
     <br><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> (фильтр по тренеру),
     <br><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php</code> («Показать N»),

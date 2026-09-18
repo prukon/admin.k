@@ -3,13 +3,16 @@
 namespace Tests\Feature\Crm\Payments;
 
 use App\Models\Location;
-use App\Models\Payment;
 use App\Models\Payable;
+use App\Models\Payment;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
+use App\Models\Team;
 use App\Models\TinkoffPayment;
 use App\Models\User;
 use App\Services\Payments\PaymentLedgerRecorder;
+use App\Services\Payments\PaymentLedgerTeamResolver;
+use App\Services\TeamUserSyncService;
 use App\Services\Tinkoff\TinkoffPaymentsService;
 use Illuminate\Support\Facades\Queue;
 use Tests\Feature\Crm\CrmTestCase;
@@ -72,10 +75,167 @@ final class PaymentLedgerLocationTest extends CrmTestCase
         $this->assertNull($payment->location_id);
     }
 
-    public function test_tbank_webhook_does_not_set_payment_location_from_user(): void
+    public function test_payment_ledger_team_resolver_snapshots_location_from_paid_team(): void
+    {
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Робототехника',
+            'location_id' => $location->id,
+        ]);
+
+        $payable = Payable::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'monthly_fee',
+            'amount_cents' => 10000,
+            'currency' => 'RUB',
+            'status' => 'pending',
+            'month' => '2026-08-01',
+            'meta' => ['team_id' => (int) $team->id],
+        ]);
+
+        $snapshot = app(PaymentLedgerTeamResolver::class)->resolveFromPayable($payable, $this->user);
+
+        $this->assertSame((int) $team->id, $snapshot['team_id']);
+        $this->assertSame('Робототехника', $snapshot['team_title']);
+        $this->assertSame((int) $location->id, $snapshot['location_id']);
+    }
+
+    public function test_payment_ledger_team_resolver_leaves_location_null_when_team_has_no_object(): void
+    {
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Без объекта',
+            'location_id' => null,
+        ]);
+
+        $payable = Payable::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'monthly_fee',
+            'amount_cents' => 10000,
+            'currency' => 'RUB',
+            'status' => 'pending',
+            'month' => '2026-08-01',
+            'meta' => ['team_id' => (int) $team->id],
+        ]);
+
+        $snapshot = app(PaymentLedgerTeamResolver::class)->resolveFromPayable($payable, $this->user);
+
+        $this->assertSame((int) $team->id, $snapshot['team_id']);
+        $this->assertNull($snapshot['location_id']);
+    }
+
+    public function test_tbank_webhook_snapshots_location_from_paid_team(): void
     {
         Queue::fake();
 
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+        $team = $this->attachTeamWithLocation($location->id);
+
+        $payment = $this->confirmTbankMonthlyPayment($team, 777333);
+
+        $this->assertSame((int) $team->id, (int) $payment->team_id);
+        $this->assertSame((int) $location->id, (int) $payment->location_id);
+    }
+
+    public function test_tbank_webhook_leaves_location_null_when_paid_team_has_no_object(): void
+    {
+        Queue::fake();
+
+        $team = $this->attachTeamWithLocation(null);
+
+        $payment = $this->confirmTbankMonthlyPayment($team, 777222);
+
+        $this->assertSame((int) $team->id, (int) $payment->team_id);
+        $this->assertNull($payment->location_id);
+    }
+
+    public function test_robokassa_result_snapshots_location_from_paid_team(): void
+    {
+        Queue::fake();
+
+        PaymentSystem::factory()
+            ->robokassa()
+            ->create(['partner_id' => $this->partner->id]);
+
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+        $team = $this->attachTeamWithLocation($location->id);
+
+        $outSum = '3900.00';
+        $month = '2026-08-01';
+
+        Payable::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'monthly_fee',
+            'amount_cents' => 390000,
+            'currency' => 'RUB',
+            'status' => 'pending',
+            'month' => $month,
+            'meta' => ['month' => $month, 'team_id' => (int) $team->id],
+        ]);
+
+        $intent = PaymentIntent::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => null,
+            'provider' => 'robokassa',
+            'status' => 'pending',
+            'out_sum_cents' => 390000,
+            'payment_date' => $month,
+            'meta' => json_encode([
+                'user_name' => (string) $this->user->name,
+                'team_id' => (int) $team->id,
+            ], JSON_UNESCAPED_UNICODE),
+        ]);
+
+        $providerInvId = 1000000000 + (int) $intent->id;
+        $intent->provider_inv_id = $providerInvId;
+        $intent->save();
+
+        $password2 = 'pass2';
+        $signature = strtoupper(md5("{$outSum}:{$providerInvId}:{$password2}:Shp_paymentDate={$month}:Shp_userId={$this->user->id}"));
+
+        $this->get(route('payment.result', [
+            'OutSum' => $outSum,
+            'InvId' => $providerInvId,
+            'SignatureValue' => $signature,
+            'Shp_paymentDate' => $month,
+            'Shp_userId' => (string) $this->user->id,
+        ]))->assertOk();
+
+        $payment = Payment::query()->where('payment_number', (string) $providerInvId)->first();
+        $this->assertNotNull($payment);
+        $this->assertSame((int) $team->id, (int) $payment->team_id);
+        $this->assertSame((int) $location->id, (int) $payment->location_id);
+    }
+
+    private function attachTeamWithLocation(?int $locationId): Team
+    {
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Робототехника, Главная 10',
+            'location_id' => $locationId,
+        ]);
+
+        app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $team->id);
+
+        return $team;
+    }
+
+    private function confirmTbankMonthlyPayment(Team $team, int $paymentId): Payment
+    {
         $this->seedGlobalTbank([
             'terminal_key' => 'TerminalKey',
             'token_password' => 'Password',
@@ -91,7 +251,10 @@ final class PaymentLedgerLocationTest extends CrmTestCase
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => '2026-03-01',
-            'meta' => ['month' => '2026-03-01'],
+            'meta' => [
+                'month' => '2026-03-01',
+                'team_id' => (int) $team->id,
+            ],
         ]);
 
         $intent = PaymentIntent::query()->create([
@@ -106,7 +269,7 @@ final class PaymentLedgerLocationTest extends CrmTestCase
         ]);
 
         TinkoffPayment::query()->create([
-            'order_id' => 'order-loc-1',
+            'order_id' => 'order-loc-'.$paymentId,
             'partner_id' => $this->partner->id,
             'amount' => 350000,
             'method' => 'card',
@@ -114,17 +277,17 @@ final class PaymentLedgerLocationTest extends CrmTestCase
         ]);
 
         $intent->update([
-            'tbank_order_id' => 'order-loc-1',
-            'tbank_payment_id' => 777222,
-            'provider_inv_id' => 777222,
+            'tbank_order_id' => 'order-loc-'.$paymentId,
+            'tbank_payment_id' => $paymentId,
+            'provider_inv_id' => $paymentId,
         ]);
 
         app(TinkoffPaymentsService::class)->handleWebhook([
             'TerminalKey' => 'TerminalKey',
-            'OrderId' => 'order-loc-1',
+            'OrderId' => 'order-loc-'.$paymentId,
             'Success' => true,
             'Status' => 'CONFIRMED',
-            'PaymentId' => 777222,
+            'PaymentId' => $paymentId,
             'DATA' => [
                 'payment_intent_id' => (string) $intent->id,
                 'payable_id' => (string) $payable->id,
@@ -133,8 +296,9 @@ final class PaymentLedgerLocationTest extends CrmTestCase
             'Token' => 'skip-in-test',
         ], true);
 
-        $payment = Payment::query()->where('payment_number', '777222')->first();
+        $payment = Payment::query()->where('payment_number', (string) $paymentId)->first();
         $this->assertNotNull($payment);
-        $this->assertNull($payment->location_id);
+
+        return $payment;
     }
 }

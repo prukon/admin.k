@@ -485,6 +485,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
 
         $this->assertSame((int) $this->teamA->id, $snapshot['team_id']);
         $this->assertSame('MT-Alpha', $snapshot['team_title']);
+        $this->assertNull($snapshot['location_id']);
     }
 
     public function test_payment_ledger_team_resolver_falls_back_to_primary_team_when_meta_team_id_missing(): void
@@ -521,6 +522,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
         $snapshot = app(PaymentLedgerTeamResolver::class)->resolveFromPayable($payable, $this->user);
 
         $this->assertNull($snapshot['team_id']);
+        $this->assertNull($snapshot['location_id']);
     }
 
     /* ============================================================

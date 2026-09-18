@@ -78,9 +78,9 @@
   <h3><code>payments</code> (финансовый журнал)</h3>
   <ul>
     <li><b>Смысл</b>: фиксирует факт поступления денег.</li>
-    <li><b>Типично храним</b>: <code>partner_id</code>, <code>user_id</code>, <code>location_id</code> (опциональный снимок при первом create, только если передан явно), <code>team_id</code> / <code>team_title</code> (снимок оплаченной группы при Init с <code>payables.meta.team_id</code>, §<a href="#payments-team-snapshot">2.2</a>), <code>summ_cents</code> (копейки; в отчётах ключ <code>summ</code> = рубли), <code>operation_date</code>, <code>payment_number</code> (обычно = <code>provider_inv_id</code> / InvId).</li>
+    <li><b>Типично храним</b>: <code>partner_id</code>, <code>user_id</code>, <code>location_id</code> (снимок объекта оплаченной группы при первом create, §<a href="#payments-team-snapshot">2.2</a>), <code>team_id</code> / <code>team_title</code> (снимок оплаченной группы при Init с <code>payables.meta.team_id</code>, §<a href="#payments-team-snapshot">2.2</a>), <code>summ_cents</code> (копейки; в отчётах ключ <code>summ</code> = рубли), <code>operation_date</code>, <code>payment_number</code> (обычно = <code>provider_inv_id</code> / InvId).</li>
     <li><b>Важно</b>: запись в <code>payments</code> появляется <b>только после успешного webhook</b>.</li>
-    <li><b>Локация в отчётах</b>: <code>payments.location_id</code> — опциональный снимок при первом создании строки (только если <code>location_id</code> передан в атрибутах записи); дальше не перезаписывается. Используется в отчётах «Платежи», «Платежи по месяцам», LTV — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1). Отчёт «Задолженности»: фильтр локации — по группам ученика в pivot; фильтр группы для месячных долгов — по <code>users_prices.team_id</code> (§<a href="#users-prices-by-team">2.1</a>).</li>
+    <li><b>Локация в отчётах</b>: <code>payments.location_id</code> — снимок <code>teams.location_id</code> оплаченной группы при первой записи строки (Robokassa ResultURL, T‑Bank webhook через <code>PaymentLedgerTeamResolver</code>); дальше не перезаписывается. Если у группы нет объекта или группа не определена — <code>NULL</code> («Без локации»). Используется в отчётах «Платежи», «Платежи по месяцам», LTV — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1). Отчёт «Задолженности»: фильтр локации — по группам ученика в pivot; фильтр группы для месячных долгов — по <code>users_prices.team_id</code> (§<a href="#users-prices-by-team">2.1</a>).</li>
   </ul>
 
   <h3 id="ulp-billing-month"><code>user_lesson_packages.billing_month</code> (месячные назначения)</h3>
@@ -154,14 +154,16 @@
       (см. <a href="/docs/documentation/reports-admin#debts-effective-is-paid">reports-admin §3.1</a>).</li>
   </ul>
 
-  <h3 id="payments-team-snapshot">2.2) Снимок группы в журнале <code>payments</code> (<code>team_id</code> / <code>team_title</code>)</h3>
+  <h3 id="payments-team-snapshot">2.2) Снимок группы и объекта в журнале <code>payments</code> (<code>team_id</code> / <code>team_title</code> / <code>location_id</code>)</h3>
   <div class="note">
     Миграция: <code>2026_06_21_140000_add_team_id_to_payments_table.php</code> — nullable <code>payments.team_id</code> + индекс.
     Снимок нужен, когда ученик состоит в нескольких группах: в отчётах «Платежи», «Платежи по месяцам», LTV и в пользовательском «Мои платежи» видна <b>конкретная оплаченная группа</b>, а не все группы ученика через запятую.
     LTV / monthly — <a href="/doc#reports-ltv-monthly-paid-team-index">анонс</a>.
+    Объект в том же webhook копируется с <code>teams.location_id</code> этой группы в <code>payments.location_id</code> — фильтр «Объект» в платёжных отчётах смотрит на снимок платежа, не на текущую привязку группы.
   </div>
   <ul>
-    <li><b>Когда заполняется</b>: при первой записи строки в <code>payments</code> через <code>PaymentLedgerRecorder</code> (Robokassa ResultURL, T‑Bank webhook). Поля <code>team_id</code> и <code>team_title</code> задаются только при <b>первом create</b> (как <code>location_id</code>), дальше не перезаписываются.</li>
+    <li><b>Когда заполняется</b>: при первой записи строки в <code>payments</code> через <code>PaymentLedgerRecorder</code> (Robokassa ResultURL, T‑Bank webhook). Поля <code>team_id</code>, <code>team_title</code> и <code>location_id</code> задаются только при <b>первом create</b>, дальше не перезаписываются.</li>
+    <li><b>Объект</b>: <code>PaymentLedgerTeamResolver</code> после определения группы читает <code>teams.location_id</code> и передаёт его в <code>PaymentLedgerRecorder</code>. Это не объект из карточки ученика (поля <code>users.location_id</code> нет). Если группа без объекта или <code>team_id</code> не определён — <code>payments.location_id = NULL</code>.</li>
     <li><b>Источник</b>: сервис <code>App\Services\Payments\PaymentLedgerTeamResolver::resolveFromPayable</code> → делегирует в <code>PayableTeamResolver::resolveFromPayable</code> (§<a href="#payments-payable-team">2.3</a>):
       <ul>
         <li>для всех типов — сначала <code>payables.meta.team_id</code> (снимок на Init);</li>
@@ -619,7 +621,7 @@
         <li><code>payment_intents.status=paid</code></li>
         <li><code>payables.status=paid</code></li>
         <li><code>user_custom_payment.is_paid=1</code> по <code>meta.user_period_price_id</code></li>
-        <li>создаём запись в <code>payments</code> для отчётов (<code>location_id</code> в снимке — только если явно передан в <code>PaymentLedgerRecorder</code>, см. блок «<code>payments</code> (финансовый журнал)» выше)</li>
+        <li>создаём запись в <code>payments</code> для отчётов (<code>location_id</code> — снимок <code>teams.location_id</code> оплаченной группы, см. §<a href="#payments-team-snapshot">2.2</a>)</li>
       </ul>
     </li>
   </ol>
@@ -637,7 +639,7 @@
     <li>С кабинета в <code>POST /payment</code> передаются <code>payment_kind=lesson_package</code> и <code>user_lesson_package_id</code>. На шаблоне оплаты те же поля уходят в формы Робокассы и T‑Bank (включая СБП).</li>
     <li>На витрине (<code>TransactionController@index</code>) запись проверяется через <code>App\Services\Payments\UserLessonPackageFeePaymentResolver</code>: пользователь и партнёр, не оплачено, сумма &gt; 0. Если уже оплачено или сумма некорректна — <b>422</b> / <b>404</b>.</li>
     <li>При старте оплаты создаются <code>payables.type=lesson_package_fee</code>, <code>payment_intents</code> с <code>payable_id</code>.</li>
-    <li>При успешном webhook (Robokassa ResultURL, T‑Bank уведомление) в транзакции: <code>payables</code> и intent переводятся в оплаченные, создаётся <code>payments</code> (без автоматического <code>location_id</code> из карточки ученика), для строки <code>user_lesson_packages</code> выставляется <code>is_paid=true</code>.</li>
+    <li>При успешном webhook (Robokassa ResultURL, T‑Bank уведомление) в транзакции: <code>payables</code> и intent переводятся в оплаченные, создаётся <code>payments</code> (объект — снимок <code>teams.location_id</code> оплаченной группы, не карточка ученика), для строки <code>user_lesson_packages</code> выставляется <code>is_paid=true</code>.</li>
     <li>При успешном возврате (джобы <code>RobokassaProcessRefundJob</code>, <code>TinkoffProcessRefundJob</code> для соответствующего payable) для этой же строки <code>user_lesson_packages</code> сбрасывается <code>is_paid=false</code>.</li>
     <li><b>Публичная ссылка СБП</b> (без кабинета): админ выдаёт короткий URL через <code>public-pay-link</code>; родитель открывает <code>/p/{short_code}</code> (старые закладки <code>/pay/ulp/{token}</code> тоже работают) — см. §<a href="#ulp-public-pay">3.4.1</a>.</li>
   </ol>

@@ -7,6 +7,7 @@ use App\Models\Payment;
 /**
  * Запись успешной оплаты в журнал payments (отчёт «Платежи»).
  * location_id / team_id — снимок в момент оплаты; задаётся только при первом создании, если передан в $attributes.
+ * Webhook кладёт location_id из teams.location_id оплаченной группы (PaymentLedgerTeamResolver).
  */
 final class PaymentLedgerRecorder
 {

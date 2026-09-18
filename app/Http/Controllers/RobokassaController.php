@@ -289,6 +289,7 @@ class RobokassaController extends Controller
                     'user_name' => ($user->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
                     'team_id' => $teamSnapshot['team_id'],
                     'team_title' => $teamSnapshot['team_title'],
+                    'location_id' => $teamSnapshot['location_id'],
                     'operation_date' => $currentDateTime,
                     'payment_month' => $shpPaymentDate,
                     'summ_cents' => $outSumCents,
