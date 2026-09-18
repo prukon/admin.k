@@ -31,8 +31,8 @@ class DocumentationController extends Controller
         'admin-layout-sidebar'        => 'Кабинет: стабильный сайдбар и ширина (layout_wide, scrollbar-gutter в admin2, без OverlayScrollbars, локальный Font Awesome 6.5.1 вместо Kit/CDN)',
         'session-lifetime'            => 'Сессия 30 дней (SESSION_LIFETIME=43200), «Запомнить меня» по умолчанию на /login, HTML 403 гостя без admin2',
         'password-reset'              => 'Сброс пароля: форма /password/reset (ссылка «Забыл пароль.» с /login), native POST /password/email, без guest middleware, 1062 на password_reset_tokens не 500 (успех как письмо ушло), кнопка disabled в setTimeout(0), SendPasswordResetLinkRequest',
-        'tbank'                       => 'T‑Bank (мультирасчёты): глобальный терминал, комиссии (кнопка История / logModal, Колонки / persist N), автовыплата, карточка платежа (организация, timeline, CloseSpDeal HTTP 4xx без 500 — текст банка под кнопкой), вкладка отчётов «Платежи T‑Bank» (Чек / комиссия платформы, фильтр «Не было выплаты», колонка «Статус выплаты», вид Платежи/По дням/По месяцам, дефолт CONFIRMED на По дням/По месяцам), пульт Касса CONFIRMED без выплаты после задержки партнёра (не фильтр without_payout), СБП (QR); публичные /pm и /p без логина — не /tinkoff/qr',
-        'tbank-admin-payouts'          => 'T‑Bank: админка выплат (список, колонка «Организация», DataTables, «Показать N» / page_length, карточка, tbank.payouts.manage; блок просроченных Init — не till.overdue_payouts пульта)',
+        'tbank'                       => 'T‑Bank (мультирасчёты): глобальный терминал, комиссии (кнопка История / logModal, Колонки / persist N), автовыплата, карточка платежа (организация, timeline с текстом банка при REJECTED выплаты, CloseSpDeal HTTP 4xx без 500 — текст банка под кнопкой), вкладка отчётов «Платежи T‑Bank» (Чек / комиссия платформы, фильтр «Не было выплаты», колонка «Статус выплаты», вид Платежи/По дням/По месяцам, дефолт CONFIRMED на По дням/По месяцам), пульт Касса CONFIRMED без выплаты после задержки партнёра (не фильтр without_payout), СБП (QR); публичные /pm и /p без логина — не /tinkoff/qr',
+        'tbank-admin-payouts'          => 'T‑Bank: админка выплат (список, колонка «Организация», DataTables, «Показать N» / page_length, карточка с #payout-bank-error, tbank.payouts.manage; блок просроченных Init — не till.overdue_payouts пульта)',
         'tbank-refunds-payout-cancel'   => 'T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты (tinkoff_payments → tinkoff_payouts)',
         'queues-monitoring'             => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker; overdueScheduled ≠ till.overdue_payouts пульта',
         'tests-standards'             => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права, лог последнего PHPUnit в storage/logs)',
@@ -75,7 +75,7 @@ class DocumentationController extends Controller
         'school-leads-landing'        => 'Страница заявки партнёра: /lead/{landingSlug}, инструкция для родителей /instruction и PDF /instruction.pdf, каскад район→объект→услуга, district_id',
         'partner-self-registration'   => 'Саморегистрация школы с лендинга: /partner/register, кнопка «Регистрация» (не ученик), PARTNER_SELF_REGISTRATION_ENABLED, native POST → /cabinet',
         'blog'                        => 'Блог: /blog, админка (blog.view), ИИ, VK (kidscrm): анонс ИИ, очередь default',
-        'admin-legal-entities'        => 'Юр. лица: /admin/legal-entities, bank_corr_account, API-ключ Подпислона (только superadmin, не .env), sm-register, displayTitle, LegalEntityResolver, плейсхолдеры договоров',
+        'admin-legal-entities'        => 'Юр. лица: /admin/legal-entities, bank_corr_account, API-ключ Подпислона (только superadmin, не .env), sm-register, GET точки disableReimbursement, displayTitle, LegalEntityResolver, плейсхолдеры договоров',
     ];
 
     /**

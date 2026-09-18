@@ -82,7 +82,7 @@ final class PartnerLegalEntitySmRegisterService
     }
 
     /**
-     * @return array{status: string|null, raw: mixed}
+     * @return array{status: string|null, disable_reimbursement: bool|null, raw: mixed}
      */
     public function refreshStatus(PartnerLegalEntity $entity): array
     {
@@ -92,11 +92,12 @@ final class PartnerLegalEntitySmRegisterService
         }
 
         $res = $this->sm->getStatus($shopCode);
-        $entity->sm_register_status = data_get($res, 'status') ?? $entity->sm_register_status;
+        $this->applyShopStatus($entity, is_array($res) ? $res : []);
         $entity->save();
 
         return [
             'status' => $entity->sm_register_status,
+            'disable_reimbursement' => $entity->tinkoffPayoutsBlocked(),
             'raw' => $res,
         ];
     }
@@ -115,14 +116,17 @@ final class PartnerLegalEntitySmRegisterService
 
         Log::channel('tinkoff')->info('[sm-register][legal_entity][pull] shopCode=' . $shopCode);
 
+        $this->applyShopStatus($entity, is_array($remote) ? $remote : []);
+
         $addr = data_get($remote, 'addresses.0', []);
         $bank = data_get($remote, 'bankAccount', []);
         $phones = data_get($remote, 'phones', []);
         $phone = data_get($phones, '0.phone');
         $details = (string) data_get($bank, 'details', '');
+        $remoteName = trim((string) (data_get($remote, 'fullName') ?: data_get($remote, 'name') ?: ''));
 
         $toWrite = [
-            'organization_name' => (string) data_get($remote, 'fullName', $entity->organization_name),
+            'organization_name' => $remoteName !== '' ? $remoteName : $entity->organization_name,
             'tax_id' => (string) data_get($remote, 'inn', $entity->tax_id),
             'kpp' => (string) data_get($remote, 'kpp', $entity->kpp),
             'registration_number' => (string) data_get($remote, 'ogrn', $entity->registration_number),
@@ -135,6 +139,11 @@ final class PartnerLegalEntitySmRegisterService
             'sm_details_template' => $details !== '' ? $details : $entity->sm_details_template,
             'sm_register_status' => (string) data_get($remote, 'status', $entity->sm_register_status),
         ];
+
+        $korAccount = trim((string) data_get($bank, 'korAccount', ''));
+        if ($korAccount !== '') {
+            $toWrite['bank_corr_account'] = $korAccount;
+        }
 
         if ($phone) {
             $ceo = is_array($entity->ceo) ? $entity->ceo : [];
@@ -455,6 +464,69 @@ final class PartnerLegalEntitySmRegisterService
         }
 
         return $s;
+    }
+
+    /**
+     * Снимок GET /sm-register/register/shop/{shopCode}: флаг блокировки выплат и реквизиты точки.
+     *
+     * @param  array<string, mixed>  $remote
+     */
+    private function applyShopStatus(PartnerLegalEntity $entity, array $remote): void
+    {
+        $bank = data_get($remote, 'bankAccount', []);
+        if (! is_array($bank)) {
+            $bank = [];
+        }
+
+        if (array_key_exists('disableReimbursement', $bank)) {
+            $entity->tinkoff_disable_reimbursement = $this->nullableBool($bank['disableReimbursement']);
+        }
+
+        $status = data_get($remote, 'status');
+        if (is_string($status) && trim($status) !== '') {
+            $entity->sm_register_status = trim($status);
+        }
+
+        $entity->tinkoff_shop_snapshot = [
+            'name' => data_get($remote, 'name') ?: data_get($remote, 'fullName'),
+            'inn' => data_get($remote, 'inn'),
+            'kpp' => data_get($remote, 'kpp'),
+            'email' => data_get($remote, 'email'),
+            'bankAccount' => [
+                'account' => data_get($bank, 'account'),
+                'korAccount' => data_get($bank, 'korAccount'),
+                'bankName' => data_get($bank, 'bankName'),
+                'bik' => data_get($bank, 'bik'),
+                'details' => data_get($bank, 'details'),
+                'disableReimbursement' => data_get($bank, 'disableReimbursement'),
+            ],
+        ];
+        $entity->tinkoff_shop_checked_at = now();
+    }
+
+    private function nullableBool(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if ($value === null) {
+            return null;
+        }
+        if (is_int($value) || is_float($value)) {
+            return ((int) $value) === 1;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        if (in_array($normalized, ['1', 'true', 'yes'], true)) {
+            return true;
+        }
+        if (in_array($normalized, ['0', 'false', 'no', ''], true)) {
+            return false;
+        }
+
+        $parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        return is_bool($parsed) ? $parsed : null;
     }
 
     /**

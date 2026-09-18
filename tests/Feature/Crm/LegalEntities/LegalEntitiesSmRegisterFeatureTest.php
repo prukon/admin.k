@@ -164,21 +164,87 @@ final class LegalEntitiesSmRegisterFeatureTest extends CrmTestCase
     public function test_sm_refresh_ajax_json_contract(): void
     {
         $entity = PartnerLegalEntity::factory()->for($this->partner)->registered('SC-REFRESH')->create([
-            'sm_register_status' => 'PENDING',
+            'sm_register_status' => 'REGISTERED',
         ]);
 
         $sm = $this->bindSmMock();
         $sm->shouldReceive('getStatus')
             ->once()
             ->with('SC-REFRESH')
-            ->andReturn(['status' => 'ACTIVE']);
+            ->andReturn([
+                'name' => 'ИП Тест',
+                'inn' => '470322227410',
+                'bankAccount' => [
+                    'account' => '40802810900000001544',
+                    'korAccount' => '301018104000000005104',
+                    'bankName' => 'ООО "Банк Точка"',
+                    'bik' => '044525104',
+                    'details' => 'Возмещение по договору',
+                    'disableReimbursement' => true,
+                ],
+            ]);
 
         $this->postJson(route('admin.legal-entities.sm-refresh', $entity))
             ->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('status', 'ACTIVE');
+            ->assertJsonPath('status', 'REGISTERED')
+            ->assertJsonPath('disable_reimbursement', true);
 
-        $this->assertSame('ACTIVE', $entity->fresh()->sm_register_status);
+        $entity->refresh();
+        $this->assertSame('REGISTERED', $entity->sm_register_status);
+        $this->assertTrue($entity->tinkoffPayoutsBlocked());
+        $this->assertNotNull($entity->tinkoff_shop_checked_at);
+        $this->assertSame('044525104', data_get($entity->tinkoff_shop_snapshot, 'bankAccount.bik'));
+    }
+
+    public function test_sm_refresh_non_ajax_flash_mentions_blocked_payouts(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->registered('SC-REFRESH-HTML')->create();
+
+        $sm = $this->bindSmMock();
+        $sm->shouldReceive('getStatus')
+            ->once()
+            ->andReturn([
+                'bankAccount' => [
+                    'disableReimbursement' => false,
+                    'account' => '40802810900000001544',
+                    'bankName' => 'Т-Банк',
+                    'bik' => '044525974',
+                ],
+            ]);
+
+        $this->from(route('admin.legal-entities.show', $entity))
+            ->post(route('admin.legal-entities.sm-refresh', $entity))
+            ->assertRedirect(route('admin.legal-entities.show', $entity))
+            ->assertSessionHas('ok');
+
+        $this->assertFalse($entity->fresh()->tinkoffPayoutsBlocked());
+    }
+
+    public function test_show_html_displays_reimbursement_block_banner(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->registered('SC-BLOCKED')->create([
+            'tinkoff_disable_reimbursement' => true,
+            'tinkoff_shop_checked_at' => now(),
+            'tinkoff_shop_snapshot' => [
+                'bankAccount' => [
+                    'bankName' => 'ООО "Банк Точка"',
+                    'bik' => '044525104',
+                    'account' => '40802810900000001544',
+                    'korAccount' => '301018104000000005104',
+                    'details' => 'Возмещение по договору',
+                    'disableReimbursement' => true,
+                ],
+            ],
+        ]);
+
+        $this->get(route('admin.legal-entities.show', $entity))
+            ->assertOk()
+            ->assertSee('id="legal-entity-tbank-shop-status"', false)
+            ->assertSee('id="legal-entity-reimbursement-blocked"', false)
+            ->assertSee('Выплаты заблокированы банком', false)
+            ->assertSee('Банк Точка', false)
+            ->assertSee('044525104', false);
     }
 
     public function test_sm_pull_ajax_json_contract(): void
@@ -206,7 +272,9 @@ final class LegalEntitiesSmRegisterFeatureTest extends CrmTestCase
                     'bankName' => 'Т-Банк',
                     'bik' => '044525974',
                     'account' => '40702810900000000002',
+                    'korAccount' => '30101810400000000225',
                     'details' => 'Назначение из банка',
+                    'disableReimbursement' => false,
                 ],
                 'phones' => [['phone' => '+79991112233']],
             ]);
@@ -218,6 +286,8 @@ final class LegalEntitiesSmRegisterFeatureTest extends CrmTestCase
 
         $entity->refresh();
         $this->assertSame('Новое имя из банка', $entity->organization_name);
+        $this->assertSame('30101810400000000225', $entity->bank_corr_account);
+        $this->assertFalse($entity->tinkoffPayoutsBlocked());
     }
 
     public function test_sm_register_non_ajax_redirects_to_show_after_success(): void

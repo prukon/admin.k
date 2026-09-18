@@ -28,7 +28,56 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
-    <h2 id="reports-ltv-teams-period-tabs-index">Отчёты «Платежи по группам»: табы периода (2026‑09)</h2>
+  <h2 id="tbank-payout-bank-error-visibility-index">T‑Bank: текст банка при REJECTED выплаты и флаг блокировки точки (2026‑09)</h2>
+  <div class="note">
+    Отказ выплаты больше не прячется в сыром JSON. e2c Init/Payment/GetState
+    уже пишутся в <code>tinkoff_payouts.payload_init</code> /
+    <code>payload_payment</code> / <code>payload_state</code>
+    (<code>ErrorCode</code>, <code>Message</code>, <code>Details</code>).
+    Сервис <code>TinkoffPayoutBankError</code> собирает одну строку;
+    модель <code>TinkoffPayout::bankRejectionSummary()</code>.
+    Анонс: <a href="/doc#tbank-payout-bank-error-visibility-index">/doc#tbank-payout-bank-error-visibility-index</a>.
+    Документ банка: <code>docs/Tinkoff/api_reg_upd_multisplit.pdf</code> (v1.11),
+    выжимка <code>docs/Tinkoff/api_reg_upd_multisplit.md</code>.
+    <br><br>
+    1) <b>Где смотреть.</b>
+    Карточка выплаты <code>/admin/tinkoff/payouts/{id}</code> —
+    красный блок <code>#payout-bank-error</code> («Банк отклонил выплату»).
+    Карточка платежа <code>/admin/tinkoff/payments/{id}</code> —
+    шаг timeline <code>payout_completed</code> hint «Выплата отклонена: …»;
+    в списке выплат справа под статусом тот же текст, ID — ссылка на карточку выплаты.
+    Юр. лицо <code>/admin/legal-entities/{id}</code> —
+    блок <code>#legal-entity-tbank-shop-status</code>: флаг
+    <code>bankAccount.disableReimbursement</code> из GET точки
+    и снимок р/с, БИК, банка, к/с, назначения. Кнопка «Обновить статус»
+    (<code>POST …/sm-refresh</code>).
+    <br>
+    2) <b>GET точки.</b> <code>PartnerLegalEntitySmRegisterService::refreshStatus</code>
+    больше не ждёт поле <code>status</code> (его нет в §1.4 PDF).
+    Пишет <code>tinkoff_disable_reimbursement</code>,
+    <code>tinkoff_shop_checked_at</code>, <code>tinkoff_shop_snapshot</code>.
+    JSON: <code>ok</code>, <code>status</code> (как было в CRM),
+    <code>disable_reimbursement</code>. Request:
+    <code>SmRefreshPartnerLegalEntityRequest</code> /
+    <code>SmPullPartnerLegalEntityRequest</code>
+    (<code>legal_entities.manage</code>).
+    Pull также читает <code>name</code> если нет <code>fullName</code>
+    и <code>bankAccount.korAccount</code> → <code>bank_corr_account</code>.
+    Снять блокировку PATCH <code>disableReimbursement=false</code> —
+    только отдельной кнопкой (ещё не сделана), не при каждом PATCH.
+    <br>
+    3) <b>Тесты.</b>
+    <code>TinkoffPayoutBankErrorTest</code>,
+    <code>TinkoffPaymentTimelineBuilderTest::test_build_includes_bank_error_when_payout_rejected</code>,
+    <code>TbankPaymentShowPayoutActionsTest::test_show_displays_bank_rejection_on_timeline_and_payout_list</code>,
+    <code>TbankPayoutsPageFeatureTest::test_show_displays_bank_rejection_alert</code>,
+    <code>LegalEntitiesSmRegisterFeatureTest</code>
+    (refresh JSON, HTML-баннер, pull korAccount),
+    <code>PartnerLegalEntitySchemaFeatureTest</code>,
+    <code>TbankPayoutBankErrorVisibilityDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="reports-ltv-teams-period-tabs-index">Отчёты «Платежи по группам»: табы периода (2026‑09)</h2>
   <div class="note">
     На <code>/admin/reports/ltv/teams</code> (таблица
     <code>#ltv-teams-table</code>, право

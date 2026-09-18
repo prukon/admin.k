@@ -45,7 +45,15 @@
                                         }
                                     }
                                 @endphp
-                                <div>Организация: <strong>{{ $legalEntityLabel }}</strong></div>
+                                <div>Организация:
+                                    <strong>
+                                        @if($legalEntity && auth()->user()?->can('legal_entities.sm_register'))
+                                            <a href="{{ route('admin.legal-entities.show', $legalEntity) }}">{{ $legalEntityLabel }}</a>
+                                        @else
+                                            {{ $legalEntityLabel }}
+                                        @endif
+                                    </strong>
+                                </div>
                                 @include('tinkoff.payments.partials.fiscal-receipts')
                                 @if($refundUntil)
                                     <div class="mt-2">
@@ -268,9 +276,23 @@
                                     </thead>
                                     <tbody>
                                     @foreach($payouts as $po)
+                                        @php
+                                            $payoutBankError = $po->bankRejectionSummary();
+                                        @endphp
                                         <tr>
-                                            <td class="text-nowrap">{{ $po->id }}</td>
-                                            <td class="text-nowrap">{{ $po->status }}</td>
+                                            <td class="text-nowrap">
+                                                @can('tbank.payouts.manage')
+                                                    <a href="/admin/tinkoff/payouts/{{ $po->id }}">{{ $po->id }}</a>
+                                                @else
+                                                    {{ $po->id }}
+                                                @endcan
+                                            </td>
+                                            <td>
+                                                <div class="text-nowrap">{{ $po->status }}</div>
+                                                @if($payoutBankError)
+                                                    <div class="small text-danger">{{ $payoutBankError }}</div>
+                                                @endif
+                                            </td>
                                             <td class="text-nowrap">{{ roubles((int) $po->amount) }} ₽</td>
                                             <td class="text-nowrap">
                                                 @if($po->when_to_run)

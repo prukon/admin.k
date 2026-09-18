@@ -61,6 +61,16 @@
                             @endif
                         </div>
 
+                        @php
+                            $bankRejection = $payout->bankRejectionSummary();
+                        @endphp
+                        @if($bankRejection)
+                            <div class="alert alert-danger mt-3 mb-0" id="payout-bank-error" role="alert">
+                                <div class="fw-semibold">Банк отклонил выплату</div>
+                                <div>{{ $bankRejection }}</div>
+                            </div>
+                        @endif
+
                         @if(!empty($canEditScheduledRun))
                             <div class="border rounded p-3 mt-3 bg-light">
                                 <h6 class="mb-2">Перенести запуск</h6>

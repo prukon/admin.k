@@ -195,6 +195,32 @@ final class TbankPayoutsPageFeatureTest extends CrmTestCase
             ->assertSee('Просроченные отложенные выплаты: 1', false);
     }
 
+    public function test_show_displays_bank_rejection_alert(): void
+    {
+        $payout = TinkoffPayout::query()->create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'ui-reject-' . uniqid(),
+            'amount' => 269775,
+            'is_final' => true,
+            'status' => 'REJECTED',
+            'payload_init' => [
+                'Success' => false,
+                'ErrorCode' => '-937',
+                'Message' => 'Возмещения партнера заблокированы',
+                'Details' => 'Операция отклонена из-за блокировки возмещений партнера.',
+            ],
+            'completed_at' => now(),
+        ]);
+
+        $this->get('/admin/tinkoff/payouts/' . $payout->id)
+            ->assertOk()
+            ->assertSee('id="payout-bank-error"', false)
+            ->assertSee('Банк отклонил выплату', false)
+            ->assertSee('Код -937', false)
+            ->assertSee('Возмещения партнера заблокированы', false);
+    }
+
     private function grantPayoutsManage(int $roleId): void
     {
         DB::table('permission_role')->insertOrIgnore([

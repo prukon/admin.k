@@ -286,12 +286,16 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
       <tr><td>1. Платёжный запрос</td><td><code>payment_init</code></td><td><code>tinkoff_payments.created_at</code>; hint: <code>Order {order_id}</code></td></tr>
       <tr><td>2. Оплата подтверждена</td><td><code>payment_confirmed</code></td><td><code>confirmed_at</code> или <code>updated_at</code>; hint: <code>Deal {deal_id}</code> или «Ожидаем DealId от банка»; промежуточные статусы (<code>NEW</code>, <code>FORM</code>, …) → state <code>active</code>; <code>REJECTED</code>/<code>CANCELED</code> → <code>failed</code></td></tr>
       <tr><td>3. Создана выплата</td><td><code>payout_created</code></td><td><code>tinkoff_payouts.created_at</code> последней выплаты; hint: источник (<code>auto</code>/<code>manual</code>/…), либо «Запланирована на …» при будущем <code>when_to_run</code>, либо «Выплата ещё не создана» при CONFIRMED без payout</td></tr>
-      <tr><td>4. Выплата выполнена</td><td><code>payout_completed</code></td><td><code>completed_at</code> при <code>COMPLETED</code>; <code>REJECTED</code> → <code>failed</code>; промежуточные статусы e2c → <code>active</code> с hint «Статус: …»</td></tr>
+      <tr><td>4. Выплата выполнена</td><td><code>payout_completed</code></td><td><code>completed_at</code> при <code>COMPLETED</code>; <code>REJECTED</code> → <code>failed</code>, hint «Выплата отклонена: {ErrorCode/Message/Details}» из <code>TinkoffPayoutBankError</code> (payload Init/Payment/GetState); промежуточные статусы e2c → <code>active</code> с hint «Статус: …». Анонс: <a href="/doc#tbank-payout-bank-error-visibility-index">видимость ошибок банка</a></td></tr>
     </tbody>
   </table>
   <p>Состояния шага (<code>state</code>): <code>done</code> (зелёный), <code>pending</code> (серый), <code>active</code> (синий, в процессе), <code>failed</code> (красный). CSS-классы: <code>tbank-payment-timeline__step--{state}</code>.</p>
   <div class="warn">
-    Timeline — <b>обзорный UI</b> для оператора, не заменяет блок «История статусов» (webhook-логи из <code>tinkoff_payment_status_logs</code> и логи выплат). Для диагностики банковских переходов по-прежнему смотрите историю и карточку выплаты.
+    Timeline — <b>обзорный UI</b> для оператора. При <code>REJECTED</code> hint шага 4 содержит текст банка
+    (<code>TinkoffPayoutBankError</code>). Полный JSON по-прежнему на карточке выплаты
+    <code>/admin/tinkoff/payouts/{id}</code> (<code>#payout-bank-error</code> + блоки Payload).
+    История webhook — блок «История статусов».
+    Анонс: <a href="/doc#tbank-payout-bank-error-visibility-index">/doc#tbank-payout-bank-error-visibility-index</a>.
   </div>
 
   <h3 id="payment-show-breakdown">5.7.3 Калькуляция на карточке платежа</h3>
@@ -314,6 +318,8 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <ul>
     <li>Окно возврата — при автовыплате с <code>auto_payout_delay_hours &gt; 0</code> в правиле комиссии.</li>
     <li>Действия: «Выплатить сейчас» и «Отложить» в UI — только при <code>manage.payment.method.tbank</code> (и если выплаты ещё нет или последняя <code>REJECTED</code>).
+      Список выплат справа: ID ведёт на <code>/admin/tinkoff/payouts/{id}</code>, под <code>REJECTED</code> — текст банка.
+      Организация — ссылка на карточку юр. лица при <code>legal_entities.sm_register</code>.
       «Закрыть сделку» на карточке видна при <code>deal_id</code> и у просмотра по <code>reports.tbank.payments.view</code>;
       POST <code>/tinkoff/deals/{deal}/close</code> — <code>can:manage.payment.method.tbank</code>.
       HTTP 4xx банка (в т.ч. 404 CloseSpDeal) — не 500: 302 и текст
@@ -493,8 +499,9 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Unit/Documentation/ReportsTbankPaymentsSummaryConfirmedDefaultDocumentationContractTest.php</code> — анонс <a href="/doc#reports-tbank-payments-summary-confirmed-default-index">/doc#reports-tbank-payments-summary-confirmed-default-index</a> совпадает с дефолтом CONFIRMED на По дням / По месяцам.</li>
     <li><code>tests/Feature/Crm/Reports/TbankPaymentsReportTest.php</code> / <code>TbankPaymentsWithoutPayoutFilterFeatureTest.php</code> / <code>TbankPaymentsReceiptAndCommissionFeatureTest.php</code> / <code>TbankPaymentsPayoutStatusFeatureTest.php</code> / <code>TbankPaymentsPayoutStatusFullAccessFeatureTest.php</code> / <code>TbankPaymentsPayoutStatusNonAjaxSafetyNetFeatureTest.php</code> / <code>TbankPaymentsPageFullAccessFeatureTest.php</code> / <code>TbankPaymentsNonAjaxSafetyNetFeatureTest.php</code> / <code>TbankPaymentsViewModesFeatureTest.php</code> — вкладка отчётов «Платежи T‑Bank»: права, скоуп, DataTables (колонка «Способ», «Чек», «Комиссия платформы»: не снимок выплаты, не 2% fallback, поиск не по чеку; «Статус выплаты»: последняя выплата включая REJECTED, время под бейджем), UX фильтров (<code>status=all</code>, <code>method=all</code>, <code>without_payout</code>), вид Платежи/По дням/По месяцам (гость/403, 422 «Вид», SSR thead, recreate без старых строк платежей, дефолт CONFIRMED на days/months, total при status=all без смены от вида), карточка по праву отчёта или manage, кнопка «Комиссии».</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate</code>, <code>test_tbank_payments_payout_status_cell_and_view_switch_thead_contract</code>.</li>
-    <li><code>tests/Feature/Crm/Payments/TBank/TbankPaymentShowPayoutActionsTest.php</code> — кнопки выплаты на карточке + отображение «Организация».</li>
-    <li><code>tests/Unit/Services/Tinkoff/TinkoffPaymentTimelineBuilderTest.php</code> — unit-тесты builder'а timeline.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankPaymentShowPayoutActionsTest.php</code> — кнопки выплаты на карточке + отображение «Организация»; при REJECTED — hint timeline и текст в списке выплат.</li>
+    <li><code>tests/Unit/Services/Tinkoff/TinkoffPaymentTimelineBuilderTest.php</code> — unit-тесты builder'а timeline (в т.ч. hint REJECTED с текстом банка).</li>
+    <li><code>tests/Unit/Services/Tinkoff/TinkoffPayoutBankErrorTest.php</code> — разбор e2c ErrorCode/Message/Details.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsLegalEntityColumnFeatureTest.php</code> — колонка «Организация» в списке выплат (см. <a href="/docs/documentation/tbank-admin-payouts#payouts-table-columns">tbank-admin-payouts §4.1</a>).</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsIndexAutoInfoTest.php</code> — на странице <code>/admin/tinkoff/payouts</code> отображаются блоки про автовыплаты, интервал обработки отложенных и просроченные отложенные выплаты.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankAdminPayoutsAccessFeatureTest.php</code> — доступ <code>tbank.payouts.manage</code> (403/200), карточка чужого партнёра → 404, изоляция DataTables, superadmin + фильтр <code>partner_id</code>.</li>

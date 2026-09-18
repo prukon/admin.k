@@ -119,7 +119,10 @@ final class TinkoffPaymentTimelineBuilder
             } elseif ($payoutStatus === 'REJECTED') {
                 $payoutCompleteState = 'failed';
                 $payoutCompleteAt = $latestPayout->completed_at ?? $latestPayout->updated_at;
-                $payoutCompleteHint = 'Выплата отклонена';
+                $bankHint = $latestPayout->bankRejectionSummary();
+                $payoutCompleteHint = $bankHint !== null && $bankHint !== ''
+                    ? 'Выплата отклонена: '.$bankHint
+                    : 'Выплата отклонена';
             } elseif (! in_array($payoutStatus, self::PAYOUT_FINAL_STATUSES, true)) {
                 $payoutCompleteState = 'active';
                 $payoutCompleteHint = 'Статус: '.$payoutStatus;

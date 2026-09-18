@@ -9,6 +9,8 @@ use App\Http\Requests\Admin\StorePartnerLegalEntityRequest;
 use App\Http\Requests\Admin\UpdatePartnerLegalEntityRequest;
 use App\Http\Requests\PartnerLegalEntity\FilterRequest;
 use App\Http\Requests\PartnerLegalEntity\SmPatchPartnerLegalEntityRequest;
+use App\Http\Requests\PartnerLegalEntity\SmPullPartnerLegalEntityRequest;
+use App\Http\Requests\PartnerLegalEntity\SmRefreshPartnerLegalEntityRequest;
 use App\Http\Requests\PartnerLegalEntity\SmRegisterPartnerLegalEntityRequest;
 use App\Models\Partner;
 use App\Models\PartnerLegalEntity;
@@ -358,7 +360,7 @@ class PartnerLegalEntityController extends AdminBaseController
             ->with('ok', 'Данные обновлены в sm-register');
     }
 
-    public function smRefresh(Request $request, PartnerLegalEntity $legalEntity)
+    public function smRefresh(SmRefreshPartnerLegalEntityRequest $request, PartnerLegalEntity $legalEntity)
     {
         $partnerId = $this->requirePartnerId();
         $this->assertEntityBelongsToPartner($legalEntity, $partnerId);
@@ -369,14 +371,23 @@ class PartnerLegalEntityController extends AdminBaseController
             return $this->smErrorResponse($request, $e->getMessage(), 422);
         }
 
+        $blocked = $result['disable_reimbursement'] ?? null;
+        $blockedLabel = $blocked === true
+            ? 'выплаты заблокированы банком'
+            : ($blocked === false ? 'выплаты не заблокированы' : 'флаг блокировки выплат банк не вернул');
+
         if ($request->ajax() || $request->expectsJson()) {
-            return response()->json(['ok' => true, 'status' => $result['status']]);
+            return response()->json([
+                'ok' => true,
+                'status' => $result['status'],
+                'disable_reimbursement' => $blocked,
+            ]);
         }
 
-        return back()->with('ok', 'Статус обновлён: ' . ($result['status'] ?? '—'));
+        return back()->with('ok', 'Данные точки обновлены из банка: '.$blockedLabel);
     }
 
-    public function smPull(Request $request, PartnerLegalEntity $legalEntity)
+    public function smPull(SmPullPartnerLegalEntityRequest $request, PartnerLegalEntity $legalEntity)
     {
         $partnerId = $this->requirePartnerId();
         $this->assertEntityBelongsToPartner($legalEntity, $partnerId);

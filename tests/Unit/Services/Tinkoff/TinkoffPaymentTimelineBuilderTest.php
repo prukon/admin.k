@@ -83,6 +83,44 @@ class TinkoffPaymentTimelineBuilderTest extends CrmTestCase
         $this->assertSame('Выплата выполнена', $steps[4]['label']);
     }
 
+    public function test_build_includes_bank_error_when_payout_rejected(): void
+    {
+        $payment = TinkoffPayment::create([
+            'order_id' => 'order-timeline-rejected',
+            'partner_id' => $this->partner->id,
+            'amount' => 10000,
+            'method' => 'card',
+            'status' => 'CONFIRMED',
+            'deal_id' => 'deal-timeline-rejected',
+            'confirmed_at' => now()->subHours(2),
+        ]);
+
+        $payout = TinkoffPayout::create([
+            'payment_id' => $payment->id,
+            'partner_id' => $this->partner->id,
+            'deal_id' => $payment->deal_id,
+            'amount' => 9500,
+            'is_final' => true,
+            'status' => 'REJECTED',
+            'source' => 'auto',
+            'completed_at' => now()->subHour(),
+            'payload_init' => [
+                'Success' => false,
+                'ErrorCode' => '-937',
+                'Message' => 'Возмещения партнера заблокированы',
+                'Details' => 'Операция отклонена из-за блокировки возмещений партнера.',
+            ],
+        ]);
+
+        $steps = $this->builder->build($payment, collect([$payout]));
+
+        $this->assertSame('failed', $steps[4]['state']);
+        $this->assertSame(
+            'Выплата отклонена: Код -937. Возмещения партнера заблокированы. Операция отклонена из-за блокировки возмещений партнера.',
+            $steps[4]['hint']
+        );
+    }
+
     public function test_build_marks_failed_payment_step(): void
     {
         $payment = TinkoffPayment::create([

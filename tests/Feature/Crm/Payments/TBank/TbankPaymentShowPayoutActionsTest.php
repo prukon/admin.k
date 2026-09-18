@@ -99,6 +99,31 @@ class TbankPaymentShowPayoutActionsTest extends CrmTestCase
         $resp->assertSee('Отложить до…');
     }
 
+    public function test_show_displays_bank_rejection_on_timeline_and_payout_list(): void
+    {
+        $payment = $this->createPaymentWithDeal();
+        $payout = TinkoffPayout::create([
+            'payment_id' => $payment->id,
+            'partner_id' => $this->partner->id,
+            'deal_id' => $payment->deal_id,
+            'amount' => 9500,
+            'status' => 'REJECTED',
+            'source' => 'auto',
+            'payload_init' => [
+                'Success' => false,
+                'ErrorCode' => '-937',
+                'Message' => 'Возмещения партнера заблокированы',
+                'Details' => 'Операция отклонена из-за блокировки возмещений партнера.',
+            ],
+        ]);
+
+        $this->get('/admin/tinkoff/payments/' . $payment->id)
+            ->assertOk()
+            ->assertSee('Выплата отклонена: Код -937', false)
+            ->assertSee('Возмещения партнера заблокированы', false)
+            ->assertSee('/admin/tinkoff/payouts/' . $payout->id, false);
+    }
+
     public function test_show_hides_payout_buttons_when_payout_completed(): void
     {
         $payment = $this->createPaymentWithDeal();

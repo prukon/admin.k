@@ -58,6 +58,46 @@
             </div>
         </div>
 
+        @if ($isRegistered)
+            @php
+                $payoutsBlocked = $entity->tinkoffPayoutsBlocked();
+                $shopSnapshot = is_array($entity->tinkoff_shop_snapshot) ? $entity->tinkoff_shop_snapshot : [];
+                $shopBank = is_array($shopSnapshot['bankAccount'] ?? null) ? $shopSnapshot['bankAccount'] : [];
+            @endphp
+            <div class="card mb-3" id="legal-entity-tbank-shop-status">
+                <div class="card-header">Статус точки в Т‑Банке</div>
+                <div class="card-body">
+                    @if ($payoutsBlocked === true)
+                        <div class="alert alert-danger mb-3" id="legal-entity-reimbursement-blocked" role="alert">
+                            Выплаты заблокированы банком (<code>disableReimbursement=true</code>).
+                            Обновите реквизиты точки. Снять блокировку — только отдельным действием, не при обычном PATCH.
+                        </div>
+                    @elseif ($payoutsBlocked === false)
+                        <div class="alert alert-success mb-3" id="legal-entity-reimbursement-ok" role="alert">
+                            Выплаты не заблокированы.
+                        </div>
+                    @else
+                        <div class="alert alert-secondary mb-3" id="legal-entity-reimbursement-unknown" role="alert">
+                            Статус выплат в банке ещё не запрашивался — нажмите «Обновить статус».
+                        </div>
+                    @endif
+                    <div class="small text-muted mb-2">
+                        Проверено: {{ $entity->tinkoff_shop_checked_at?->format('d.m.Y H:i') ?? '—' }}
+                    </div>
+                    @if ($shopBank !== [])
+                        <div class="small" id="legal-entity-tbank-shop-bank">
+                            <div><b>Реквизиты на точке банка</b></div>
+                            <div>Банк: {{ $shopBank['bankName'] ?? '—' }}</div>
+                            <div>БИК: {{ $shopBank['bik'] ?? '—' }}</div>
+                            <div>Р/с: {{ $shopBank['account'] ?? '—' }}</div>
+                            <div>К/с: {{ $shopBank['korAccount'] ?? '—' }}</div>
+                            <div>Назначение: {{ $shopBank['details'] ?? '—' }}</div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         @can('legal_entities.manage')
             <div class="card mb-3">
                 <div class="card-header">{{ $isRegistered ? 'Обновление в sm-register' : 'Регистрация в sm-register' }}</div>

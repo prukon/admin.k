@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Tinkoff\TinkoffPayoutBankError;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -61,5 +62,13 @@ class TinkoffPayout extends Model
         }
 
         return $this->when_to_run->gt($at);
+    }
+
+    /**
+     * Текст отказа банка (e2c Init/Payment/GetState или локальная причина CRM).
+     */
+    public function bankRejectionSummary(): ?string
+    {
+        return TinkoffPayoutBankError::summary($this);
     }
 }

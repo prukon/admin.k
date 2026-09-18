@@ -34,6 +34,8 @@ class PartnerLegalEntity extends Model
         'registered_at' => 'datetime',
         'bank_details_last_updated_at' => 'datetime',
         'registration_verified_at' => 'datetime',
+        'tinkoff_shop_checked_at' => 'datetime',
+        'tinkoff_shop_snapshot' => 'array',
         'podpislon_api_key' => 'encrypted',
     ];
 
@@ -92,5 +94,17 @@ class PartnerLegalEntity extends Model
     public function scopeDefault(Builder $query): Builder
     {
         return $query->where('is_default', true);
+    }
+
+    /**
+     * Флаг банка bankAccount.disableReimbursement: true — выплаты заблокированы, null — ещё не запрашивали.
+     */
+    public function tinkoffPayoutsBlocked(): ?bool
+    {
+        if ($this->tinkoff_disable_reimbursement === null) {
+            return null;
+        }
+
+        return (bool) (int) $this->tinkoff_disable_reimbursement;
     }
 }
