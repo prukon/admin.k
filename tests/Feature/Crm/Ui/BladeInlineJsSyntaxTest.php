@@ -9911,6 +9911,58 @@ JS;
         }
     }
 
+    /**
+     * P1: карточка юр. лица — два AJAX-пути (sm-form и js-sm-action-form), confirm снятия блокировки,
+     * ошибки под полями / firstFieldError, без form.reset при ошибке, node --check.
+     */
+    public function test_legal_entity_show_sm_ajax_paths_keep_values_and_confirm_unblock(): void
+    {
+        $path = resource_path('views/admin/legal-entities/show.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("id=\"legalEntitySmForm\"", $content);
+        $this->assertStringContainsString("$('#legalEntitySmForm').on('submit'", $content);
+        $this->assertStringContainsString("$('.js-sm-action-form').on('submit'", $content);
+        $this->assertStringContainsString('id="legal-entity-enable-reimbursement-form"', $content);
+        $this->assertStringContainsString('js-sm-action-form', $content);
+        $this->assertStringContainsString('data-confirm="Снять блокировку выплат в Т‑Банке?', $content);
+        $this->assertStringContainsString('route(\'admin.legal-entities.sm-enable-reimbursement\'', $content);
+        $this->assertStringContainsString('@can(\'legal_entities.manage\')', $content);
+
+        $smSubmitPos = strpos($content, "$('#legalEntitySmForm').on('submit'");
+        $this->assertNotFalse($smSubmitPos);
+        $smChunk = substr($content, (int) $smSubmitPos, 1800);
+        $this->assertStringContainsString('e.preventDefault()', $smChunk);
+        $this->assertStringContainsString('fetch(form.action', $smChunk);
+        $this->assertStringContainsString('X-Requested-With', $smChunk);
+        $this->assertStringContainsString('XMLHttpRequest', $smChunk);
+        $this->assertStringContainsString('applySmErrors(form, data.errors || {})', $smChunk);
+        $this->assertStringContainsString('window.location.reload()', $smChunk);
+        $this->assertStringNotContainsString('form.reset()', $smChunk);
+
+        $actionSubmitPos = strpos($content, "$('.js-sm-action-form').on('submit'");
+        $this->assertNotFalse($actionSubmitPos);
+        $actionChunk = substr($content, (int) $actionSubmitPos, 1800);
+        $this->assertStringContainsString('e.preventDefault()', $actionChunk);
+        $this->assertStringContainsString("form.getAttribute('data-confirm')", $actionChunk);
+        $this->assertStringContainsString('window.confirm(confirmMsg)', $actionChunk);
+        $this->assertStringContainsString('fetch(form.action', $actionChunk);
+        $this->assertStringContainsString('X-Requested-With', $actionChunk);
+        $this->assertStringContainsString('firstFieldError', $actionChunk);
+        $this->assertStringContainsString('window.location.reload()', $actionChunk);
+        $this->assertStringNotContainsString('form.reset()', $actionChunk);
+
+        $this->assertSame(1, substr_count($content, "$('#legalEntitySmForm').on('submit'"));
+        $this->assertSame(1, substr_count($content, "$('.js-sm-action-form').on('submit'"));
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "js-sm-action-form",
+            'blade-js-legal-entity-show-sm'
+        );
+    }
+
     #[DataProvider('criticalModalBladePathsProvider')]
     public function test_critical_modal_inline_scripts_have_valid_javascript_syntax(string $relativePath): void
     {

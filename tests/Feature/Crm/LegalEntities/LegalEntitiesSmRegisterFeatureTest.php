@@ -134,7 +134,19 @@ final class LegalEntitiesSmRegisterFeatureTest extends CrmTestCase
         $sm = $this->bindSmMock();
         $sm->shouldReceive('patch')
             ->once()
-            ->with('SC-PATCH-001', Mockery::type('array'))
+            ->with('SC-PATCH-001', Mockery::on(function (array $payload): bool {
+                $this->assertSame(['bankAccount'], array_keys($payload));
+                $this->assertSame('40702810900000000001', $payload['bankAccount']['account']);
+                $this->assertSame('Т-Банк', $payload['bankAccount']['bankName']);
+                $this->assertSame('044525974', $payload['bankAccount']['bik']);
+                $this->assertSame('Назначение платежа', $payload['bankAccount']['details']);
+                $this->assertArrayNotHasKey('inn', $payload);
+                $this->assertArrayNotHasKey('email', $payload);
+                $this->assertArrayNotHasKey('addresses', $payload);
+                $this->assertArrayNotHasKey('disableReimbursement', $payload['bankAccount']);
+
+                return true;
+            }))
             ->andReturn(['ok' => true]);
 
         $this->postJson(route('admin.legal-entities.sm-patch', $entity), $this->validSmPayload([
@@ -328,5 +340,121 @@ final class LegalEntitiesSmRegisterFeatureTest extends CrmTestCase
             ->assertSessionHas('ok');
 
         $this->assertSame('После non-ajax patch', $entity->fresh()->title);
+    }
+
+    public function test_sm_patch_sends_kor_account_when_filled(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->registered('SC-PATCH-KOR')->create();
+
+        $sm = $this->bindSmMock();
+        $sm->shouldReceive('patch')
+            ->once()
+            ->with('SC-PATCH-KOR', Mockery::on(function (array $payload): bool {
+                $this->assertSame('30101810400000000225', $payload['bankAccount']['korAccount'] ?? null);
+
+                return true;
+            }))
+            ->andReturn(['ok' => true]);
+
+        $this->postJson(route('admin.legal-entities.sm-patch', $entity), $this->validSmPayload([
+            'bank_corr_account' => '30101810400000000225',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $this->assertSame('30101810400000000225', $entity->fresh()->bank_corr_account);
+    }
+
+    public function test_show_html_displays_sm_patch_fields_hint(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->registered('SC-HINT')->create();
+
+        $this->get(route('admin.legal-entities.show', $entity))
+            ->assertOk()
+            ->assertSee('id="legal-entity-sm-patch-fields-hint"', false)
+            ->assertSee('только', false)
+            ->assertSee('bankAccount', false)
+            ->assertSee('ИНН, адрес, email', false);
+    }
+
+    public function test_show_html_displays_enable_reimbursement_button_when_blocked(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->registered('SC-UNBLOCK-UI')->create([
+            'tinkoff_disable_reimbursement' => true,
+            'tinkoff_shop_checked_at' => now(),
+            'bank_name' => 'ООО "Банк Точка"',
+            'bank_bik' => '044525104',
+            'bank_account' => '40802810420000841544',
+            'sm_details_template' => 'Выплата по договору',
+        ]);
+
+        $this->get(route('admin.legal-entities.show', $entity))
+            ->assertOk()
+            ->assertSee('id="legal-entity-enable-reimbursement"', false)
+            ->assertSee('Снять блокировку выплат', false);
+    }
+
+    public function test_sm_enable_reimbursement_ajax_json_contract(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->registered('SC-UNBLOCK')->create([
+            'tinkoff_disable_reimbursement' => true,
+            'bank_name' => 'ООО Банк Точка',
+            'bank_bik' => '044525104',
+            'bank_account' => '40802810420000841544',
+            'bank_corr_account' => '30101810400000000225',
+            'sm_details_template' => 'Выплата по договору',
+        ]);
+
+        $sm = $this->bindSmMock();
+        $sm->shouldReceive('patch')
+            ->once()
+            ->with('SC-UNBLOCK', Mockery::on(function (array $payload): bool {
+                $this->assertSame(['bankAccount'], array_keys($payload));
+                $this->assertFalse($payload['bankAccount']['disableReimbursement']);
+                $this->assertSame('40802810420000841544', $payload['bankAccount']['account']);
+                $this->assertSame('ООО Банк Точка', $payload['bankAccount']['bankName']);
+                $this->assertSame('044525104', $payload['bankAccount']['bik']);
+                $this->assertSame('Выплата по договору', $payload['bankAccount']['details']);
+                $this->assertSame('30101810400000000225', $payload['bankAccount']['korAccount']);
+
+                return true;
+            }))
+            ->andReturn(['ok' => true]);
+        $sm->shouldReceive('getStatus')
+            ->once()
+            ->with('SC-UNBLOCK')
+            ->andReturn([
+                'bankAccount' => [
+                    'disableReimbursement' => false,
+                    'account' => '40802810420000841544',
+                    'bankName' => 'ООО Банк Точка',
+                    'bik' => '044525104',
+                    'details' => 'Выплата по договору',
+                ],
+            ]);
+
+        $this->postJson(route('admin.legal-entities.sm-enable-reimbursement', $entity))
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('disable_reimbursement', false);
+
+        $this->assertFalse($entity->fresh()->tinkoffPayoutsBlocked());
+    }
+
+    public function test_sm_enable_reimbursement_without_bank_fields_returns_422_under_fields(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->registered('SC-UNBLOCK-EMPTY')->create([
+            'tinkoff_disable_reimbursement' => true,
+            'bank_name' => null,
+            'bank_bik' => null,
+            'bank_account' => null,
+        ]);
+
+        $sm = $this->bindSmMock();
+        $sm->shouldNotReceive('patch');
+
+        $this->postJson(route('admin.legal-entities.sm-enable-reimbursement', $entity))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['bank_account', 'bank_name', 'bank_bik']);
     }
 }

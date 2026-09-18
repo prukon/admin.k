@@ -9,18 +9,14 @@ use App\Models\TinkoffPayout;
 use App\Services\Tinkoff\SmRegisterClient;
 use App\Services\Tinkoff\TinkoffSignature;
 use Illuminate\Support\Facades\Http;
+use Mockery;
 use Tests\Feature\Crm\CrmTestCase;
 
 class TbankAutoPayoutOnWebhookTest extends CrmTestCase
 {
     public function test_confirmed_webhook_schedules_payout_after_48_hours_when_auto_payout_enabled(): void
     {
-        $this->app->instance(SmRegisterClient::class, new class {
-            public function patch(string $partnerId, array $payload): array
-            {
-                return ['ok' => true];
-            }
-        });
+        $this->bindSmPatchStub();
 
         $this->seedGlobalTbank([
             'terminal_key' => 'TERM_PAY',
@@ -95,12 +91,7 @@ class TbankAutoPayoutOnWebhookTest extends CrmTestCase
 
     public function test_confirmed_webhook_uses_delay_from_commission_rule(): void
     {
-        $this->app->instance(SmRegisterClient::class, new class {
-            public function patch(string $partnerId, array $payload): array
-            {
-                return ['ok' => true];
-            }
-        });
+        $this->bindSmPatchStub();
 
         $this->seedGlobalTbank([
             'terminal_key' => 'TERM_PAY2',
@@ -169,12 +160,7 @@ class TbankAutoPayoutOnWebhookTest extends CrmTestCase
 
     public function test_confirmed_webhook_zero_delay_creates_payout_with_null_when_to_run(): void
     {
-        $this->app->instance(SmRegisterClient::class, new class {
-            public function patch(string $partnerId, array $payload): array
-            {
-                return ['ok' => true];
-            }
-        });
+        $this->bindSmPatchStub();
 
         $this->seedGlobalTbank([
             'terminal_key' => 'TERM_PAY3',
@@ -249,5 +235,170 @@ class TbankAutoPayoutOnWebhookTest extends CrmTestCase
         $payout = TinkoffPayout::where('payment_id', $tp->id)->first();
         $this->assertNotNull($payout);
         $this->assertNull($payout->when_to_run);
+    }
+
+    public function test_confirmed_webhook_patches_full_bank_account_before_payout(): void
+    {
+        $sm = Mockery::mock(SmRegisterClient::class);
+        $sm->shouldReceive('patch')
+            ->once()
+            ->with('SHOPCODE-PATCH', Mockery::on(function (array $payload): bool {
+                $this->assertSame(['bankAccount'], array_keys($payload));
+                $this->assertSame('40802810420000841544', $payload['bankAccount']['account']);
+                $this->assertSame('ООО Банк Точка', $payload['bankAccount']['bankName']);
+                $this->assertSame('044525104', $payload['bankAccount']['bik']);
+                $this->assertNotSame('', (string) ($payload['bankAccount']['details'] ?? ''));
+                $this->assertSame('30101810400000000225', $payload['bankAccount']['korAccount']);
+                $this->assertArrayNotHasKey('disableReimbursement', $payload['bankAccount']);
+
+                return true;
+            }))
+            ->andReturn(['ok' => true]);
+        $this->app->instance(SmRegisterClient::class, $sm);
+
+        $this->seedGlobalTbank([
+            'terminal_key' => 'TERM_PAY_PATCH',
+            'token_password' => 'PWD_PAY_PATCH',
+        ]);
+
+        $chain = $this->seedTbankTeamChainForStudent(shopCode: 'SHOPCODE-PATCH', entityOverrides: [
+            'bank_name' => 'ООО Банк Точка',
+            'bank_bik' => '044525104',
+            'bank_account' => '40802810420000841544',
+            'bank_corr_account' => '30101810400000000225',
+            'sm_details_template' => 'Выплата по договору',
+        ]);
+
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'card',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 48,
+        ]);
+
+        $tp = TinkoffPayment::create([
+            'order_id' => 'order-patch-full',
+            'partner_id' => $this->partner->id,
+            'legal_entity_id' => $chain['entity']->id,
+            'amount' => 10000,
+            'method' => 'card',
+            'status' => 'FORM',
+            'deal_id' => 'deal-patch-full',
+        ]);
+
+        $payable = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'club_fee',
+            'amount_cents' => 10000,
+            'currency' => 'RUB',
+            'status' => 'pending',
+            'meta' => ['team_id' => $chain['team']->id],
+        ]);
+
+        PaymentIntent::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'status' => 'pending',
+            'out_sum_cents' => 10000,
+            'payment_date' => 'Клубный взнос',
+            'tbank_order_id' => 'order-patch-full',
+        ]);
+
+        Http::fake();
+
+        $payload = [
+            'TerminalKey' => 'TERM_PAY_PATCH',
+            'OrderId' => 'order-patch-full',
+            'PaymentId' => 12348,
+            'Status' => 'CONFIRMED',
+            'Success' => true,
+            'SpAccumulationId' => 'deal-patch-full',
+        ];
+        $payload['Token'] = TinkoffSignature::makeToken($payload, 'PWD_PAY_PATCH');
+
+        $this->post('/webhooks/tinkoff/payments', $payload)->assertOk();
+
+        $this->assertNotNull(TinkoffPayout::where('payment_id', $tp->id)->first());
+    }
+
+    public function test_confirmed_webhook_still_creates_payout_when_bank_requisites_are_incomplete(): void
+    {
+        $sm = Mockery::mock(SmRegisterClient::class);
+        $sm->shouldNotReceive('patch');
+        $this->app->instance(SmRegisterClient::class, $sm);
+
+        $this->seedGlobalTbank([
+            'terminal_key' => 'TERM_PAY_NOBANK',
+            'token_password' => 'PWD_PAY_NOBANK',
+        ]);
+
+        $chain = $this->seedTbankTeamChainForStudent(shopCode: 'SHOPCODE-NOBANK', entityOverrides: [
+            'bank_name' => null,
+            'bank_bik' => null,
+            'bank_account' => null,
+            'bank_corr_account' => null,
+        ]);
+
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'card',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 48,
+        ]);
+
+        $tp = TinkoffPayment::create([
+            'order_id' => 'order-patch-nobank',
+            'partner_id' => $this->partner->id,
+            'legal_entity_id' => $chain['entity']->id,
+            'amount' => 10000,
+            'method' => 'card',
+            'status' => 'FORM',
+            'deal_id' => 'deal-patch-nobank',
+        ]);
+
+        $payable = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'club_fee',
+            'amount_cents' => 10000,
+            'currency' => 'RUB',
+            'status' => 'pending',
+            'meta' => ['team_id' => $chain['team']->id],
+        ]);
+
+        PaymentIntent::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'status' => 'pending',
+            'out_sum_cents' => 10000,
+            'payment_date' => 'Клубный взнос',
+            'tbank_order_id' => 'order-patch-nobank',
+        ]);
+
+        Http::fake();
+
+        $payload = [
+            'TerminalKey' => 'TERM_PAY_NOBANK',
+            'OrderId' => 'order-patch-nobank',
+            'PaymentId' => 12349,
+            'Status' => 'CONFIRMED',
+            'Success' => true,
+            'SpAccumulationId' => 'deal-patch-nobank',
+        ];
+        $payload['Token'] = TinkoffSignature::makeToken($payload, 'PWD_PAY_NOBANK');
+
+        $this->post('/webhooks/tinkoff/payments', $payload)->assertOk();
+
+        $this->assertNotNull(TinkoffPayout::where('payment_id', $tp->id)->first());
+    }
+
+    private function bindSmPatchStub(): void
+    {
+        $sm = Mockery::mock(SmRegisterClient::class);
+        $sm->shouldReceive('patch')->zeroOrMoreTimes()->andReturn(['ok' => true]);
+        $this->app->instance(SmRegisterClient::class, $sm);
     }
 }

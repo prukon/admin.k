@@ -6,6 +6,7 @@ use App\Enums\PartnerLegalEntityBusinessType;
 use App\Models\Partner;
 use App\Models\PartnerLegalEntity;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 final class PartnerLegalEntitySmRegisterService
 {
@@ -62,7 +63,7 @@ final class PartnerLegalEntitySmRegisterService
             throw new \RuntimeException('Сначала зарегистрируйте юр. лицо в sm-register (нет ShopCode).');
         }
 
-        $payload = $this->buildPatchPayload($entity, $partner, $validated);
+        $payload = $this->buildPatchPayload($entity, $validated);
 
         Log::channel('tinkoff')->info('[sm-register][legal_entity][patch] shopCode=' . $shopCode . ' payload=' . json_encode($payload, JSON_UNESCAPED_UNICODE));
 
@@ -174,6 +175,52 @@ final class PartnerLegalEntitySmRegisterService
     }
 
     /**
+     * PATCH bankAccount перед выплатой: р/с, банк, БИК, назначение. Без disableReimbursement.
+     *
+     * @return array<string, mixed>
+     */
+    public function patchBankAccountForPayout(PartnerLegalEntity $entity, string $details): array
+    {
+        $shopCode = trim((string) ($entity->tinkoff_shop_code ?? ''));
+        if ($shopCode === '') {
+            throw new \RuntimeException('Нет ShopCode.');
+        }
+
+        $payload = $this->cleanPayload([
+            'bankAccount' => $this->bankAccountPayload($entity, $details, null),
+        ]);
+        $this->assertCompleteBankAccount($payload['bankAccount'] ?? []);
+
+        Log::channel('tinkoff')->info('[sm-register][legal_entity][payout-patch] shopCode=' . $shopCode . ' payload=' . json_encode($payload, JSON_UNESCAPED_UNICODE));
+
+        return $this->sm->patch($shopCode, $payload);
+    }
+
+    /**
+     * Снять блокировку выплат: PATCH disableReimbursement=false вместе с полным bankAccount (PDF §2.2).
+     *
+     * @return array{status: string|null, disable_reimbursement: bool|null, raw: mixed}
+     */
+    public function enableReimbursement(PartnerLegalEntity $entity): array
+    {
+        $shopCode = trim((string) ($entity->tinkoff_shop_code ?? ''));
+        if ($shopCode === '') {
+            throw new \RuntimeException('Нет ShopCode.');
+        }
+
+        $payload = $this->cleanPayload([
+            'bankAccount' => $this->bankAccountPayload($entity, null, false),
+        ]);
+        $this->assertCompleteBankAccount($payload['bankAccount'] ?? []);
+
+        Log::channel('tinkoff')->info('[sm-register][legal_entity][enable-reimbursement] shopCode=' . $shopCode . ' payload=' . json_encode($payload, JSON_UNESCAPED_UNICODE));
+
+        $this->sm->patch($shopCode, $payload);
+
+        return $this->refreshStatus($entity);
+    }
+
+    /**
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
@@ -213,12 +260,7 @@ final class PartnerLegalEntitySmRegisterService
             ]] : [],
             'email' => (string) $validated['email'],
             'siteUrl' => $siteUrl,
-            'bankAccount' => [
-                'account' => (string) $validated['bank_account'],
-                'bankName' => (string) $validated['bank_name'],
-                'bik' => (string) $validated['bank_bik'],
-                'details' => (string) $validated['sm_details_template'],
-            ],
+            'bankAccount' => $this->bankAccountFromValidated($validated, $entity),
             'ceo' => [
                 'firstName' => $ceoFirst,
                 'lastName' => $ceoLast,
@@ -232,50 +274,99 @@ final class PartnerLegalEntitySmRegisterService
     }
 
     /**
+     * PATCH по PDF §2.2 принимает только bankAccount.
+     *
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    private function buildPatchPayload(PartnerLegalEntity $entity, Partner $partner, array $validated): array
+    private function buildPatchPayload(PartnerLegalEntity $entity, array $validated): array
     {
-        $legalName = trim((string) $validated['organization_name']);
-        $businessType = PartnerLegalEntityBusinessType::from((string) $validated['business_type']);
+        return $this->cleanPayload([
+            'bankAccount' => $this->bankAccountFromValidated($validated, $entity),
+        ]);
+    }
 
-        $phone = $this->normalizePhone($validated['phone'] ?? $partner->phone);
-        $city = $this->normalizeCity((string) $validated['city']);
-        $street = $this->sanitizeStreet((string) $validated['address'], $city);
-        $kpp = $this->resolveKpp($businessType, $validated['kpp'] ?? $entity->kpp);
-        $ogrn = $this->resolveOgrn($validated['registration_number'] ?? '');
-        $siteUrl = $validated['website'] ?? $partner->website ?? config('app.url');
-
-        $payload = [
-            'fullName' => $legalName,
-            'name' => $legalName,
-            'inn' => (string) $validated['tax_id'],
-            'kpp' => (string) $kpp,
-            'ogrn' => $ogrn,
-            'addresses' => [[
-                'type' => 'legal',
-                'zip' => (string) $validated['zip'],
-                'country' => 'RUS',
-                'city' => $city,
-                'street' => $street,
-            ]],
-            'phones' => $phone ? [[
-                'type' => 'common',
-                'phone' => $phone,
-                'description' => 'Контакт',
-            ]] : [],
-            'email' => (string) $validated['email'],
-            'siteUrl' => $siteUrl,
-            'bankAccount' => [
-                'account' => (string) $validated['bank_account'],
-                'bankName' => (string) $validated['bank_name'],
-                'bik' => (string) $validated['bank_bik'],
-                'details' => (string) $validated['sm_details_template'],
-            ],
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function bankAccountFromValidated(array $validated, PartnerLegalEntity $entity): array
+    {
+        $bank = [
+            'account' => (string) $validated['bank_account'],
+            'bankName' => (string) $validated['bank_name'],
+            'bik' => (string) $validated['bank_bik'],
+            'details' => (string) $validated['sm_details_template'],
         ];
 
-        return $this->cleanPayload($payload);
+        $korAccount = trim((string) ($validated['bank_corr_account'] ?? $entity->bank_corr_account ?? ''));
+        if ($korAccount !== '') {
+            $bank['korAccount'] = $korAccount;
+        }
+
+        return $bank;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function bankAccountPayload(
+        PartnerLegalEntity $entity,
+        ?string $detailsOverride,
+        ?bool $disableReimbursement,
+    ): array {
+        $details = trim((string) ($detailsOverride ?? ''));
+        if ($details === '') {
+            $details = trim((string) ($entity->sm_details_template ?? ''));
+        }
+        if ($details === '') {
+            $details = trim((string) data_get($entity->tinkoff_shop_snapshot, 'bankAccount.details', ''));
+        }
+        if ($details === '') {
+            $details = 'Выплата по договору';
+        }
+
+        $bank = [
+            'account' => trim((string) ($entity->bank_account ?? '')),
+            'bankName' => trim((string) ($entity->bank_name ?? '')),
+            'bik' => trim((string) ($entity->bank_bik ?? '')),
+            'details' => $details,
+        ];
+
+        $korAccount = trim((string) ($entity->bank_corr_account ?? ''));
+        if ($korAccount !== '') {
+            $bank['korAccount'] = $korAccount;
+        }
+
+        if ($disableReimbursement !== null) {
+            $bank['disableReimbursement'] = $disableReimbursement;
+        }
+
+        return $bank;
+    }
+
+    /**
+     * @param  array<string, mixed>  $bank
+     */
+    private function assertCompleteBankAccount(array $bank): void
+    {
+        $errors = [];
+        if (trim((string) ($bank['account'] ?? '')) === '') {
+            $errors['bank_account'] = ['Укажите расчётный счёт — без него банк отклонит PATCH.'];
+        }
+        if (trim((string) ($bank['bankName'] ?? '')) === '') {
+            $errors['bank_name'] = ['Укажите банк — без него банк отклонит PATCH.'];
+        }
+        if (trim((string) ($bank['bik'] ?? '')) === '') {
+            $errors['bank_bik'] = ['Укажите БИК — без него банк отклонит PATCH.'];
+        }
+        if (trim((string) ($bank['details'] ?? '')) === '') {
+            $errors['sm_details_template'] = ['Укажите назначение платежа.'];
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**
@@ -293,7 +384,7 @@ final class PartnerLegalEntitySmRegisterService
         $businessType = PartnerLegalEntityBusinessType::from((string) $validated['business_type']);
         $city = $this->normalizeCity((string) $validated['city']);
 
-        return [
+        $fields = [
             'business_type' => $businessType->value,
             'title' => (string) $validated['title'],
             'organization_name' => $legalName,
@@ -314,6 +405,13 @@ final class PartnerLegalEntitySmRegisterService
                 'phone' => $ceoPhone,
             ],
         ];
+
+        if (array_key_exists('bank_corr_account', $validated)) {
+            $kor = trim((string) $validated['bank_corr_account']);
+            $fields['bank_corr_account'] = $kor !== '' ? $kor : null;
+        }
+
+        return $fields;
     }
 
     /**

@@ -161,6 +161,14 @@
         <div class="invalid-feedback d-block" data-error-for="bank_account"></div>
     </div>
 
+    <div class="col-md-4">
+        <label class="form-label">Корреспондентский счёт</label>
+        <input name="bank_corr_account" class="form-control" maxlength="20" value="{{ old('bank_corr_account', $entity->bank_corr_account) }}">
+        @include('admin.legal-entities.partials.sm-api-field-hint', ['code' => 'bankAccount.korAccount'])
+        <div class="invalid-feedback d-block" data-error-for="bank_corr_account"></div>
+        <div class="form-text">Необязательно. Если пусто — в банк не отправляется.</div>
+    </div>
+
     <div class="col-12">
         <label class="form-label">Назначение платежа</label>
         <input type="text"

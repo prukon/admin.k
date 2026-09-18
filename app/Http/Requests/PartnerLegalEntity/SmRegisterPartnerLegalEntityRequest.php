@@ -28,6 +28,7 @@ class SmRegisterPartnerLegalEntityRequest extends FormRequest
             'bank_name' => ['required', 'string', 'max:255'],
             'bank_bik' => ['required', 'string', 'max:20'],
             'bank_account' => ['required', 'string', 'max:32'],
+            'bank_corr_account' => ['nullable', 'string', 'max:20'],
             'sm_details_template' => ['required', 'string', 'max:500'],
             'phone' => ['nullable', 'string', 'max:32'],
             'website' => ['nullable', 'url', 'max:255'],
@@ -63,6 +64,7 @@ class SmRegisterPartnerLegalEntityRequest extends FormRequest
             'bank_name' => 'банк',
             'bank_bik' => 'БИК',
             'bank_account' => 'расчётный счёт',
+            'bank_corr_account' => 'корреспондентский счёт',
             'sm_details_template' => 'назначение платежа',
             'phone' => 'телефон',
             'website' => 'сайт',
@@ -83,6 +85,11 @@ class SmRegisterPartnerLegalEntityRequest extends FormRequest
             'tax_id.required' => 'Введите ИНН',
             'registration_number.required' => 'Введите ОГРН/ОГРНИП',
             'zip.regex' => 'Индекс должен содержать 6 цифр',
+            'bank_name.required' => 'Укажите банк',
+            'bank_bik.required' => 'Укажите БИК',
+            'bank_account.required' => 'Укажите расчётный счёт',
+            'bank_corr_account.max' => 'Корреспондентский счёт не длиннее 20 символов',
+            'sm_details_template.required' => 'Укажите назначение платежа',
         ];
     }
 }

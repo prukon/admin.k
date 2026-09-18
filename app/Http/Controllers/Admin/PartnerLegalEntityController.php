@@ -8,6 +8,7 @@ use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\StorePartnerLegalEntityRequest;
 use App\Http\Requests\Admin\UpdatePartnerLegalEntityRequest;
 use App\Http\Requests\PartnerLegalEntity\FilterRequest;
+use App\Http\Requests\PartnerLegalEntity\SmEnableReimbursementPartnerLegalEntityRequest;
 use App\Http\Requests\PartnerLegalEntity\SmPatchPartnerLegalEntityRequest;
 use App\Http\Requests\PartnerLegalEntity\SmPullPartnerLegalEntityRequest;
 use App\Http\Requests\PartnerLegalEntity\SmRefreshPartnerLegalEntityRequest;
@@ -385,6 +386,37 @@ class PartnerLegalEntityController extends AdminBaseController
         }
 
         return back()->with('ok', 'Данные точки обновлены из банка: '.$blockedLabel);
+    }
+
+    public function smEnableReimbursement(SmEnableReimbursementPartnerLegalEntityRequest $request, PartnerLegalEntity $legalEntity)
+    {
+        $partnerId = $this->requirePartnerId();
+        $this->assertEntityBelongsToPartner($legalEntity, $partnerId);
+
+        try {
+            $result = $this->smRegisterService->enableReimbursement($legalEntity);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::channel('tinkoff')->error('[sm-register][legal_entity][enable-reimbursement] ' . $e->getMessage());
+
+            return $this->smErrorResponse($request, $e->getMessage(), 422);
+        }
+
+        $blocked = $result['disable_reimbursement'] ?? null;
+        $okMessage = $blocked === false
+            ? 'Блокировка выплат снята в банке'
+            : 'Запрос на снятие блокировки отправлен, но банк всё ещё держит флаг disableReimbursement';
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'disable_reimbursement' => $blocked,
+                'message' => $okMessage,
+            ]);
+        }
+
+        return back()->with('ok', $okMessage);
     }
 
     public function smPull(SmPullPartnerLegalEntityRequest $request, PartnerLegalEntity $legalEntity)

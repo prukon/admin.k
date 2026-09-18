@@ -70,7 +70,7 @@
                     @if ($payoutsBlocked === true)
                         <div class="alert alert-danger mb-3" id="legal-entity-reimbursement-blocked" role="alert">
                             Выплаты заблокированы банком (<code>disableReimbursement=true</code>).
-                            Обновите реквизиты точки. Снять блокировку — только отдельным действием, не при обычном PATCH.
+                            Обновите реквизиты точки кнопкой «Обновить в sm-register», затем снимите блокировку отдельной кнопкой ниже.
                         </div>
                     @elseif ($payoutsBlocked === false)
                         <div class="alert alert-success mb-3" id="legal-entity-reimbursement-ok" role="alert">
@@ -81,6 +81,20 @@
                             Статус выплат в банке ещё не запрашивался — нажмите «Обновить статус».
                         </div>
                     @endif
+                    @can('legal_entities.manage')
+                        @if ($payoutsBlocked === true)
+                            <form method="POST"
+                                  action="{{ route('admin.legal-entities.sm-enable-reimbursement', $entity) }}"
+                                  class="d-inline js-sm-action-form mb-3"
+                                  id="legal-entity-enable-reimbursement-form"
+                                  data-confirm="Снять блокировку выплат в Т‑Банке? Удержанные холды будут помечены к выплате.">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-danger" id="legal-entity-enable-reimbursement">
+                                    Снять блокировку выплат
+                                </button>
+                            </form>
+                        @endif
+                    @endcan
                     <div class="small text-muted mb-2">
                         Проверено: {{ $entity->tinkoff_shop_checked_at?->format('d.m.Y H:i') ?? '—' }}
                     </div>
@@ -102,6 +116,16 @@
             <div class="card mb-3">
                 <div class="card-header">{{ $isRegistered ? 'Обновление в sm-register' : 'Регистрация в sm-register' }}</div>
                 <div class="card-body">
+                    @if ($isRegistered)
+                        <div class="alert alert-info" id="legal-entity-sm-patch-fields-hint" role="status">
+                            Кнопка «Обновить в sm-register» отправляет в банк <b>только</b> блок
+                            <code>bankAccount</code>:
+                            банк, БИК, расчётный счёт, назначение платежа
+                            и корреспондентский счёт (если заполнен).
+                            ИНН, адрес, email, телефон, руководитель и остальные поля формы в банк <b>не уходят</b>.
+                            Снять блокировку выплат эта кнопка не умеет — для этого отдельная кнопка в блоке «Статус точки».
+                        </div>
+                    @endif
                     <form id="legalEntitySmForm"
                           action="{{ $isRegistered ? route('admin.legal-entities.sm-patch', $entity) : route('admin.legal-entities.sm-register', $entity) }}"
                           method="POST">
@@ -111,6 +135,11 @@
                             <button type="submit" class="btn btn-success">
                                 {{ $isRegistered ? 'Обновить в sm-register' : 'Зарегистрировать в sm-register' }}
                             </button>
+                            @if ($isRegistered)
+                                <div class="form-text mt-2">
+                                    В банк уйдут только: банк, БИК, р/с, назначение и к/с (если заполнен).
+                                </div>
+                            @endif
                         </div>
                     </form>
                 </div>
@@ -190,6 +219,10 @@
             $('.js-sm-action-form').on('submit', async function (e) {
                 e.preventDefault();
                 const form = this;
+                const confirmMsg = form.getAttribute('data-confirm');
+                if (confirmMsg && !window.confirm(confirmMsg)) {
+                    return;
+                }
                 const res = await fetch(form.action, {
                     method: 'POST',
                     body: new FormData(form),
@@ -202,7 +235,11 @@
                     window.location.reload();
                 } else {
                     const data = await res.json().catch(() => ({}));
-                    alert(data.message || data.error || 'Ошибка запроса');
+                    const fieldErrors = data.errors || {};
+                    const firstFieldError = Object.values(fieldErrors).flat().find(function (item) {
+                        return typeof item === 'string' && item !== '';
+                    });
+                    alert(firstFieldError || data.message || data.error || 'Ошибка запроса');
                 }
             });
         });

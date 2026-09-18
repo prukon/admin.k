@@ -881,6 +881,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->middleware('can:legal_entities.manage')
             ->whereNumber('legalEntity')
             ->name('admin.legal-entities.sm-pull');
+        Route::post('admin/legal-entities/{legalEntity}/sm-enable-reimbursement', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'smEnableReimbursement'])
+            ->middleware('can:legal_entities.manage')
+            ->whereNumber('legalEntity')
+            ->name('admin.legal-entities.sm-enable-reimbursement');
     });
 
     // Расписание школы (слоты)

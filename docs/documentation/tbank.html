@@ -172,7 +172,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
       В модалке «Изменить» их нельзя сменить. Для «глобального» правила (<code>partner_id = NULL</code>) автовыплата не настраивается —
       нужно <b>создать</b> отдельное правило на партнёра (кнопка «Добавить комиссию»).</li>
     <li><b>Выбор правила при webhook</b>: <code>TinkoffCommissionRule::pickForPartner($partnerId, $method)</code> — сначала точное совпадение по методу, иначе правило с <code>method = NULL</code>.</li>
-    <li><b>Что делает</b>: если <code>auto_payout_enabled = true</code> у подобранного правила — после <code>Status=CONFIRMED</code> создаётся выплата (e2c) с задержкой <code>auto_payout_delay_hours</code> из этого правила. При 0 — выплата уходит в банк сразу. Дальше статус доводится polling’ом (<code>GetState</code>) до <code>COMPLETED/REJECTED</code>.</li>
+    <li><b>Что делает</b>: если <code>auto_payout_enabled = true</code> у подобранного правила — после <code>Status=CONFIRMED</code> сначала PATCH точки полным <code>bankAccount</code> (р/с, банк, БИК, назначение периода; к/с если заполнен; без <code>disableReimbursement</code>), затем создаётся выплата (e2c) с задержкой <code>auto_payout_delay_hours</code>. Ошибка PATCH не отменяет выплату. При 0 часов — выплата уходит в банк сразу. Дальше статус доводится polling’ом (<code>GetState</code>) до <code>COMPLETED/REJECTED</code>. Анонс: <a href="/doc#tbank-sm-patch-bankaccount-index">PATCH bankAccount</a>.</li>
     <li><b>Если выключено</b>: выплаты запускаются только вручную (админ‑действиями).</li>
   </ul>
 
@@ -273,6 +273,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li>Под строкой «Партнёр» (<code>partners.title</code>) выводится <b>Организация</b> — из связи <code>tinkoff_payments.legal_entity_id</code> → <code>partner_legal_entities</code>.</li>
     <li>Eager load: <code>legalEntity</code> с <code>withTrashed()</code> — для исторических платежей, если запись юр. лица soft-deleted.</li>
     <li>Подпись: <code>organization_name</code> → fallback <code>title</code> → «—». Без снимка (<code>legal_entity_id IS NULL</code>) — «—».</li>
+    <li>Ссылка на карточку юр. лица — только при <code>legal_entities.sm_register</code>; без права имя организации текстом.</li>
     <li><b>Не путать</b> с «Партнёр»: партнёр — клуб в CRM; организация — юр. лицо из справочника на момент оплаты. См. <a href="/docs/documentation/admin-legal-entities#legal-entities-snapshots-ui">admin-legal-entities §7.1</a>.</li>
     <li><b>СНО (для чеков CloudKassir)</b> — из конфига платформы <code>CLOUDKASSIR_TAXATION_SYSTEM</code> (<code>config/services.cloudkassir.taxation_system</code>), не из партнёра и не из юр. лица. <b>Ставка НДС</b> в позиции чека — из поля <code>partner_legal_entities.vat</code> (<code>LegalEntityResolver::fiscalVat()</code>). См. <a href="/docs/documentation/admin-legal-entities#legal-entities-fiscal">admin-legal-entities §5.1</a>.</li>
   </ul>
@@ -468,7 +469,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankAutoPayoutOnWebhookTest.php</code>
       <ul>
-        <li><b>Автовыплата</b>: после webhook <code>CONFIRMED</code> при <code>auto_payout_enabled=true</code> в правиле комиссии запускается e2c‑выплата и доводится до <code>COMPLETED</code>; задержка — <code>auto_payout_delay_hours</code> из <code>tinkoff_commission_rules</code>.</li>
+        <li><b>Автовыплата</b>: после webhook <code>CONFIRMED</code> при <code>auto_payout_enabled=true</code> в правиле комиссии запускается e2c‑выплата и доводится до <code>COMPLETED</code>; задержка — <code>auto_payout_delay_hours</code> из <code>tinkoff_commission_rules</code>. Перед выплатой PATCH полного <code>bankAccount</code> (<code>test_confirmed_webhook_patches_full_bank_account_before_payout</code>). Неполные р/с/БИК/банк — PATCH не уходит, выплата всё равно создаётся (<code>test_confirmed_webhook_still_creates_payout_when_bank_requisites_are_incomplete</code>).</li>
         <li>Фикстура: юр. лицо с ShopCode, группа с <code>legal_entity_id</code>, <code>payables.meta.team_id</code> (цепочка как на проде). При multi-entity без привязки группы автовыплата не создаётся — см. guard в <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>.</li>
       </ul>
     </li>
@@ -500,6 +501,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Feature/Crm/Reports/TbankPaymentsReportTest.php</code> / <code>TbankPaymentsWithoutPayoutFilterFeatureTest.php</code> / <code>TbankPaymentsReceiptAndCommissionFeatureTest.php</code> / <code>TbankPaymentsPayoutStatusFeatureTest.php</code> / <code>TbankPaymentsPayoutStatusFullAccessFeatureTest.php</code> / <code>TbankPaymentsPayoutStatusNonAjaxSafetyNetFeatureTest.php</code> / <code>TbankPaymentsPageFullAccessFeatureTest.php</code> / <code>TbankPaymentsNonAjaxSafetyNetFeatureTest.php</code> / <code>TbankPaymentsViewModesFeatureTest.php</code> — вкладка отчётов «Платежи T‑Bank»: права, скоуп, DataTables (колонка «Способ», «Чек», «Комиссия платформы»: не снимок выплаты, не 2% fallback, поиск не по чеку; «Статус выплаты»: последняя выплата включая REJECTED, время под бейджем), UX фильтров (<code>status=all</code>, <code>method=all</code>, <code>without_payout</code>), вид Платежи/По дням/По месяцам (гость/403, 422 «Вид», SSR thead, recreate без старых строк платежей, дефолт CONFIRMED на days/months, total при status=all без смены от вида), карточка по праву отчёта или manage, кнопка «Комиссии».</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate</code>, <code>test_tbank_payments_payout_status_cell_and_view_switch_thead_contract</code>.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankPaymentShowPayoutActionsTest.php</code> — кнопки выплаты на карточке + отображение «Организация»; при REJECTED — hint timeline и текст в списке выплат.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankPayoutBankErrorUxFeatureTest.php</code> — COMPLETED/INITIATED без <code>#payout-bank-error</code>; без <code>tbank.payouts.manage</code> текст отказа банка виден, ссылки на карточку выплаты нет; «Организация» — ссылка только при <code>legal_entities.sm_register</code>.</li>
     <li><code>tests/Unit/Services/Tinkoff/TinkoffPaymentTimelineBuilderTest.php</code> — unit-тесты builder'а timeline (в т.ч. hint REJECTED с текстом банка).</li>
     <li><code>tests/Unit/Services/Tinkoff/TinkoffPayoutBankErrorTest.php</code> — разбор e2c ErrorCode/Message/Details.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsLegalEntityColumnFeatureTest.php</code> — колонка «Организация» в списке выплат (см. <a href="/docs/documentation/tbank-admin-payouts#payouts-table-columns">tbank-admin-payouts §4.1</a>).</li>
@@ -536,8 +538,9 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesSmRegisterFeatureTest.php</code>
       <ul>
         <li><b>sm-register</b>: mock <code>SmRegisterClient</code>, сохранение <code>partner_legal_entities.tinkoff_shop_code</code>.</li>
-        <li><b>sm-patch / sm-refresh / sm-pull</b>: JSON-контракт, 422 без ShopCode.</li>
-        <li><b>Non-AJAX</b> sm-register → redirect на show.</li>
+        <li><b>sm-patch / sm-refresh / sm-pull / sm-enable-reimbursement</b>: JSON-контракт, 422 под полями, non-AJAX 302.</li>
+        <li><b>Non-AJAX</b> sm-register / sm-patch / enable-reimbursement → redirect на show.</li>
+        <li>Отдельно: <code>LegalEntitiesSmEnableReimbursementFeatureTest</code>, <code>LegalEntitiesSmPatchBankAccountUxFeatureTest</code>, <code>BladeInlineJsSyntaxTest::test_legal_entity_show_sm_ajax_paths_keep_values_and_confirm_unblock</code>.</li>
       </ul>
     </li>
     <li><code>tests/Feature/Crm/Payments/TBank/SmRegister/TbankSmRegisterAdminFlowTest.php</code>

@@ -32,7 +32,9 @@ final class TbankPayoutBankErrorVisibilityDocumentationContractTest extends Test
         $this->assertStringContainsString('/admin/legal-entities/{id}', $chunk);
         $this->assertStringContainsString('sm-refresh', $chunk);
         $this->assertStringContainsString('TinkoffPayoutBankErrorTest', $chunk);
+        $this->assertStringContainsString('TbankPayoutBankErrorUxFeatureTest', $chunk);
         $this->assertStringContainsString('LegalEntitiesSmRegisterFeatureTest', $chunk);
+        $this->assertStringContainsString('LegalEntitiesSmEnableReimbursementFeatureTest', $chunk);
     }
 
     public function test_live_code_matches_announced_visibility_contract(): void

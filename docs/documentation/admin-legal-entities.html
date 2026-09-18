@@ -145,9 +145,10 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
       <tr><td>PUT</td><td><code>/admin/legal-entities/{id}</code></td><td><code>legal_entities.view</code> + <code>legal_entities.manage</code></td><td>Обновление (<code>UpdatePartnerLegalEntityRequest</code>)</td></tr>
       <tr><td>DELETE</td><td><code>/admin/legal-entities/{id}</code></td><td><code>legal_entities.view</code> + <code>legal_entities.manage</code></td><td>Soft delete; 422 + <code>errors.legal_entity</code> «Сначала отвяжите группы от этого юр. лица», если есть <code>teams.legal_entity_id</code></td></tr>
       <tr><td>POST</td><td><code>/admin/legal-entities/{id}/sm-register</code></td><td><code>legal_entities.manage</code></td><td>Регистрация в sm-register (<code>SmRegisterPartnerLegalEntityRequest</code>)</td></tr>
-      <tr><td>POST</td><td><code>/admin/legal-entities/{id}/sm-patch</code></td><td><code>legal_entities.manage</code></td><td>Обновление реквизитов в sm-register</td></tr>
+      <tr><td>POST</td><td><code>/admin/legal-entities/{id}/sm-patch</code></td><td><code>legal_entities.manage</code></td><td>PATCH только <code>bankAccount</code> (<code>SmPatchPartnerLegalEntityRequest</code>)</td></tr>
       <tr><td>POST</td><td><code>/admin/legal-entities/{id}/sm-refresh</code></td><td><code>legal_entities.manage</code></td><td>GET точки: флаг <code>disableReimbursement</code> и снимок реквизитов (<code>SmRefreshPartnerLegalEntityRequest</code>)</td></tr>
       <tr><td>POST</td><td><code>/admin/legal-entities/{id}/sm-pull</code></td><td><code>legal_entities.manage</code></td><td>Подтянуть реквизиты из sm-register в CRM (<code>SmPullPartnerLegalEntityRequest</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/legal-entities/{id}/sm-enable-reimbursement</code></td><td><code>legal_entities.manage</code></td><td>Снять блокировку выплат: PATCH <code>disableReimbursement=false</code> + полный <code>bankAccount</code> (<code>SmEnableReimbursementPartnerLegalEntityRequest</code>)</td></tr>
     </tbody>
   </table>
   <p class="small">Изоляция: <code>PartnerContext</code> / <code>current_partner</code>. Чужое юр. лицо → <b>404</b>.</p>
@@ -197,8 +198,7 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
   <div class="ok">
     Поле для полного блока реквизитов в договорах/печати.
     В API T‑Bank это <code>bankAccount.korAccount</code> (PDF sm-register v1.11 §1.3 / §1.4 / §2.2).
-    CRM <b>читает</b> его при sm-pull / sm-refresh (снимок точки).
-    В register/patch пока <b>не отправляется</b> — это отдельная доработка PATCH, не этот заход.
+    CRM читает его при sm-pull / sm-refresh и <b>отправляет</b> в register/patch/авто‑PATCH, если поле заполнено.
   </div>
   <table>
     <thead><tr><th>Что</th><th>Значение</th></tr></thead>
@@ -207,7 +207,7 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
       <tr><td>UI</td><td>Модалки create/edit на списке: после «Расчётный счёт», подпись «Корреспондентский счёт», <code>data-error-for="bank_corr_account"</code>; <b>без</b> класса <code>js-legal-entity-sm-locked</code></td></tr>
       <tr><td>Rules</td><td><code>nullable|string|max:20</code> в <code>PartnerLegalEntityValidationRules</code></td></tr>
       <tr><td>JSON</td><td><code>entityJsonPayload</code> / AJAX show — ключ <code>bank_corr_account</code>; JS <code>fillForm</code> гидратирует поле при открытии edit</td></tr>
-      <tr><td>sm-register / sm-patch</td><td>Пока не отправляется; в <code>sm-form-fields</code> поля нет. GET/pull читает <code>korAccount</code></td></tr>
+      <tr><td>sm-register / sm-patch</td><td>Поле в <code>sm-form-fields</code> после р/с; в банк уходит как <code>korAccount</code>, только если непустое. GET/pull читает <code>korAccount</code></td></tr>
       <tr><td>После ShopCode</td><td>Можно менять через CRM CRUD; <code>bank_account</code> / <code>bank_bik</code> / <code>bank_name</code> — нельзя (422, см. §5)</td></tr>
     </tbody>
   </table>
@@ -249,9 +249,13 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
     <li>Для зарегистрированных — блок <code>#legal-entity-tbank-shop-status</code>: флаг
       <code>disableReimbursement</code> (<code>#legal-entity-reimbursement-blocked</code> /
       <code>#legal-entity-reimbursement-ok</code> / unknown) и снимок реквизитов точки из GET
-      (<code>tinkoff_shop_snapshot</code>). Анонс:
-      <a href="/doc#tbank-payout-bank-error-visibility-index">видимость ошибок банка</a>.</li>
-    <li>Форма sm-register (<code>legalEntitySmForm</code>, partial <code>sm-form-fields.blade.php</code>) — полный профиль для T‑Bank; доступна при <code>legal_entities.manage</code>. Без manage — alert «Редактирование доступно при праве…».</li>
+      (<code>tinkoff_shop_snapshot</code>). При блокировке и праве <code>legal_entities.manage</code> — кнопка
+      <code>#legal-entity-enable-reimbursement</code> «Снять блокировку выплат»
+      (форма <code>#legal-entity-enable-reimbursement-form</code>, <code>js-sm-action-form</code>,
+      <code>data-confirm</code> перед AJAX). Без <code>manage</code> баннер виден, кнопки нет.
+      Анонс: <a href="/doc#tbank-sm-patch-bankaccount-index">PATCH bankAccount</a>.</li>
+    <li>Форма sm-register (<code>legalEntitySmForm</code>, partial <code>sm-form-fields.blade.php</code>) — полный профиль для T‑Bank; доступна при <code>legal_entities.manage</code>. Без manage — alert «Редактирование доступно при праве…».
+      После ShopCode — напоминание <code>#legal-entity-sm-patch-fields-hint</code>: в банк уходят только банк, БИК, р/с, назначение и к/с (если заполнен).</li>
     <li>Кнопки «Обновить статус» / «Подтянуть из банка» — для зарегистрированных записей (<code>sm-refresh</code>, <code>sm-pull</code>, <code>manage</code>).</li>
     <li>Блок «Реквизиты CRM» на карточке <b>удалён</b> — изменение через модалку на списке.</li>
   </ul>
@@ -261,10 +265,12 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
   <ul>
     <li>После успешной регистрации сохраняются <code>tinkoff_shop_code</code>, <code>sm_register_status</code>, реквизиты, <code>registered_at</code>.</li>
     <li>Форма организации в CRM (<code>OOO/IP/ANO/NKO</code>) маппится в тип API sm-register (<code>company</code> / <code>individual_entrepreneur</code> / <code>non_commercial_organization</code>) — см. <code>PartnerLegalEntityBusinessType::smRegisterApiType()</code>.</li>
-    <li>AJAX-ответ register: <code>{ "ok": true, "shopCode": "…", "status": "…" }</code>; patch: <code>{ "ok": true }</code>; refresh: <code>{ "ok": true, "status": "…", "disable_reimbursement": true|false|null }</code>; ошибки — 422 JSON с <code>message</code> и <code>errors</code>.</li>
+    <li>AJAX-ответ register: <code>{ "ok": true, "shopCode": "…", "status": "…" }</code>; patch: <code>{ "ok": true }</code>; refresh: <code>{ "ok": true, "status": "…", "disable_reimbursement": true|false|null }</code>; enable-reimbursement: <code>{ "ok": true, "disable_reimbursement": …, "message": "…" }</code>; ошибки — 422 JSON с <code>message</code> и <code>errors</code>.</li>
+    <li>sm-patch по PDF §2.2 шлёт <b>только</b> <code>bankAccount</code> (<code>account</code>, <code>bankName</code>, <code>bik</code>, <code>details</code>, опционально <code>korAccount</code>). ИНН/адрес/email/телефон/ceo в банк не уходят. В CRM форма по-прежнему может сохранить эти поля. Анонс: <a href="/doc#tbank-sm-patch-bankaccount-index">PATCH bankAccount</a>.</li>
+    <li>sm-enable-reimbursement шлёт полный <code>bankAccount</code> + <code>disableReimbursement=false</code>, затем GET. Неполные р/с/БИК/банк → 422 под полями <code>bank_account</code> / <code>bank_name</code> / <code>bank_bik</code>. AJAX: <code>{ ok, disable_reimbursement, message }</code>. Non-AJAX: 302 на show + flash <code>ok</code>. Если GET после PATCH всё ещё <code>true</code> — текст «банк всё ещё держит флаг». Нет ShopCode → 422 <code>errors.sm</code> (AJAX) / 302 <code>errors.sm</code> (HTML). Гость — не 200; без <code>manage</code> — 403.</li>
     <li>sm-refresh вызывает GET точки и сохраняет <code>tinkoff_disable_reimbursement</code>, <code>tinkoff_shop_checked_at</code>, <code>tinkoff_shop_snapshot</code>. Поля <code>status</code> в ответе банка нет — CRM не затирает <code>sm_register_status</code>, если банк его не прислал.</li>
     <li>sm-pull дополнительно мапит <code>name</code> (если нет <code>fullName</code>) и <code>bankAccount.korAccount</code> → <code>bank_corr_account</code>.</li>
-    <li>Non-AJAX sm-register / sm-patch → redirect на show с flash <code>ok</code>. Non-AJAX refresh → flash «Данные точки обновлены из банка: выплаты заблокированы / не заблокированы».</li>
+    <li>Non-AJAX sm-register / sm-patch / sm-enable-reimbursement → redirect на show с flash <code>ok</code>. Non-AJAX refresh → flash «Данные точки обновлены из банка: выплаты заблокированы / не заблокированы».</li>
     <li>Форма sm-register включает поля CEO (ФИО, телефон) и страну адреса; приоритет данных CEO из формы (<code>PartnerLegalEntitySmRegisterService::resolveCeo()</code>).</li>
   </ul>
 
@@ -390,15 +396,18 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesAccessFeatureTest.php</code> — guest / view / manage / sm_register</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesAjaxContractFeatureTest.php</code> — JSON-контракт, columns-settings, data</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesNonAjaxSafetyNetFeatureTest.php</code> — redirect 302 без AJAX</li>
-      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesSmRegisterFeatureTest.php</code> — sm-register/patch/refresh/pull; refresh пишет <code>disable_reimbursement</code>; HTML-баннер блокировки; pull <code>korAccount</code></li>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesSmRegisterFeatureTest.php</code> — sm-register/patch/refresh/pull/enable-reimbursement; patch шлёт только <code>bankAccount</code>; HTML-hint <code>#legal-entity-sm-patch-fields-hint</code>; кнопка снятия блокировки</li>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesSmEnableReimbursementFeatureTest.php</code> — снятие блокировки: guest/403, AJAX JSON, non-AJAX 302+БД, 422 под полями, GET всё ещё true, кнопка только при блокировке и <code>manage</code>, <code>data-confirm</code></li>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesSmPatchBankAccountUxFeatureTest.php</code> — UX sm-patch: hint только после ShopCode, порядок р/с→к/с, ceo disabled после регистрации, ИНН остаётся в CRM и не уходит в банк, 422 <code>bank_account</code></li>
       <li><code>tests/Unit/Documentation/TbankPayoutBankErrorVisibilityDocumentationContractTest.php</code> — анонс <a href="/doc#tbank-payout-bank-error-visibility-index">видимости ошибок банка</a></li>
+      <li><code>tests/Unit/Documentation/TbankSmPatchBankAccountDocumentationContractTest.php</code> — анонс <a href="/doc#tbank-sm-patch-bankaccount-index">PATCH bankAccount</a></li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesGuardrailsFeatureTest.php</code> — guardrails CRM; маска телефона CEO после ShopCode не даёт ложный 422; лишние ключи <code>ceo</code> не затираются</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesUiAndEnhancementsFeatureTest.php</code> — UI колонок, подписи полей, sm_details по умолчанию</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesRecentEnhancementsFeatureTest.php</code> — <code>displayTitle</code>, обязательное <code>organization_name</code>, hint «Регистрация в банке», <code>showErrorModal</code> при удалении</li>
       <li><code>tests/Feature/Crm/PartnerLegalEntities/LegalEntityResolverTest.php</code>, <code>LegalEntityResolverGuardrailsTest.php</code></li>
       <li><code>tests/Feature/Crm/PartnerLegalEntities/MultiEntityTbankGuardAccessFeatureTest.php</code> — multi-entity guard: доступы групп/клубного взноса/Init, non-AJAX safety-net, <code>teamTbankCardAvailable</code></li>
       <li><code>tests/Feature/Crm/Teams/TeamLegalEntityFeatureTest.php</code>, <code>TeamLegalEntityDisplayGuardrailsFeatureTest.php</code>, <code>TeamLegalEntityRecentEnhancementsFeatureTest.php</code> — обязательный <code>legal_entity_id</code> при multi-entity, колонка «Юр. лицо»</li>
-      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS index/show/teams; контракт <code>podpislon_api_key</code> в <code>fillForm</code> / create modal</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS index/show/teams; контракт <code>podpislon_api_key</code> в <code>fillForm</code> / create modal; <code>test_legal_entity_show_sm_ajax_paths_keep_values_and_confirm_unblock</code> — два JS-пути (<code>#legalEntitySmForm</code> и <code>.js-sm-action-form</code>), <code>preventDefault</code>, <code>firstFieldError</code>, без <code>form.reset</code></li>
       <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — успех create/edit юр. лица — toast, не <code>showSuccessModal</code></li>
       <li><code>tests/Feature/Crm/Ui/ErrorModalFeatureTest.php</code> — <code>showErrorModal</code> в layout</li>
     </ul>

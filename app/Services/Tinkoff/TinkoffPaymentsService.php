@@ -19,7 +19,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Carbon\CarbonInterface;
-use App\Services\Tinkoff\SmRegisterClient;
 
 use App\Jobs\SendCloudKassirReceiptJob;
 use App\Models\FiscalReceipt;
@@ -224,16 +223,16 @@ class TinkoffPaymentsService
                 return;
             }
 
-            // 1) Обновим назначение платежа (details) перед выплатой
+            // 1) Обновим bankAccount перед выплатой (PDF §2.2: account, bankName, bik, details)
             try {
                 $partner = $payment->partner;
                 $resolution = $this->legalEntityResolver->forTinkoffPayment($payment);
                 $shopCode = $this->legalEntityResolver->shopCode($partner, $resolution);
-                if ($shopCode) {
+                $entity = $resolution->entity;
+                if ($shopCode && $entity) {
                     $details = \App\Helpers\TinkoffDetailsHelper::makeDetailsForPeriod($payment);
-                    app(SmRegisterClient::class)->patch($shopCode, [
-                        'bankAccount' => ['details' => $details],
-                    ]);
+                    app(PartnerLegalEntitySmRegisterService::class)
+                        ->patchBankAccountForPayout($entity, $details);
                 }
             } catch (\Throwable $e) {
                 Log::channel('tinkoff')->error('[sm-register PATCH failed] ' . $e->getMessage());

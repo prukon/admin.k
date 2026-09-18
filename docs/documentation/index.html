@@ -28,6 +28,49 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="tbank-sm-patch-bankaccount-index">T‑Bank: PATCH точки только bankAccount, автовыплата и снятие блокировки (2026‑09)</h2>
+  <div class="note">
+    PDF sm-register v1.11 §2.2: если в PATCH есть <code>bankAccount</code>, обязательны
+    <code>account</code>, <code>bankName</code>, <code>bik</code>, <code>details</code>.
+    Необязательно: <code>korAccount</code>, <code>disableReimbursement</code>.
+    Анонс: <a href="/doc#tbank-sm-patch-bankaccount-index">/doc#tbank-sm-patch-bankaccount-index</a>.
+    <br><br>
+    1) <b>Автовыплата.</b> После CONFIRMED CRM больше не шлёт только <code>details</code>.
+    <code>PartnerLegalEntitySmRegisterService::patchBankAccountForPayout</code>
+    пишет полный <code>bankAccount</code> из юр. лица (р/с, банк, БИК, назначение периода,
+    к/с если заполнен). <code>disableReimbursement</code> не передаётся.
+    Ошибка PATCH не рвёт создание выплаты.
+    <br>
+    2) <b>Снять блокировку.</b> Карточка юр. лица, при
+    <code>disableReimbursement=true</code> — кнопка
+    <code>#legal-entity-enable-reimbursement</code>
+    (<code>POST …/sm-enable-reimbursement</code>,
+    <code>SmEnableReimbursementPartnerLegalEntityRequest</code>,
+    <code>legal_entities.manage</code>).
+    PATCH: полный <code>bankAccount</code> + <code>disableReimbursement=false</code>,
+    затем GET точки. Не входит в обычный sm-patch.
+    Неполные р/с/БИК/банк → 422 под полями.
+    <br>
+    3) <b>Кнопка «Обновить в sm-register».</b> В банк уходит только
+    <code>bankAccount</code> (не ИНН, не адрес, не email, не ceo).
+    Напоминание <code>#legal-entity-sm-patch-fields-hint</code>.
+    Форма по-прежнему может сохранить остальные поля в CRM.
+    <code>korAccount</code> уходит, если заполнен к/с.
+    <br>
+    4) <b>Тесты.</b>
+    <code>LegalEntitiesSmRegisterFeatureTest</code>
+    (payload только bankAccount, hint, enable-reimbursement),
+    <code>LegalEntitiesSmEnableReimbursementFeatureTest</code>
+    (guest/403, AJAX/non-AJAX, GET всё ещё true, кнопка только при manage и блокировке),
+    <code>LegalEntitiesSmPatchBankAccountUxFeatureTest</code>
+    (hint, порядок р/с→к/с, ceo disabled, ИНН в CRM не в банк),
+    <code>LegalEntitiesAccessFeatureTest</code>,
+    <code>TbankAutoPayoutOnWebhookTest</code>
+    (полный bankAccount; неполные реквизиты не рвут выплату),
+    <code>BladeInlineJsSyntaxTest::test_legal_entity_show_sm_ajax_paths_keep_values_and_confirm_unblock</code>,
+    <code>TbankSmPatchBankAccountDocumentationContractTest</code>.
+  </div>
+
   <h2 id="tbank-payout-bank-error-visibility-index">T‑Bank: текст банка при REJECTED выплаты и флаг блокировки точки (2026‑09)</h2>
   <div class="note">
     Отказ выплаты больше не прячется в сыром JSON. e2c Init/Payment/GetState
@@ -64,15 +107,21 @@
     Pull также читает <code>name</code> если нет <code>fullName</code>
     и <code>bankAccount.korAccount</code> → <code>bank_corr_account</code>.
     Снять блокировку PATCH <code>disableReimbursement=false</code> —
-    только отдельной кнопкой (ещё не сделана), не при каждом PATCH.
+    отдельная кнопка на карточке юр. лица
+    (<a href="/doc#tbank-sm-patch-bankaccount-index">анонс PATCH bankAccount</a>),
+    не при каждом PATCH реквизитов.
     <br>
     3) <b>Тесты.</b>
     <code>TinkoffPayoutBankErrorTest</code>,
     <code>TinkoffPaymentTimelineBuilderTest::test_build_includes_bank_error_when_payout_rejected</code>,
     <code>TbankPaymentShowPayoutActionsTest::test_show_displays_bank_rejection_on_timeline_and_payout_list</code>,
     <code>TbankPayoutsPageFeatureTest::test_show_displays_bank_rejection_alert</code>,
+    <code>TbankPayoutBankErrorUxFeatureTest</code>
+    (COMPLETED/INITIATED без #payout-bank-error; без tbank.payouts.manage текст ошибки есть, ссылки на выплату нет;
+    ссылка на юр. лицо только при legal_entities.sm_register),
     <code>LegalEntitiesSmRegisterFeatureTest</code>
     (refresh JSON, HTML-баннер, pull korAccount),
+    <code>LegalEntitiesSmEnableReimbursementFeatureTest</code>,
     <code>PartnerLegalEntitySchemaFeatureTest</code>,
     <code>TbankPayoutBankErrorVisibilityDocumentationContractTest</code>.
   </div>

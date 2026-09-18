@@ -54,6 +54,7 @@ final class LegalEntitiesAccessFeatureTest extends CrmTestCase
             ['POST', route('admin.legal-entities.sm-patch', $this->entity), $this->minimalSmPayload()],
             ['POST', route('admin.legal-entities.sm-refresh', $this->entity)],
             ['POST', route('admin.legal-entities.sm-pull', $this->entity)],
+            ['POST', route('admin.legal-entities.sm-enable-reimbursement', $this->entity)],
         ];
     }
 
@@ -170,6 +171,9 @@ final class LegalEntitiesAccessFeatureTest extends CrmTestCase
 
         $this->postJson(route('admin.legal-entities.sm-pull', $this->entity))
             ->assertForbidden();
+
+        $this->postJson(route('admin.legal-entities.sm-enable-reimbursement', $this->entity))
+            ->assertForbidden();
     }
 
     public function test_user_with_view_and_sm_register_can_open_card_but_not_mutate(): void
@@ -235,6 +239,22 @@ final class LegalEntitiesAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.legal-entities.show', $this->entity))->assertOk();
 
         $this->postJson(route('admin.legal-entities.sm-register', $this->entity), $this->minimalSmPayload())
+            ->assertForbidden();
+
+        $this->postJson(route('admin.legal-entities.sm-patch', $this->entity), $this->minimalSmPayload())
+            ->assertForbidden();
+
+        $this->postJson(route('admin.legal-entities.sm-refresh', $this->entity))
+            ->assertForbidden();
+
+        $this->postJson(route('admin.legal-entities.sm-pull', $this->entity))
+            ->assertForbidden();
+
+        $this->postJson(route('admin.legal-entities.sm-enable-reimbursement', $this->entity))
+            ->assertForbidden();
+
+        $this->from(route('admin.legal-entities.show', $this->entity))
+            ->post(route('admin.legal-entities.sm-enable-reimbursement', $this->entity))
             ->assertForbidden();
     }
 
