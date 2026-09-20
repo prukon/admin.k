@@ -24,7 +24,7 @@ final class LessonPackageContractFieldsDocumentationContractTest extends TestCas
         $chunk = substr($html, $start, $end - $start);
 
         $this->assertStringContainsString('lesson_packages.lessons_per_week', $chunk);
-        $this->assertStringContainsString('lessons_per_month', $chunk);
+        $this->assertStringNotContainsString('lessons_per_month', $chunk);
         $this->assertStringContainsString('lesson_duration_minutes', $chunk);
         $this->assertStringContainsString('lesson_price_cents', $chunk);
         $this->assertStringContainsString('Для договора', $chunk);
@@ -74,6 +74,7 @@ final class LessonPackageContractFieldsDocumentationContractTest extends TestCas
 
         $request = (string) file_get_contents(dirname(__DIR__, 3).'/app/Http/Requests/Admin/StoreLessonPackageRequest.php');
         $this->assertStringContainsString("'lessons_per_week'", $request);
+        $this->assertStringNotContainsString("'lessons_per_month'", $request);
         $this->assertStringContainsString("'lesson_price'", $request);
         $this->assertStringContainsString('Количество занятий в неделю должно быть больше нуля.', $request);
         $this->assertStringContainsString('LessonPackageContractFieldsPermission', $request);
@@ -83,12 +84,13 @@ final class LessonPackageContractFieldsDocumentationContractTest extends TestCas
         $this->assertStringContainsString('resolvedInt', $helper);
 
         $hints = (string) file_get_contents(dirname(__DIR__, 3).'/config/permission_capability_hints.php');
-        $this->assertStringContainsString("блок «Для договора» и колонки недели/месяца/минут/цены занятия", $hints);
+        $this->assertStringContainsString("блок «Для договора» и колонки недели/минут/цены занятия", $hints);
 
         $blade = (string) file_get_contents(dirname(__DIR__, 3).'/resources/views/admin/lessonPackages/tabs/packages.blade.php');
         $this->assertStringContainsString('id="create_contract_fields_section"', $blade);
         $this->assertStringContainsString('id="edit_contract_fields_section"', $blade);
         $this->assertStringContainsString('id="colLessonPackageLessonsPerWeek"', $blade);
+        $this->assertStringNotContainsString('lessons_per_month', $blade);
         $this->assertStringContainsString('@can(\'contracts.lessonPackage.bind\')', $blade);
         $this->assertStringContainsString('const canBindLessonPackage', $blade);
         $this->assertStringContainsString('when: canBindLessonPackage', $blade);

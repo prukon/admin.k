@@ -98,10 +98,6 @@
                                 <label class="form-check-label" for="colLessonPackageLessonsPerWeek">Занятий в неделю</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input column-toggle" type="checkbox" data-column-key="lessons_per_month" id="colLessonPackageLessonsPerMonth" checked>
-                                <label class="form-check-label" for="colLessonPackageLessonsPerMonth">Занятий в месяц</label>
-                            </div>
-                            <div class="form-check">
                                 <input class="form-check-input column-toggle" type="checkbox" data-column-key="lesson_duration_minutes" id="colLessonPackageLessonDuration" checked>
                                 <label class="form-check-label" for="colLessonPackageLessonDuration">Длительность (мин)</label>
                             </div>
@@ -179,7 +175,6 @@
                 <th>Стоимость</th>
                 @can('contracts.lessonPackage.bind')
                     <th>Занятий в неделю</th>
-                    <th>Занятий в месяц</th>
                     <th>Длительность (мин)</th>
                     <th>Стоимость занятия</th>
                 @endcan
@@ -254,11 +249,6 @@
                                             <label class="form-label" for="create_lessons_per_week">Кол-во занятий в неделю</label>
                                             <input type="number" name="create[lessons_per_week]" id="create_lessons_per_week" class="form-control" min="1" max="100">
                                             <div class="invalid-feedback d-none" data-error-for="create[lessons_per_week]"></div>
-                                        </div>
-                                        <div class="col-12 col-md-6">
-                                            <label class="form-label" for="create_lessons_per_month">Кол-во занятий в месяц</label>
-                                            <input type="number" name="create[lessons_per_month]" id="create_lessons_per_month" class="form-control" min="1" max="1000">
-                                            <div class="invalid-feedback d-none" data-error-for="create[lessons_per_month]"></div>
                                         </div>
                                         <div class="col-12 col-md-6">
                                             <label class="form-label" for="create_lesson_duration_minutes">Длительность занятий (мин)</label>
@@ -384,11 +374,6 @@
                                             <div class="invalid-feedback d-none" data-error-for="edit[lessons_per_week]"></div>
                                         </div>
                                         <div class="col-12 col-md-6">
-                                            <label class="form-label" for="edit_lessons_per_month">Кол-во занятий в месяц</label>
-                                            <input type="number" name="edit[lessons_per_month]" id="edit_lessons_per_month" class="form-control" min="1" max="1000">
-                                            <div class="invalid-feedback d-none" data-error-for="edit[lessons_per_month]"></div>
-                                        </div>
-                                        <div class="col-12 col-md-6">
                                             <label class="form-label" for="edit_lesson_duration_minutes">Длительность занятий (мин)</label>
                                             <input type="number" name="edit[lesson_duration_minutes]" id="edit_lesson_duration_minutes" class="form-control" min="1" max="1440">
                                             <div class="invalid-feedback d-none" data-error-for="edit[lesson_duration_minutes]"></div>
@@ -510,7 +495,6 @@
                         lessons_count: (formData.get(prefix + '[lessons_count]') || '').toString(),
                         price: (formData.get(prefix + '[price]') || '').toString(),
                         lessons_per_week: (formData.get(prefix + '[lessons_per_week]') || '').toString(),
-                        lessons_per_month: (formData.get(prefix + '[lessons_per_month]') || '').toString(),
                         lesson_duration_minutes: (formData.get(prefix + '[lesson_duration_minutes]') || '').toString(),
                         lesson_price: (formData.get(prefix + '[lesson_price]') || '').toString(),
                         freeze_enabled: formData.get(prefix + '[freeze_enabled]') ? 1 : 0,
@@ -585,7 +569,6 @@
                             price_label: true,
                             ...(canBindLessonPackage ? {
                                 lessons_per_week: true,
-                                lessons_per_month: true,
                                 lesson_duration_minutes: true,
                                 lesson_price_label: true,
                             } : {}),
@@ -652,14 +635,6 @@
                             type: 'count',
                             data: 'lessons_per_week_label',
                             name: 'lessons_per_week',
-                            className: 'text-center',
-                            when: canBindLessonPackage,
-                        },
-                        {
-                            key: 'lessons_per_month',
-                            type: 'count',
-                            data: 'lessons_per_month_label',
-                            name: 'lessons_per_month',
                             className: 'text-center',
                             when: canBindLessonPackage,
                         },
@@ -1101,7 +1076,6 @@
                         editModalEl.querySelector('[name="edit[lessons_count]"]').value = lp.lessons_count || 8;
                         editModalEl.querySelector('[name="edit[price]"]').value = (lp.price !== undefined && lp.price !== null) ? lp.price : 0;
                         fillOptionalNumber(editModalEl.querySelector('[name="edit[lessons_per_week]"]'), lp.lessons_per_week);
-                        fillOptionalNumber(editModalEl.querySelector('[name="edit[lessons_per_month]"]'), lp.lessons_per_month);
                         fillOptionalNumber(editModalEl.querySelector('[name="edit[lesson_duration_minutes]"]'), lp.lesson_duration_minutes);
                         fillOptionalNumber(editModalEl.querySelector('[name="edit[lesson_price]"]'), lp.lesson_price);
 

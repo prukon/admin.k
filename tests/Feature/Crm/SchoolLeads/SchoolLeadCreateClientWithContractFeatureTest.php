@@ -413,7 +413,6 @@ final class SchoolLeadCreateClientWithContractFeatureTest extends SchoolLeadCrea
             'is_active'               => true,
             'price_cents'             => 77700,
             'lessons_per_week'        => 3,
-            'lessons_per_month'       => 12,
             'lesson_duration_minutes' => 60,
             'lesson_price_cents'      => 6500,
         ]);

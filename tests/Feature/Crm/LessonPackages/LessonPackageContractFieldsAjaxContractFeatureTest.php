@@ -68,7 +68,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
             'partner_id' => $this->partner->id,
             'name' => 'Ajax договорные поля',
             'lessons_per_week' => null,
-            'lessons_per_month' => null,
             'lesson_duration_minutes' => null,
             'lesson_price_cents' => null,
         ]);
@@ -79,7 +78,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
         $this->postJson(route('admin.lesson-packages.store'), $this->validPayload([
             'name' => 'Ajax договор заполнен',
             'lessons_per_week' => 3,
-            'lessons_per_month' => 12,
             'lesson_duration_minutes' => 45,
             'lesson_price' => '1 250,50',
         ]), ['X-Requested-With' => 'XMLHttpRequest'])
@@ -90,7 +88,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
             'partner_id' => $this->partner->id,
             'name' => 'Ajax договор заполнен',
             'lessons_per_week' => 3,
-            'lessons_per_month' => 12,
             'lesson_duration_minutes' => 45,
             'lesson_price_cents' => 125050,
         ]);
@@ -100,7 +97,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
     {
         $response = $this->postJson(route('admin.lesson-packages.store'), $this->validPayload([
             'lessons_per_week' => 0,
-            'lessons_per_month' => 0,
             'lesson_duration_minutes' => 0,
             'lesson_price' => '-1',
         ]), ['X-Requested-With' => 'XMLHttpRequest']);
@@ -110,13 +106,11 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
                 'message',
                 'errors' => [
                     'lessons_per_week',
-                    'lessons_per_month',
                     'lesson_duration_minutes',
                     'lesson_price',
                 ],
             ])
             ->assertJsonPath('errors.lessons_per_week.0', 'Количество занятий в неделю должно быть больше нуля.')
-            ->assertJsonPath('errors.lessons_per_month.0', 'Количество занятий в месяц должно быть больше нуля.')
             ->assertJsonPath('errors.lesson_duration_minutes.0', 'Длительность занятий должна быть больше нуля.')
             ->assertJsonPath('errors.lesson_price.0', 'Стоимость одного занятия не может быть отрицательной.');
         $this->assertNotSame('', trim((string) $response->getContent()));
@@ -136,7 +130,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
             'lessons_count' => 8,
             'price_cents' => 100000,
             'lessons_per_week' => 2,
-            'lessons_per_month' => 8,
             'lesson_duration_minutes' => 60,
             'lesson_price_cents' => 150000,
             'freeze_enabled' => 0,
@@ -147,8 +140,8 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
         $this->getJson(route('admin.lesson-packages.show', ['lessonPackage' => $package->id]))
             ->assertOk()
             ->assertJsonPath('lesson_package.lessons_per_week', 2)
-            ->assertJsonPath('lesson_package.lessons_per_month', 8)
             ->assertJsonPath('lesson_package.lesson_duration_minutes', 60)
+            ->assertJsonMissingPath('lesson_package.lessons_per_month')
             ->assertJsonPath('lesson_package.lesson_price_cents', 150000)
             ->assertJsonPath('lesson_package.lesson_price', 1500);
 
@@ -158,7 +151,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
                 'name' => 'Show договор очищен',
                 'schedule_type' => 'flexible',
                 'lessons_per_week' => '',
-                'lessons_per_month' => '',
                 'lesson_duration_minutes' => '',
                 'lesson_price' => '',
             ]),
@@ -171,7 +163,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
             'id' => $package->id,
             'name' => 'Show договор очищен',
             'lessons_per_week' => null,
-            'lessons_per_month' => null,
             'lesson_duration_minutes' => null,
             'lesson_price_cents' => null,
         ]);
@@ -187,7 +178,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
             'lessons_count' => 8,
             'price_cents' => 100000,
             'lessons_per_week' => 3,
-            'lessons_per_month' => 12,
             'lesson_duration_minutes' => 45,
             'lesson_price_cents' => 125050,
             'freeze_enabled' => 0,
@@ -216,8 +206,8 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
         $this->assertIsArray($filledRow);
         $this->assertSame(3, $filledRow['lessons_per_week']);
         $this->assertSame('3', $filledRow['lessons_per_week_label']);
-        $this->assertSame(12, $filledRow['lessons_per_month']);
-        $this->assertSame('12', $filledRow['lessons_per_month_label']);
+        $this->assertArrayNotHasKey('lessons_per_month', $filledRow);
+        $this->assertArrayNotHasKey('lessons_per_month_label', $filledRow);
         $this->assertSame(45, $filledRow['lesson_duration_minutes']);
         $this->assertSame('45', $filledRow['lesson_duration_minutes_label']);
         $this->assertSame(125050, $filledRow['lesson_price_cents']);
@@ -227,7 +217,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
         $this->assertIsArray($emptyRow);
         $this->assertNull($emptyRow['lessons_per_week']);
         $this->assertSame('—', $emptyRow['lessons_per_week_label']);
-        $this->assertSame('—', $emptyRow['lessons_per_month_label']);
         $this->assertSame('—', $emptyRow['lesson_duration_minutes_label']);
         $this->assertSame('—', $emptyRow['lesson_price_label']);
     }
@@ -239,7 +228,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
         $this->postJson(route('admin.lesson-packages.store'), $this->validPayload([
             'name' => 'Ajax без bind',
             'lessons_per_week' => 0,
-            'lessons_per_month' => 'abc',
             'lesson_duration_minutes' => -1,
             'lesson_price' => 'not-a-price',
         ]), ['X-Requested-With' => 'XMLHttpRequest'])
@@ -250,7 +238,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
             'partner_id' => $this->partner->id,
             'name' => 'Ajax без bind',
             'lessons_per_week' => null,
-            'lessons_per_month' => null,
             'lesson_duration_minutes' => null,
             'lesson_price_cents' => null,
         ]);
@@ -266,7 +253,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
             'lessons_count' => 8,
             'price_cents' => 100000,
             'lessons_per_week' => 2,
-            'lessons_per_month' => 8,
             'lesson_duration_minutes' => 60,
             'lesson_price_cents' => 70000,
             'freeze_enabled' => 0,
@@ -281,7 +267,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
             $this->validPayload([
                 'name' => 'Ajax preserve updated',
                 'lessons_per_week' => 9,
-                'lessons_per_month' => 99,
                 'lesson_duration_minutes' => 10,
                 'lesson_price' => '1.00',
             ]),
@@ -294,7 +279,6 @@ final class LessonPackageContractFieldsAjaxContractFeatureTest extends CrmTestCa
             'id' => $package->id,
             'name' => 'Ajax preserve updated',
             'lessons_per_week' => 2,
-            'lessons_per_month' => 8,
             'lesson_duration_minutes' => 60,
             'lesson_price_cents' => 70000,
         ]);

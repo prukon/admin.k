@@ -167,9 +167,6 @@ final class LessonPackageController extends AdminBaseController
             case 'lessons_per_week':
                 $baseQuery->orderBy('lessons_per_week', $orderDir)->orderBy('id', 'desc');
                 break;
-            case 'lessons_per_month':
-                $baseQuery->orderBy('lessons_per_month', $orderDir)->orderBy('id', 'desc');
-                break;
             case 'lesson_duration_minutes':
                 $baseQuery->orderBy('lesson_duration_minutes', $orderDir)->orderBy('id', 'desc');
                 break;
@@ -228,8 +225,6 @@ final class LessonPackageController extends AdminBaseController
                 'price_label' => number_format(((int) $package->price_cents) / 100, 2, ',', ' ') . ' ₽',
                 'lessons_per_week' => $this->nullableInt($package->lessons_per_week),
                 'lessons_per_week_label' => $this->optionalUnsignedLabel($package->lessons_per_week),
-                'lessons_per_month' => $this->nullableInt($package->lessons_per_month),
-                'lessons_per_month_label' => $this->optionalUnsignedLabel($package->lessons_per_month),
                 'lesson_duration_minutes' => $this->nullableInt($package->lesson_duration_minutes),
                 'lesson_duration_minutes_label' => $this->optionalUnsignedLabel($package->lesson_duration_minutes),
                 'lesson_price_cents' => $this->nullableInt($package->lesson_price_cents),
@@ -1795,7 +1790,6 @@ final class LessonPackageController extends AdminBaseController
                     'lessons_count' => (int) $data['lessons_count'],
                     'price_cents' => $priceCents,
                     'lessons_per_week' => $request->resolvedLessonsPerWeek(),
-                    'lessons_per_month' => $request->resolvedLessonsPerMonth(),
                     'lesson_duration_minutes' => $request->resolvedLessonDurationMinutes(),
                     'lesson_price_cents' => $request->resolvedLessonPriceCents(),
                     'freeze_enabled' => $freezeEnabled,
@@ -1859,7 +1853,6 @@ final class LessonPackageController extends AdminBaseController
                 'price_cents' => (int) $lessonPackage->price_cents,
                 'price' => (float) ($lessonPackage->price_cents / 100),
                 'lessons_per_week' => $this->nullableInt($lessonPackage->lessons_per_week),
-                'lessons_per_month' => $this->nullableInt($lessonPackage->lessons_per_month),
                 'lesson_duration_minutes' => $this->nullableInt($lessonPackage->lesson_duration_minutes),
                 'lesson_price_cents' => $this->nullableInt($lessonPackage->lesson_price_cents),
                 'lesson_price' => $lessonPackage->lesson_price_cents === null
@@ -1903,7 +1896,6 @@ final class LessonPackageController extends AdminBaseController
                     'lessons_count' => (int) $data['lessons_count'],
                     'price_cents' => $priceCents,
                     'lessons_per_week' => $request->resolvedLessonsPerWeek($lessonPackage),
-                    'lessons_per_month' => $request->resolvedLessonsPerMonth($lessonPackage),
                     'lesson_duration_minutes' => $request->resolvedLessonDurationMinutes($lessonPackage),
                     'lesson_price_cents' => $request->resolvedLessonPriceCents($lessonPackage),
                     'freeze_enabled' => $freezeEnabled,
@@ -2104,7 +2096,6 @@ final class LessonPackageController extends AdminBaseController
             'lessons_count' => (string) (int) $package->lessons_count,
             'price' => $priceLabel,
             'lessons_per_week' => $this->optionalUnsignedLabel($package->lessons_per_week),
-            'lessons_per_month' => $this->optionalUnsignedLabel($package->lessons_per_month),
             'lesson_duration_minutes' => $this->optionalUnsignedLabel($package->lesson_duration_minutes),
             'lesson_price' => $this->optionalMoneyLabel($package->lesson_price_cents),
             'freeze' => $freezeLabel,
@@ -2123,7 +2114,6 @@ final class LessonPackageController extends AdminBaseController
             "Занятий: {$snapshot['lessons_count']}",
             "Стоимость: {$snapshot['price']}",
             "Занятий в неделю: {$snapshot['lessons_per_week']}",
-            "Занятий в месяц: {$snapshot['lessons_per_month']}",
             "Длительность занятий (мин): {$snapshot['lesson_duration_minutes']}",
             "Стоимость одного занятия: {$snapshot['lesson_price']}",
             "Заморозка: {$snapshot['freeze']}",
@@ -2145,7 +2135,6 @@ final class LessonPackageController extends AdminBaseController
             'lessons_count' => 'Занятий',
             'price' => 'Стоимость',
             'lessons_per_week' => 'Занятий в неделю',
-            'lessons_per_month' => 'Занятий в месяц',
             'lesson_duration_minutes' => 'Длительность занятий (мин)',
             'lesson_price' => 'Стоимость одного занятия',
             'freeze' => 'Заморозка',

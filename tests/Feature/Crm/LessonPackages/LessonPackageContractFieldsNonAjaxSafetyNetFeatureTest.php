@@ -58,7 +58,6 @@ final class LessonPackageContractFieldsNonAjaxSafetyNetFeatureTest extends CrmTe
     {
         $this->post(route('admin.lesson-packages.store'), $this->validPayload([
             'lessons_per_week' => 2,
-            'lessons_per_month' => 8,
             'lesson_duration_minutes' => 60,
             'lesson_price' => '700.00',
         ]))->assertRedirect(route('admin.lesson-packages.index'));
@@ -67,7 +66,6 @@ final class LessonPackageContractFieldsNonAjaxSafetyNetFeatureTest extends CrmTe
             'partner_id' => $this->partner->id,
             'name' => 'Non-AJAX договор',
             'lessons_per_week' => 2,
-            'lessons_per_month' => 8,
             'lesson_duration_minutes' => 60,
             'lesson_price_cents' => 70000,
         ]);
@@ -99,7 +97,6 @@ final class LessonPackageContractFieldsNonAjaxSafetyNetFeatureTest extends CrmTe
             'lessons_count' => 8,
             'price_cents' => 150000,
             'lessons_per_week' => 3,
-            'lessons_per_month' => 12,
             'lesson_duration_minutes' => 45,
             'lesson_price_cents' => 80000,
             'freeze_enabled' => 0,
@@ -113,7 +110,6 @@ final class LessonPackageContractFieldsNonAjaxSafetyNetFeatureTest extends CrmTe
                 $this->validPayload([
                     'name' => 'Non-AJAX очищен',
                     'lessons_per_week' => '',
-                    'lessons_per_month' => '',
                     'lesson_duration_minutes' => '',
                     'lesson_price' => '',
                 ])
@@ -124,7 +120,6 @@ final class LessonPackageContractFieldsNonAjaxSafetyNetFeatureTest extends CrmTe
             'id' => $package->id,
             'name' => 'Non-AJAX очищен',
             'lessons_per_week' => null,
-            'lessons_per_month' => null,
             'lesson_duration_minutes' => null,
             'lesson_price_cents' => null,
         ]);

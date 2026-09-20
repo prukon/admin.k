@@ -75,9 +75,8 @@ final class LessonPackageContractFieldsMarkupFeatureTest extends CrmTestCase
             $this->assertStringContainsString('id="create_lessons_per_week"', $create);
             $this->assertStringContainsString('name="create[lessons_per_week]"', $create);
             $this->assertStringContainsString('data-error-for="create[lessons_per_week]"', $create);
-            $this->assertStringContainsString('id="create_lessons_per_month"', $create);
-            $this->assertStringContainsString('name="create[lessons_per_month]"', $create);
-            $this->assertStringContainsString('data-error-for="create[lessons_per_month]"', $create);
+            $this->assertStringNotContainsString('create_lessons_per_month', $create);
+            $this->assertStringNotContainsString('name="create[lessons_per_month]"', $create);
             $this->assertStringContainsString('id="create_lesson_duration_minutes"', $create);
             $this->assertStringContainsString('name="create[lesson_duration_minutes]"', $create);
             $this->assertStringContainsString('data-error-for="create[lesson_duration_minutes]"', $create);
@@ -98,9 +97,8 @@ final class LessonPackageContractFieldsMarkupFeatureTest extends CrmTestCase
             $this->assertStringContainsString('id="edit_lessons_per_week"', $edit);
             $this->assertStringContainsString('name="edit[lessons_per_week]"', $edit);
             $this->assertStringContainsString('data-error-for="edit[lessons_per_week]"', $edit);
-            $this->assertStringContainsString('id="edit_lessons_per_month"', $edit);
-            $this->assertStringContainsString('name="edit[lessons_per_month]"', $edit);
-            $this->assertStringContainsString('data-error-for="edit[lessons_per_month]"', $edit);
+            $this->assertStringNotContainsString('edit_lessons_per_month', $edit);
+            $this->assertStringNotContainsString('name="edit[lessons_per_month]"', $edit);
             $this->assertStringContainsString('id="edit_lesson_duration_minutes"', $edit);
             $this->assertStringContainsString('name="edit[lesson_duration_minutes]"', $edit);
             $this->assertStringContainsString('data-error-for="edit[lesson_duration_minutes]"', $edit);
@@ -120,14 +118,14 @@ final class LessonPackageContractFieldsMarkupFeatureTest extends CrmTestCase
 
             $this->assertStringContainsString('id="colLessonPackageLessonsPerWeek"', $html);
             $this->assertStringContainsString('data-column-key="lessons_per_week"', $html);
-            $this->assertStringContainsString('id="colLessonPackageLessonsPerMonth"', $html);
-            $this->assertStringContainsString('data-column-key="lessons_per_month"', $html);
+            $this->assertStringNotContainsString('id="colLessonPackageLessonsPerMonth"', $html);
+            $this->assertStringNotContainsString('data-column-key="lessons_per_month"', $html);
             $this->assertStringContainsString('id="colLessonPackageLessonDuration"', $html);
             $this->assertStringContainsString('data-column-key="lesson_duration_minutes"', $html);
             $this->assertStringContainsString('id="colLessonPackageLessonPrice"', $html);
             $this->assertStringContainsString('data-column-key="lesson_price_label"', $html);
             $this->assertStringContainsString('>Занятий в неделю<', $html);
-            $this->assertStringContainsString('>Занятий в месяц<', $html);
+            $this->assertStringNotContainsString('>Занятий в месяц<', $html);
             $this->assertStringContainsString('>Длительность (мин)<', $html);
             $this->assertStringContainsString('>Стоимость занятия<', $html);
         }

@@ -69,7 +69,6 @@ final class LessonPackageContractFieldsWorkflowFeatureTest extends CrmTestCase
         $this->postJson(route('admin.lesson-packages.store'), $this->validPayload([
             'name' => $unique,
             'lessons_per_week' => 2,
-            'lessons_per_month' => 8,
             'lesson_duration_minutes' => 60,
             'lesson_price' => '700.00',
         ]), ['X-Requested-With' => 'XMLHttpRequest'])
@@ -88,7 +87,7 @@ final class LessonPackageContractFieldsWorkflowFeatureTest extends CrmTestCase
         $row = collect($afterCreate['data'] ?? [])->firstWhere('name', $unique);
         $this->assertIsArray($row, 'Строка должна появиться в DataTables без перезагрузки.');
         $this->assertSame('2', $row['lessons_per_week_label']);
-        $this->assertSame('8', $row['lessons_per_month_label']);
+        $this->assertArrayNotHasKey('lessons_per_month_label', $row);
         $this->assertSame('60', $row['lesson_duration_minutes_label']);
         $this->assertSame('700,00 ₽', $row['lesson_price_label']);
         $packageId = (int) $row['id'];
@@ -99,7 +98,6 @@ final class LessonPackageContractFieldsWorkflowFeatureTest extends CrmTestCase
             $this->validPayload([
                 'name' => $updatedName,
                 'lessons_per_week' => 4,
-                'lessons_per_month' => 16,
                 'lesson_duration_minutes' => 90,
                 'lesson_price' => '950.00',
             ]),
@@ -121,7 +119,6 @@ final class LessonPackageContractFieldsWorkflowFeatureTest extends CrmTestCase
         $this->assertIsArray($updatedRow);
         $this->assertSame($updatedName, $updatedRow['name']);
         $this->assertSame('4', $updatedRow['lessons_per_week_label']);
-        $this->assertSame('16', $updatedRow['lessons_per_month_label']);
         $this->assertSame('90', $updatedRow['lesson_duration_minutes_label']);
         $this->assertSame('950,00 ₽', $updatedRow['lesson_price_label']);
     }

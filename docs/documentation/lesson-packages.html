@@ -92,7 +92,7 @@
     подробно — <a href="#edit-fill-defaults">§packages-tab</a>.
     <br><br>
     <b>Поля «Для договора» (2026‑09):</b> необязательные
-    <code>lessons_per_week</code> / <code>lessons_per_month</code> /
+    <code>lessons_per_week</code> /
     <code>lesson_duration_minutes</code> / <code>lesson_price_cents</code>
     на шаблоне. Блок и колонки только при
     <code>contracts.lessonPackage.bind</code> (новое право не заводили).
@@ -685,12 +685,14 @@
     плейсхолдеры — <a href="/docs/documentation/contract-templates#package-variables">contract-templates §6.1.1</a>,
     анонс <a href="/doc#contract-lesson-package-bind-index">/doc</a>.
     Анонс — <a href="/doc#lesson-package-contract-fields-index">/doc#lesson-package-contract-fields-index</a>.
+    Поле <code>lessons_per_month</code> («Кол-во занятий в месяц») снято:
+    миграция <code>2026_09_20_091500_drop_lessons_per_month_from_lesson_packages_table.php</code>,
+    плейсхолдер <code>{{package_lessons_per_month}}</code> из пресетов шаблона договора убран.
   </div>
   <table>
     <thead><tr><th>Колонка</th><th>Подпись в модалке</th><th>Правила</th></tr></thead>
     <tbody>
       <tr><td><code>lessons_per_week</code></td><td>Кол-во занятий в неделю</td><td>nullable integer 1–100; пусто → <code>null</code></td></tr>
-      <tr><td><code>lessons_per_month</code></td><td>Кол-во занятий в месяц</td><td>nullable integer 1–1000; пусто → <code>null</code></td></tr>
       <tr><td><code>lesson_duration_minutes</code></td><td>Длительность занятий (мин)</td><td>nullable integer 1–1440; пусто → <code>null</code></td></tr>
       <tr><td><code>lesson_price_cents</code></td><td>Стоимость одного занятия (руб.)</td><td>форма <code>lesson_price</code>; копейки; пусто → <code>null</code>; ручной ввод, без автоподсчёта от <code>price</code> / <code>lessons_count</code></td></tr>
     </tbody>
@@ -703,7 +705,7 @@
     <li>JS: <code>normalizePayload</code> шлёт пустую строку, если input пуст;
       fill edit — <code>fillOptionalNumber</code> (пусто остаётся пустым, без дефолтов 8/30);
       <code>canBindLessonPackage</code> для DataTable <code>when</code>.</li>
-    <li>Таблица: колонки <code>lessons_per_week</code> / <code>lessons_per_month</code> /
+    <li>Таблица: колонки <code>lessons_per_week</code> /
       <code>lesson_duration_minutes</code> / <code>lesson_price_label</code>
       (тогглы <code>colLessonPackageLessonsPerWeek</code> и соседние).
       Пустое значение в JSON-лейбле — «—». JSON <code>…/data</code> отдаёт лейблы и без права
@@ -741,7 +743,7 @@
     <li>После успешного AJAX create/update/delete — <code>reloadPackagesTable()</code> (<code>dtApi.reload({ keepPage: true })</code>), без F5.</li>
     <li>Колонки: название, тип, <b>Срок действия (дни)</b> и <b>заморозка</b> — только при
       <code>scheduleSlots.view</code> (<code>when: canViewScheduleSlots</code>), занятий, стоимость,
-      <b>занятий в неделю / в месяц / длительность (мин) / стоимость занятия</b>
+      <b>занятий в неделю / длительность (мин) / стоимость занятия</b>
       — только при <code>contracts.lessonPackage.bind</code>
       (<code>when: canBindLessonPackage</code>,
       <a href="#contract-fields">§contract-fields</a>), действия

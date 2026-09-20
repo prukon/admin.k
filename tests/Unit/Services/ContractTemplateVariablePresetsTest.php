@@ -82,7 +82,7 @@ class ContractTemplateVariablePresetsTest extends TestCase
         $this->assertContains('package_name', $packageKeys);
         $this->assertContains('package_price', $packageKeys);
         $this->assertContains('package_lessons_per_week', $packageKeys);
-        $this->assertContains('package_lessons_per_month', $packageKeys);
+        $this->assertNotContains('package_lessons_per_month', $packageKeys);
         $this->assertContains('package_lesson_duration_minutes', $packageKeys);
         $this->assertContains('package_lesson_price', $packageKeys);
     }

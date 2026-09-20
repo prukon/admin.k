@@ -475,16 +475,6 @@ class ContractTemplateVariablePresets
                 'required_default' => false,
             ],
             [
-                'key'              => ContractLessonPackageBinder::KEY_LESSONS_PER_MONTH,
-                'label'            => 'Абонемент: занятий в месяц',
-                'description'      => 'Количество занятий в месяц из карточки абонемента.',
-                'admin_hint'       => 'Подставляется автоматически из выбранного абонемента. Родитель не заполняет.',
-                'group'            => self::GROUP_PACKAGE,
-                'fill_mode'        => self::FILL_MODE_SYSTEM,
-                'prefill_source'   => null,
-                'required_default' => false,
-            ],
-            [
                 'key'              => ContractLessonPackageBinder::KEY_DURATION_MINUTES,
                 'label'            => 'Абонемент: длительность занятия (мин)',
                 'description'      => 'Длительность занятия в минутах из карточки абонемента.',

@@ -17,7 +17,6 @@ class ContractLessonPackageBinderTest extends TestCase
             'name'                    => 'Годовой',
             'price_cents'             => 150000,
             'lessons_per_week'        => 2,
-            'lessons_per_month'       => null,
             'lesson_duration_minutes' => 45,
             'lesson_price_cents'      => null,
         ]);
@@ -27,7 +26,7 @@ class ContractLessonPackageBinderTest extends TestCase
         $this->assertSame('Годовой', $snapshot['name']);
         $this->assertSame(150000, $snapshot['price_cents']);
         $this->assertSame(2, $snapshot['lessons_per_week']);
-        $this->assertNull($snapshot['lessons_per_month']);
+        $this->assertArrayNotHasKey('lessons_per_month', $snapshot);
         $this->assertSame(45, $snapshot['lesson_duration_minutes']);
         $this->assertNull($snapshot['lesson_price_cents']);
     }
@@ -41,7 +40,6 @@ class ContractLessonPackageBinderTest extends TestCase
             'name'                    => 'Годовой',
             'price_cents'             => 123456,
             'lessons_per_week'        => 2,
-            'lessons_per_month'       => null,
             'lesson_duration_minutes' => 45,
             'lesson_price_cents'      => 25000,
         ]);
@@ -49,7 +47,6 @@ class ContractLessonPackageBinderTest extends TestCase
         $this->assertSame('Годовой', $values[ContractLessonPackageBinder::KEY_NAME]);
         $this->assertSame(Money::formatRub(123456).' руб.', $values[ContractLessonPackageBinder::KEY_PRICE]);
         $this->assertSame('2', $values[ContractLessonPackageBinder::KEY_LESSONS_PER_WEEK]);
-        $this->assertSame('', $values[ContractLessonPackageBinder::KEY_LESSONS_PER_MONTH]);
         $this->assertSame('45', $values[ContractLessonPackageBinder::KEY_DURATION_MINUTES]);
         $this->assertSame(Money::formatRub(25000).' руб.', $values[ContractLessonPackageBinder::KEY_LESSON_PRICE]);
         $this->assertStringEndsWith(' руб.', $values[ContractLessonPackageBinder::KEY_PRICE]);

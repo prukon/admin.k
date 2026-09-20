@@ -26,8 +26,6 @@ class ContractLessonPackageBinder
 
     public const KEY_LESSONS_PER_WEEK = 'package_lessons_per_week';
 
-    public const KEY_LESSONS_PER_MONTH = 'package_lessons_per_month';
-
     public const KEY_DURATION_MINUTES = 'package_lesson_duration_minutes';
 
     public const KEY_LESSON_PRICE = 'package_lesson_price';
@@ -41,7 +39,6 @@ class ContractLessonPackageBinder
             self::KEY_NAME,
             self::KEY_PRICE,
             self::KEY_LESSONS_PER_WEEK,
-            self::KEY_LESSONS_PER_MONTH,
             self::KEY_DURATION_MINUTES,
             self::KEY_LESSON_PRICE,
         ];
@@ -154,7 +151,6 @@ class ContractLessonPackageBinder
      *     name: string,
      *     price_cents: int,
      *     lessons_per_week: int|null,
-     *     lessons_per_month: int|null,
      *     lesson_duration_minutes: int|null,
      *     lesson_price_cents: int|null
      * }
@@ -165,7 +161,6 @@ class ContractLessonPackageBinder
             'name'                      => (string) $package->name,
             'price_cents'               => (int) $package->price_cents,
             'lessons_per_week'          => $this->nullableInt($package->lessons_per_week),
-            'lessons_per_month'         => $this->nullableInt($package->lessons_per_month),
             'lesson_duration_minutes'   => $this->nullableInt($package->lesson_duration_minutes),
             'lesson_price_cents'        => $this->nullableInt($package->lesson_price_cents),
         ];
@@ -181,7 +176,6 @@ class ContractLessonPackageBinder
             self::KEY_NAME               => '',
             self::KEY_PRICE              => '',
             self::KEY_LESSONS_PER_WEEK   => '',
-            self::KEY_LESSONS_PER_MONTH  => '',
             self::KEY_DURATION_MINUTES   => '',
             self::KEY_LESSON_PRICE       => '',
         ];
@@ -196,7 +190,6 @@ class ContractLessonPackageBinder
             self::KEY_NAME              => trim((string) ($snapshot['name'] ?? '')),
             self::KEY_PRICE             => $this->formatMoney((int) ($snapshot['price_cents'] ?? 0)),
             self::KEY_LESSONS_PER_WEEK  => $this->formatInt($snapshot['lessons_per_week'] ?? null),
-            self::KEY_LESSONS_PER_MONTH => $this->formatInt($snapshot['lessons_per_month'] ?? null),
             self::KEY_DURATION_MINUTES  => $this->formatInt($snapshot['lesson_duration_minutes'] ?? null),
             self::KEY_LESSON_PRICE      => $lessonPriceCents === null ? '' : $this->formatMoney($lessonPriceCents),
         ];

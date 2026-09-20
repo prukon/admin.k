@@ -4050,7 +4050,7 @@ JS;
     }
 
     /**
-     * P1: inline JS шаблонов — поля «Для договора» (неделя/месяц/минуты/цена занятия).
+     * P1: inline JS шаблонов — поля «Для договора» (неделя/минуты/цена занятия).
      */
     public function test_lesson_packages_contract_fields_inline_script_is_valid_javascript(): void
     {
@@ -4064,8 +4064,8 @@ JS;
         $this->assertStringContainsString("can('contracts.lessonPackage.bind')", $content);
         $this->assertStringContainsString('id="create_lessons_per_week"', $content);
         $this->assertStringContainsString('id="edit_lessons_per_week"', $content);
-        $this->assertStringContainsString('id="create_lessons_per_month"', $content);
-        $this->assertStringContainsString('id="edit_lessons_per_month"', $content);
+        $this->assertStringNotContainsString('id="create_lessons_per_month"', $content);
+        $this->assertStringNotContainsString('id="edit_lessons_per_month"', $content);
         $this->assertStringContainsString('id="create_lesson_duration_minutes"', $content);
         $this->assertStringContainsString('id="edit_lesson_duration_minutes"', $content);
         $this->assertStringContainsString('id="create_lesson_price"', $content);
@@ -4090,7 +4090,7 @@ JS;
                 "lessons_per_week: (formData.get(prefix + '[lessons_per_week]') || '').toString()",
                 $rawScript
             );
-            $this->assertStringContainsString(
+            $this->assertStringNotContainsString(
                 "lessons_per_month: (formData.get(prefix + '[lessons_per_month]') || '').toString()",
                 $rawScript
             );

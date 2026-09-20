@@ -44,7 +44,6 @@ final class StoreLessonPackageRequest extends FormRequest
             'freeze_enabled' => $freezeEnabled,
             'auto_attendance_enabled' => $autoAttendanceEnabled,
             'lessons_per_week' => $this->blankToNull($this->input('lessons_per_week')),
-            'lessons_per_month' => $this->blankToNull($this->input('lessons_per_month')),
             'lesson_duration_minutes' => $this->blankToNull($this->input('lesson_duration_minutes')),
             'lesson_price' => ($lessonPrice === '' || $lessonPrice === null) ? null : $lessonPrice,
         ];
@@ -56,7 +55,6 @@ final class StoreLessonPackageRequest extends FormRequest
         // Без bind поле скрыто: не валидируем крафт и не даём записать значения с клиента.
         if (! LessonPackageContractFieldsPermission::userCanManage($this->user())) {
             $merge['lessons_per_week'] = null;
-            $merge['lessons_per_month'] = null;
             $merge['lesson_duration_minutes'] = null;
             $merge['lesson_price'] = null;
         }
@@ -142,12 +140,6 @@ final class StoreLessonPackageRequest extends FormRequest
                 'integer',
                 'min:1',
                 'max:100',
-            ],
-            'lessons_per_month' => [
-                'nullable',
-                'integer',
-                'min:1',
-                'max:1000',
             ],
             'lesson_duration_minutes' => [
                 'nullable',
@@ -281,7 +273,6 @@ final class StoreLessonPackageRequest extends FormRequest
             'lessons_count' => 'кол-во занятий',
             'price' => 'стоимость',
             'lessons_per_week' => 'кол-во занятий в неделю',
-            'lessons_per_month' => 'кол-во занятий в месяц',
             'lesson_duration_minutes' => 'длительность занятий (мин)',
             'lesson_price' => 'стоимость одного занятия',
             'freeze_enabled' => 'заморозка',
@@ -318,10 +309,6 @@ final class StoreLessonPackageRequest extends FormRequest
             'lessons_per_week.min' => 'Количество занятий в неделю должно быть больше нуля.',
             'lessons_per_week.max' => 'Количество занятий в неделю слишком большое.',
 
-            'lessons_per_month.integer' => 'Количество занятий в месяц должно быть целым числом.',
-            'lessons_per_month.min' => 'Количество занятий в месяц должно быть больше нуля.',
-            'lessons_per_month.max' => 'Количество занятий в месяц слишком большое.',
-
             'lesson_duration_minutes.integer' => 'Длительность занятий должна быть целым числом.',
             'lesson_duration_minutes.min' => 'Длительность занятий должна быть больше нуля.',
             'lesson_duration_minutes.max' => 'Длительность занятий слишком большая.',
@@ -353,15 +340,6 @@ final class StoreLessonPackageRequest extends FormRequest
             $this->user(),
             $this->input('lessons_per_week'),
             $existing?->lessons_per_week,
-        );
-    }
-
-    public function resolvedLessonsPerMonth(?LessonPackage $existing = null): ?int
-    {
-        return LessonPackageContractFieldsPermission::resolvedInt(
-            $this->user(),
-            $this->input('lessons_per_month'),
-            $existing?->lessons_per_month,
         );
     }
 
