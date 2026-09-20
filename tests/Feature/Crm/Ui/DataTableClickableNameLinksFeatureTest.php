@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Ui;
 
 use App\Models\Contract;
 use App\Models\District;
+use App\Models\LessonPackage;
 use App\Models\Location;
 use App\Models\SchoolLead;
 use App\Models\SportType;
@@ -223,6 +224,33 @@ final class DataTableClickableNameLinksFeatureTest extends ContractsFeatureTestC
             ->assertJsonPath('id', $template->id)
             ->assertJsonPath('title', 'Link Template')
             ->assertJsonStructure(['update_url', 'html']);
+    }
+
+    public function test_lesson_packages_index_renders_clickable_name_link_and_show_json_returns_200(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'name' => 'Link Package',
+        ]);
+
+        foreach ([
+            route('admin.lesson-packages.index'),
+            route('admin.directories.lesson-packages.index'),
+        ] as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertSee("key: 'name'", false)
+                ->assertSee("type: 'link'", false)
+                ->assertSee("linkClass: 'lesson-package-edit-btn'", false)
+                ->assertSee("'.lesson-package-edit-btn'", false)
+                ->assertSee('id="lessonPackageEditModal"', false);
+        }
+
+        $this->getJson(route('admin.lesson-packages.show', ['lessonPackage' => $package->id]))
+            ->assertOk()
+            ->assertJsonPath('lesson_package.id', $package->id)
+            ->assertJsonPath('lesson_package.name', 'Link Package');
     }
 
     public function test_tbank_commissions_index_renders_clickable_partner_title_and_edit_json_returns_200(): void

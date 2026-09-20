@@ -597,10 +597,14 @@
                     columns: [
                         {
                             key: 'name',
-                            type: 'text',
+                            type: 'link',
                             data: 'name',
                             name: 'name',
                             className: 'dt-col-text',
+                            linkClass: 'lesson-package-edit-btn',
+                            linkAttrs: function (row) {
+                                return 'data-id="' + row.id + '" data-bs-toggle="modal" data-bs-target="#lessonPackageEditModal"';
+                            },
                         },
                         {
                             key: 'schedule_type_label',

@@ -84,6 +84,11 @@
     группа прав — <a href="/doc#school-schedule-permission-group-index">«Расписание школы»</a>,
     подробно — <a href="#duration-permission">§duration-permission</a>.
     <br><br>
+    <b>Кликабельное название шаблона (2026‑09):</b> колонка «Название» —
+    ссылка, клик открывает модалку редактирования (тот же handler, что «Изменить»).
+    Анонс — <a href="/doc#lesson-package-clickable-name-index">/doc</a>,
+    подробно — <a href="#clickable-name">§packages-tab</a>.
+    <br><br>
     <b>Fill edit шаблона (2026‑09):</b> «Изменить» для фикса/предоплаты не затирает
     занятия и срок дефолтами 8/30. 8/30 — при смене типа на фикс/предоплату,
     если нет снимка (в том числе фикс↔предоплата). Create по-прежнему стартует с 8/30.
@@ -741,13 +746,25 @@
     <li>Таблица <code>#lesson-packages-table</code> — server-side <code>KidsCrmDataTable.create</code>
       (init в <code>@push('scripts')</code> + <code>$(document).ready</code>, иначе Vite-модуль ещё не готов).</li>
     <li>После успешного AJAX create/update/delete — <code>reloadPackagesTable()</code> (<code>dtApi.reload({ keepPage: true })</code>), без F5.</li>
-    <li>Колонки: название, тип, <b>Срок действия (дни)</b> и <b>заморозка</b> — только при
+    <li>Колонки: название (<code>type: 'link'</code>, класс <code>lesson-package-edit-btn</code> — клик открывает модалку редактирования, <a href="#clickable-name">§clickable-name</a>), тип, <b>Срок действия (дни)</b> и <b>заморозка</b> — только при
       <code>scheduleSlots.view</code> (<code>when: canViewScheduleSlots</code>), занятий, стоимость,
       <b>занятий в неделю / длительность (мин) / стоимость занятия</b>
       — только при <code>contracts.lessonPackage.bind</code>
       (<code>when: canBindLessonPackage</code>,
       <a href="#contract-fields">§contract-fields</a>), действия
       («Изменить» / «Удалить» — удаление только если нет назначений и привязок в календаре, флаг <code>can_delete</code> в JSON).</li>
+    <li id="clickable-name">Колонка «Название» — <code>type: 'link'</code>, класс
+      <code>lesson-package-edit-btn</code> (тот же, что у кнопки «Изменить»),
+      <code>data-id</code> + <code>data-bs-toggle="modal"</code> /
+      <code>data-bs-target="#lessonPackageEditModal"</code>.
+      Клик загружает <code>GET /admin/lesson-packages/{id}</code> и открывает модалку edit;
+      кнопку «Изменить» не убирали. JS init только при <code>lessonPackages.view</code>,
+      поэтому отдельного fallback на <code>type: 'text'</code> нет.
+      Оба экрана (расписание школы и справочники) — один partial.
+      Паттерн — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.
+      Тесты: <code>DataTableClickableNameLinksFeatureTest</code>,
+      <code>LessonPackageClickableNameDocumentationContractTest</code>.
+      Анонс — <a href="/doc#lesson-package-clickable-name-index">/doc</a>.</li>
     <li>Настройки колонок: <code>user_table_settings.table_key = lesson_packages_index</code>.</li>
   </ul>
 
