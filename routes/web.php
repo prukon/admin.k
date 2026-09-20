@@ -1173,6 +1173,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
         // AJAX для получения групп ученика
         Route::get('/client-contracts/user-group', [ContractLookupsController::class, 'userGroup'])->name('contracts.user.group');
+        Route::get('/client-contracts/user-packages', [ContractLookupsController::class, 'userPackages'])->name('contracts.user.packages');
 
         // >>> СНАЧАЛА: спец-урлы для таблицы (БЕЗ параметров) <<<
 

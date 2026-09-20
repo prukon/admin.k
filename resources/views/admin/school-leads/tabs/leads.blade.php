@@ -315,7 +315,9 @@
             var canViewDistricts = @json($canViewDistricts);
             var canCreateUserFromLead = @json($canCreateUserFromLead);
             var canViewContracts = @json($canViewContracts);
+            var canBindLessonPackage = @json(auth()->user()?->can('contracts.lessonPackage.bind') ?? false);
             var hasLeadContractTemplates = @json(($contractTemplates ?? collect())->isNotEmpty());
+            var leadUserPackagesUrl = @json(route('contracts.user.packages'));
             var canShowLeadClientColumn = @json($canShowLeadClientColumn);
             var schoolLeadStatuses = @json($schoolLeadStatuses->map(fn ($status) => $status->toFrontendArray())->values());
             var defaultStatusFilterIds = @json($defaultStatusFilterIds);
@@ -1966,13 +1968,14 @@
                     if (!errors) {
                         return false;
                     }
-                    return !!(errors.wallet || errors.send_contract || errors.contract_template_id);
+                    return !!(errors.wallet || errors.send_contract || errors.contract_template_id || errors.lesson_package_id);
                 }
 
                 function clearLeadCreateClientChoiceErrors() {
                     var $modal = $('#createLeadClientChoiceModal');
                     $modal.find('.is-invalid').removeClass('is-invalid');
                     $modal.find('[data-field-error="contract_template_id"]').text('');
+                    $modal.find('[data-field-error="lesson_package_id"]').text('');
                     $modal.find('[data-field-error="send_contract"]').text('').addClass('d-none');
                 }
 
@@ -1985,11 +1988,55 @@
                         $('#leadCreateClientTemplateId').addClass('is-invalid');
                         $modal.find('[data-field-error="contract_template_id"]').text(errors.contract_template_id[0]);
                     }
+                    if (errors.lesson_package_id && errors.lesson_package_id.length) {
+                        $('#leadCreateClientLessonPackageId').addClass('is-invalid');
+                        $modal.find('[data-field-error="lesson_package_id"]').text(errors.lesson_package_id[0]);
+                    }
                     if (errors.send_contract && errors.send_contract.length) {
                         $modal.find('[data-field-error="send_contract"]')
                             .removeClass('d-none')
                             .text(errors.send_contract[0]);
                     }
+                }
+
+                function selectedLeadTemplateRequiresLessonPackage() {
+                    if (!canBindLessonPackage) {
+                        return false;
+                    }
+                    var $option = $('#leadCreateClientTemplateId option:selected');
+                    if (!$option.length || !$option.val()) {
+                        return false;
+                    }
+                    return String($option.attr('data-requires-lesson-package') || '') === '1';
+                }
+
+                function fillLeadCreateClientPackages(packages) {
+                    var $select = $('#leadCreateClientLessonPackageId');
+                    if (!$select.length) {
+                        return;
+                    }
+                    $select.empty().append($('<option>', { value: '', text: '—' }));
+                    (packages || []).forEach(function (item) {
+                        $select.append($('<option>', {
+                            value: item.id,
+                            text: item.label || item.name || item.id
+                        }));
+                    });
+                    $select.val('');
+                }
+
+                function loadLeadCreateClientPackages() {
+                    var $select = $('#leadCreateClientLessonPackageId');
+                    if (!$select.length || !canBindLessonPackage) {
+                        return;
+                    }
+                    $.getJSON(leadUserPackagesUrl)
+                        .done(function (resp) {
+                            fillLeadCreateClientPackages(resp && resp.packages ? resp.packages : []);
+                        })
+                        .fail(function () {
+                            fillLeadCreateClientPackages([]);
+                        });
                 }
 
                 function isLeadCreateClientWithContract() {
@@ -2008,6 +2055,7 @@
                     $('#leadCreateClientModeWithContract').prop('checked', true);
                     $('#leadCreateClientModeWithoutContract').prop('checked', false);
                     syncLeadCreateClientChoiceUi();
+                    loadLeadCreateClientPackages();
                     if (typeof showModalQueued === 'function' && editLeadModalEl.classList.contains('show')) {
                         suppressLeadModalResetOnHide = true;
                         showModalQueued('createLeadClientChoiceModal', { backdrop: 'static', keyboard: false });
@@ -2058,6 +2106,9 @@
                     clientPayload.send_contract = options.sendContract ? 1 : 0;
                     if (options.sendContract) {
                         clientPayload.contract_template_id = options.templateId || '';
+                        if (canBindLessonPackage && options.lessonPackageId) {
+                            clientPayload.lesson_package_id = options.lessonPackageId;
+                        }
                     }
                     return clientPayload;
                 }
@@ -2127,7 +2178,8 @@
 
                     var clientPayload = buildCreateClientFromLeadPayload({
                         sendContract: sendContract,
-                        templateId: options.templateId
+                        templateId: options.templateId,
+                        lessonPackageId: options.lessonPackageId
                     });
 
                     saveLeadAjax()
@@ -2213,10 +2265,20 @@
                             });
                             return;
                         }
+                        if (selectedLeadTemplateRequiresLessonPackage()) {
+                            var packageId = $('#leadCreateClientLessonPackageId').val();
+                            if (!packageId) {
+                                applyLeadCreateClientChoiceErrors({
+                                    lesson_package_id: ['Выберите абонемент.']
+                                });
+                                return;
+                            }
+                        }
                         submitCreateClientFromLead({
                             fromChoiceModal: true,
                             sendContract: true,
-                            templateId: templateId
+                            templateId: templateId,
+                            lessonPackageId: $('#leadCreateClientLessonPackageId').val() || ''
                         });
                         return;
                     }
@@ -2233,6 +2295,13 @@
                     hideToast();
                     clearLeadCreateClientChoiceErrors();
                     syncLeadCreateClientChoiceUi();
+                });
+                $('#leadCreateClientTemplateId').on('change', function() {
+                    $('#leadCreateClientTemplateId').removeClass('is-invalid');
+                    $('#leadCreateClientLessonPackageId').removeClass('is-invalid');
+                    var $modal = $('#createLeadClientChoiceModal');
+                    $modal.find('[data-field-error="contract_template_id"]').text('');
+                    $modal.find('[data-field-error="lesson_package_id"]').text('');
                 });
             }
 

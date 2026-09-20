@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\LessonPackage;
 use App\Support\LessonPackageAutoAttendancePermission;
+use App\Support\LessonPackageContractFieldsPermission;
 use App\Support\LessonPackageDurationPermission;
 use App\Support\LessonPackageFreezePermission;
 use App\Support\LessonPackageTypePermission;
@@ -33,14 +34,31 @@ final class StoreLessonPackageRequest extends FormRequest
         $existing = $this->route('lessonPackage');
         $existingPackage = $existing instanceof LessonPackage ? $existing : null;
 
+        $lessonPrice = $this->input('lesson_price', null);
+        if (is_string($lessonPrice)) {
+            $lessonPrice = str_replace([' ', ','], ['', '.'], trim($lessonPrice));
+        }
+
         $merge = [
             'price' => $price,
             'freeze_enabled' => $freezeEnabled,
             'auto_attendance_enabled' => $autoAttendanceEnabled,
+            'lessons_per_week' => $this->blankToNull($this->input('lessons_per_week')),
+            'lessons_per_month' => $this->blankToNull($this->input('lessons_per_month')),
+            'lesson_duration_minutes' => $this->blankToNull($this->input('lesson_duration_minutes')),
+            'lesson_price' => ($lessonPrice === '' || $lessonPrice === null) ? null : $lessonPrice,
         ];
 
         if ($freezeDays === '' || $freezeDays === null) {
             $merge['freeze_days'] = null;
+        }
+
+        // Без bind поле скрыто: не валидируем крафт и не даём записать значения с клиента.
+        if (! LessonPackageContractFieldsPermission::userCanManage($this->user())) {
+            $merge['lessons_per_week'] = null;
+            $merge['lessons_per_month'] = null;
+            $merge['lesson_duration_minutes'] = null;
+            $merge['lesson_price'] = null;
         }
 
         // Постоплата биллится календарным месяцем через users_prices — длительность/кол-во в шаблоне служебные.
@@ -72,8 +90,14 @@ final class StoreLessonPackageRequest extends FormRequest
         $freezeDays = (int) ($this->validated('freeze_days') ?? 0);
         $autoAttendanceEnabled = (bool) $this->validated('auto_attendance_enabled');
 
+        $lessonPrice = $this->validated('lesson_price');
+        $lessonPriceCents = ($lessonPrice === null || $lessonPrice === '')
+            ? null
+            : Money::toCentsOrFail($lessonPrice);
+
         $this->merge([
             'price_cents' => $priceCents,
+            'lesson_price_cents' => $lessonPriceCents,
             'freeze_days' => $freezeEnabled ? $freezeDays : 0,
             'auto_attendance_enabled' => $autoAttendanceEnabled,
         ]);
@@ -109,6 +133,30 @@ final class StoreLessonPackageRequest extends FormRequest
             ],
             'price' => [
                 'required',
+                'numeric',
+                'min:0',
+                'max:99999999.99',
+            ],
+            'lessons_per_week' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:100',
+            ],
+            'lessons_per_month' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:1000',
+            ],
+            'lesson_duration_minutes' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:1440',
+            ],
+            'lesson_price' => [
+                'nullable',
                 'numeric',
                 'min:0',
                 'max:99999999.99',
@@ -232,6 +280,10 @@ final class StoreLessonPackageRequest extends FormRequest
             'duration_days' => 'длительность (дни)',
             'lessons_count' => 'кол-во занятий',
             'price' => 'стоимость',
+            'lessons_per_week' => 'кол-во занятий в неделю',
+            'lessons_per_month' => 'кол-во занятий в месяц',
+            'lesson_duration_minutes' => 'длительность занятий (мин)',
+            'lesson_price' => 'стоимость одного занятия',
             'freeze_enabled' => 'заморозка',
             'freeze_days' => 'кол-во дней заморозки',
             'auto_attendance_enabled' => 'автосписание',
@@ -262,11 +314,85 @@ final class StoreLessonPackageRequest extends FormRequest
             'price.min' => 'Стоимость не может быть отрицательной.',
             'price.max' => 'Стоимость слишком большая.',
 
+            'lessons_per_week.integer' => 'Количество занятий в неделю должно быть целым числом.',
+            'lessons_per_week.min' => 'Количество занятий в неделю должно быть больше нуля.',
+            'lessons_per_week.max' => 'Количество занятий в неделю слишком большое.',
+
+            'lessons_per_month.integer' => 'Количество занятий в месяц должно быть целым числом.',
+            'lessons_per_month.min' => 'Количество занятий в месяц должно быть больше нуля.',
+            'lessons_per_month.max' => 'Количество занятий в месяц слишком большое.',
+
+            'lesson_duration_minutes.integer' => 'Длительность занятий должна быть целым числом.',
+            'lesson_duration_minutes.min' => 'Длительность занятий должна быть больше нуля.',
+            'lesson_duration_minutes.max' => 'Длительность занятий слишком большая.',
+
+            'lesson_price.numeric' => 'Стоимость одного занятия должна быть числом.',
+            'lesson_price.min' => 'Стоимость одного занятия не может быть отрицательной.',
+            'lesson_price.max' => 'Стоимость одного занятия слишком большая.',
+
             'freeze_enabled.boolean' => 'Некорректное значение заморозки.',
             'freeze_days.required' => 'Укажите количество дней заморозки.',
             'freeze_days.integer' => 'Количество дней заморозки должно быть целым числом.',
             'freeze_days.min' => 'Количество дней заморозки должно быть больше нуля.',
             'freeze_days.max' => 'Количество дней заморозки слишком большое.',
         ];
+    }
+
+    public function resolvedLessonPriceCents(?LessonPackage $existing = null): ?int
+    {
+        return LessonPackageContractFieldsPermission::resolvedInt(
+            $this->user(),
+            $this->input('lesson_price_cents'),
+            $existing?->lesson_price_cents,
+        );
+    }
+
+    public function resolvedLessonsPerWeek(?LessonPackage $existing = null): ?int
+    {
+        return LessonPackageContractFieldsPermission::resolvedInt(
+            $this->user(),
+            $this->input('lessons_per_week'),
+            $existing?->lessons_per_week,
+        );
+    }
+
+    public function resolvedLessonsPerMonth(?LessonPackage $existing = null): ?int
+    {
+        return LessonPackageContractFieldsPermission::resolvedInt(
+            $this->user(),
+            $this->input('lessons_per_month'),
+            $existing?->lessons_per_month,
+        );
+    }
+
+    public function resolvedLessonDurationMinutes(?LessonPackage $existing = null): ?int
+    {
+        return LessonPackageContractFieldsPermission::resolvedInt(
+            $this->user(),
+            $this->input('lesson_duration_minutes'),
+            $existing?->lesson_duration_minutes,
+        );
+    }
+
+    private function blankToNull(mixed $value): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value) && trim($value) === '') {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private function nullablePositiveInt(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (int) $value;
     }
 }

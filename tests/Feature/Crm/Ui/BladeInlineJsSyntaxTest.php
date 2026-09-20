@@ -4050,6 +4050,105 @@ JS;
     }
 
     /**
+     * P1: inline JS шаблонов — поля «Для договора» (неделя/месяц/минуты/цена занятия).
+     */
+    public function test_lesson_packages_contract_fields_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/packages.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('id="create_contract_fields_section"', $content);
+        $this->assertStringContainsString('id="edit_contract_fields_section"', $content);
+        $this->assertStringContainsString('@can(\'contracts.lessonPackage.bind\')', $content);
+        $this->assertStringContainsString("can('contracts.lessonPackage.bind')", $content);
+        $this->assertStringContainsString('id="create_lessons_per_week"', $content);
+        $this->assertStringContainsString('id="edit_lessons_per_week"', $content);
+        $this->assertStringContainsString('id="create_lessons_per_month"', $content);
+        $this->assertStringContainsString('id="edit_lessons_per_month"', $content);
+        $this->assertStringContainsString('id="create_lesson_duration_minutes"', $content);
+        $this->assertStringContainsString('id="edit_lesson_duration_minutes"', $content);
+        $this->assertStringContainsString('id="create_lesson_price"', $content);
+        $this->assertStringContainsString('id="edit_lesson_price"', $content);
+        $this->assertStringContainsString('data-error-for="create[lessons_per_week]"', $content);
+        $this->assertStringContainsString('data-error-for="edit[lesson_price]"', $content);
+        $this->assertStringContainsString('id="colLessonPackageLessonsPerWeek"', $content);
+        $this->assertStringContainsString('data-column-key="lesson_price_label"', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В packages.blade.php нет inline <script>');
+
+        $scriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'function normalizePayload(formData, prefix)')) {
+                continue;
+            }
+            $scriptFound = true;
+
+            $this->assertStringContainsString('function fillOptionalNumber(input, value)', $rawScript);
+            $this->assertStringContainsString(
+                "lessons_per_week: (formData.get(prefix + '[lessons_per_week]') || '').toString()",
+                $rawScript
+            );
+            $this->assertStringContainsString(
+                "lessons_per_month: (formData.get(prefix + '[lessons_per_month]') || '').toString()",
+                $rawScript
+            );
+            $this->assertStringContainsString(
+                "lesson_duration_minutes: (formData.get(prefix + '[lesson_duration_minutes]') || '').toString()",
+                $rawScript
+            );
+            $this->assertStringContainsString(
+                "lesson_price: (formData.get(prefix + '[lesson_price]') || '').toString()",
+                $rawScript
+            );
+            $this->assertStringContainsString(
+                "fillOptionalNumber(editModalEl.querySelector('[name=\"edit[lessons_per_week]\"]'), lp.lessons_per_week)",
+                $rawScript
+            );
+            $this->assertStringContainsString(
+                "fillOptionalNumber(editModalEl.querySelector('[name=\"edit[lesson_price]\"]'), lp.lesson_price)",
+                $rawScript
+            );
+            $this->assertStringContainsString('lessons_per_week: true', $rawScript);
+            $this->assertStringContainsString('lesson_price_label: true', $rawScript);
+            $this->assertStringContainsString('when: canBindLessonPackage', $rawScript);
+            $this->assertStringContainsString('const canBindLessonPackage', $rawScript);
+            $this->assertStringContainsString("data: 'lesson_price_label'", $rawScript);
+            $this->assertStringContainsString('preventDefault', $rawScript);
+            $this->assertStringContainsString("Accept': 'application/json'", $rawScript);
+
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-packages-contract-fields-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in lesson packages contract fields script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $scriptFound,
+            'В packages.blade.php не найден script с normalizePayload / contract fields'
+        );
+    }
+
+    /**
      * P1: fill edit шаблона не затирает занятий/срок дефолтами 8/30 при открытии.
      * UX-баг: таблица 12, модалка 8 — applyEditScheduleTypeUi() без fromTypeChange.
      */
@@ -7211,7 +7310,7 @@ JS;
         $this->assertStringContainsString('function submitCreateClientFromLead(options)', $content);
         $this->assertStringContainsString('function isLeadContractPrecheckError(errors)', $content);
         $this->assertStringContainsString('hideToast()', $content);
-        $this->assertStringContainsString("errors.wallet || errors.send_contract || errors.contract_template_id", $content);
+        $this->assertStringContainsString("errors.wallet || errors.send_contract || errors.contract_template_id || errors.lesson_package_id", $content);
         $this->assertStringContainsString("$(document).on('change', 'input[name=\"lead_create_client_mode\"]'", $content);
         $this->assertStringContainsString("if (canViewContracts && document.getElementById('createLeadClientChoiceModal'))", $content);
         $this->assertStringContainsString('precheckCreateClientFromLeadThenOpenChoice();', $content);
@@ -7223,6 +7322,11 @@ JS;
         $this->assertStringContainsString('closeCreateLeadClientChoiceModal(true)', $content);
         $this->assertStringContainsString('clientPayload.send_contract = options.sendContract ? 1 : 0', $content);
         $this->assertStringContainsString("contract_template_id: ['Выберите шаблон договора.']", $content);
+        $this->assertStringContainsString("lesson_package_id: ['Выберите абонемент.']", $content);
+        $this->assertStringContainsString('lessonPackageId: options.lessonPackageId', $content);
+        $this->assertStringContainsString('function selectedLeadTemplateRequiresLessonPackage()', $content);
+        $this->assertStringContainsString('function loadLeadCreateClientPackages()', $content);
+        $this->assertStringContainsString('function isLeadCreateClientWithContract()', $content);
         $this->assertStringContainsString('sendContract: true', $content);
         $this->assertStringContainsString('fromChoiceModal: true', $content);
         $this->assertStringContainsString("if (typeof showModalQueued === 'function' && editLeadModalEl.classList.contains('show'))", $content);
@@ -7248,14 +7352,15 @@ JS;
 
         $applyStart = strpos($content, 'function applyLeadCreateClientChoiceErrors(errors)');
         $this->assertNotFalse($applyStart);
-        $applyFn = substr($content, $applyStart, 700);
+        $applyFn = substr($content, $applyStart, 900);
         $this->assertStringContainsString('errors.contract_template_id', $applyFn);
+        $this->assertStringContainsString('errors.lesson_package_id', $applyFn);
         $this->assertStringContainsString('errors.send_contract', $applyFn);
         $this->assertStringNotContainsString('errors.wallet', $applyFn);
 
         $okPos = strpos($content, "$('#createLeadClientChoiceOkBtn').on('click'");
         $this->assertNotFalse($okPos);
-        $okChunk = substr($content, $okPos, 1800);
+        $okChunk = substr($content, $okPos, 2400);
         $this->assertStringContainsString('hideToast()', $okChunk);
         $this->assertStringContainsString('sendContract: false', $okChunk);
         $this->assertStringContainsString('templateId: templateId', $okChunk);
@@ -7364,6 +7469,61 @@ JS;
         }
 
         $this->assertTrue($addressScriptFound, 'В editUser.blade.php не найден script с edit-address');
+    }
+
+    /**
+     * P1: editUser — оба пути открытия модалки заполняют паспорт / дату выдачи ученика (|| '' сброс).
+     */
+    public function test_edit_user_modal_passport_fill_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/includes/modal/editUser.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $passportFill = "\$('#edit-user-form #edit-passport').val(response.user.passport || '')";
+        $issuedFill = "\$('#edit-user-form #edit-passport-issued-at').val(response.user.passport_issued_at || '')";
+
+        $this->assertStringContainsString('id="edit-passport"', $content);
+        $this->assertStringContainsString('id="edit-passport-issued-at"', $content);
+        $this->assertStringContainsString($passportFill, $content);
+        $this->assertStringContainsString($issuedFill, $content);
+        $this->assertGreaterThanOrEqual(2, substr_count($content, $passportFill));
+        $this->assertGreaterThanOrEqual(2, substr_count($content, $issuedFill));
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $passportScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'edit-passport')) {
+                continue;
+            }
+            $passportScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-edit-passport-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in editUser passport script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($passportScriptFound, 'В editUser.blade.php не найден script с edit-passport');
     }
 
     /**

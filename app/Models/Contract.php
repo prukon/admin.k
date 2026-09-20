@@ -16,9 +16,10 @@ class Contract extends Model
 
 
     protected $casts = [
-        'signed_at'       => 'datetime',
-        'fill_expires_at' => 'datetime',
-        'filled_data'     => 'array',
+        'signed_at'         => 'datetime',
+        'fill_expires_at'   => 'datetime',
+        'filled_data'       => 'array',
+        'package_snapshot'  => 'array',
     ];
 
     public const CREATION_MODE_PDF      = 'pdf';
@@ -115,6 +116,19 @@ class Contract extends Model
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class, 'group_id');
+    }
+
+    public function lessonPackage(): BelongsTo
+    {
+        return $this->belongsTo(LessonPackage::class, 'lesson_package_id');
+    }
+
+    public function packageSnapshotName(): ?string
+    {
+        $snapshot = is_array($this->package_snapshot) ? $this->package_snapshot : [];
+        $name = trim((string) ($snapshot['name'] ?? ''));
+
+        return $name !== '' ? $name : null;
     }
 
     public function legalEntity(): BelongsTo

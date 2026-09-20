@@ -17,6 +17,7 @@ class ContractTemplateVariablePresets
     public const GROUP_CHILD        = 'child';
     public const GROUP_LEGAL_ENTITY = 'legal_entity';
     public const GROUP_CONTRACT     = 'contract';
+    public const GROUP_PACKAGE      = 'package';
 
     public const FILL_MODE_CRM    = 'crm';
     public const FILL_MODE_PARENT = 'parent';
@@ -71,6 +72,7 @@ class ContractTemplateVariablePresets
             self::GROUP_CHILD        => 'Ребёнок (ученик)',
             self::GROUP_LEGAL_ENTITY => 'Юр. лицо',
             self::GROUP_CONTRACT     => 'Договор',
+            self::GROUP_PACKAGE      => 'Абонемент',
         ];
     }
 
@@ -85,6 +87,34 @@ class ContractTemplateVariablePresets
     public static function isLegalEntityFieldKey(string $key): bool
     {
         return in_array(self::canonicalFieldKey($key), self::legalEntityFieldKeys(), true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function packageFieldKeys(): array
+    {
+        return array_column(self::recommendedForGroup(self::GROUP_PACKAGE), 'key');
+    }
+
+    public static function isPackageFieldKey(string $key): bool
+    {
+        return in_array(self::canonicalFieldKey($key), self::packageFieldKeys(), true);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $schema
+     */
+    public static function schemaUsesPackageFields(array $schema): bool
+    {
+        foreach ($schema as $field) {
+            $key = self::canonicalFieldKey((string) ($field['key'] ?? ''));
+            if ($key !== '' && self::isPackageFieldKey($key)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -413,6 +443,66 @@ class ContractTemplateVariablePresets
                 'prefill_source'   => null,
                 'required_default' => false,
                 'fill_sort_order'  => 211,
+            ],
+            [
+                'key'              => ContractLessonPackageBinder::KEY_NAME,
+                'label'            => 'Абонемент: название',
+                'description'      => 'Название шаблона абонемента на момент создания договора.',
+                'admin_hint'       => 'Подставляется автоматически из выбранного абонемента. Родитель не заполняет.',
+                'group'            => self::GROUP_PACKAGE,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractLessonPackageBinder::KEY_PRICE,
+                'label'            => 'Абонемент: цена',
+                'description'      => 'Стоимость абонемента из каталога (с «руб.»).',
+                'admin_hint'       => 'Подставляется автоматически из выбранного абонемента. Родитель не заполняет.',
+                'group'            => self::GROUP_PACKAGE,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractLessonPackageBinder::KEY_LESSONS_PER_WEEK,
+                'label'            => 'Абонемент: занятий в неделю',
+                'description'      => 'Количество занятий в неделю из карточки абонемента.',
+                'admin_hint'       => 'Подставляется автоматически из выбранного абонемента. Родитель не заполняет.',
+                'group'            => self::GROUP_PACKAGE,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractLessonPackageBinder::KEY_LESSONS_PER_MONTH,
+                'label'            => 'Абонемент: занятий в месяц',
+                'description'      => 'Количество занятий в месяц из карточки абонемента.',
+                'admin_hint'       => 'Подставляется автоматически из выбранного абонемента. Родитель не заполняет.',
+                'group'            => self::GROUP_PACKAGE,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractLessonPackageBinder::KEY_DURATION_MINUTES,
+                'label'            => 'Абонемент: длительность занятия (мин)',
+                'description'      => 'Длительность занятия в минутах из карточки абонемента.',
+                'admin_hint'       => 'Подставляется автоматически из выбранного абонемента. Родитель не заполняет.',
+                'group'            => self::GROUP_PACKAGE,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractLessonPackageBinder::KEY_LESSON_PRICE,
+                'label'            => 'Абонемент: стоимость одного занятия',
+                'description'      => 'Стоимость одного занятия из карточки абонемента (с «руб.»).',
+                'admin_hint'       => 'Подставляется автоматически из выбранного абонемента. Родитель не заполняет.',
+                'group'            => self::GROUP_PACKAGE,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
             ],
         ];
     }

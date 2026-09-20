@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Contracts;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Contracts\ContractUserGroupRequest;
+use App\Http\Requests\Contracts\ContractUserPackagesRequest;
 use App\Http\Requests\Contracts\ContractUsersSearchRequest;
 use App\Models\User;
+use App\Services\Contracts\ContractLessonPackageBinder;
 use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +16,7 @@ class ContractLookupsController extends Controller
 {
     public function __construct(
         private readonly TeamUserSyncService $teamUserSync,
+        private readonly ContractLessonPackageBinder $lessonPackageBinder,
     ) {
     }
 
@@ -115,5 +118,38 @@ class ContractLookupsController extends Controller
         Log::debug('[contracts.userGroup] done', ['groups_count' => count($groups)]);
 
         return response()->json(['groups' => $groups]);
+    }
+
+    public function userPackages(ContractUserPackagesRequest $request)
+    {
+        $userId = (int) ($request->validated()['user_id'] ?? 0);
+        $partnerId = $this->partnerId();
+
+        if ($userId > 0) {
+            $student = User::query()
+                ->where('id', $userId)
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', 1)
+                ->first();
+
+            if (!$student) {
+                return response()->json([
+                    'packages'    => [],
+                    'selected_id' => null,
+                ]);
+            }
+        }
+
+        $payload = $this->lessonPackageBinder->optionsForStudent(
+            $partnerId,
+            $userId > 0 ? $userId : null
+        );
+        $payload['packages'] = array_map(function (array $item) {
+            $item['label'] = $this->lessonPackageBinder->optionLabel($item);
+
+            return $item;
+        }, $payload['packages']);
+
+        return response()->json($payload);
     }
 }

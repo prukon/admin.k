@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Contracts;
 
 use App\Models\Contract;
+use App\Models\ContractTemplate;
 use App\Models\User;
+use App\Services\Contracts\ContractLessonPackageBinder;
 use App\Services\TeamUserSyncService;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -22,13 +24,22 @@ class ContractStoreRequest extends FormRequest
         if ($this->has('group_id') && $this->input('group_id') === '') {
             $this->merge(['group_id' => null]);
         }
+
+        if ($this->has('lesson_package_id') && $this->input('lesson_package_id') === '') {
+            $this->merge(['lesson_package_id' => null]);
+        }
+
+        if (!$this->binder()->canBind($this->user())) {
+            $this->merge(['lesson_package_id' => null]);
+        }
     }
 
     public function rules(): array
     {
         $partnerId = app('current_partner')?->id;
+        $canBindPackage = $this->binder()->canBind($this->user());
 
-        return [
+        $rules = [
             'creation_mode' => [
                 'required',
                 'string',
@@ -56,6 +67,12 @@ class ContractStoreRequest extends FormRequest
                         ->whereNotNull('current_version_id')),
             ],
         ];
+
+        if ($canBindPackage) {
+            $rules['lesson_package_id'] = ['nullable', 'integer', 'min:1'];
+        }
+
+        return $rules;
     }
 
     public function withValidator($validator): void
@@ -89,23 +106,15 @@ class ContractStoreRequest extends FormRequest
                         'У ученика нет групп — поле «Группа» для договора не заполняется.'
                     );
                 }
-
-                return;
+            } elseif (count($teamIds) > 1) {
+                if ($groupId === null || $groupId === '') {
+                    $afterValidator->errors()->add('group_id', 'Выберите группу для договора.');
+                } elseif (! in_array((int) $groupId, $teamIds, true)) {
+                    $afterValidator->errors()->add('group_id', 'Выберите группу из списка групп ученика.');
+                }
             }
 
-            if (count($teamIds) === 1) {
-                return;
-            }
-
-            if ($groupId === null || $groupId === '') {
-                $afterValidator->errors()->add('group_id', 'Выберите группу для договора.');
-
-                return;
-            }
-
-            if (! in_array((int) $groupId, $teamIds, true)) {
-                $afterValidator->errors()->add('group_id', 'Выберите группу из списка групп ученика.');
-            }
+            $this->validateLessonPackageSelection($afterValidator, $partnerId, $userId);
         });
     }
 
@@ -115,6 +124,7 @@ class ContractStoreRequest extends FormRequest
             'creation_mode'          => 'Способ создания',
             'user_id'                => 'Ученик',
             'group_id'               => 'Группа',
+            'lesson_package_id'      => 'Абонемент',
             'pdf'                    => 'PDF-файл договора',
             'contract_template_id'   => 'Шаблон договора',
         ];
@@ -148,6 +158,9 @@ class ContractStoreRequest extends FormRequest
             'group_id.min'     => 'Некорректный формат группы.',
             'group_id.exists'  => 'Выберите группу из списка.',
 
+            'lesson_package_id.integer' => 'Некорректный идентификатор абонемента.',
+            'lesson_package_id.min'     => 'Выберите абонемент.',
+
             'creation_mode.required' => 'Выберите способ создания договора.',
             'creation_mode.in'       => 'Некорректный способ создания договора.',
 
@@ -159,5 +172,52 @@ class ContractStoreRequest extends FormRequest
             'contract_template_id.required_if' => 'Выберите шаблон договора.',
             'contract_template_id.exists'      => 'Шаблон договора не найден или недоступен.',
         ];
+    }
+
+    private function validateLessonPackageSelection($afterValidator, int $partnerId, int $userId): void
+    {
+        $binder = $this->binder();
+        if (!$binder->canBind($this->user())) {
+            return;
+        }
+
+        $packageId = $this->input('lesson_package_id');
+        $packageIdInt = ($packageId !== null && $packageId !== '') ? (int) $packageId : 0;
+
+        if ($packageIdInt > 0) {
+            $package = $binder->resolveSelectablePackage($partnerId, $packageIdInt, $userId);
+            if ($package === null) {
+                $afterValidator->errors()->add('lesson_package_id', 'Выберите абонемент из списка.');
+            }
+        }
+
+        if ((string) $this->input('creation_mode') !== Contract::CREATION_MODE_TEMPLATE) {
+            return;
+        }
+
+        $templateId = (int) $this->input('contract_template_id', 0);
+        if ($templateId <= 0) {
+            return;
+        }
+
+        $template = ContractTemplate::query()
+            ->forPartner($partnerId)
+            ->active()
+            ->whereKey($templateId)
+            ->with('currentVersion')
+            ->first();
+
+        if (!$template || !$binder->templateRequiresPackage($template)) {
+            return;
+        }
+
+        if ($packageIdInt <= 0) {
+            $afterValidator->errors()->add('lesson_package_id', 'Выберите абонемент.');
+        }
+    }
+
+    private function binder(): ContractLessonPackageBinder
+    {
+        return app(ContractLessonPackageBinder::class);
     }
 }

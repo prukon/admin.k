@@ -25,6 +25,7 @@ use Yajra\DataTables\DataTables;
 use App\Services\PartnerContext;
 use App\Services\TeamUserSyncService;
 use App\Support\UserTeamQuery;
+use App\Support\Payments\EmailNewsletterPaymentSource;
 use App\Support\Payments\PaymentTeamTitleDisplay;
 use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
@@ -421,7 +422,8 @@ class PaymentReportController extends AdminBaseController
                 'fiscal_return_receipt.receipt_url as fiscal_return_receipt_url',
                 'fiscal_return_receipt.status as fiscal_return_receipt_status',
                 'pi_tbank.payment_method_webhook as intent_payment_method_webhook',
-                'pi_tbank.payment_method as intent_payment_method_init'
+                'pi_tbank.payment_method as intent_payment_method_init',
+                'pi_tbank.meta as intent_meta'
             )
             ->addSelect([
                 'latest_refund_status' => Refund::query()
@@ -884,6 +886,9 @@ SQL;
                     default => $code,
                 };
             })
+            ->addColumn('email_newsletter', function (Payment $row) {
+                return EmailNewsletterPaymentSource::labelFromMeta($row->intent_meta ?? null);
+            })
             ->addColumn('receipt_url', function (Payment $row) {
                 $receiptUrl = trim((string) ($row->fiscal_income_receipt_url ?? ''));
                 if ($receiptUrl === '' || !str_starts_with($receiptUrl, 'https://receipts.ru/')) {
@@ -962,6 +967,11 @@ SQL;
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $expr = $this->sqlPaymentsReportPayoutDisplayDatetimeNullable($partnerId);
                 $query->orderByRaw("({$expr}) IS NULL ASC");
+                $query->orderByRaw("({$expr}) {$dir}");
+            })
+            ->orderColumn('email_newsletter', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $expr = EmailNewsletterPaymentSource::sqlFlagExpr('pi_tbank.meta');
                 $query->orderByRaw("({$expr}) {$dir}");
             })
             ->addColumn('payout_amount', function (Payment $row) use ($partnerId, $canPayoutColumn) {
@@ -1414,6 +1424,12 @@ SQL;
                     });
             });
         }
+
+        EmailNewsletterPaymentSource::applyQueryFilter(
+            $paymentsQuery,
+            $request->query('email_newsletter'),
+            'pi_tbank.meta'
+        );
 
         if ($request->filled('payment_refund_status')) {
             $s = (string) $request->query('payment_refund_status');

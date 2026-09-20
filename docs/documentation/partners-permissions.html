@@ -168,6 +168,13 @@
         <a href="/docs/documentation/contracts#contract-list-fill-expires-at">contracts §1.4</a>,
         анонс <a href="/doc#contract-list-fill-expires-at-index">/doc</a>,
         остаток дней <a href="/doc#contract-list-number-and-fill-remaining-index">/doc</a>;</li>
+      <li><code>contracts.lessonPackage.bind</code> — выбор абонемента при создании договора (каталог + снимок)
+        и блок «Для договора» на шаблоне абонемента (неделя/месяц/минуты/цена занятия);
+        скрытое (<code>is_visible=0</code>); не в базовых ролях; миграция без выдачи;
+        <a href="/docs/documentation/contracts#contract-lesson-package-bind">contracts §5.1.1</a>,
+        <a href="/docs/documentation/lesson-packages#contract-fields">lesson-packages §contract-fields</a>,
+        анонс <a href="/doc#contract-lesson-package-bind-index">/doc</a>,
+        анонс полей шаблона <a href="/doc#lesson-package-contract-fields-index">/doc</a>;</li>
       <li><code>reports.payments.commission_total.view</code> — отчёт «Платежи»: колонка «Комиссия» (сводно);
         скрытое (<code>is_visible=0</code>); не в базовых ролях; строка в конфиге закомментирована;
         миграция hide не трогает <code>permission_role</code> —

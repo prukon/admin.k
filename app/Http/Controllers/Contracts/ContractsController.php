@@ -7,12 +7,12 @@ use App\Http\Requests\Contracts\ContractCheckBalanceRequest;
 use App\Http\Requests\Contracts\ContractStoreRequest;
 use App\Http\Requests\Contracts\FilterRequest;
 use App\Models\Contract;
-use App\Models\ContractTemplate;
 use App\Models\Partner;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\Contracts\ContractBillingService;
 use App\Services\Contracts\ContractCreationService;
+use App\Services\Contracts\ContractLessonPackageBinder;
 use App\Services\TeamUserSyncService;
 use App\Support\BuildsLogTable;
 use Illuminate\Http\Request;
@@ -30,6 +30,7 @@ class ContractsController extends Controller
         private readonly ContractCreationService $creationService,
         private readonly ContractBillingService $billing,
         private readonly TeamUserSyncService $teamUserSync,
+        private readonly ContractLessonPackageBinder $lessonPackageBinder,
     ) {
     }
 
@@ -120,12 +121,7 @@ class ContractsController extends Controller
             }
         }
 
-        $contractTemplates = ContractTemplate::query()
-            ->forPartner($partnerId)
-            ->active()
-            ->whereNotNull('current_version_id')
-            ->orderBy('title')
-            ->get(['id', 'title']);
+        $contractTemplates = $this->lessonPackageBinder->activeTemplatesForPartner($partnerId);
 
         return compact('partner', 'partnerId', 'preselectedUser', 'contractTemplates');
     }

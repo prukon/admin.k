@@ -72,6 +72,20 @@ class UpdateRequest extends FormRequest
             ]);
         }
 
+        if ($this->has('passport') && is_string($this->input('passport'))) {
+            $passport = trim($this->input('passport'));
+            $this->merge([
+                'passport' => $passport !== '' ? $passport : null,
+            ]);
+        }
+
+        if ($this->has('passport_issued_at') && is_string($this->input('passport_issued_at'))) {
+            $issuedAt = trim($this->input('passport_issued_at'));
+            $this->merge([
+                'passport_issued_at' => $issuedAt !== '' ? $issuedAt : null,
+            ]);
+        }
+
         if ($this->user()?->can('users.full_name_genitive')) {
             if ($this->has('full_name_genitive') && is_string($this->input('full_name_genitive'))) {
                 $genitive = trim($this->input('full_name_genitive'));
@@ -130,6 +144,8 @@ class UpdateRequest extends FormRequest
             // 2FA (булево)
             'two_factor_enabled' => ['nullable', 'boolean'],
             'address' => ['nullable', 'string', 'max:1000'],
+            'passport' => ['nullable', 'string', 'max:100'],
+            'passport_issued_at' => ['nullable', 'date', 'before_or_equal:today'],
         ];
 
         $rules = array_merge($rules, $this->studentParentRules());
@@ -316,6 +332,8 @@ class UpdateRequest extends FormRequest
             'email' => 'Email',
             'phone' => 'Телефон',
             'address' => 'Адрес проживания',
+            'passport' => 'Паспорт/св-во о рождении',
+            'passport_issued_at' => 'Дата выдачи паспорта/св-ва',
             'is_enabled' => 'Активность',
             'role_id' => 'Роль',
             'two_factor_enabled' => 'Двухфакторная аутентификация',
@@ -369,6 +387,11 @@ class UpdateRequest extends FormRequest
             // Адрес проживания ученика
             'address.string' => 'Поле «Адрес проживания» должно быть строкой.',
             'address.max' => 'Поле «Адрес проживания» не должно превышать :max символов.',
+
+            'passport.string' => 'Поле «Паспорт/св-во о рождении» должно быть строкой.',
+            'passport.max' => 'Поле «Паспорт/св-во о рождении» не должно превышать :max символов.',
+            'passport_issued_at.date' => 'Поле «Дата выдачи паспорта/св-ва» должно быть корректной датой.',
+            'passport_issued_at.before_or_equal' => 'Поле «Дата выдачи паспорта/св-ва» не может быть позднее сегодняшнего дня.',
 
             // Активность
             'is_enabled.boolean' => 'Поле "Активность" должно быть истинным или ложным.',

@@ -8,7 +8,6 @@ use App\Http\Requests\User\FilterRequest;
 use App\Http\Requests\User\StoreRequest;
 use App\Http\Requests\User\UpdatePasswordRequest;
 use App\Models\Contract;
-use App\Models\ContractTemplate;
 use App\Models\ParentProfile;
 use App\Models\Role;
 use App\Models\SchoolLead;
@@ -16,6 +15,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Models\UserTableSetting;
 use App\Services\Contracts\ContractCreationService;
+use App\Services\Contracts\ContractLessonPackageBinder;
 use App\Services\PartnerContext;
 use Illuminate\Http\Request;
 use App\Models\UserField;
@@ -59,6 +59,7 @@ class UserController extends AdminBaseController
         private readonly ClientWelcomeCredentialsService $welcomeCredentialsService,
         private readonly FamilyStudentLoginResolver $familyStudentLoginResolver,
         private readonly ContractCreationService $contractCreationService,
+        private readonly ContractLessonPackageBinder $lessonPackageBinder,
     )
     {
         parent::__construct($partnerContext); // <-- КРИТИЧЕСКИЙ МОМЕНТ
@@ -132,12 +133,7 @@ class UserController extends AdminBaseController
 
         if ($canViewContracts && $partnerId) {
             $viewData['contractCreatePartner'] = app('current_partner');
-            $viewData['contractTemplates'] = ContractTemplate::query()
-                ->forPartner((int) $partnerId)
-                ->active()
-                ->whereNotNull('current_version_id')
-                ->orderBy('title')
-                ->get(['id', 'title']);
+            $viewData['contractTemplates'] = $this->lessonPackageBinder->activeTemplatesForPartner((int) $partnerId);
         }
 
         // 6) Отдаём на view
@@ -431,7 +427,10 @@ class UserController extends AdminBaseController
 
         $sendContract = $schoolLeadId && $request->boolean('send_contract');
         $contractTemplateId = (int) ($validatedData['contract_template_id'] ?? 0);
-        unset($validatedData['send_contract'], $validatedData['contract_template_id']);
+        $contractLessonPackageId = isset($validatedData['lesson_package_id']) && $validatedData['lesson_package_id'] !== null
+            ? (int) $validatedData['lesson_package_id']
+            : null;
+        unset($validatedData['send_contract'], $validatedData['contract_template_id'], $validatedData['lesson_package_id']);
 
         $sendWelcomeEmail = $schoolLeadId
             || !empty($validatedData['send_welcome_email']);
@@ -510,7 +509,8 @@ class UserController extends AdminBaseController
             $customInput,
             $editableSlugSet,
             $sendContract,
-            $contractTemplateId
+            $contractTemplateId,
+            $contractLessonPackageId
         ) {
             // Создаём пользователя через доменный сервис
             $user = $this->service->store($data);
@@ -584,6 +584,7 @@ class UserController extends AdminBaseController
                     'creation_mode'         => Contract::CREATION_MODE_TEMPLATE,
                     'contract_template_id' => $contractTemplateId,
                     'group_id'             => $groupId,
+                    'lesson_package_id'    => $contractLessonPackageId,
                 ]);
             }
         });
@@ -789,6 +790,10 @@ class UserController extends AdminBaseController
             // Нормализуем birthday под <input type="date">
             $userArray['birthday'] = $user->birthday
                 ? $user->birthday->format('Y-m-d')
+                : null;
+
+            $userArray['passport_issued_at'] = $user->passport_issued_at
+                ? $user->passport_issued_at->format('Y-m-d')
                 : null;
 
             if (!$canViewUserSex) {

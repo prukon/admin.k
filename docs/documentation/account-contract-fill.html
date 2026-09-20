@@ -374,7 +374,7 @@
 
   <h3 id="fill-legal-entity">2.5) Реквизиты юрлица и <code>child_address</code></h3>
   <div class="note">
-    Ключи <code>legal_entity_*</code> из схемы шаблона <b>не</b> показываются в форме родителя (<code>fill_mode=system</code>).
+    Ключи <code>legal_entity_*</code> и <code>package_*</code> из схемы шаблона <b>не</b> показываются в форме родителя (<code>fill_mode=system</code>).
     При generate их значения мержатся из юрлица группы договора (<code>contracts.group_id</code> → <code>LegalEntityResolver</code>)
     через <code>ContractLegalEntityPlaceholderService</code> / <code>ContractTemplateSystemPlaceholders</code>
     и попадают в <code>filled_data</code> и PDF.<br><br>
@@ -455,7 +455,7 @@
 
   <h2>4) Валидация generate</h2>
   <p><code>AccountContractGenerateRequest</code>: обязательные поля по <code>required</code> в схеме; системные поля
-  (<code>contract_date</code>, <code>contract_id</code>, <code>legal_entity_*</code>…) не показываются родителю.
+  (<code>contract_date</code>, <code>contract_id</code>, <code>legal_entity_*</code>, <code>package_*</code>…) не показываются родителю.
   Форма с <code>novalidate</code>, без HTML5 <code>required</code> (звёздочка в label остаётся).
   Ошибки валидации полей — JSON/redirect с ключами <code>fields.{key}</code>, подпись в тексте — как в форме
   (<code>fillFormFieldLabel</code>); в модалке выводятся <b>под соответствующим полем</b>

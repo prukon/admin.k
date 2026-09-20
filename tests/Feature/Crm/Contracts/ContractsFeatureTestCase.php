@@ -20,6 +20,8 @@ abstract class ContractsFeatureTestCase extends CrmTestCase
 
     protected const PERM_CONTRACTS_FILL_EXPIRES_AT = 'contracts.fillExpiresAt.view';
 
+    protected const PERM_CONTRACTS_LESSON_PACKAGE_BIND = 'contracts.lessonPackage.bind';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -147,6 +149,15 @@ abstract class ContractsFeatureTestCase extends CrmTestCase
         @unlink($path);
 
         return $bytes;
+    }
+
+    protected function grantLessonPackageBindPermission(?int $roleId = null): void
+    {
+        $this->grantPermissionToRoleForPartner(
+            $roleId ?? (int) $this->user->role_id,
+            $this->partner->id,
+            self::PERM_CONTRACTS_LESSON_PACKAGE_BIND
+        );
     }
 }
 

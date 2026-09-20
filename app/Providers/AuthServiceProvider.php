@@ -358,6 +358,12 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('contracts.fillExpiresAt.view');
         });
 
+        // Договоры: выбор абонемента при создании. Скрытое, никому не выдаётся.
+        // Superadmin проходит Gate::before.
+        Gate::define('contracts.lessonPackage.bind', function (User $user) {
+            return $user->hasPermission('contracts.lessonPackage.bind');
+        });
+
         // Страница "Настройки
         Gate::define('settings.view', function (User $user) {
             return $user->hasPermission('settings.view');

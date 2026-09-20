@@ -148,10 +148,17 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
     {
         $this->asSuperadmin();
 
-        $this->get('/admin/tinkoff/payments/' . $this->payment->id)
+        $html = $this->get('/admin/tinkoff/payments/' . $this->payment->id)
             ->assertOk()
             ->assertSee('Организация:', false)
-            ->assertSee('Организация: <strong>—</strong>', false);
+            ->getContent();
+
+        $this->assertIsString($html);
+        $this->assertMatchesRegularExpression(
+            '/Организация:\s*<strong>\s*—\s*<\/strong>/u',
+            $html,
+            'Без legal_entity_id строка «Организация» должна показывать «—», без требования одной HTML-строки'
+        );
     }
 
     public function test_show_timeline_renders_all_steps_and_done_states_without_payout(): void

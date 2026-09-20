@@ -335,6 +335,10 @@ final class ContractsPageFullAccessFeatureTest extends ContractsFeatureTestCase
                     'data'   => [],
                 ],
                 [
+                    'method' => 'GET',
+                    'url'    => route('contracts.user.packages', ['user_id' => $this->contract->user_id]),
+                ],
+                [
                     'method' => 'POST',
                     'url'    => route('contracts.store'),
                     'data'   => [
@@ -418,10 +422,10 @@ final class ContractsPageFullAccessFeatureTest extends ContractsFeatureTestCase
                 'method' => 'GET',
                 'url'    => route('contracts.users.search', ['q' => 'test']),
             ],
-            [
-                'method' => 'GET',
-                'url'    => route('contracts.user.group', ['user_id' => $contract->user_id]),
-            ],
+                [
+                    'method' => 'GET',
+                    'url'    => route('contracts.user.group', ['user_id' => $contract->user_id]),
+                ],
         ];
     }
 

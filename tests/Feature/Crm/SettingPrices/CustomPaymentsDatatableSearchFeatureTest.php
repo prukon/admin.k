@@ -60,14 +60,14 @@ final class CustomPaymentsDatatableSearchFeatureTest extends CrmTestCase
             'title' => 'ГруппаБетаCpSearch',
         ]);
 
-        $this->studentAlpha = User::factory()->create([
+        $this->studentAlpha = User::factory()->withoutTeam()->create([
             'partner_id' => $this->partner->id,
             'role_id' => $this->roleId('user'),
             'is_enabled' => true,
             'lastname' => 'УникаловCp',
             'name' => 'Иван',
         ]);
-        $this->studentBeta = User::factory()->create([
+        $this->studentBeta = User::factory()->withoutTeam()->create([
             'partner_id' => $this->partner->id,
             'role_id' => $this->roleId('user'),
             'is_enabled' => true,
@@ -184,14 +184,14 @@ final class CustomPaymentsDatatableSearchFeatureTest extends CrmTestCase
 
     public function test_search_by_firstname_finds_row(): void
     {
-        $hit = User::factory()->create([
+        $hit = User::factory()->withoutTeam()->create([
             'partner_id' => $this->partner->id,
             'role_id' => $this->roleId('user'),
             'is_enabled' => true,
             'lastname' => 'СидоровCpDt',
             'name' => 'УникИмяCpDt',
         ]);
-        $miss = User::factory()->create([
+        $miss = User::factory()->withoutTeam()->create([
             'partner_id' => $this->partner->id,
             'role_id' => $this->roleId('user'),
             'is_enabled' => true,
@@ -225,7 +225,7 @@ final class CustomPaymentsDatatableSearchFeatureTest extends CrmTestCase
 
     public function test_search_by_full_name_finds_row(): void
     {
-        $hit = User::factory()->create([
+        $hit = User::factory()->withoutTeam()->create([
             'partner_id' => $this->partner->id,
             'role_id' => $this->roleId('user'),
             'is_enabled' => true,
@@ -343,7 +343,7 @@ final class CustomPaymentsDatatableSearchFeatureTest extends CrmTestCase
             'partner_id' => $this->foreignPartner->id,
             'title' => 'ЧужаяГруппаCpSearch',
         ]);
-        $foreignStudent = User::factory()->create([
+        $foreignStudent = User::factory()->withoutTeam()->create([
             'partner_id' => $this->foreignPartner->id,
             'role_id' => $this->roleId('user'),
             'is_enabled' => true,

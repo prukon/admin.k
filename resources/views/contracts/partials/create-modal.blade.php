@@ -58,6 +58,19 @@
                                  data-field-error="group_id">@error('group_id'){{ $message }}@enderror</div>
                         </div>
 
+                        @can('contracts.lessonPackage.bind')
+                            <div class="col-12" id="block-lesson-package">
+                                <label class="form-label" for="lesson_package_id">Абонемент</label>
+                                <select name="lesson_package_id"
+                                        id="lesson_package_id"
+                                        class="form-select @error('lesson_package_id') is-invalid @enderror">
+                                    <option value="">—</option>
+                                </select>
+                                <div class="field-error-msg text-danger small mt-1"
+                                     data-field-error="lesson_package_id">@error('lesson_package_id'){{ $message }}@enderror</div>
+                            </div>
+                        @endcan
+
                         <div class="col-12">
                             <label class="form-label">Партнёр</label>
                             <input type="text" class="form-control" value="{{ $partner->title ?? '—' }}" disabled>
@@ -106,6 +119,7 @@
                                     @endunless
                                     @foreach($contractTemplates as $tpl)
                                         <option value="{{ $tpl->id }}"
+                                            data-requires-lesson-package="{{ !empty($tpl->requires_lesson_package) ? '1' : '0' }}"
                                             @selected(
                                                 $oldContractTemplateId !== null
                                                     ? (int) $oldContractTemplateId === (int) $tpl->id
@@ -289,6 +303,9 @@
     <script>
         (function () {
             const hasContractTemplates = @json($contractTemplates->isNotEmpty());
+            const canBindLessonPackage = @json(auth()->user()?->can('contracts.lessonPackage.bind') ?? false);
+            const oldLessonPackageId = @json(old('lesson_package_id'));
+            const userPackagesUrl = @json(route('contracts.user.packages'));
             const preselectedUser = @json($preselectedUser);
             const shouldOpenCreateModal = @json($shouldOpenCreateModal ?? false);
             const createModalEl = document.getElementById('createContractModal');
@@ -323,6 +340,11 @@
 
                 if (fieldName === 'group_id') {
                     $('#group_id_select').toggleClass('is-invalid', isInvalid);
+                    return;
+                }
+
+                if (fieldName === 'lesson_package_id') {
+                    $('#lesson_package_id').toggleClass('is-invalid', isInvalid);
                     return;
                 }
 
@@ -400,6 +422,15 @@
                         showContractCreateFieldError('contract_template_id', 'Выберите шаблон договора.');
                         valid = false;
                         firstInvalidField = firstInvalidField || 'contract_template_id';
+                    }
+                }
+
+                if (selectedTemplateRequiresLessonPackage()) {
+                    const packageId = $('#lesson_package_id').val();
+                    if (!packageId || String(packageId).trim() === '') {
+                        showContractCreateFieldError('lesson_package_id', 'Выберите абонемент.');
+                        valid = false;
+                        firstInvalidField = firstInvalidField || 'lesson_package_id';
                     }
                 }
 
@@ -501,6 +532,95 @@
                     });
             }
 
+            function selectedTemplateRequiresLessonPackage() {
+                if (!canBindLessonPackage) {
+                    return false;
+                }
+
+                const mode = $('input[name="creation_mode"]:checked').val();
+                if (mode !== 'template') {
+                    return false;
+                }
+
+                const $option = $('#contract_template_id option:selected');
+                if (!$option.length || !$option.val()) {
+                    return false;
+                }
+
+                return String($option.attr('data-requires-lesson-package') || '') === '1';
+            }
+
+            function resetLessonPackageSelect() {
+                const $select = $('#lesson_package_id');
+                if (!$select.length) {
+                    return;
+                }
+
+                $select.empty().append(new Option('—', '', true, true));
+                $select.val('');
+                clearContractCreateFieldError('lesson_package_id');
+            }
+
+            function applyLessonPackagesToForm(payload, preferredId) {
+                const $select = $('#lesson_package_id');
+                if (!$select.length) {
+                    return;
+                }
+
+                const packages = (payload && Array.isArray(payload.packages)) ? payload.packages : [];
+                const assignedId = payload && payload.selected_id ? String(payload.selected_id) : '';
+                let chosen = '';
+
+                if (preferredId !== undefined && preferredId !== null && String(preferredId).trim() !== '') {
+                    chosen = String(preferredId);
+                } else if (assignedId !== '') {
+                    chosen = assignedId;
+                }
+
+                $select.empty();
+                $select.append(new Option('—', '', chosen === '', chosen === ''));
+
+                packages.forEach(function (item) {
+                    const id = String(item.id);
+                    const label = item.label || item.name || id;
+                    $select.append(new Option(label, id, id === chosen, id === chosen));
+                });
+
+                if (chosen !== '' && $select.find('option[value="' + chosen + '"]').length === 0) {
+                    $select.val('');
+                }
+
+                clearContractCreateFieldError('lesson_package_id');
+            }
+
+            let lessonPackagesRequestSeq = 0;
+
+            function fetchAndApplyStudentPackages(userId, preferredId) {
+                if (!canBindLessonPackage) {
+                    return;
+                }
+
+                if (!userId) {
+                    resetLessonPackageSelect();
+                    return;
+                }
+
+                const seq = ++lessonPackagesRequestSeq;
+                $.getJSON(userPackagesUrl, {user_id: userId})
+                    .done(function (resp) {
+                        if (seq !== lessonPackagesRequestSeq) {
+                            return;
+                        }
+                        applyLessonPackagesToForm(resp || {}, preferredId);
+                    })
+                    .fail(function () {
+                        if (seq !== lessonPackagesRequestSeq) {
+                            return;
+                        }
+                        resetLessonPackageSelect();
+                    });
+            }
+
             function initContractUserSelect2() {
                 const $userSelect = $('#user_id');
                 if (!$userSelect.length) {
@@ -538,6 +658,7 @@
 
                     setParentFullNameDisplay(d.parent_full_name);
                     fetchAndApplyStudentGroups(d.id, d.groups);
+                    fetchAndApplyStudentPackages(d.id);
                 });
 
                 $userSelect.on('select2:clear.contractCreate', function () {
@@ -545,6 +666,7 @@
 
                     setParentFullNameDisplay('');
                     applyStudentGroupsToForm([]);
+                    resetLessonPackageSelect();
                 });
             }
 
@@ -564,6 +686,10 @@
                 fetchAndApplyStudentGroups(
                     activePreselectedUser.id,
                     activePreselectedUser.groups || null
+                );
+                fetchAndApplyStudentPackages(
+                    activePreselectedUser.id,
+                    shouldOpenCreateModal ? oldLessonPackageId : null
                 );
             }
 
@@ -605,13 +731,17 @@
                 const isTemplate = mode === @json(\App\Models\Contract::CREATION_MODE_TEMPLATE);
                 const confirmMessage = isTemplate
                     ? (
-                        'Изменить шаблон договора и ученика после создания договора будет нельзя.<br>' +
+                        (canBindLessonPackage
+                            ? 'Изменить шаблон договора, ученика и абонемент после создания договора будет нельзя.<br>'
+                            : 'Изменить шаблон договора и ученика после создания договора будет нельзя.<br>') +
                         'Срок для подписания договора {{ (int) \App\Models\Contract::FILL_TTL_DAYS }} дней. После истечения срока договор подписать будет нельзя.<br>' +
                         '<span class="fw-semibold">Стоимость создания договора 70&nbsp;руб.</span><br>' +
                         'Создать договор?<br>'
                     )
                     : (
-                        'Изменить файл и ученика после создания договора будет нельзя.<br>' +
+                        (canBindLessonPackage
+                            ? 'Изменить файл, ученика и абонемент после создания договора будет нельзя.<br>'
+                            : 'Изменить файл и ученика после создания договора будет нельзя.<br>') +
                         '<span class="fw-semibold">Стоимость создания договора 70&nbsp;руб.</span><br>' +
                         'Создать договор?<br>'
                     );
@@ -682,6 +812,7 @@
                 activePreselectedUser = null;
 
                 applyStudentGroupsToForm([]);
+                resetLessonPackageSelect();
                 setParentFullNameDisplay('');
                 $('#block-template').hide();
                 $('#block-pdf').show();
@@ -766,6 +897,10 @@
                 });
                 $('#contract_template_id').on('change', function () {
                     clearContractCreateFieldError('contract_template_id');
+                    clearContractCreateFieldError('lesson_package_id');
+                });
+                $('#lesson_package_id').on('change', function () {
+                    clearContractCreateFieldError('lesson_package_id');
                 });
                 $('#btn-save').on('click', onSaveClick);
 

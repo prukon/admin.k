@@ -11,6 +11,7 @@ class ContractTemplateSystemPlaceholders
 {
     public function __construct(
         private readonly ContractLegalEntityPlaceholderService $legalEntityPlaceholders,
+        private readonly ContractLessonPackageBinder $lessonPackageBinder,
     ) {
     }
 
@@ -26,6 +27,7 @@ class ContractTemplateSystemPlaceholders
                 'contract_date' => now()->format('d.m.Y'),
             ],
             $this->legalEntityPlaceholders->valuesForContract($contract),
+            $this->lessonPackageBinder->placeholderValuesForContract($contract),
         );
     }
 

@@ -92,6 +92,24 @@
                                 <input class="form-check-input column-toggle" type="checkbox" data-column-key="price_label" id="colLessonPackagePrice" checked>
                                 <label class="form-check-label" for="colLessonPackagePrice">Стоимость</label>
                             </div>
+                            @can('contracts.lessonPackage.bind')
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle" type="checkbox" data-column-key="lessons_per_week" id="colLessonPackageLessonsPerWeek" checked>
+                                <label class="form-check-label" for="colLessonPackageLessonsPerWeek">Занятий в неделю</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle" type="checkbox" data-column-key="lessons_per_month" id="colLessonPackageLessonsPerMonth" checked>
+                                <label class="form-check-label" for="colLessonPackageLessonsPerMonth">Занятий в месяц</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle" type="checkbox" data-column-key="lesson_duration_minutes" id="colLessonPackageLessonDuration" checked>
+                                <label class="form-check-label" for="colLessonPackageLessonDuration">Длительность (мин)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle" type="checkbox" data-column-key="lesson_price_label" id="colLessonPackageLessonPrice" checked>
+                                <label class="form-check-label" for="colLessonPackageLessonPrice">Стоимость занятия</label>
+                            </div>
+                            @endcan
                             @can('scheduleSlots.view')
                             <div class="form-check">
                                 <input class="form-check-input column-toggle" type="checkbox" data-column-key="freeze_label" id="colLessonPackageFreeze" checked>
@@ -159,6 +177,12 @@
                 @endcan
                 <th>Занятий</th>
                 <th>Стоимость</th>
+                @can('contracts.lessonPackage.bind')
+                    <th>Занятий в неделю</th>
+                    <th>Занятий в месяц</th>
+                    <th>Длительность (мин)</th>
+                    <th>Стоимость занятия</th>
+                @endcan
                 @can('scheduleSlots.view')
                     <th>Заморозка</th>
                 @endcan
@@ -219,6 +243,37 @@
                                 <input type="number" name="create[price]" class="form-control" min="0" max="99999999.99" step="0.01" value="0" required>
                                 <div class="invalid-feedback d-none" data-error-for="create[price]"></div>
                             </div>
+
+                            @can('contracts.lessonPackage.bind')
+                            <div class="col-12" id="create_contract_fields_section">
+                                <div class="rounded border bg-light p-3">
+                                    <div class="fw-semibold mb-1">Для договора</div>
+                                    <div class="form-text mb-3">Не влияют на календарь и списание занятий. Понадобятся для подстановки в договор.</div>
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="create_lessons_per_week">Кол-во занятий в неделю</label>
+                                            <input type="number" name="create[lessons_per_week]" id="create_lessons_per_week" class="form-control" min="1" max="100">
+                                            <div class="invalid-feedback d-none" data-error-for="create[lessons_per_week]"></div>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="create_lessons_per_month">Кол-во занятий в месяц</label>
+                                            <input type="number" name="create[lessons_per_month]" id="create_lessons_per_month" class="form-control" min="1" max="1000">
+                                            <div class="invalid-feedback d-none" data-error-for="create[lessons_per_month]"></div>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="create_lesson_duration_minutes">Длительность занятий (мин)</label>
+                                            <input type="number" name="create[lesson_duration_minutes]" id="create_lesson_duration_minutes" class="form-control" min="1" max="1440">
+                                            <div class="invalid-feedback d-none" data-error-for="create[lesson_duration_minutes]"></div>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="create_lesson_price">Стоимость одного занятия (руб.)</label>
+                                            <input type="number" name="create[lesson_price]" id="create_lesson_price" class="form-control" min="0" max="99999999.99" step="0.01">
+                                            <div class="invalid-feedback d-none" data-error-for="create[lesson_price]"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endcan
 
                             @can('scheduleSlots.view')
                             <div class="col-12" id="create_freeze_section">
@@ -317,6 +372,37 @@
                                 <div class="invalid-feedback d-none" data-error-for="edit[price]"></div>
                             </div>
 
+                            @can('contracts.lessonPackage.bind')
+                            <div class="col-12" id="edit_contract_fields_section">
+                                <div class="rounded border bg-light p-3">
+                                    <div class="fw-semibold mb-1">Для договора</div>
+                                    <div class="form-text mb-3">Не влияют на календарь и списание занятий. Понадобятся для подстановки в договор.</div>
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="edit_lessons_per_week">Кол-во занятий в неделю</label>
+                                            <input type="number" name="edit[lessons_per_week]" id="edit_lessons_per_week" class="form-control" min="1" max="100">
+                                            <div class="invalid-feedback d-none" data-error-for="edit[lessons_per_week]"></div>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="edit_lessons_per_month">Кол-во занятий в месяц</label>
+                                            <input type="number" name="edit[lessons_per_month]" id="edit_lessons_per_month" class="form-control" min="1" max="1000">
+                                            <div class="invalid-feedback d-none" data-error-for="edit[lessons_per_month]"></div>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="edit_lesson_duration_minutes">Длительность занятий (мин)</label>
+                                            <input type="number" name="edit[lesson_duration_minutes]" id="edit_lesson_duration_minutes" class="form-control" min="1" max="1440">
+                                            <div class="invalid-feedback d-none" data-error-for="edit[lesson_duration_minutes]"></div>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="edit_lesson_price">Стоимость одного занятия (руб.)</label>
+                                            <input type="number" name="edit[lesson_price]" id="edit_lesson_price" class="form-control" min="0" max="99999999.99" step="0.01">
+                                            <div class="invalid-feedback d-none" data-error-for="edit[lesson_price]"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endcan
+
                             @can('scheduleSlots.view')
                             <div class="col-12" id="edit_freeze_section">
                                 <div class="form-check">
@@ -388,6 +474,7 @@
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                 const canManagePackages = @json(auth()->user()->can('lessonPackages.view'));
                 const canViewScheduleSlots = @json(auth()->user()->can('scheduleSlots.view'));
+                const canBindLessonPackage = @json(auth()->user()->can('contracts.lessonPackage.bind'));
 
                 function clearErrors(modalEl) {
                     modalEl.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
@@ -407,6 +494,13 @@
                     }
                 }
 
+                function fillOptionalNumber(input, value) {
+                    if (!input) {
+                        return;
+                    }
+                    input.value = (value !== undefined && value !== null && value !== '') ? value : '';
+                }
+
                 function normalizePayload(formData, prefix) {
                     const scheduleType = (formData.get(prefix + '[schedule_type]') || '').toString();
                     return {
@@ -415,6 +509,10 @@
                         duration_days: (formData.get(prefix + '[duration_days]') || '').toString(),
                         lessons_count: (formData.get(prefix + '[lessons_count]') || '').toString(),
                         price: (formData.get(prefix + '[price]') || '').toString(),
+                        lessons_per_week: (formData.get(prefix + '[lessons_per_week]') || '').toString(),
+                        lessons_per_month: (formData.get(prefix + '[lessons_per_month]') || '').toString(),
+                        lesson_duration_minutes: (formData.get(prefix + '[lesson_duration_minutes]') || '').toString(),
+                        lesson_price: (formData.get(prefix + '[lesson_price]') || '').toString(),
                         freeze_enabled: formData.get(prefix + '[freeze_enabled]') ? 1 : 0,
                         freeze_days: (formData.get(prefix + '[freeze_days]') || '').toString(),
                         auto_attendance_enabled: formData.get(prefix + '[auto_attendance_enabled]') ? 1 : 0,
@@ -485,6 +583,12 @@
                             ...(canViewScheduleSlots ? { duration_days: true } : {}),
                             lessons_count: true,
                             price_label: true,
+                            ...(canBindLessonPackage ? {
+                                lessons_per_week: true,
+                                lessons_per_month: true,
+                                lesson_duration_minutes: true,
+                                lesson_price_label: true,
+                            } : {}),
                             ...(canViewScheduleSlots ? { freeze_label: true } : {}),
                             ...(canManagePackages ? { actions: true } : {}),
                         },
@@ -542,6 +646,38 @@
                             data: 'price_label',
                             name: 'price_label',
                             className: 'text-end text-nowrap',
+                        },
+                        {
+                            key: 'lessons_per_week',
+                            type: 'count',
+                            data: 'lessons_per_week_label',
+                            name: 'lessons_per_week',
+                            className: 'text-center',
+                            when: canBindLessonPackage,
+                        },
+                        {
+                            key: 'lessons_per_month',
+                            type: 'count',
+                            data: 'lessons_per_month_label',
+                            name: 'lessons_per_month',
+                            className: 'text-center',
+                            when: canBindLessonPackage,
+                        },
+                        {
+                            key: 'lesson_duration_minutes',
+                            type: 'count',
+                            data: 'lesson_duration_minutes_label',
+                            name: 'lesson_duration_minutes',
+                            className: 'text-center',
+                            when: canBindLessonPackage,
+                        },
+                        {
+                            key: 'lesson_price_label',
+                            type: 'text',
+                            data: 'lesson_price_label',
+                            name: 'lesson_price_label',
+                            className: 'text-end text-nowrap',
+                            when: canBindLessonPackage,
                         },
                         {
                             key: 'freeze_label',
@@ -964,6 +1100,10 @@
                         }
                         editModalEl.querySelector('[name="edit[lessons_count]"]').value = lp.lessons_count || 8;
                         editModalEl.querySelector('[name="edit[price]"]').value = (lp.price !== undefined && lp.price !== null) ? lp.price : 0;
+                        fillOptionalNumber(editModalEl.querySelector('[name="edit[lessons_per_week]"]'), lp.lessons_per_week);
+                        fillOptionalNumber(editModalEl.querySelector('[name="edit[lessons_per_month]"]'), lp.lessons_per_month);
+                        fillOptionalNumber(editModalEl.querySelector('[name="edit[lesson_duration_minutes]"]'), lp.lesson_duration_minutes);
+                        fillOptionalNumber(editModalEl.querySelector('[name="edit[lesson_price]"]'), lp.lesson_price);
 
                         if (editFreezeEnabled) {
                             editFreezeEnabled.checked = !!lp.freeze_enabled;

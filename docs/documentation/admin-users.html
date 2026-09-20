@@ -36,6 +36,7 @@
     <a href="/doc#users-sticky-header-index">шапка и горизонтальный скролл на экране</a>,
     <a href="/doc#users-import-parent-fill-index">дозапись родителя при импорте Excel</a>,
     <a href="/doc#users-contract-create-index">создать договор со списка клиентов</a>,
+    <a href="/doc#user-student-passport-index">паспорт / св-во ученика</a>,
     <a href="/doc#contract-annul-after-send-index">аннулирование sent/opened</a>.
   </div>
 
@@ -957,6 +958,62 @@
     Автопролонг: <code>FixedLessonPackageAutoProlongFeatureTest</code> (новый цикл = текущий % карточки × цена шаблона).
   </p>
 
+  <h2 id="user-student-passport">2.7) Паспорт / св-во о рождении ученика</h2>
+  <div class="note">
+    Отдельные поля на карточке <b>ученика</b> (таблица <code>users</code>), не паспорт родителя.
+    Родительский паспорт по-прежнему: <code>parents.passport</code> / <code>parents.passport_issued</code>
+    (форма <code>parent_passport</code> / <code>parent_passport_issued</code>, §<a href="#user-parent">2.1</a>).
+    Анонс: <a href="/doc#user-student-passport-index">/doc</a>.
+  </div>
+
+  <h3>2.7.1) БД и валидация</h3>
+  <table>
+    <thead><tr><th>Что</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td>Колонки</td><td><code>users.passport</code> — <code>string(100)</code>, nullable;
+        <code>users.passport_issued_at</code> — <code>date</code>, nullable;
+        миграция <code>2026_09_19_184800_add_passport_fields_to_users_table</code></td></tr>
+      <tr><td>Форма</td><td><code>name="passport"</code> / <code>name="passport_issued_at"</code>;
+        id <code>create-passport</code> / <code>edit-passport</code>,
+        <code>create-passport-issued-at</code> / <code>edit-passport-issued-at</code>;
+        maxlength 100; дата — <code>type="date"</code> с <code>max</code> = сегодня</td></tr>
+      <tr><td>Rules</td><td><code>StoreRequest</code> / <code>UpdateRequest</code>:
+        паспорт <code>nullable|string|max:100</code>;
+        дата <code>nullable|date|before_or_equal:today</code>;
+        пустая/пробельная строка → <code>null</code>. Поля независимы: можно заполнить только номер или только дату.</td></tr>
+      <tr><td>Сообщения</td><td>Ошибки под полями (<code>errors.passport</code>, <code>errors.passport_issued_at</code>);
+        attributes «Паспорт/св-во о рождении», «Дата выдачи паспорта/св-ва»</td></tr>
+      <tr><td>Права</td><td>Отдельного permission нет — достаточно доступа к разделу (<code>users.view</code>) и прохождения store/update</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.7.2) UI и JS</h3>
+  <ul>
+    <li>Модалки create/edit на <code>/admin/users</code>: аккордеон «Ученик», <b>после адреса проживания</b>, до флагов здоровья / пола (§<a href="#user-modals">4.5.1</a>).</li>
+    <li>Подписи: «Паспорт/св-во о рождении», «Дата выдачи паспорта/св-ва».</li>
+    <li><code>GET /admin/users/{id}/edit</code> (AJAX) — в JSON <code>user.passport</code> и <code>user.passport_issued_at</code> (<code>Y-m-d</code> или <code>null</code>, как birthday).</li>
+    <li>Оба делегированных пути открытия edit в <code>editUser.blade.php</code> делают
+      <code>$('#edit-user-form #edit-passport').val(response.user.passport || '')</code> и
+      <code>$('#edit-user-form #edit-passport-issued-at').val(response.user.passport_issued_at || '')</code>.</li>
+    <li>В модалке «Редактирование лида» на <code>/admin/school-leads</code> этих полей <b>нет</b>
+      (паспорт родителя в лиде остаётся).</li>
+  </ul>
+
+  <h3>2.7.3) Границы</h3>
+  <ul>
+    <li>Поля <b>не</b> вынесены в личный кабинет, импорт Excel (§8) и шаблоны договоров (нет <code>{{child_passport}}</code>).</li>
+    <li>Колонки в DataTables <code>/admin/users</code> нет.</li>
+  </ul>
+
+  <h3>2.7.4) Feature-тесты</h3>
+  <p class="small">
+    <code>tests/Feature/Crm/Users/UserPassportFieldFeatureTest.php</code> — schema, guest/403, AJAX JSON store/update/edit,
+    независимая заполненность, очистка, 422 (длина и дата в будущем), сегодня допустима, non-AJAX 302,
+    изоляция партнёра, порядок полей в HTML, оба JS-пути fill, отсутствие полей в модалке лида.
+    Также <code>BladeInlineJsSyntaxTest::test_edit_user_modal_passport_fill_contract_is_valid_javascript</code>,
+    <code>tests/Unit/Documentation/UserStudentPassportDocumentationContractTest.php</code>.
+  </p>
+
   <h2 id="user-teams">3) Группы ученика (<code>team_ids</code>, pivot <code>team_user</code>)</h2>
   <div class="note">
     У ученика может быть <b>несколько групп</b>. Источник истины — pivot <code>team_user</code>.
@@ -1019,6 +1076,7 @@
     email, чекбокс «Отправить письмо» (<code>send_welcome_email</code>, только create — §<a href="#user-welcome-credentials">5.1.4</a>),
     пароль (только create; скрыт при включённом чекбоксе), телефон,
     <b>адрес проживания</b> (<code>users.address</code>, nullable, max 1000),
+    <b>паспорт/св-во о рождении</b> и <b>дата выдачи</b> (<code>users.passport</code>, <code>users.passport_issued_at</code>, nullable; дата не позже сегодня — §<a href="#user-student-passport">2.7</a>),
     флаги здоровья (чекбоксы), пол (<code>users.sex</code>).</p>
 
   <h3>4.5.2) Multiselect «Группы»</h3>
@@ -1142,7 +1200,8 @@
     Хранение: канон <code>+7XXXXXXXXXX</code> в <code>users.phone</code>.
     В таблице списка заголовок — <b>«Телефон ученика»</b> (не путать с колонкой «Телефон родителя», §<a href="#user-parent-phone-column">2.1.0</a>).
     Право на запись: <code>users.phone.update</code> (без права поле игнорируется на бэкенде и disabled в UI).
-    Сразу после телефона в аккордеоне «Ученик» — <a href="#user-student-address">адрес проживания</a> (<code>users.address</code>).
+    Сразу после телефона в аккордеоне «Ученик» — <a href="#user-student-address">адрес проживания</a> (<code>users.address</code>),
+    затем <a href="#user-student-passport">паспорт / св-во</a> и дата выдачи.
   </div>
 
   <h3>Дополнительные поля (<code>custom</code>)</h3>
@@ -1560,6 +1619,8 @@
   <div class="note">
     <ul>
       <li><code>tests/Feature/Crm/Users/UserAddressFieldFeatureTest.php</code> — адрес проживания ученика (<code>users.address</code>): AJAX/non-AJAX store/update, 422, guest/403, изоляция партнёра, UI после телефона, оба JS-пути fill <code>#edit-address</code></li>
+      <li><code>tests/Feature/Crm/Users/UserPassportFieldFeatureTest.php</code> — паспорт / св-во ученика (§<a href="#user-student-passport">2.7</a>): schema, guest/403, AJAX/non-AJAX, 422 дата в будущем, fill JS, нет полей в модалке лида</li>
+      <li><code>tests/Unit/Documentation/UserStudentPassportDocumentationContractTest.php</code> — анонс <code>/doc#user-student-passport-index</code> и §2.7 совпадают с Request/Blade</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersChildFullNameGenitiveFeatureTest.php</code> — ФИО ученика в родительном (§<a href="#user-child-genitive">2.1.7</a>): guest/403/AJAX/non-AJAX/422/@can/изоляция/smoke</li>
       <li><code>tests/Feature/Crm/Account/AccountChildFullNameGenitiveFeatureTest.php</code> — то же поле в ЛК (§2.1.7)</li>
       <li><code>tests/Feature/Crm/Users/UsersImportChildFullNameGenitivePermissionFeatureTest.php</code> — импорт Excel колонка только при <code>users.full_name_genitive</code></li>

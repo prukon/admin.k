@@ -13,6 +13,7 @@ use App\Models\UserTableSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Support\Payments\EmailNewsletterPaymentSource;
 use Yajra\DataTables\DataTables;
 use App\Services\PartnerContext;
 
@@ -110,6 +111,9 @@ class PaymentIntentReportController extends AdminBaseController
             ->addColumn('payment_method_webhook_label', function (PaymentIntent $intent) {
                 return $this->paymentIntentMethodLabel($intent->payment_method_webhook);
             })
+            ->addColumn('email_newsletter', function (PaymentIntent $intent) {
+                return EmailNewsletterPaymentSource::labelFromMeta($intent->meta);
+            })
             ->editColumn('created_at', function (PaymentIntent $intent) {
                 return $intent->created_at ? $intent->created_at->format('Y-m-d H:i:s') : '';
             })
@@ -123,6 +127,11 @@ class PaymentIntentReportController extends AdminBaseController
                 return round(((int) ($intent->out_sum_cents ?? 0)) / 100, 2);
             })
             ->orderColumn('out_sum', 'payment_intents.out_sum_cents $1')
+            ->orderColumn('email_newsletter', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $expr = EmailNewsletterPaymentSource::sqlFlagExpr('payment_intents.meta');
+                $query->orderByRaw("({$expr}) {$dir}");
+            })
             ->filter(function ($query) use ($request): void {
                 $this->applyPaymentIntentsDataTableSearch($query, $request);
             })
@@ -378,6 +387,12 @@ class PaymentIntentReportController extends AdminBaseController
         if ($request->filled('paid_to')) {
             $q->whereDate('paid_at', '<=', (string) $request->query('paid_to'));
         }
+
+        EmailNewsletterPaymentSource::applyQueryFilter(
+            $q,
+            $request->query('email_newsletter'),
+            'payment_intents.meta'
+        );
     }
 
     /**

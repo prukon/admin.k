@@ -2223,6 +2223,7 @@ class PaymentReportTest extends CrmTestCase
             $col('operation_date', 'operation_date'),
             $col('payment_provider', 'payment_provider', false, false),
             $col('payment_method_label', 'payment_method_label', false, false),
+            $col('email_newsletter', 'email_newsletter', true, false),
             $col('receipt', 'receipt', false, false),
             $col('bank_commission_acquiring', 'bank_commission_acquiring'),
             $col('bank_commission_payout', 'bank_commission_payout'),
@@ -2236,7 +2237,7 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
-     * Сортировка по колонке payout_date (индекс 14 в сетке с комиссиями и «Выплата»).
+     * Сортировка по колонке payout_date (индекс 15 в сетке с комиссиями, «Email рассылка» и «Выплата»).
      */
     public function test_getPayments_sorting_by_payout_date_orders_by_tinkoff_payout_datetime(): void
     {
@@ -2288,7 +2289,7 @@ class PaymentReportTest extends CrmTestCase
             'length' => 50,
             'columns' => $this->dataTablesColumnsForPaymentsReportAdditionalAndPayoutGrid(),
             'order' => [
-                ['column' => 14, 'dir' => 'asc'],
+                ['column' => 15, 'dir' => 'asc'],
             ],
         ];
 

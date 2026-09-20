@@ -6,6 +6,7 @@ use App\Mail\ContractClientFillInvitationMail;
 use App\Models\Contract;
 use App\Models\ContractEvent;
 use App\Models\ContractTemplateVersion;
+use App\Models\LessonPackage;
 use App\Models\Partner;
 use App\Models\User;
 use App\Enums\AuditEvent;
@@ -27,11 +28,12 @@ class ContractCreationService
         private readonly ContractAudit $contractAudit,
         private readonly TeamUserSyncService $teamUserSync,
         private readonly ContractLegalEntityPlaceholderService $legalEntityPlaceholders,
+        private readonly ContractLessonPackageBinder $lessonPackageBinder,
     ) {
     }
 
     /**
-     * @param array{user_id: int, creation_mode: string, group_id?: int|null, pdf?: UploadedFile, contract_template_id?: int} $data
+     * @param array{user_id: int, creation_mode: string, group_id?: int|null, pdf?: UploadedFile, contract_template_id?: int, lesson_package_id?: int|null} $data
      */
     public function create(Partner $partner, array $data): Contract
     {
@@ -49,22 +51,30 @@ class ContractCreationService
             : null;
 
         $groupId = $this->resolveContractGroupId($student, $requestedGroupId);
+        $package = $this->resolveBoundPackage($partner, $student, $data);
 
         if ($mode === Contract::CREATION_MODE_TEMPLATE) {
             $this->assertCanCreateTemplateContract(
                 $partner,
                 (int) ($data['contract_template_id'] ?? 0),
                 $groupId,
+                lessonPackageId: $package?->id,
             );
         } else {
             $this->assertSufficientCreationBalance($partner);
         }
 
-        return DB::transaction(function () use ($partner, $student, $data, $mode, $groupId) {
+        return DB::transaction(function () use ($partner, $student, $data, $mode, $groupId, $package) {
             if ($mode === Contract::CREATION_MODE_PDF) {
-                $contract = $this->createPdfContract($partner, $student, $data['pdf'], $groupId);
+                $contract = $this->createPdfContract($partner, $student, $data['pdf'], $groupId, $package);
             } else {
-                $contract = $this->createTemplateContract($partner, $student, (int) $data['contract_template_id'], $groupId);
+                $contract = $this->createTemplateContract(
+                    $partner,
+                    $student,
+                    (int) $data['contract_template_id'],
+                    $groupId,
+                    $package,
+                );
             }
 
             $this->billing->chargeCreationFee($partner, $contract);
@@ -94,7 +104,7 @@ class ContractCreationService
     }
 
     /**
-     * Предпроверка шаблонного договора: баланс, шаблон, реквизиты юр. лица.
+     * Предпроверка шаблонного договора: баланс, шаблон, реквизиты юр. лица, абонемент.
      * Без побочных эффектов — клиент и договор не создаются.
      *
      * @throws ValidationException
@@ -104,6 +114,7 @@ class ContractCreationService
         int $templateId,
         ?int $groupId,
         string $legalEntityErrorKey = 'group_id',
+        ?int $lessonPackageId = null,
     ): void {
         $this->assertSufficientCreationBalance($partner);
 
@@ -123,6 +134,16 @@ class ContractCreationService
             $schema,
             $legalEntityErrorKey,
         );
+
+        if (
+            $this->lessonPackageBinder->canBind()
+            && ContractTemplateVariablePresets::schemaUsesPackageFields($schema)
+            && ($lessonPackageId === null || $lessonPackageId <= 0)
+        ) {
+            throw ValidationException::withMessages([
+                'lesson_package_id' => 'Выберите абонемент.',
+            ]);
+        }
     }
 
     /**
@@ -140,12 +161,17 @@ class ContractCreationService
         }
     }
 
-    private function createPdfContract(Partner $partner, User $student, UploadedFile $pdf, ?int $groupId): Contract
-    {
+    private function createPdfContract(
+        Partner $partner,
+        User $student,
+        UploadedFile $pdf,
+        ?int $groupId,
+        ?LessonPackage $package,
+    ): Contract {
         $path = $pdf->store('documents/' . date('Y/m'));
         $sha = hash_file('sha256', Storage::path($path));
 
-        return Contract::create([
+        return Contract::create(array_merge([
             'school_id'                   => $partner->id,
             'user_id'                     => $student->id,
             'group_id'                    => $groupId,
@@ -155,11 +181,16 @@ class ContractCreationService
             'source_sha256'               => $sha,
             'status'                      => Contract::STATUS_DRAFT,
             'provider'                    => 'podpislon',
-        ]);
+        ], $this->packagePersistFields($package)));
     }
 
-    private function createTemplateContract(Partner $partner, User $student, int $templateId, ?int $groupId): Contract
-    {
+    private function createTemplateContract(
+        Partner $partner,
+        User $student,
+        int $templateId,
+        ?int $groupId,
+        ?LessonPackage $package,
+    ): Contract {
         $template = $this->templateService->resolveForPartner($partner->id, $templateId);
         /** @var ContractTemplateVersion $version */
         $version = $template->currentVersion;
@@ -170,7 +201,7 @@ class ContractCreationService
             is_array($version->fields_schema) ? $version->fields_schema : [],
         );
 
-        return Contract::create([
+        return Contract::create(array_merge([
             'school_id'                    => $partner->id,
             'user_id'                      => $student->id,
             'group_id'                     => $groupId,
@@ -182,7 +213,57 @@ class ContractCreationService
             'fill_expires_at'              => now()->addDays(Contract::FILL_TTL_DAYS),
             'status'                       => Contract::STATUS_AWAITING_CLIENT_FILL,
             'provider'                     => 'podpislon',
-        ]);
+        ], $this->packagePersistFields($package)));
+    }
+
+    /**
+     * @return array{lesson_package_id: int|null, package_snapshot: array<string, mixed>|null}
+     */
+    private function packagePersistFields(?LessonPackage $package): array
+    {
+        if ($package === null) {
+            return [
+                'lesson_package_id' => null,
+                'package_snapshot'  => null,
+            ];
+        }
+
+        return [
+            'lesson_package_id' => (int) $package->id,
+            'package_snapshot'  => $this->lessonPackageBinder->snapshot($package),
+        ];
+    }
+
+    /**
+     * @param array{lesson_package_id?: int|null} $data
+     */
+    private function resolveBoundPackage(Partner $partner, User $student, array $data): ?LessonPackage
+    {
+        if (!$this->lessonPackageBinder->canBind()) {
+            return null;
+        }
+
+        $packageId = isset($data['lesson_package_id']) && $data['lesson_package_id'] !== null
+            ? (int) $data['lesson_package_id']
+            : 0;
+
+        if ($packageId <= 0) {
+            return null;
+        }
+
+        $package = $this->lessonPackageBinder->resolveSelectablePackage(
+            (int) $partner->id,
+            $packageId,
+            (int) $student->id,
+        );
+
+        if ($package === null) {
+            throw ValidationException::withMessages([
+                'lesson_package_id' => 'Выберите абонемент из списка.',
+            ]);
+        }
+
+        return $package;
     }
 
     /**

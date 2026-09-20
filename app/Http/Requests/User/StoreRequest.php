@@ -62,6 +62,20 @@ class StoreRequest extends FormRequest
             ]);
         }
 
+        if ($this->has('passport') && is_string($this->input('passport'))) {
+            $passport = trim($this->input('passport'));
+            $this->merge([
+                'passport' => $passport !== '' ? $passport : null,
+            ]);
+        }
+
+        if ($this->has('passport_issued_at') && is_string($this->input('passport_issued_at'))) {
+            $issuedAt = trim($this->input('passport_issued_at'));
+            $this->merge([
+                'passport_issued_at' => $issuedAt !== '' ? $issuedAt : null,
+            ]);
+        }
+
         if ($this->user()?->can('users.full_name_genitive')) {
             if ($this->has('full_name_genitive') && is_string($this->input('full_name_genitive'))) {
                 $genitive = trim($this->input('full_name_genitive'));
@@ -108,6 +122,8 @@ class StoreRequest extends FormRequest
             'email'       => ['nullable', 'email', 'max:255', 'unique:users,email', new EmailHasDomainDot],
             'password'    => 'nullable|string|min:8|max:255',
             'address'     => 'nullable|string|max:1000',
+            'passport'    => 'nullable|string|max:100',
+            'passport_issued_at' => 'nullable|date|before_or_equal:today',
 
             'is_enabled'  => 'sometimes|boolean', // чекбокс может не прийти
             'role_id'     => 'required|integer|exists:roles,id',
@@ -170,6 +186,8 @@ class StoreRequest extends FormRequest
             'role_id'        => 'Роль',
             'phone'          => 'Телефон',
             'address'        => 'Адрес проживания',
+            'passport'       => 'Паспорт/св-во о рождении',
+            'passport_issued_at' => 'Дата выдачи паспорта/св-ва',
             'school_lead_id' => 'Заявка с сайта',
         ] + $this->sendWelcomeEmailAttributes()
             + $this->leadSendContractAttributes()
@@ -284,6 +302,11 @@ class StoreRequest extends FormRequest
 
             'address.string' => 'Поле «Адрес проживания» должно быть строкой.',
             'address.max' => 'Поле «Адрес проживания» не должно превышать :max символов.',
+
+            'passport.string' => 'Поле «Паспорт/св-во о рождении» должно быть строкой.',
+            'passport.max' => 'Поле «Паспорт/св-во о рождении» не должно превышать :max символов.',
+            'passport_issued_at.date' => 'Поле «Дата выдачи паспорта/св-ва» должно быть корректной датой.',
+            'passport_issued_at.before_or_equal' => 'Поле «Дата выдачи паспорта/св-ва» не может быть позднее сегодняшнего дня.',
 
             'full_name_genitive.string' => 'Поле «ФИО ученика в родительном падеже» должно быть строкой.',
             'full_name_genitive.max' => 'Поле «ФИО ученика в родительном падеже» не должно превышать :max символов.',

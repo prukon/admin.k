@@ -374,4 +374,118 @@ final class SchoolLeadCreateClientWithContractFeatureTest extends SchoolLeadCrea
                 ->first()
         );
     }
+
+    public function test_send_contract_with_package_placeholders_requires_package_when_bind_granted(): void
+    {
+        $this->actingAsLeadsUsersAndContractsViewer();
+        $this->grantPermission($this->user, 'contracts.lessonPackage.bind');
+
+        $template = $this->makeContractTemplate(['title' => 'С абонементом'], [
+            'fields_schema' => [
+                ['key' => 'parent_full_name', 'label' => 'ФИО', 'required' => true],
+                ['key' => 'package_name', 'label' => 'Абонемент', 'required' => false],
+            ],
+        ]);
+        $lead = $this->makeLead();
+
+        $this->postJson(
+            route('admin.user.store'),
+            $this->createClientPayload($lead, [
+                'send_contract'        => 1,
+                'contract_template_id' => $template->id,
+            ]),
+            $this->ajaxHeaders()
+        )
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['lesson_package_id']);
+
+        $this->assertNull($lead->fresh()->user_id);
+        $this->assertSame(0, Contract::query()->count());
+    }
+
+    public function test_send_contract_binds_catalog_package_snapshot(): void
+    {
+        $this->actingAsLeadsUsersAndContractsViewer();
+        $this->grantPermission($this->user, 'contracts.lessonPackage.bind');
+
+        $package = \App\Models\LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'name'                    => 'Лид-абонемент',
+            'is_active'               => true,
+            'price_cents'             => 77700,
+            'lessons_per_week'        => 3,
+            'lessons_per_month'       => 12,
+            'lesson_duration_minutes' => 60,
+            'lesson_price_cents'      => 6500,
+        ]);
+        $template = $this->makeContractTemplate(['title' => 'С абонементом'], [
+            'fields_schema' => [
+                ['key' => 'parent_full_name', 'label' => 'ФИО', 'required' => true],
+                ['key' => 'package_name', 'label' => 'Абонемент', 'required' => false],
+            ],
+        ]);
+        $lead = $this->makeLead();
+
+        $response = $this->postJson(
+            route('admin.user.store'),
+            $this->createClientPayload($lead, [
+                'send_contract'        => 1,
+                'contract_template_id' => $template->id,
+                'lesson_package_id'    => $package->id,
+            ]),
+            $this->ajaxHeaders()
+        );
+
+        $response->assertOk();
+        $contract = Contract::query()->findOrFail((int) $response->json('contract_id'));
+        $this->assertSame($package->id, (int) $contract->lesson_package_id);
+        $this->assertSame('Лид-абонемент', $contract->packageSnapshotName());
+        $this->assertSame(77700, (int) $contract->package_snapshot['price_cents']);
+        $this->assertSame(3, (int) $contract->package_snapshot['lessons_per_week']);
+    }
+
+    public function test_send_contract_without_bind_permission_ignores_posted_package(): void
+    {
+        $this->actingAsLeadsUsersAndContractsViewer();
+
+        $package = \App\Models\LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'is_active' => true,
+        ]);
+        $template = $this->makeContractTemplate();
+        $lead = $this->makeLead();
+
+        $response = $this->postJson(
+            route('admin.user.store'),
+            $this->createClientPayload($lead, [
+                'send_contract'        => 1,
+                'contract_template_id' => $template->id,
+                'lesson_package_id'    => $package->id,
+            ]),
+            $this->ajaxHeaders()
+        );
+
+        $response->assertOk();
+        $contract = Contract::query()->findOrFail((int) $response->json('contract_id'));
+        $this->assertNull($contract->lesson_package_id);
+        $this->assertNull($contract->package_snapshot);
+    }
+
+    public function test_lead_user_packages_lookup_returns_catalog_without_assigned_mark(): void
+    {
+        $this->actingAsLeadsUsersAndContractsViewer();
+        $this->grantPermission($this->user, 'contracts.lessonPackage.bind');
+
+        $package = \App\Models\LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'name'      => 'Каталог лида',
+            'is_active' => true,
+        ]);
+
+        $resp = $this->getJson(route('contracts.user.packages'), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('selected_id', null);
+
+        $row = collect($resp->json('packages'))->firstWhere('id', $package->id);
+        $this->assertNotNull($row);
+        $this->assertFalse((bool) $row['is_assigned']);
+        $this->assertSame('Каталог лида', $row['label']);
+    }
 }

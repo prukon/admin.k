@@ -727,13 +727,18 @@
     <li><b>Контроллер</b>: <code>PaymentIntentReportController::getPaymentIntents</code></li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/payment-intents/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
     <li><b>Фильтр «Партнер»</b>: Select2 <code>#pi-filter-partner</code> рендерится <b>только для superadmin</b> (<code>$piCanFilterPartner</code>). Superadmin не режется по <code>current_partner</code> — видит всех, сужение через <code>partner_id</code>. Для не-superadmin scope жёсткий по партнёру пользователя, UI-фильтр скрыт. Единые правила — <a href="#partner-filter-cross-report">§2.4</a>.</li>
+    <li><b>Фильтр «Email рассылка»</b>: <code>email_newsletter=1|0</code>, колонка <code>email_newsletter</code> —
+      оплаты месяца по ссылке из письма (<code>up_public_pay</code>), не абонемент <code>/p/{code}</code>.
+      Тот же признак в отчёте «Платежи» —
+      <a href="/docs/documentation/reports-payments#email-newsletter-source">reports-payments §2.3</a>,
+      анонс <a href="/doc#reports-email-newsletter-source-index">/doc</a>.</li>
     <li><b>Колонки (настройки)</b>:
       <ul>
         <li><code>GET /admin/reports/payment-intents/columns-settings</code></li>
         <li><code>POST /admin/reports/payment-intents/columns-settings</code> (<code>columns: {key: true/false}</code>)</li>
         <li>Хранение: <code>user_table_settings.table_key = reports_payment_intents</code></li>
         <li>«Показать N»: <code>page_length</code> (§1.1), POST без <code>columns</code> не затирает колонки</li>
-        <li>Ключи dropdown «Колонки»: <code>id</code>, <code>provider_inv_id</code>, <code>partner</code>, <code>user</code>, <code>provider</code>, <code>payment_method_webhook_label</code>, <code>status</code>, <code>out_sum</code>, <code>payment_date</code>, <code>created_at</code>, <code>paid_at</code>, <code>client_device_type</code>, <code>client_os</code>, <code>client_browser</code>, <code>client_user_agent</code>, <code>client_ip</code>, <code>client_referrer</code>, <code>meta</code></li>
+        <li>Ключи dropdown «Колонки»: <code>id</code>, <code>provider_inv_id</code>, <code>partner</code>, <code>user</code>, <code>provider</code>, <code>payment_method_webhook_label</code>, <code>email_newsletter</code>, <code>status</code>, <code>out_sum</code>, <code>payment_date</code>, <code>created_at</code>, <code>paid_at</code>, <code>client_device_type</code>, <code>client_os</code>, <code>client_browser</code>, <code>client_user_agent</code>, <code>client_ip</code>, <code>client_referrer</code>, <code>meta</code></li>
         <li><b>Поиск DataTables</b> (<code>search.value</code>): ФИО пользователя, название партнёра, <code>provider_inv_id</code> и числовой <code>id</code>.
           Сумма, статус, даты, User-Agent и мета в SQL не попадают.
           Реализация: <code>PaymentIntentReportController::applyPaymentIntentsDataTableSearch</code> и <code>filter($callback)</code> <b>без</b> второго аргумента
@@ -763,6 +768,7 @@
         <tr><td>Пользователь</td><td><code>text</code></td><td><code>user_name</code> (ФИО, без id)</td></tr>
         <tr><td>Провайдер</td><td><code>badge</code></td><td>свой <code>render</code> (T-Bank / Robokassa)</td></tr>
         <tr><td>Способ оплаты</td><td><code>text</code></td><td><code>payment_method_webhook_label</code></td></tr>
+        <tr><td>Email рассылка</td><td><code>text</code></td><td><code>email_newsletter</code> — «Email рассылка» или пусто; фильтр <code>email_newsletter=1|0</code>; <code>up_public_pay</code>, не <code>ulp_public_pay</code>. См. <a href="/docs/documentation/reports-payments#email-newsletter-source">reports-payments §2.3</a></td></tr>
         <tr><td>Статус</td><td><code>badge</code></td><td><code>renderStatusBadge</code></td></tr>
         <tr><td>Сумма</td><td><code>money</code></td><td><code>out_sum</code> (рубли в JSON; БД — <code>payment_intents.out_sum_cents</code>)</td></tr>
         <tr><td>Оплаченный месяц</td><td><code>text</code></td><td><code>payment_date</code> — см. форматирование ниже</td></tr>
@@ -1061,6 +1067,7 @@
     <li><code>tests/Feature/Crm/Reports/FiscalReceiptsReportTest.php</code> — totals, partners-search, DataTables fields; чеки <code>source=platform</code> исключены из data/total</li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsPageFullAccessFeatureTest.php</code> — guest/403/smoke intents, видимость <code>piCanFilterPartner</code></li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsReportTest.php</code> — в т.ч. <code>payment_date</code> в JSON (формат «месяц год»), client context, partner_id filter</li>
+    <li><code>tests/Feature/Crm/Reports/ReportsEmailNewsletterSourceFeatureTest.php</code> — колонка/фильтр «Email рассылка» в payments и payment-intents (<code>up_public_pay</code>, не <code>ulp_public_pay</code>)</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS: <code>outgoing_emails</code>, <code>fiscal_receipts</code>, <code>tbank_payments</code> (<code>test_tbank_payments_report_inline_script_keeps_defaults_and_reloads_without_recreate</code>, <code>test_tbank_payments_payout_status_cell_and_view_switch_thead_contract</code>), <code>payment_intents</code>, <code>payment_monthly</code> / LTV <code>test_monthly_and_ltv_nested_ajax_copy_paid_team_filter_and_reset_clears_select2</code>, <code>debt</code> (+ контракт refreshDebtReportTotal / default status=active; settings-prices.js + manual-paid; поиск DataTables payments/LTV/monthly/intents; reload без пересоздания таблицы; закрепление шапки отчётов — <code>test_admin_reports_sticky_header_and_hscroll_vite_contract_and_valid_javascript</code>, <code>test_admin_reports_sticky_header_nested_tables_column_toggle_and_filter_reload_keep_pin</code>, <code>test_extra_report_sticky_header_inline_script_keeps_pin_without_fixed_columns</code>)</li>
     <li><code>tests/Feature/Crm/Reports/ReportsTablesStickyHeaderFeatureTest.php</code> — закрепление thead и липкого горизонтального скролла на payments / monthly / LTV / debts / intents / fiscal / tbank / emails: fallback без плагина, <code>scrollLeft</code> не <code>margin-left</code>, фильтр не recreate, вложенные LTV/monthly без FixedHeader, колонки payments/tbank/intents/fiscal/emails rebind, intents/fiscal без <code>fixedColumns</code>, первое открытие extra — колонки checked и фильтры свёрнуты, повтор с фильтром не снимает pin и не снимает checked, невалидный status T‑Bank — 302/422 по полю</li>
     <li><code>tests/Feature/Crm/Reports/ReportsTablesStickyHeaderFullAccessFeatureTest.php</code> — гость HTML 302 / JSON 401; без <code>reports.view</code> → 403 на payments/monthly/LTV/debts; без права вкладки → 403 на intents/fiscal/tbank/emails; viewer с правом и superadmin 200 + bind; admin без права вкладки 403; повторное открытие с фильтром; POST/PATCH/PUT/DELETE → 405; data AJAX JSON 200 без sticky-скрипта, emails без AJAX → 404, tbank data без AJAX — JSON; учётка без организации</li>

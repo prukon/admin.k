@@ -35,6 +35,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'birthday' => 'date',  // преобразует в Carbon\Carbon
+        'passport_issued_at' => 'date',
         'parent_id' => 'integer',
         'is_individual_traits' => 'boolean',
         'is_on_medical_register' => 'boolean',

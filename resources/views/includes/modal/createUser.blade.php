@@ -177,6 +177,30 @@
                                                     </div>
                                                 </div>
 
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="create-passport" class="form-label">Паспорт/св-во о рождении</label>
+                                                        <input type="text"
+                                                               name="passport"
+                                                               class="form-control"
+                                                               id="create-passport"
+                                                               maxlength="100"
+                                                               value="{{ old('passport') }}">
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="create-passport-issued-at" class="form-label">Дата выдачи паспорта/св-ва</label>
+                                                        <input type="date"
+                                                               name="passport_issued_at"
+                                                               class="form-control"
+                                                               id="create-passport-issued-at"
+                                                               max="{{ now()->toDateString() }}"
+                                                               value="{{ old('passport_issued_at') }}">
+                                                    </div>
+                                                </div>
+
                                                 @include('includes.modal._student_health_fields', [
                                                     'prefix' => 'create',
                                                     'variant' => 'checkbox',

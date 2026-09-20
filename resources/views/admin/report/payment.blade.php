@@ -13,7 +13,7 @@
     $paymentsFilterTeam = $paymentsFilterTeam ?? null;
     $paymentsFilterTrainer = $paymentsFilterTrainer ?? null;
     $canViewTrainers = $canViewTrainers ?? (auth()->user() && auth()->user()->can('trainers.view'));
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider', 'payment_method', 'payment_refund_status', 'bank_commission_acquiring_min', 'bank_commission_acquiring_max', 'bank_commission_payout_min', 'bank_commission_payout_max'];
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider', 'payment_method', 'email_newsletter', 'payment_refund_status', 'bank_commission_acquiring_min', 'bank_commission_acquiring_max', 'bank_commission_payout_min', 'bank_commission_payout_max'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
     $payFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $payHasActiveFilters = false;
@@ -181,6 +181,15 @@
                        id="payColPaymentMethod"
                        checked>
                 <label class="form-check-label" for="payColPaymentMethod">Способ оплаты</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="email_newsletter"
+                       id="payColEmailNewsletter"
+                       checked>
+                <label class="form-check-label" for="payColEmailNewsletter">Email рассылка</label>
             </div>
 
             <div class="form-check">
@@ -381,6 +390,15 @@
                     <option value="tpay" {{ $fpMethod === 'tpay' ? 'selected' : '' }}>T‑Pay</option>
                 </select>
             </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-filter-email-newsletter">Email рассылка</label>
+                @php($fpEmailNewsletter = (string) ($filters['email_newsletter'] ?? ''))
+                <select class="form-select" id="pay-filter-email-newsletter" name="email_newsletter">
+                    <option value="">Все</option>
+                    <option value="1" {{ $fpEmailNewsletter === '1' ? 'selected' : '' }}>Да</option>
+                    <option value="0" {{ $fpEmailNewsletter === '0' ? 'selected' : '' }}>Нет</option>
+                </select>
+            </div>
             <div class="col-12 col-md-3">
                 <label class="form-label" for="pay-filter-refund-status">Статус платежа</label>
                 @php($fpRefund = $filters['payment_refund_status'] ?? '')
@@ -443,6 +461,7 @@
         <th>Дата платежа</th>
         <th>Провайдер</th>
         <th>Способ оплаты</th>
+        <th>Email рассылка</th>
         <th>Чек</th>
         @if($canAdditional)
             <th>Комиссия оплаты</th>
@@ -696,6 +715,7 @@
                     operation_date_to: $payFiltersForm.find('[name="operation_date_to"]').val(),
                     payment_provider: $payFiltersForm.find('[name="payment_provider"]').val(),
                     payment_method: $payFiltersForm.find('[name="payment_method"]').val(),
+                    email_newsletter: $payFiltersForm.find('[name="email_newsletter"]').val(),
                     payment_refund_status: $payFiltersForm.find('[name="payment_refund_status"]').val(),
                     bank_commission_acquiring_min: $payFiltersForm.find('[name="bank_commission_acquiring_min"]').val(),
                     bank_commission_acquiring_max: $payFiltersForm.find('[name="bank_commission_acquiring_max"]').val(),
@@ -776,6 +796,7 @@
                 operation_date: true,
                 payment_provider: true,
                 payment_method_label: true,
+                email_newsletter: true,
                 receipt: true,
                 commission_total: !canAdditional && canCommissionTotal,
                 payout_amount: canPayoutColumn,
@@ -911,6 +932,20 @@ columns.push(
         data: 'payment_method_label',
         name: 'payment_method_label',
         orderable: false,
+        searchable: false,
+        render: function (data, type, row) {
+            if (type !== 'display') {
+                return data || '';
+            }
+            if (!data) {
+                return '<span class="text-muted">—</span>';
+            }
+            return $('<div/>').text(data).html();
+        }
+    },
+    {
+        data: 'email_newsletter',
+        name: 'email_newsletter',
         searchable: false,
         render: function (data, type, row) {
             if (type !== 'display') {

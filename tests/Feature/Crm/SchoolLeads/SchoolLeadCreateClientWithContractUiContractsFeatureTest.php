@@ -236,14 +236,14 @@ final class SchoolLeadCreateClientWithContractUiContractsFeatureTest extends Sch
 
         $applyStart = strpos($js, 'function applyLeadCreateClientChoiceErrors(errors)');
         $this->assertNotFalse($applyStart);
-        $applyFn = substr($js, $applyStart, 700);
+        $applyFn = substr($js, $applyStart, 1100);
         $this->assertStringContainsString('errors.contract_template_id', $applyFn);
         $this->assertStringContainsString('errors.send_contract', $applyFn);
         $this->assertStringNotContainsString('errors.wallet', $applyFn);
 
         $okPos = strpos($js, "$('#createLeadClientChoiceOkBtn').on('click'");
         $this->assertNotFalse($okPos);
-        $okChunk = substr($js, $okPos, 1800);
+        $okChunk = substr($js, $okPos, 2400);
         $this->assertStringContainsString("contract_template_id: ['Выберите шаблон договора.']", $okChunk);
         $this->assertStringContainsString('sendContract: true', $okChunk);
         $this->assertStringContainsString('fromChoiceModal: true', $okChunk);
@@ -323,6 +323,36 @@ final class SchoolLeadCreateClientWithContractUiContractsFeatureTest extends Sch
         $buildFn = substr($js, $buildStart, 900);
         $this->assertStringContainsString('clientPayload.send_contract = options.sendContract ? 1 : 0', $buildFn);
         $this->assertStringContainsString('clientPayload.contract_template_id = options.templateId || \'\'', $buildFn);
+        $this->assertStringContainsString('clientPayload.lesson_package_id = options.lessonPackageId', $buildFn);
+        $this->assertStringContainsString('lessonPackageId: options.lessonPackageId', $submitFn);
+    }
+
+    public function test_choice_modal_hides_package_select_without_bind_permission(): void
+    {
+        $this->actingAsLeadsUsersAndContractsViewer();
+
+        $html = $this->get(route('admin.school-leads'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="leadCreateClientLessonPackageId"', $html);
+        $this->assertStringContainsString('var canBindLessonPackage = false', $html);
+    }
+
+    public function test_choice_modal_shows_package_select_with_bind_permission(): void
+    {
+        $this->actingAsLeadsUsersAndContractsViewer();
+        $this->grantPermission($this->user, 'contracts.lessonPackage.bind');
+        $this->makeContractTemplate(['title' => 'С пакетом'], [
+            'fields_schema' => [
+                ['key' => 'parent_full_name', 'label' => 'ФИО', 'required' => true],
+                ['key' => 'package_name', 'label' => 'Абонемент', 'required' => false],
+            ],
+        ]);
+
+        $html = $this->get(route('admin.school-leads'))->assertOk()->getContent();
+        $this->assertStringContainsString('id="leadCreateClientLessonPackageId"', $html);
+        $this->assertStringContainsString('var canBindLessonPackage = true', $html);
+        $this->assertStringContainsString('data-requires-lesson-package="1"', $html);
+        $this->assertStringContainsString('selectedLeadTemplateRequiresLessonPackage', $html);
+        $this->assertStringContainsString('loadLeadCreateClientPackages', $html);
     }
 
     public function test_widget_doc_describes_choice_modal_and_precheck(): void

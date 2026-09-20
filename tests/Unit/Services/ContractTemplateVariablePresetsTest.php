@@ -48,6 +48,7 @@ class ContractTemplateVariablePresetsTest extends TestCase
         $this->assertArrayNotHasKey('other', $labels);
         $this->assertNotContains('Дополнительно', $labels);
         $this->assertSame('Юр. лицо', $labels[ContractTemplateVariablePresets::GROUP_LEGAL_ENTITY]);
+        $this->assertSame('Абонемент', $labels[ContractTemplateVariablePresets::GROUP_PACKAGE]);
 
         $contractKeys = array_column(
             ContractTemplateVariablePresets::recommendedForGroup(ContractTemplateVariablePresets::GROUP_CONTRACT),
@@ -73,6 +74,17 @@ class ContractTemplateVariablePresetsTest extends TestCase
             'key',
         );
         $this->assertContains('child_address', $childKeys);
+
+        $packageKeys = array_column(
+            ContractTemplateVariablePresets::recommendedForGroup(ContractTemplateVariablePresets::GROUP_PACKAGE),
+            'key',
+        );
+        $this->assertContains('package_name', $packageKeys);
+        $this->assertContains('package_price', $packageKeys);
+        $this->assertContains('package_lessons_per_week', $packageKeys);
+        $this->assertContains('package_lessons_per_month', $packageKeys);
+        $this->assertContains('package_lesson_duration_minutes', $packageKeys);
+        $this->assertContains('package_lesson_price', $packageKeys);
     }
 
     /** @test */
@@ -107,15 +119,19 @@ class ContractTemplateVariablePresetsTest extends TestCase
         $this->assertFalse($enriched['required']);
         $this->assertNull($enriched['prefill_source']);
         $this->assertSame(ContractTemplateVariablePresets::FILL_MODE_SYSTEM, ContractTemplateVariablePresets::fillModeForKey('contract_date'));
+        $this->assertSame(ContractTemplateVariablePresets::FILL_MODE_SYSTEM, ContractTemplateVariablePresets::fillModeForKey('package_name'));
+        $this->assertSame(ContractTemplateVariablePresets::FILL_MODE_SYSTEM, ContractTemplateVariablePresets::fillModeForKey('package_price'));
     }
 
     /** @test */
-    public function schema_fields_for_parent_form_excludes_legal_entity_system_fields(): void
+    public function schema_fields_for_parent_form_excludes_legal_entity_and_package_system_fields(): void
     {
         $filtered = ContractTemplateVariablePresets::schemaFieldsForParentForm([
             ['key' => 'child_address', 'label' => 'Адрес', 'required' => false],
             ['key' => 'legal_entity_inn', 'label' => 'ИНН', 'required' => false],
             ['key' => 'legal_entity_name', 'label' => 'Название', 'required' => false],
+            ['key' => 'package_name', 'label' => 'Абонемент', 'required' => false],
+            ['key' => 'package_price', 'label' => 'Стоимость', 'required' => false],
         ]);
 
         $this->assertSame(['child_address'], array_column($filtered, 'key'));
@@ -129,6 +145,10 @@ class ContractTemplateVariablePresetsTest extends TestCase
 
         $this->assertArrayHasKey('contract_date', $values);
         $this->assertMatchesRegularExpression('/^\d{2}\.\d{2}\.\d{4}$/', $values['contract_date']);
+        $this->assertArrayHasKey('package_name', $values);
+        $this->assertSame('', $values['package_name']);
+        $this->assertArrayHasKey('package_price', $values);
+        $this->assertSame('', $values['package_price']);
     }
 
     /** @test */

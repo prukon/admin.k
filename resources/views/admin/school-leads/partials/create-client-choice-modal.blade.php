@@ -60,6 +60,7 @@
                                 @endunless
                                 @foreach ($contractTemplates as $tpl)
                                     <option value="{{ $tpl->id }}"
+                                        data-requires-lesson-package="{{ !empty($tpl->requires_lesson_package) ? '1' : '0' }}"
                                         @selected($singleContractTemplate && (int) $singleContractTemplate->id === (int) $tpl->id)>
                                         {{ $tpl->title }}
                                     </option>
@@ -69,6 +70,17 @@
                         <div class="field-error-msg text-danger small mt-1"
                              data-field-error="contract_template_id"></div>
                     </div>
+
+                    @can('contracts.lessonPackage.bind')
+                        <div class="mb-3" id="leadCreateClientPackageWrap">
+                            <label class="form-label" for="leadCreateClientLessonPackageId">Абонемент</label>
+                            <select id="leadCreateClientLessonPackageId" class="form-select">
+                                <option value="">—</option>
+                            </select>
+                            <div class="field-error-msg text-danger small mt-1"
+                                 data-field-error="lesson_package_id"></div>
+                        </div>
+                    @endcan
 
                     <div class="alert alert-warning mb-0" role="alert">
                         Это действие платное: с баланса будет списано {{ $contractCreateFeeLabel }}.

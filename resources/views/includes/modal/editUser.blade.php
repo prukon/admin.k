@@ -208,6 +208,30 @@
                                                     </div>
                                                 </div>
 
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="edit-passport" class="form-label">Паспорт/св-во о рождении</label>
+                                                        <input type="text"
+                                                               name="passport"
+                                                               class="form-control"
+                                                               id="edit-passport"
+                                                               maxlength="100"
+                                                               value="">
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="edit-passport-issued-at" class="form-label">Дата выдачи паспорта/св-ва</label>
+                                                        <input type="date"
+                                                               name="passport_issued_at"
+                                                               class="form-control"
+                                                               id="edit-passport-issued-at"
+                                                               max="{{ now()->toDateString() }}"
+                                                               value="">
+                                                    </div>
+                                                </div>
+
                                                 @include('includes.modal._student_health_fields', [
                                                     'variant' => 'checkbox',
                                                 ])
@@ -873,6 +897,8 @@
                         $('#edit-user-form #edit-email').val(response.user.email);
                         window.PhoneInputMask?.setValue('#edit-user-form #edit-phone', response.user.phone);
                         $('#edit-user-form #edit-address').val(response.user.address || '');
+                        $('#edit-user-form #edit-passport').val(response.user.passport || '');
+                        $('#edit-user-form #edit-passport-issued-at').val(response.user.passport_issued_at || '');
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
                         // 2) Контекст роли (без смены роли в модалке)
@@ -999,6 +1025,8 @@
                         $('#edit-user-form #edit-email').val(response.user.email);
                         window.PhoneInputMask?.setValue('#edit-user-form #edit-phone', response.user.phone);
                         $('#edit-user-form #edit-address').val(response.user.address || '');
+                        $('#edit-user-form #edit-passport').val(response.user.passport || '');
+                        $('#edit-user-form #edit-passport-issued-at').val(response.user.passport_issued_at || '');
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
                         // 2) Контекст роли (без смены роли в модалке)

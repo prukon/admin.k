@@ -184,6 +184,12 @@
       <tr><td><code>contract_id</code></td><td>не в форме; ID договора</td></tr>
       <tr><td><code>documents_url</code></td><td>не в форме; в письме — URL «Мои документы» с <code>student</code> и <code>fill</code>; в PDF — общий URL без query</td></tr>
       <tr><td><code>legal_entity_*</code></td><td>не в форме родителя (<code>fill_mode=system</code>); подстановка при generate</td></tr>
+      <tr><td><code>package_name</code></td><td>не в форме; название абонемента из снимка договора</td></tr>
+      <tr><td><code>package_price</code></td><td>не в форме; стоимость абонемента, <code>Money::formatRub</code> + « руб.»</td></tr>
+      <tr><td><code>package_lessons_per_week</code></td><td>не в форме; занятий в неделю из снимка</td></tr>
+      <tr><td><code>package_lessons_per_month</code></td><td>не в форме; занятий в месяц из снимка</td></tr>
+      <tr><td><code>package_lesson_duration_minutes</code></td><td>не в форме; длительность занятия (мин)</td></tr>
+      <tr><td><code>package_lesson_price</code></td><td>не в форме; стоимость одного занятия, с « руб.»; пустое поле каталога → пусто в PDF</td></tr>
     </tbody>
   </table>
   <p>При загрузке DOCX для известных ключей автоматически подставляются подписи и prefill из пресетов; неизвестные ключи попадают в схему как кастомные поля.</p>
@@ -244,13 +250,41 @@
     <code>BladeInlineJsSyntaxTest</code> (variables-reference / edit-modal-init / index).
   </p>
 
+  <h3 id="package-variables">6.1.1) Группа «Абонемент»</h3>
+  <div class="note">
+    Ключи <code>package_*</code> — <code>fill_mode=system</code>, группа пресетов <code>package</code>.
+    В форме родителя их нет (<code>schemaFieldsForParentForm</code>).
+    Значения при generate — из <code>contracts.package_snapshot</code>
+    (<code>ContractLessonPackageBinder::placeholderValuesForContract</code>), не из живого каталога.
+    Если договор создан без абонемента — пустые строки.
+    Выбор абонемента при создании — <a href="/docs/documentation/contracts#contract-lesson-package-bind">contracts §5.1.1</a>,
+    поля карточки шаблона — <a href="/docs/documentation/lesson-packages#contract-fields">lesson-packages §contract-fields</a>,
+    анонс <a href="/doc#contract-lesson-package-bind-index">/doc</a>.
+  </div>
+  <table>
+    <thead><tr><th>Плейсхолдер Word</th><th>Подпись в CRM</th><th>Источник снимка</th></tr></thead>
+    <tbody>
+      <tr><td><code>{{package_name}}</code></td><td>Абонемент: название</td><td><code>name</code></td></tr>
+      <tr><td><code>{{package_price}}</code></td><td>Абонемент: цена</td><td><code>price_cents</code> → «N руб.»</td></tr>
+      <tr><td><code>{{package_lessons_per_week}}</code></td><td>Абонемент: занятий в неделю</td><td><code>lessons_per_week</code></td></tr>
+      <tr><td><code>{{package_lessons_per_month}}</code></td><td>Абонемент: занятий в месяц</td><td><code>lessons_per_month</code></td></tr>
+      <tr><td><code>{{package_lesson_duration_minutes}}</code></td><td>Абонемент: длительность занятия (мин)</td><td><code>lesson_duration_minutes</code></td></tr>
+      <tr><td><code>{{package_lesson_price}}</code></td><td>Абонемент: стоимость одного занятия</td><td><code>lesson_price_cents</code> → «N руб.» или пусто</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Если в схеме шаблона есть любой из этих ключей, при праве bind селект абонемента обязателен (template mode).</li>
+    <li>Блок срабатывает только если ключи есть в DOCX / <code>fields_schema</code> — как у юр. лица.</li>
+  </ul>
+
   <h3 id="docx-placeholder-substitution">6.2) Подстановка плейсхолдеров и разрывы Word</h3>
   <div class="note">
     Извлечение ключей из DOCX и подстановка значений при generate PDF:
     <code>DocxPlaceholderExtractor</code> → <code>DocxPlaceholderSupport</code> → <code>ContractDocxPlaceholderFiller</code>
     (правки в <code>word/document.xml</code> и header/footer частей архива).<br><br>
     Значения служебных ключей при generate мержит <code>ContractTemplateSystemPlaceholders::forContract</code>:
-    <code>documents_url</code>, <code>contract_id</code>, <code>contract_date</code> (текущая дата сервера, <code>d.m.Y</code>)
+    <code>documents_url</code>, <code>contract_id</code>, <code>contract_date</code> (текущая дата сервера, <code>d.m.Y</code>),
+    <code>legal_entity_*</code> и <code>package_*</code> из снимка абонемента.
     плюс блок <code>legal_entity_*</code> при наличии в схеме.<br><br>
     Телефонные ключи (<code>phone</code> / <code>tel</code> / <code>mobile</code>, в т.ч. <code>spouse_phones</code> и кастомные)
     перед подстановкой в DOCX приводит <code>ContractTemplateVariablePresets::formatPhoneFieldsForPdf</code>

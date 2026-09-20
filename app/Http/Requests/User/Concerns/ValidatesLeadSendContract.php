@@ -5,6 +5,7 @@ namespace App\Http\Requests\User\Concerns;
 use App\Models\Partner;
 use App\Models\SchoolLead;
 use App\Services\Contracts\ContractCreationService;
+use App\Services\Contracts\ContractLessonPackageBinder;
 use App\Services\PartnerContext;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -16,6 +17,14 @@ trait ValidatesLeadSendContract
         if ($this->boolean('validate_only') || !$this->filled('school_lead_id') || !$this->boolean('send_contract')) {
             $this->merge(['send_contract' => false]);
         }
+
+        if ($this->has('lesson_package_id') && $this->input('lesson_package_id') === '') {
+            $this->merge(['lesson_package_id' => null]);
+        }
+
+        if (!app(ContractLessonPackageBinder::class)->canBind($this->user())) {
+            $this->merge(['lesson_package_id' => null]);
+        }
     }
 
     /**
@@ -25,6 +34,7 @@ trait ValidatesLeadSendContract
     {
         $partnerId = app(PartnerContext::class)->partnerId();
         $sendContract = $this->boolean('send_contract') && $this->filled('school_lead_id');
+        $canBindPackage = app(ContractLessonPackageBinder::class)->canBind($this->user());
 
         $templateRules = [
             Rule::requiredIf($sendContract),
@@ -41,11 +51,17 @@ trait ValidatesLeadSendContract
                     ->whereNotNull('current_version_id'));
         }
 
-        return [
+        $rules = [
             'send_contract' => ['sometimes', 'boolean'],
             'contract_template_id' => $templateRules,
             'validate_only' => ['sometimes', 'boolean'],
         ];
+
+        if ($canBindPackage) {
+            $rules['lesson_package_id'] = ['nullable', 'integer', 'min:1'];
+        }
+
+        return $rules;
     }
 
     /**
@@ -56,6 +72,7 @@ trait ValidatesLeadSendContract
         return [
             'send_contract' => 'Отправка договора',
             'contract_template_id' => 'Шаблон договора',
+            'lesson_package_id' => 'Абонемент',
             'validate_only' => 'Только проверка данных',
         ];
     }
@@ -71,6 +88,8 @@ trait ValidatesLeadSendContract
             'contract_template_id.integer' => 'Некорректный идентификатор шаблона договора.',
             'contract_template_id.min' => 'Выберите шаблон договора.',
             'contract_template_id.exists' => 'Шаблон договора не найден или недоступен.',
+            'lesson_package_id.integer' => 'Некорректный идентификатор абонемента.',
+            'lesson_package_id.min' => 'Выберите абонемент.',
             'validate_only.boolean' => 'Некорректное значение флага проверки данных.',
         ];
     }
@@ -107,6 +126,18 @@ trait ValidatesLeadSendContract
 
         $templateId = (int) $this->input('contract_template_id', 0);
         $groupId = $this->resolveLeadSendContractGroupId();
+        $binder = app(ContractLessonPackageBinder::class);
+        $packageIdRaw = $this->input('lesson_package_id');
+        $packageId = ($packageIdRaw !== null && $packageIdRaw !== '') ? (int) $packageIdRaw : null;
+
+        if ($binder->canBind($this->user()) && $packageId !== null && $packageId > 0) {
+            $partnerId = (int) ($partner->id ?? 0);
+            if ($binder->resolveSelectablePackage($partnerId, $packageId, null) === null) {
+                $validator->errors()->add('lesson_package_id', 'Выберите абонемент из списка.');
+
+                return;
+            }
+        }
 
         try {
             app(ContractCreationService::class)->assertCanCreateTemplateContract(
@@ -114,6 +145,7 @@ trait ValidatesLeadSendContract
                 $templateId,
                 $groupId,
                 'send_contract',
+                $packageId,
             );
         } catch (ValidationException $e) {
             foreach ($e->errors() as $field => $messages) {

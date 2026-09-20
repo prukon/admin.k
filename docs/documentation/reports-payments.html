@@ -103,6 +103,30 @@
     <li>Тот же фильтр в monthly, LTV, debts — см. <a href="/docs/documentation/reports-admin#user-status-filter">reports-admin.html</a> (§2.3).</li>
   </ul>
 
+  <h2 id="email-newsletter-source">2.3) Колонка и фильтр «Email рассылка»</h2>
+  <div class="note">
+    Признак оплаты месячного начисления по публичной СБП-ссылке из писем
+    <a href="/docs/documentation/setting-prices-payment-notifications">«Установка цен → Уведомления»</a>
+    (<code>/pm/{code}</code>, <code>up_public_pay</code>).
+    Публичная оплата абонемента <code>/p/{code}</code> (<code>ulp_public_pay</code>) сюда <b>не</b> входит.
+    Анонс: <a href="/doc#reports-email-newsletter-source-index">/doc</a>.
+  </div>
+  <ul>
+    <li><b>Колонка</b> «Email рассылка» (<code>email_newsletter</code>): после «Способ оплаты».
+      Значение — <code>Email рассылка</code> или пусто (в UI «—»).
+      Источник: <code>payment_intents.meta.up_public_pay</code> через join <code>pi_tbank</code>
+      (как способ оплаты: <code>provider_inv_id</code> = <code>payments.payment_number</code>).
+      Ключ в «Колонках»: <code>email_newsletter</code>, дефолт включён.</li>
+    <li><b>Фильтр</b> <code>email_newsletter</code>: пусто — все, <code>1</code> — только из письма, <code>0</code> — остальные.
+      UI: select «Email рассылка» (Все / Да / Нет), <code>#pay-filter-email-newsletter</code>.
+      Тот же параметр уходит в DataTables и в <code>GET /admin/reports/payments/total</code>
+      (<code>paymentsReportFilterParams</code>).</li>
+    <li>Поиск DataTables (§1.2) это поле не трогает.</li>
+    <li>Хелпер: <code>App\Support\Payments\EmailNewsletterPaymentSource</code>.</li>
+    <li>Тесты: <code>ReportsEmailNewsletterSourceFeatureTest</code>,
+      <code>EmailNewsletterPaymentSourceTest</code>.</li>
+  </ul>
+
   <h2>3) Поля списка (управление видимостью колонок)</h2>
   <div class="note">
     На странице отчёта доступна кнопка <b>“Поля списка”</b> (dropdown «Колонки» в toolbar).
@@ -355,6 +379,10 @@ net_to_partner   = gross - commission_total</pre>
     <br><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (<code>test_payments_and_ltv_datatable_search_js_contract</code>, <code>test_monthly_and_intents_datatable_search_js_contract</code>, <code>test_four_report_pages_keep_search_box_on_filter_reload</code>, <code>node --check</code>),
     <br><code>tests/Unit/Documentation/ReportsDatatableSearchDocumentationContractTest.php</code> (анонс <code>/doc#reports-datatable-search-index</code>),
     <br><code>tests/Feature/Crm/Reports/PaymentReportTest.php</code>,
+    <br><code>tests/Feature/Crm/Reports/ReportsEmailNewsletterSourceFeatureTest.php</code>
+    (колонка/фильтр «Email рассылка», <code>up_public_pay</code>, не <code>ulp_public_pay</code>),
+    <br><code>tests/Unit/Documentation/ReportsEmailNewsletterSourceDocumentationContractTest.php</code>
+    (анонс <code>/doc#reports-email-newsletter-source-index</code>),
     <br><code>tests/Feature/Crm/Permissions/ReportsPaymentsCommissionTotalPermissionCatalogFeatureTest.php</code>
     (скрытое, не в базовых ролях, матрица admin/superadmin, миграция hide без <code>permission_role</code>),
     <br><code>tests/Unit/Documentation/ReportsPaymentsCommissionTotalDocumentationContractTest.php</code>

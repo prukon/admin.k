@@ -103,6 +103,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'contracts.sync',                 'description' => 'Договоры: синхронизация статуса с Подпислон',   'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 52],
             ['name' => 'contracts.templates.fillSortOrder.edit', 'description' => 'Шаблоны договоров: редактировать порядок полей в форме родителя', 'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 53],
             ['name' => 'contracts.fillExpiresAt.view',   'description' => 'Договоры: колонка «Срок подписания»',           'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 54],
+            ['name' => 'contracts.lessonPackage.bind',   'description' => 'Договоры: выбор абонемента при создании',      'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 55],
             ['name' => 'account.contracts.showFieldKeys', 'description' => 'Договор (форма): показывать технические ключи полей {{...}}', 'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 71],
 
             // group_slug leads

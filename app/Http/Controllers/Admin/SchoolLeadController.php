@@ -6,7 +6,6 @@ use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\SchoolLead\FilterRequest;
 use App\Http\Requests\UpdateSchoolLeadRequest;
-use App\Models\ContractTemplate;
 use App\Models\District;
 use App\Models\Location;
 use App\Models\ParentProfile;
@@ -18,6 +17,7 @@ use App\Models\UserField;
 use App\Models\UserTableSetting;
 use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
+use App\Services\Contracts\ContractLessonPackageBinder;
 use App\Services\PartnerContext;
 use App\Services\SchoolLeads\LatestUserContractLookup;
 use App\Support\BuildsLogTable;
@@ -35,6 +35,7 @@ class SchoolLeadController extends AdminBaseController
     public function __construct(
         PartnerContext $partnerContext,
         private readonly AuditLogger $auditLogger,
+        private readonly ContractLessonPackageBinder $lessonPackageBinder,
     ) {
         parent::__construct($partnerContext);
     }
@@ -105,12 +106,7 @@ class SchoolLeadController extends AdminBaseController
 
         if ($canViewContracts) {
             $viewData['contractCreatePartner'] = app('current_partner');
-            $viewData['contractTemplates'] = ContractTemplate::query()
-                ->forPartner($partnerId)
-                ->active()
-                ->whereNotNull('current_version_id')
-                ->orderBy('title')
-                ->get(['id', 'title']);
+            $viewData['contractTemplates'] = $this->lessonPackageBinder->activeTemplatesForPartner($partnerId);
         }
 
         if ($canCreateUserFromLead) {

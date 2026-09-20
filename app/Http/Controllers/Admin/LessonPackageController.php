@@ -164,6 +164,18 @@ final class LessonPackageController extends AdminBaseController
             case 'price_label':
                 $baseQuery->orderBy('price_cents', $orderDir)->orderBy('id', 'desc');
                 break;
+            case 'lessons_per_week':
+                $baseQuery->orderBy('lessons_per_week', $orderDir)->orderBy('id', 'desc');
+                break;
+            case 'lessons_per_month':
+                $baseQuery->orderBy('lessons_per_month', $orderDir)->orderBy('id', 'desc');
+                break;
+            case 'lesson_duration_minutes':
+                $baseQuery->orderBy('lesson_duration_minutes', $orderDir)->orderBy('id', 'desc');
+                break;
+            case 'lesson_price_label':
+                $baseQuery->orderBy('lesson_price_cents', $orderDir)->orderBy('id', 'desc');
+                break;
             case 'freeze_label':
                 $baseQuery->orderBy('freeze_enabled', $orderDir)
                     ->orderBy('freeze_days', $orderDir)
@@ -214,6 +226,14 @@ final class LessonPackageController extends AdminBaseController
                 'lessons_count' => (int) $package->lessons_count,
                 'price_cents' => (int) $package->price_cents,
                 'price_label' => number_format(((int) $package->price_cents) / 100, 2, ',', ' ') . ' ₽',
+                'lessons_per_week' => $this->nullableInt($package->lessons_per_week),
+                'lessons_per_week_label' => $this->optionalUnsignedLabel($package->lessons_per_week),
+                'lessons_per_month' => $this->nullableInt($package->lessons_per_month),
+                'lessons_per_month_label' => $this->optionalUnsignedLabel($package->lessons_per_month),
+                'lesson_duration_minutes' => $this->nullableInt($package->lesson_duration_minutes),
+                'lesson_duration_minutes_label' => $this->optionalUnsignedLabel($package->lesson_duration_minutes),
+                'lesson_price_cents' => $this->nullableInt($package->lesson_price_cents),
+                'lesson_price_label' => $this->optionalMoneyLabel($package->lesson_price_cents),
                 'freeze_enabled' => (bool) $package->freeze_enabled,
                 'freeze_days' => (int) $package->freeze_days,
                 'freeze_label' => $package->freeze_enabled ? (string) (int) $package->freeze_days : 'нет',
@@ -1774,6 +1794,10 @@ final class LessonPackageController extends AdminBaseController
                     'duration_days' => $request->resolvedDurationDays(),
                     'lessons_count' => (int) $data['lessons_count'],
                     'price_cents' => $priceCents,
+                    'lessons_per_week' => $request->resolvedLessonsPerWeek(),
+                    'lessons_per_month' => $request->resolvedLessonsPerMonth(),
+                    'lesson_duration_minutes' => $request->resolvedLessonDurationMinutes(),
+                    'lesson_price_cents' => $request->resolvedLessonPriceCents(),
                     'freeze_enabled' => $freezeEnabled,
                     'freeze_days' => $freezeDaysStored,
                     'auto_attendance_enabled' => $autoAttendanceEnabled,
@@ -1834,6 +1858,13 @@ final class LessonPackageController extends AdminBaseController
                 'lessons_count' => (int) $lessonPackage->lessons_count,
                 'price_cents' => (int) $lessonPackage->price_cents,
                 'price' => (float) ($lessonPackage->price_cents / 100),
+                'lessons_per_week' => $this->nullableInt($lessonPackage->lessons_per_week),
+                'lessons_per_month' => $this->nullableInt($lessonPackage->lessons_per_month),
+                'lesson_duration_minutes' => $this->nullableInt($lessonPackage->lesson_duration_minutes),
+                'lesson_price_cents' => $this->nullableInt($lessonPackage->lesson_price_cents),
+                'lesson_price' => $lessonPackage->lesson_price_cents === null
+                    ? null
+                    : (float) ($lessonPackage->lesson_price_cents / 100),
                 'freeze_enabled' => (bool) $lessonPackage->freeze_enabled,
                 'freeze_days' => (int) $lessonPackage->freeze_days,
                 'auto_attendance_enabled' => (bool) $lessonPackage->auto_attendance_enabled,
@@ -1871,6 +1902,10 @@ final class LessonPackageController extends AdminBaseController
                     'duration_days' => $request->resolvedDurationDays($lessonPackage),
                     'lessons_count' => (int) $data['lessons_count'],
                     'price_cents' => $priceCents,
+                    'lessons_per_week' => $request->resolvedLessonsPerWeek($lessonPackage),
+                    'lessons_per_month' => $request->resolvedLessonsPerMonth($lessonPackage),
+                    'lesson_duration_minutes' => $request->resolvedLessonDurationMinutes($lessonPackage),
+                    'lesson_price_cents' => $request->resolvedLessonPriceCents($lessonPackage),
                     'freeze_enabled' => $freezeEnabled,
                     'freeze_days' => $freezeDaysStored,
                     'auto_attendance_enabled' => $autoAttendanceEnabled,
@@ -2023,6 +2058,35 @@ final class LessonPackageController extends AdminBaseController
         };
     }
 
+    private function optionalUnsignedLabel(mixed $value): string
+    {
+        $int = $this->nullableInt($value);
+        if ($int === null) {
+            return '—';
+        }
+
+        return (string) $int;
+    }
+
+    private function optionalMoneyLabel(mixed $cents): string
+    {
+        $int = $this->nullableInt($cents);
+        if ($int === null) {
+            return '—';
+        }
+
+        return number_format($int / 100, 2, ',', ' ') . ' ₽';
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
     /**
      * @return array<string, string>
      */
@@ -2039,6 +2103,10 @@ final class LessonPackageController extends AdminBaseController
             'duration_days' => (string) (int) $package->duration_days,
             'lessons_count' => (string) (int) $package->lessons_count,
             'price' => $priceLabel,
+            'lessons_per_week' => $this->optionalUnsignedLabel($package->lessons_per_week),
+            'lessons_per_month' => $this->optionalUnsignedLabel($package->lessons_per_month),
+            'lesson_duration_minutes' => $this->optionalUnsignedLabel($package->lesson_duration_minutes),
+            'lesson_price' => $this->optionalMoneyLabel($package->lesson_price_cents),
             'freeze' => $freezeLabel,
             'auto_attendance' => $package->auto_attendance_enabled ? 'Да' : 'Нет',
         ];
@@ -2054,6 +2122,10 @@ final class LessonPackageController extends AdminBaseController
             "Срок действия (дни): {$snapshot['duration_days']}",
             "Занятий: {$snapshot['lessons_count']}",
             "Стоимость: {$snapshot['price']}",
+            "Занятий в неделю: {$snapshot['lessons_per_week']}",
+            "Занятий в месяц: {$snapshot['lessons_per_month']}",
+            "Длительность занятий (мин): {$snapshot['lesson_duration_minutes']}",
+            "Стоимость одного занятия: {$snapshot['lesson_price']}",
             "Заморозка: {$snapshot['freeze']}",
             "Автосписание: {$snapshot['auto_attendance']}",
         ]);
@@ -2072,6 +2144,10 @@ final class LessonPackageController extends AdminBaseController
             'duration_days' => 'Срок действия (дни)',
             'lessons_count' => 'Занятий',
             'price' => 'Стоимость',
+            'lessons_per_week' => 'Занятий в неделю',
+            'lessons_per_month' => 'Занятий в месяц',
+            'lesson_duration_minutes' => 'Длительность занятий (мин)',
+            'lesson_price' => 'Стоимость одного занятия',
             'freeze' => 'Заморозка',
             'auto_attendance' => 'Автосписание',
         ];

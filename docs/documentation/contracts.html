@@ -66,6 +66,7 @@
       <tr><td>POST</td><td><code>/client-contracts/check-balance</code></td><td>Предпроверка баланса перед submit модалки создания</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/users-search</code></td><td>AJAX Select2: поиск учеников (в т.ч. <code>parent_full_name</code> для модалки)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/user-packages</code></td><td>AJAX: каталог абонементов для модалки (<code>contracts.view</code> + <code>contracts.lessonPackage.bind</code>; <code>user_id</code> опционален). §<a href="#contract-lesson-package-bind">5.1.1</a></td></tr>
       <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>id</code> (колонка «Номер договора»), <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>status_error</code> — текст отказа Подпислона при <code>failed</code> иначе <code>null</code> (<a href="/doc#contract-send-failure-message-index">анонс</a>), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)», <code>download_signed_url</code> — URL <code>GET …/download-signed</code> или <code>null</code>, если <code>signed_pdf_path</code> пуст. Колонка «Обновлён» (<code>updated_at</code> в JSON) — <code>created_at</code> последнего события журнала этого договора (<code>contract_events</code>, максимальный <code>id</code>, как на карточке), формат <code>d.m.Y H:i:s</code>; не поле <code>contracts.updated_at</code>. При создании через UI всегда есть событие <code>created</code>. Без событий — пустая строка. Сортировка этой колонки — индекс 9, по дате события, без событий в конце. Дефолт списка — индекс 1 (<code>contracts.id</code> desc). Колонка «Срок подписания» (<code>fill_expires_at</code> в JSON) — только при скрытом праве <code>contracts.fillExpiresAt.view</code>: дата и время <code>contracts.fill_expires_at</code> в формате <code>d.m.Y H:i:s</code> и вторая строка остатка дней (<code>fill_expires_remaining</code> / <code>fill_expires_remaining_warn</code>); у <code>signed</code> / <code>revoked</code> вторая строка пустая (<a href="/doc#contract-list-hide-remaining-signed-revoked-index">анонс</a>); без права этих ключей в JSON нет; <code>null</code> срок — пустая ячейка</td></tr>
       <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/logs-data</code> (<code>logs.data.contract</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract</code>)</td></tr>
@@ -201,6 +202,7 @@
       <tr><td>Родитель</td><td><code>$student->parent_full_name</code> (из <code>parents</code> через <code>parentProfile</code>) или «—»</td></tr>
       <tr><td>Ученик</td><td><code>$student->full_name</code> (фамилия + имя ученика)</td></tr>
       <tr><td>Группа</td><td>На карточке — все текущие группы ученика через запятую (<code>TeamUserSyncService::teamTitlesLabel</code>, pivot). В списке договоров — снимок <code>contracts.group_id</code> → <code>teams.title</code>.</td></tr>
+      <tr><td>Абонемент</td><td>только при <code>contracts.lessonPackage.bind</code>: имя из снимка <code>package_snapshot.name</code> (<code>Contract::packageSnapshotName()</code>) или «—». Живой каталог не читается. Если пакет удалили, FK <code>nullOnDelete</code>, имя снимка остаётся. §<a href="#contract-lesson-package-bind">5.1.1</a></td></tr>
       <tr><td>Статус</td><td>бейдж <code>school_status_ru</code>: <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»; остальные — как <code>Contract::$STATUS_RU</code>. При <code>failed</code> под бейджем — <code>#contract-status-error</code> с текстом Подпислона (<code>Contract::lastFailureMessage()</code>, §<a href="#contract-send-failure-message">3.1.2</a>)</td></tr>
       <tr><td>Ссылка на подпись</td><td>только если <code>Contract::providerSigningUrl()</code> не пуст: <code>contracts.provider_signing_url</code> после whitelist <code>https://podpislon.ru/sign/pack/{id}/{hex}</code>. <code>&lt;a id="contract-provider-signing-url" target="_blank" rel="noopener noreferrer"&gt;</code>. Без URL строки нет. Анонс: <a href="/doc#contract-podpislon-signing-url-index">/doc</a>, §<a href="#contract-podpislon-signing-url">3.1.1</a></td></tr>
       <tr><td>Способ создания</td><td>template — «Форма клиента (шаблон …)»; иначе «Готовый PDF»</td></tr>
@@ -458,11 +460,32 @@
       <tr><td>Ученик</td><td><code>#user_id</code> (Select2, AJAX)</td><td>Обязательное. Поиск по имени/фамилии/телефону/email ученика. Отправляется в <code>POST /client-contracts</code> как <code>user_id</code>.</td></tr>
       <tr><td>ФИО родителя</td><td><code>#parent_full_name_display</code></td><td>Только просмотр (<code>disabled</code>, <code>readonly</code>). В форму <b>не отправляется</b>. По умолчанию «—»; после выбора ученика — <code>parent_full_name</code> из справочника <code>parents</code> или «—», если родитель не указан.</td></tr>
       <tr><td>Группа</td><td><code>#group_id_select</code> + hidden <code>group_id</code></td><td>После выбора ученика — <code>GET /client-contracts/user-group?user_id=</code> или prefetch <code>groups[]</code> из users-search. 0 групп — «— группы нет —»; 1 — auto, read-only; 2+ — обязательный select. Сохраняется в <code>contracts.group_id</code> (снимок договора, не pivot). См. <a href="/docs/documentation/student-team-membership#contracts">student-team-membership §4</a>.</td></tr>
+      <tr><td>Абонемент</td><td><code>#lesson_package_id</code></td><td>Только при скрытом <code>contracts.lessonPackage.bind</code> (§<a href="#contract-lesson-package-bind">5.1.1</a>). Каталог <code>lesson_packages</code>, не ULP. После создания не меняется.</td></tr>
       <tr><td>Партнёр</td><td>disabled input</td><td>Текущий <code>current_partner</code>.</td></tr>
       <tr><td>Способ создания</td><td><code>creation_mode</code></td><td><code>pdf</code> — прикрепить PDF; <code>template</code> — форма клиенту (DOCX-шаблон).</td></tr>
       <tr><td>PDF / шаблон</td><td><code>#input_pdf</code> или <code>#contract_template_id</code></td><td>В зависимости от режима; см. <a href="/docs/documentation/contract-templates">contract-templates</a>.</td></tr>
     </tbody>
   </table>
+
+  <h3 id="contract-lesson-package-bind">5.1.1) Абонемент при создании</h3>
+  <div class="note">
+    Скрытое право <code>contracts.lessonPackage.bind</code> (не в базовых ролях, миграция без выдачи).
+    Superadmin видит поле через <code>Gate::before</code>. Без права селект скрыт,
+    POST <code>lesson_package_id</code> игнорируется.
+    Тем же правом закрыт блок «Для договора» на карточке шаблона абонемента
+    (неделя/месяц/минуты/цена занятия):
+    <a href="/docs/documentation/lesson-packages#contract-fields">lesson-packages §contract-fields</a>.
+    Анонс — <a href="/doc#contract-lesson-package-bind-index">/doc</a>.
+  </div>
+  <ul>
+    <li>Источник — каталог <code>lesson_packages</code> текущего партнёра, не назначение ULP и не <code>users_prices</code>. ULP из договора не создаётся.</li>
+    <li>Lookup <code>GET /client-contracts/user-packages</code> (<code>contracts.view</code> + bind). С <code>user_id</code> — активные пакеты плюс последний установленный (даже неактивный); без <code>user_id</code> (лид→клиент) — только активный каталог. Пустой каталог → <code>packages: []</code>, не 422.</li>
+    <li>Последнее назначение: <code>user_lesson_packages.created_at desc, id desc</code>, только одно « (установлен)», оно первым в select и предзаполняется.</li>
+    <li>Обязателен, если есть право, режим template и в <code>fields_schema</code> есть любой ключ <code>package_*</code>. PDF — опционален. Ошибка — под полем «Выберите абонемент.» / «Выберите абонемент из списка.».</li>
+    <li>Снимок в <code>contracts.package_snapshot</code> + FK <code>lesson_package_id</code> (<code>nullOnDelete</code>). Генерация PDF — из снимка. Деньги: <code>Money::formatRub</code> + « руб.».</li>
+    <li>После создания абонемент не редактируется (как ученик и группа).</li>
+    <li>Лид→клиент: то же правило обязательности; каталог без пометки «установлен» (ученика ещё нет). JS шлёт <code>lesson_package_id</code> вместе с <code>contract_template_id</code>.</li>
+  </ul>
 
   <h3>5.2) Источник ФИО родителя в модалке</h3>
   <div class="note">
@@ -499,10 +522,12 @@
     <li>Footer модалки: «Отмена» и «Создать договор» (<code>#btn-save</code>).</li>
     <li>Submit модалки → подтверждение «Создать договор?» (текст зависит от <code>creation_mode</code>, см. ниже) → <code>POST /client-contracts/check-balance</code> → <code>POST /client-contracts</code>.</li>
     <li>Списание с баланса партнёра — только при успешном <code>POST /client-contracts</code>, не при открытии модалки.</li>
-    <li>После создания ученика и группы изменить нельзя — только новый договор.</li>
+    <li>После создания ученика, группы и абонемента изменить нельзя — только новый договор.</li>
     <li>Текст подтверждения (<code>showConfirmDeleteModal</code> в <code>onSaveClick</code>):
+      без права bind:
       <code>pdf</code> — «Изменить файл и ученика после создания договора будет нельзя. Стоимость создания договора 70 руб. Создать договор?»;
       <code>template</code> — «Изменить шаблон договора и ученика после создания договора будет нельзя. Срок для подписания договора N дней. После истечения срока договор подписать будет нельзя. Стоимость создания договора 70 руб. Создать договор?».
+      С правом bind в оба текста добавляется «и абонемент» после ученика.
       N = <code>Contract::FILL_TTL_DAYS</code> (сейчас 30).</li>
   </ul>
 
@@ -679,6 +704,11 @@
       <li><code>ContractsAuditLogsFeatureTest.php</code> — endpoint «История», created/revoke/email/send/resend audit, logs-data</li>
       <li><code>ContractsPageFullAccessFeatureTest.php</code> — гость/403 без права, 200 для всех endpoint'ов <code>/client-contracts</code> при <code>contracts.view</code></li>
       <li><code>ContractCreateModalFeatureTest.php</code> — модалка, redirect <code>/create</code>, store PDF, lockUser helpers; тексты подтверждения PDF vs template</li>
+      <li><code>ContractLessonPackageBindFeatureTest.php</code> — lookup каталога, « (установлен)», обязательность template, снимок, чужой/неактивный пакет, без права POST игнорируется</li>
+      <li><code>ContractLessonPackageBindUiFeatureTest.php</code> — селект в модалке и строка карточки только при праве; superadmin через Gate::before</li>
+      <li><code>ContractsLessonPackageBindPermissionCatalogFeatureTest.php</code> — скрытое, не в базовых ролях, миграция без выдачи</li>
+      <li><code>ContractLessonPackageBinderTest.php</code> — снимок, « руб.», null не в «0»</li>
+      <li><code>ContractLessonPackageBindDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersContractCreate*FeatureTest.php</code> — создание со списка клиентов: UX ячейки, lockUser, guest/403, AJAX lookup, native POST 302; см. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a></li>
       <li><code>ContractCreateModalParentFeatureTest.php</code> — «ФИО родителя», <code>users-search</code>, preselectedUser</li>
       <li><code>ContractCreateTemplateModeModalFeatureTest.php</code> — режим template, баланс, foreign student 422</li>

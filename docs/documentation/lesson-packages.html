@@ -90,6 +90,20 @@
     Разовое/постоплата при открытии остаются 1 занятие / 1 день и 1 / 31.
     Анонс — <a href="/doc#lesson-package-edit-fill-defaults-index">/doc</a>,
     подробно — <a href="#edit-fill-defaults">§packages-tab</a>.
+    <br><br>
+    <b>Поля «Для договора» (2026‑09):</b> необязательные
+    <code>lessons_per_week</code> / <code>lessons_per_month</code> /
+    <code>lesson_duration_minutes</code> / <code>lesson_price_cents</code>
+    на шаблоне. Блок и колонки только при
+    <code>contracts.lessonPackage.bind</code> (новое право не заводили).
+    Только карточка абонемента и колонки таблицы; календарь, журнал
+    и биллинг их <b>не читают</b>. Подстановка в договор — при создании договора
+    (то же право, снимок
+    <code>contracts.package_snapshot</code>):
+    <a href="/doc#contract-lesson-package-bind-index">анонс</a>,
+    <a href="/docs/documentation/contracts#contract-lesson-package-bind">contracts §5.1.1</a>.
+    Анонс — <a href="/doc#lesson-package-contract-fields-index">/doc</a>,
+    подробно — <a href="#contract-fields">§contract-fields</a>.
   </div>
 
   <h2 id="type-permissions">Права на тип шаблона <code>lessonPackages.type.*</code></h2>
@@ -655,6 +669,56 @@
   <p>Период назначения (<code>starts_at</code>/<code>ends_at</code>) задаётся при первой привязке к календарю через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>, как у абонемента предоплаты. Списание <code>lessons_remaining</code> — только через статус занятия с <code>consumes_lesson</code>.</p>
   <p><strong>Отмена записи в календаре</strong> (<code>DELETE …/single-lesson-registration/{userTeamScheduleSlot}</code>) удаляет строку <code>user_team_schedule_slots</code>, но <strong>не удаляет</strong> назначение <code>user_lesson_packages</code> — его можно снова привязать к другому слоту. Если статус уже списывал занятие, остаток восстанавливается (+1).</p>
 
+  <h2 id="contract-fields">Поля шаблона «Для договора»</h2>
+  <div class="note">
+    Необязательные поля карточки абонемента, не связанные с календарём школы.
+    Хранятся на <code>lesson_packages</code>. UI (блок create/edit, тогглы «Колонки»,
+    <code>&lt;th&gt;</code>, DataTable <code>when: canBindLessonPackage</code>) —
+    только при скрытом <code>contracts.lessonPackage.bind</code>
+    (новое право не заводили). Superadmin видит через <code>Gate::before</code>.
+    Без права create пишет <code>null</code>, update сохраняет уже записанное;
+    крафтовый POST игнорируется, не 422.
+    Хелпер <code>App\Support\LessonPackageContractFieldsPermission</code>.
+    Календарь, журнал, установка цен и назначения их <b>не читают</b>.
+    В договор попадают через снимок при создании (<code>contracts.package_snapshot</code>),
+    не живой каталог: <a href="/docs/documentation/contracts#contract-lesson-package-bind">contracts §5.1.1</a>,
+    плейсхолдеры — <a href="/docs/documentation/contract-templates#package-variables">contract-templates §6.1.1</a>,
+    анонс <a href="/doc#contract-lesson-package-bind-index">/doc</a>.
+    Анонс — <a href="/doc#lesson-package-contract-fields-index">/doc#lesson-package-contract-fields-index</a>.
+  </div>
+  <table>
+    <thead><tr><th>Колонка</th><th>Подпись в модалке</th><th>Правила</th></tr></thead>
+    <tbody>
+      <tr><td><code>lessons_per_week</code></td><td>Кол-во занятий в неделю</td><td>nullable integer 1–100; пусто → <code>null</code></td></tr>
+      <tr><td><code>lessons_per_month</code></td><td>Кол-во занятий в месяц</td><td>nullable integer 1–1000; пусто → <code>null</code></td></tr>
+      <tr><td><code>lesson_duration_minutes</code></td><td>Длительность занятий (мин)</td><td>nullable integer 1–1440; пусто → <code>null</code></td></tr>
+      <tr><td><code>lesson_price_cents</code></td><td>Стоимость одного занятия (руб.)</td><td>форма <code>lesson_price</code>; копейки; пусто → <code>null</code>; ручной ввод, без автоподсчёта от <code>price</code> / <code>lessons_count</code></td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>UI: блок <code>#create_contract_fields_section</code> / <code>#edit_contract_fields_section</code>
+      после стоимости абонемента, до заморозки/автосписания. Поля без <code>*</code>.
+      Ошибки Laravel под полями (<code>data-error-for</code>).
+      Весь блок и колонки обёрнуты в <code>@can('contracts.lessonPackage.bind')</code>.</li>
+    <li>JS: <code>normalizePayload</code> шлёт пустую строку, если input пуст;
+      fill edit — <code>fillOptionalNumber</code> (пусто остаётся пустым, без дефолтов 8/30);
+      <code>canBindLessonPackage</code> для DataTable <code>when</code>.</li>
+    <li>Таблица: колонки <code>lessons_per_week</code> / <code>lessons_per_month</code> /
+      <code>lesson_duration_minutes</code> / <code>lesson_price_label</code>
+      (тогглы <code>colLessonPackageLessonsPerWeek</code> и соседние).
+      Пустое значение в JSON-лейбле — «—». JSON <code>…/data</code> отдаёт лейблы и без права
+      (колонки просто скрыты).</li>
+    <li>Не путать с <code>lessons_count</code> (лимит занятий пакета),
+      <code>duration_days</code> (срок абонемента) и
+      <code>price_cents</code> (стоимость абонемента / ставка постоплаты).</li>
+  </ul>
+  <p class="small">Тесты: <code>LessonPackageContractFieldsMarkupFeatureTest</code>,
+    <code>LessonPackageContractFieldsAjaxContractFeatureTest</code>,
+    <code>LessonPackageContractFieldsNonAjaxSafetyNetFeatureTest</code>,
+    <code>LessonPackageContractFieldsWorkflowFeatureTest</code>,
+    <code>LessonPackageContractFieldsAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_lesson_packages_contract_fields_inline_script_is_valid_javascript</code>.</p>
+
   <h2 id="packages-tab">Страница «Абонементы» — шаблоны (<code>/admin/lesson-packages</code>)</h2>
   <div class="note">
     Вкладка раздела «Расписание школы» → «Абонементы» и дубль в «Справочниках»
@@ -676,7 +740,11 @@
       (init в <code>@push('scripts')</code> + <code>$(document).ready</code>, иначе Vite-модуль ещё не готов).</li>
     <li>После успешного AJAX create/update/delete — <code>reloadPackagesTable()</code> (<code>dtApi.reload({ keepPage: true })</code>), без F5.</li>
     <li>Колонки: название, тип, <b>Срок действия (дни)</b> и <b>заморозка</b> — только при
-      <code>scheduleSlots.view</code> (<code>when: canViewScheduleSlots</code>), занятий, стоимость, действия
+      <code>scheduleSlots.view</code> (<code>when: canViewScheduleSlots</code>), занятий, стоимость,
+      <b>занятий в неделю / в месяц / длительность (мин) / стоимость занятия</b>
+      — только при <code>contracts.lessonPackage.bind</code>
+      (<code>when: canBindLessonPackage</code>,
+      <a href="#contract-fields">§contract-fields</a>), действия
       («Изменить» / «Удалить» — удаление только если нет назначений и привязок в календаре, флаг <code>can_delete</code> в JSON).</li>
     <li>Настройки колонок: <code>user_table_settings.table_key = lesson_packages_index</code>.</li>
   </ul>
@@ -712,6 +780,11 @@
       (<a href="#duration-permission">§duration-permission</a>).</li>
     <li>Подпись поля срока — <b>«Срок действия (дни) *»</b> (не «Длительность»); в модалке и в таблице только при <code>scheduleSlots.view</code>.</li>
     <li>Раскладка: по 2 поля в ряд (<code>col-md-6</code>); в create у обязательных полей стоят <code>*</code>.</li>
+    <li>Блок <b>«Для договора»</b> после стоимости: <code>#create_contract_fields_section</code> /
+      <code>#edit_contract_fields_section</code> — только при
+      <code>@can('contracts.lessonPackage.bind')</code>; без права create → <code>null</code>,
+      update не меняет уже сохранённые значения
+      (<a href="#contract-fields">§contract-fields</a>).</li>
     <li>Ширина модалок — стандартная Bootstrap (не full-screen).</li>
     <li id="edit-fill-defaults">Fill edit: <code>GET /admin/lesson-packages/{id}</code> пишет название, тип,
       срок, занятия и цену; затем <code>applyEditScheduleTypeUi()</code> <b>без</b> аргумента.
@@ -1478,6 +1551,13 @@
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportAjaxContractFeatureTest.php</code> — AJAX: <code>422</code> + <code>errors</code> под полями дат; успех → непустой <code>.xlsx</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX GET: ошибка → <code>302</code> + session errors; успех → файл (не пустой 200)</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>node --check</code> для inline JS выгрузки на <code>schoolSchedule.blade.php</code></li>
+    <li><code>tests/Unit/Documentation/LessonPackageContractFieldsDocumentationContractTest.php</code> — анонс <code>/doc#lesson-package-contract-fields-index</code> совпадает с модалками, Request, bind-гейтом и DocumentationController</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageContractFieldsMarkupFeatureTest.php</code> — блок «Для договора» в create/edit, колонки таблицы, без HTML5 required, edit без зашитых value; без bind блок и колонки скрыты</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageContractFieldsAjaxContractFeatureTest.php</code> — AJAX store пустых/заполненных, 422 под полями, show, update → null, data labels «—»; без bind store игнорирует (в т.ч. крафт 0/abc, не 422), update preserve</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageContractFieldsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + БД / session errors под полями; очистка с <code>from</code> справочников; store без bind → null</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageContractFieldsWorkflowFeatureTest.php</code> — [P2] страница справочника → AJAX create/update → labels в DataTables без F5</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageContractFieldsAccessFeatureTest.php</code> — с bind → блок/колонки и CRUD; без bind страницы 200, UI скрыт, <code>…/data</code> отдаёт лейблы; superadmin видит через <code>Gate::before</code></li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_lesson_packages_contract_fields_inline_script_is_valid_javascript</code>: <code>@can</code>, <code>canBindLessonPackage</code>, <code>normalizePayload</code>, <code>fillOptionalNumber</code>, колонки, <code>node --check</code></li>
     <li><code>tests/Unit/Documentation/LessonPackageFreezeDocumentationContractTest.php</code> — анонс <code>/doc#lesson-package-freeze-permission-index</code> совпадает с кодом и страницами lesson-packages / postpay / calendar / hints</li>
     <li><code>tests/Unit/Documentation/LessonPackageAutoAttendanceDocumentationContractTest.php</code> — анонс <code>/doc#lesson-package-auto-attendance-index</code> совпадает с кодом и страницами lesson-packages / postpay / calendar / hints</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceCrudFeatureTest.php</code> — UI-маркеры «Автосписание» (при <code>scheduleSlots.view</code>), AJAX store/update/show, валидация <code>no_schedule</code>/<code>postpay</code>, 422 без права, preserve флага на update, создание с <code>auto=0</code> без права</li>

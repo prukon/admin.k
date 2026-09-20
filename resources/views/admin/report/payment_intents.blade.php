@@ -1,6 +1,6 @@
 @php
     $piCanFilterPartner = $piCanFilterPartner ?? false;
-    $piFilterKeys = ['inv_id', 'user_id', 'partner_title', 'user_name', 'provider', 'status', 'created_from', 'created_to', 'paid_from', 'paid_to'];
+    $piFilterKeys = ['inv_id', 'user_id', 'partner_title', 'user_name', 'provider', 'status', 'email_newsletter', 'created_from', 'created_to', 'paid_from', 'paid_to'];
     if ($piCanFilterPartner) {
         $piFilterKeys[] = 'partner_id';
     }
@@ -90,51 +90,55 @@
                                 <label class="form-check-label" for="piColMethod">Способ оплаты</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColStatus" data-column-key="status" data-column-index="6" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColEmailNewsletter" data-column-key="email_newsletter" data-column-index="6" checked>
+                                <label class="form-check-label" for="piColEmailNewsletter">Email рассылка</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColStatus" data-column-key="status" data-column-index="7" checked>
                                 <label class="form-check-label" for="piColStatus">Статус</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColOutSum" data-column-key="out_sum" data-column-index="7" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColOutSum" data-column-key="out_sum" data-column-index="8" checked>
                                 <label class="form-check-label" for="piColOutSum">Сумма платежа</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColPaymentDate" data-column-key="payment_date" data-column-index="8" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColPaymentDate" data-column-key="payment_date" data-column-index="9" checked>
                                 <label class="form-check-label" for="piColPaymentDate">Оплаченный месяц</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColCreatedAt" data-column-key="created_at" data-column-index="9" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColCreatedAt" data-column-key="created_at" data-column-index="10" checked>
                                 <label class="form-check-label" for="piColCreatedAt">Создано</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColPaidAt" data-column-key="paid_at" data-column-index="10" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColPaidAt" data-column-key="paid_at" data-column-index="11" checked>
                                 <label class="form-check-label" for="piColPaidAt">Дата оплаты</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColDeviceType" data-column-key="client_device_type" data-column-index="11" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColDeviceType" data-column-key="client_device_type" data-column-index="12" checked>
                                 <label class="form-check-label" for="piColDeviceType">Тип устройства</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientOs" data-column-key="client_os" data-column-index="12" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientOs" data-column-key="client_os" data-column-index="13" checked>
                                 <label class="form-check-label" for="piColClientOs">ОС</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientBrowser" data-column-key="client_browser" data-column-index="13" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientBrowser" data-column-key="client_browser" data-column-index="14" checked>
                                 <label class="form-check-label" for="piColClientBrowser">Браузер</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientUa" data-column-key="client_user_agent" data-column-index="14" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientUa" data-column-key="client_user_agent" data-column-index="15" checked>
                                 <label class="form-check-label" for="piColClientUa">User-Agent</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientIp" data-column-key="client_ip" data-column-index="15" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientIp" data-column-key="client_ip" data-column-index="16" checked>
                                 <label class="form-check-label" for="piColClientIp">IP</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientRef" data-column-key="client_referrer" data-column-index="16" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientRef" data-column-key="client_referrer" data-column-index="17" checked>
                                 <label class="form-check-label" for="piColClientRef">Referrer</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColMeta" data-column-key="meta" data-column-index="17" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColMeta" data-column-key="meta" data-column-index="18" checked>
                                 <label class="form-check-label" for="piColMeta">Мета</label>
                             </div>
                         </div>
@@ -199,6 +203,15 @@
                     <option value="paid" {{ $status === 'paid' ? 'selected' : '' }}>оплачен</option>
                     <option value="failed" {{ $status === 'failed' ? 'selected' : '' }}>ошибка</option>
                     <option value="cancelled" {{ $status === 'cancelled' ? 'selected' : '' }}>отменён</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pi-filter-email-newsletter">Email рассылка</label>
+                @php($piEmailNewsletter = (string) ($filters['email_newsletter'] ?? ''))
+                <select class="form-select" id="pi-filter-email-newsletter" name="email_newsletter">
+                    <option value="">Все</option>
+                    <option value="1" {{ $piEmailNewsletter === '1' ? 'selected' : '' }}>Да</option>
+                    <option value="0" {{ $piEmailNewsletter === '0' ? 'selected' : '' }}>Нет</option>
                 </select>
             </div>
 
@@ -269,6 +282,7 @@
             <th>Пользователь</th>
             <th>Провайдер</th>
             <th>Способ оплаты</th>
+            <th>Email рассылка</th>
             <th>Статус</th>
             <th>Сумма платежа</th>
             <th>Оплаченный месяц</th>
@@ -430,6 +444,7 @@
                     user_name: '',
                     provider: $form.find('[name="provider"]').val() || '',
                     status: $form.find('[name="status"]').val() || '',
+                    email_newsletter: $form.find('[name="email_newsletter"]').val() || '',
                     created_from: $form.find('[name="created_from"]').val() || '',
                     created_to: $form.find('[name="created_to"]').val() || '',
                     paid_from: $form.find('[name="paid_from"]').val() || '',
@@ -584,6 +599,7 @@
                         user: true,
                         provider: true,
                         payment_method_webhook_label: true,
+                        email_newsletter: true,
                         status: true,
                         out_sum: true,
                         payment_date: true,
@@ -660,6 +676,22 @@
                         name: 'payment_method_webhook_label',
                         orderable: false,
                         searchable: false,
+                    },
+                    {
+                        key: 'email_newsletter',
+                        type: 'text',
+                        data: 'email_newsletter',
+                        name: 'email_newsletter',
+                        searchable: false,
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            if (!data) {
+                                return '<span class="text-muted">—</span>';
+                            }
+                            return window.KidsCrmTooltip.renderText(data);
+                        },
                     },
                     {
                         key: 'status',

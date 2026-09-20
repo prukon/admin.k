@@ -51,6 +51,11 @@
                             <dt class="col-sm-4">Группа</dt>
                             <dd class="col-sm-8">{{ $teamTitle ?? '—' }}</dd>
 
+                            @can('contracts.lessonPackage.bind')
+                                <dt class="col-sm-4">Абонемент</dt>
+                                <dd class="col-sm-8">{{ $contract->packageSnapshotName() ?: '—' }}</dd>
+                            @endcan
+
                             <dt class="col-sm-4">Статус</dt>
                             <dd class="col-sm-8">
                                 <span class="badge {{ $contract->status_badge_class }}">{{ $contract->school_status_ru }}</span>

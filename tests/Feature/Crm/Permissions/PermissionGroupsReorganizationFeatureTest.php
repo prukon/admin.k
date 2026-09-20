@@ -43,13 +43,13 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
     {
         return [
             'mainMenu'        => 18,
-            'reports'         => 11,
+            'reports'         => 12,
             'schedule'        => 5,
             'schoolSchedule'  => 6,
             'directories'     => 8,
             'lessonPackages'  => 5,
             'setPrices'       => 9,
-            'contracts'       => 4,
+            'contracts'       => 5,
             'leads'           => 3,
             'partner'         => 4,
             'account'         => 13,
@@ -165,6 +165,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'contracts.sync',
                 'contracts.templates.fillSortOrder.edit',
                 'contracts.fillExpiresAt.view',
+                'contracts.lessonPackage.bind',
                 'account.contracts.showFieldKeys',
             ],
             'leads' => [
