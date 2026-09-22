@@ -299,6 +299,24 @@ class ContractTemplateVariablePresets
                 'fill_sort_order'  => 51,
             ],
             [
+                'key'              => ContractTemplatePrefillSources::CHILD_PASSPORT,
+                'label'            => 'Ребёнок: паспорт/св-во о рождении',
+                'description'      => 'Серия и номер паспорта или свидетельства о рождении ученика (users.passport).',
+                'group'            => self::GROUP_CHILD,
+                'prefill_source'   => ContractTemplatePrefillSources::CHILD_PASSPORT,
+                'required_default' => false,
+                'fill_sort_order'  => 53,
+            ],
+            [
+                'key'              => ContractTemplatePrefillSources::CHILD_PASSPORT_ISSUED_AT,
+                'label'            => 'Ребёнок: дата выдачи паспорта/св-ва',
+                'description'      => 'Дата выдачи паспорта или свидетельства (users.passport_issued_at, формат дд.мм.гггг, не позже сегодня).',
+                'group'            => self::GROUP_CHILD,
+                'prefill_source'   => ContractTemplatePrefillSources::CHILD_PASSPORT_ISSUED_AT,
+                'required_default' => false,
+                'fill_sort_order'  => 54,
+            ],
+            [
                 'key'              => ContractTemplatePrefillSources::LEGAL_ENTITY_NAME,
                 'label'            => 'Юр. лицо: название',
                 'description'      => 'Публичное наименование ИП/организации (organization_name).',
@@ -1093,13 +1111,39 @@ class ContractTemplateVariablePresets
             return false;
         }
 
-        if ($key === ContractTemplatePrefillSources::CHILD_BIRTHDAY) {
+        if ($key === ContractTemplatePrefillSources::CHILD_BIRTHDAY
+            || $key === ContractTemplatePrefillSources::CHILD_PASSPORT_ISSUED_AT) {
             return true;
         }
 
         return str_contains($key, 'birthday')
             || str_contains($key, 'birth_date')
             || str_contains($key, 'date_of_birth');
+    }
+
+    /**
+     * Дата рождения — строго в прошлом. Дата выдачи паспорта/св-ва — не позже сегодня.
+     */
+    public static function fillFormDateBoundRule(string $key): string
+    {
+        $key = self::canonicalFieldKey($key);
+
+        if ($key === ContractTemplatePrefillSources::CHILD_PASSPORT_ISSUED_AT) {
+            return 'before_or_equal:today';
+        }
+
+        return 'before:today';
+    }
+
+    public static function fillFormTextMax(string $key): int
+    {
+        $key = self::canonicalFieldKey($key);
+
+        if ($key === ContractTemplatePrefillSources::CHILD_PASSPORT) {
+            return 100;
+        }
+
+        return 2000;
     }
 
     public static function isFillFormPhoneField(string $key): bool

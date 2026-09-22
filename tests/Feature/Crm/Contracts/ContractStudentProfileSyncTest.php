@@ -59,4 +59,55 @@ final class ContractStudentProfileSyncTest extends CrmTestCase
         $this->assertSame('Новый', $this->user->lastname);
         $this->assertSame('БезКлюча', $this->user->full_name_genitive);
     }
+
+    public function test_filled_passport_fields_update_student_card(): void
+    {
+        $this->user->forceFill([
+            'passport'           => 'старый',
+            'passport_issued_at' => '2010-01-01',
+        ])->save();
+
+        app(ContractStudentProfileSyncService::class)->syncFromFilledData($this->user, [
+            'child_passport'           => 'II-АБ 654321',
+            'child_passport_issued_at' => '15.03.2020',
+        ]);
+
+        $this->user->refresh();
+
+        $this->assertSame('II-АБ 654321', $this->user->passport);
+        $this->assertSame('2020-03-15', $this->user->passport_issued_at?->format('Y-m-d'));
+    }
+
+    public function test_empty_passport_fields_clear_student_card(): void
+    {
+        $this->user->forceFill([
+            'passport'           => 'стереть',
+            'passport_issued_at' => '2010-01-01',
+        ])->save();
+
+        app(ContractStudentProfileSyncService::class)->syncFromFilledData($this->user, [
+            'child_passport'           => '   ',
+            'child_passport_issued_at' => '',
+        ]);
+
+        $this->user->refresh();
+
+        $this->assertNull($this->user->passport);
+        $this->assertNull($this->user->passport_issued_at);
+    }
+
+    public function test_future_passport_issued_at_does_not_overwrite_student_card(): void
+    {
+        $this->user->forceFill([
+            'passport_issued_at' => '2010-01-01',
+        ])->save();
+
+        app(ContractStudentProfileSyncService::class)->syncFromFilledData($this->user, [
+            'child_passport_issued_at' => now()->addDay()->format('d.m.Y'),
+        ]);
+
+        $this->user->refresh();
+
+        $this->assertSame('2010-01-01', $this->user->passport_issued_at?->format('Y-m-d'));
+    }
 }

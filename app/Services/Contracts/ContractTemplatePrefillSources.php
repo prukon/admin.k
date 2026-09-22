@@ -13,6 +13,8 @@ class ContractTemplatePrefillSources
     public const CHILD_FULL_NAME_GENITIVE = 'child_full_name_genitive';
     public const CHILD_BIRTHDAY     = 'child_birthday';
     public const CHILD_ADDRESS      = 'child_address';
+    public const CHILD_PASSPORT     = 'child_passport';
+    public const CHILD_PASSPORT_ISSUED_AT = 'child_passport_issued_at';
     /** @deprecated Используйте {@see CHILD_FULL_NAME}. Оставлено для старых шаблонов и воркера. */
     public const STUDENT_FULL_NAME  = 'child_full_name';
     public const STUDENT_PHONE      = 'student_phone';

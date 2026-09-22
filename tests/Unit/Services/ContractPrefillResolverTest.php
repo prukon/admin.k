@@ -122,7 +122,9 @@ final class ContractPrefillResolverTest extends CrmTestCase
             'lastname'   => 'Петров',
             'name'       => 'Пётр',
             'birthday'   => '2018-05-10',
-            'address'    => 'г. Казань, ул. Ученическая, д. 3',
+            'address'            => 'г. Казань, ул. Ученическая, д. 3',
+            'passport'           => 'II-АБ 123456',
+            'passport_issued_at' => '2020-03-15',
         ]);
 
         $resolver = app(ContractPrefillResolver::class);
@@ -134,6 +136,8 @@ final class ContractPrefillResolverTest extends CrmTestCase
                 ['key' => 'child_firstname', 'prefill_source' => ContractTemplatePrefillSources::CHILD_FIRSTNAME],
                 ['key' => 'child_birthday', 'prefill_source' => ContractTemplatePrefillSources::CHILD_BIRTHDAY],
                 ['key' => 'child_address', 'prefill_source' => ContractTemplatePrefillSources::CHILD_ADDRESS],
+                ['key' => 'child_passport', 'prefill_source' => ContractTemplatePrefillSources::CHILD_PASSPORT],
+                ['key' => 'child_passport_issued_at', 'prefill_source' => ContractTemplatePrefillSources::CHILD_PASSPORT_ISSUED_AT],
             ],
         );
 
@@ -142,6 +146,8 @@ final class ContractPrefillResolverTest extends CrmTestCase
         $this->assertSame('Пётр', $values['child_firstname']);
         $this->assertSame('10.05.2018', $values['child_birthday']);
         $this->assertSame('г. Казань, ул. Ученическая, д. 3', $values['child_address']);
+        $this->assertSame('II-АБ 123456', $values['child_passport']);
+        $this->assertSame('15.03.2020', $values['child_passport_issued_at']);
     }
 
     private function makeContractForStudent(User $student): \App\Models\Contract

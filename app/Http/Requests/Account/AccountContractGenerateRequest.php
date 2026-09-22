@@ -37,14 +37,16 @@ class AccountContractGenerateRequest extends FormRequest
             }
 
             if (ContractTemplateVariablePresets::isFillFormDateField($key)) {
-                $fieldRules = ['nullable', 'date', 'before:today'];
+                $dateBound = ContractTemplateVariablePresets::fillFormDateBoundRule($key);
+                $fieldRules = ['nullable', 'date', $dateBound];
                 if (!empty($field['required'])) {
-                    $fieldRules = ['required', 'date', 'before:today'];
+                    $fieldRules = ['required', 'date', $dateBound];
                 }
             } else {
-                $fieldRules = ['nullable', 'string', 'max:2000'];
+                $max = ContractTemplateVariablePresets::fillFormTextMax($key);
+                $fieldRules = ['nullable', 'string', 'max:' . $max];
                 if (!empty($field['required'])) {
-                    $fieldRules = ['required', 'string', 'max:2000'];
+                    $fieldRules = ['required', 'string', 'max:' . $max];
                 }
             }
 
@@ -74,6 +76,8 @@ class AccountContractGenerateRequest extends FormRequest
             'fields.array'    => 'Некорректный формат полей договора.',
             '*.date'          => 'Поле «:attribute» должно содержать корректную дату.',
             '*.before'        => 'Поле «:attribute» должно быть датой в прошлом.',
+            '*.before_or_equal' => 'Поле «:attribute» не может быть позднее сегодняшнего дня.',
+            '*.max'           => 'Поле «:attribute» не должно превышать :max символов.',
         ];
     }
 

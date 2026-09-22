@@ -180,6 +180,8 @@
       <tr><td><code>child_full_name_genitive</code></td><td>одно поле; prefill из <code>users.full_name_genitive</code> (необязательное; тест <code>ContractChildFullNameGenitivePrefillFeatureTest</code>)</td></tr>
       <tr><td><code>child_birthday</code></td><td>поле даты; в PDF — <code>d.m.Y</code></td></tr>
       <tr><td><code>child_address</code></td><td>текст; prefill из <code>users.address</code>; после generate — sync обратно в карточку ученика</td></tr>
+      <tr><td><code>child_passport</code></td><td>текст, max 100, необязательное; prefill из <code>users.passport</code>; после generate — sync обратно (пустая строка очищает карточку)</td></tr>
+      <tr><td><code>child_passport_issued_at</code></td><td>поле даты; в PDF — <code>d.m.Y</code>; валидация <code>before_or_equal:today</code>; prefill из <code>users.passport_issued_at</code>; после generate — sync обратно</td></tr>
       <tr><td><code>contract_date</code></td><td>не в форме (<code>fill_mode=system</code>); при generate — <code>now()->format('d.m.Y')</code></td></tr>
       <tr><td><code>contract_id</code></td><td>не в форме; ID договора</td></tr>
       <tr><td><code>documents_url</code></td><td>не в форме; в письме — URL «Мои документы» с <code>student</code> и <code>fill</code>; в PDF — общий URL без query</td></tr>
@@ -219,11 +221,14 @@
       <tr><td><code>{{legal_entity_bik}}</code></td><td>Юр. лицо: БИК</td><td><code>bank_bik</code></td></tr>
       <tr><td><code>{{legal_entity_bank_corr_account}}</code></td><td>Юр. лицо: корреспондентский счёт</td><td><code>bank_corr_account</code></td></tr>
       <tr><td><code>{{child_address}}</code></td><td>Ребёнок: адрес проживания</td><td><code>users.address</code> (группа «Ребёнок», CRM-prefill)</td></tr>
+      <tr><td><code>{{child_passport}}</code></td><td>Ребёнок: паспорт/св-во о рождении</td><td><code>users.passport</code> (группа «Ребёнок», CRM-prefill, необязательное)</td></tr>
+      <tr><td><code>{{child_passport_issued_at}}</code></td><td>Ребёнок: дата выдачи паспорта/св-ва</td><td><code>users.passport_issued_at</code> (группа «Ребёнок», CRM-prefill, дата не позже сегодня)</td></tr>
     </tbody>
   </table>
   <ul>
     <li>Поля <code>legal_entity_*</code> — <code>fill_mode=system</code>: не показываются родителю, <code>required=false</code>, <code>prefill_source=null</code> в схеме.</li>
     <li><code>child_address</code> — обычное CRM-поле ребёнка: есть в форме родителя, предзаполняется из карточки, после generate пишется обратно через <code>ContractStudentProfileSyncService</code>.</li>
+    <li><code>child_passport</code> и <code>child_passport_issued_at</code> — тоже CRM-поля ребёнка (необязательные, <code>fill_sort_order</code> 53 и 54, после адреса и названия группы). В справочнике модалки «Новый шаблон договора» — группа «Ребёнок (ученик)». Подписи в форме родителя: «Паспорт/св-во о рождении», «Дата выдачи паспорта/св-ва». Дата выдачи — <code>&lt;input type="date"&gt;</code>, правило <code>before_or_equal:today</code> (сегодня допустимо). Пустые значения после generate очищают <code>users.passport</code> и <code>users.passport_issued_at</code>. Карточка ученика: <a href="/docs/documentation/admin-users#user-student-passport">admin-users §2.7</a>.</li>
     <li>Блок срабатывает <b>только если</b> в <code>fields_schema</code> версии есть хотя бы один ключ из группы «Юр. лицо».</li>
   </ul>
   <div class="warn">

@@ -44,7 +44,7 @@
                name="fields[{{ $key }}]"
                class="form-control @error('fields.' . $key) is-invalid @enderror"
                value="{{ $value }}"
-               maxlength="2000">
+               maxlength="{{ ContractTemplateVariablePresets::fillFormTextMax($key) }}">
     @endif
     <div class="invalid-feedback" data-error-for="fields.{{ $key }}">@error('fields.' . $key){{ $message }}@enderror</div>
 </div>

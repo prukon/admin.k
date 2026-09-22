@@ -74,6 +74,8 @@ class ContractTemplateVariablePresetsTest extends TestCase
             'key',
         );
         $this->assertContains('child_address', $childKeys);
+        $this->assertContains('child_passport', $childKeys);
+        $this->assertContains('child_passport_issued_at', $childKeys);
 
         $packageKeys = array_column(
             ContractTemplateVariablePresets::recommendedForGroup(ContractTemplateVariablePresets::GROUP_PACKAGE),
@@ -321,6 +323,29 @@ class ContractTemplateVariablePresetsTest extends TestCase
     }
 
     /** @test */
+    public function child_passport_presets_apply_defaults_when_building_schema(): void
+    {
+        $path = $this->makeDocxWithText('{{child_passport}} {{child_passport_issued_at}}');
+
+        $extractor = new DocxPlaceholderExtractor();
+        $schema = $extractor->buildFieldsSchema($extractor->extractFromPath($path));
+
+        $this->assertSame('child_passport', $schema[0]['key']);
+        $this->assertSame('Ребёнок: паспорт/св-во о рождении', $schema[0]['label']);
+        $this->assertSame(ContractTemplatePrefillSources::CHILD_PASSPORT, $schema[0]['prefill_source']);
+        $this->assertFalse($schema[0]['required']);
+        $this->assertSame(53, $schema[0]['fill_sort_order']);
+
+        $this->assertSame('child_passport_issued_at', $schema[1]['key']);
+        $this->assertSame('Ребёнок: дата выдачи паспорта/св-ва', $schema[1]['label']);
+        $this->assertSame(ContractTemplatePrefillSources::CHILD_PASSPORT_ISSUED_AT, $schema[1]['prefill_source']);
+        $this->assertFalse($schema[1]['required']);
+        $this->assertSame(54, $schema[1]['fill_sort_order']);
+
+        @unlink($path);
+    }
+
+    /** @test */
     public function prefill_source_keys_use_snake_case_without_dots(): void
     {
         foreach (ContractTemplatePrefillSources::keys() as $key) {
@@ -333,7 +358,13 @@ class ContractTemplateVariablePresetsTest extends TestCase
     public function fill_form_date_helpers_convert_between_html_and_docx_formats(): void
     {
         $this->assertTrue(ContractTemplateVariablePresets::isFillFormDateField('child_birthday'));
+        $this->assertTrue(ContractTemplateVariablePresets::isFillFormDateField('child_passport_issued_at'));
+        $this->assertFalse(ContractTemplateVariablePresets::isFillFormDateField('child_passport'));
         $this->assertFalse(ContractTemplateVariablePresets::isFillFormDateField('contract_date'));
+        $this->assertSame('before:today', ContractTemplateVariablePresets::fillFormDateBoundRule('child_birthday'));
+        $this->assertSame('before_or_equal:today', ContractTemplateVariablePresets::fillFormDateBoundRule('child_passport_issued_at'));
+        $this->assertSame(100, ContractTemplateVariablePresets::fillFormTextMax('child_passport'));
+        $this->assertSame(2000, ContractTemplateVariablePresets::fillFormTextMax('child_address'));
 
         $this->assertSame('2018-05-10', ContractTemplateVariablePresets::dateValueForFillInput('10.05.2018'));
         $this->assertSame('10.05.2018', ContractTemplateVariablePresets::normalizeFillFormDateValue('2018-05-10'));
@@ -441,6 +472,8 @@ class ContractTemplateVariablePresetsTest extends TestCase
         $this->assertSame('Телефон', ContractTemplateVariablePresets::fillFormFieldLabel('Родитель: телефон', ContractTemplateVariablePresets::GROUP_PARENT));
         $this->assertSame('Email', ContractTemplateVariablePresets::fillFormFieldLabel('Родитель: email', ContractTemplateVariablePresets::GROUP_PARENT));
         $this->assertSame('Дата рождения', ContractTemplateVariablePresets::fillFormFieldLabel('Ребёнок: дата рождения', ContractTemplateVariablePresets::GROUP_CHILD));
+        $this->assertSame('Паспорт/св-во о рождении', ContractTemplateVariablePresets::fillFormFieldLabel('Ребёнок: паспорт/св-во о рождении', ContractTemplateVariablePresets::GROUP_CHILD));
+        $this->assertSame('Дата выдачи паспорта/св-ва', ContractTemplateVariablePresets::fillFormFieldLabel('Ребёнок: дата выдачи паспорта/св-ва', ContractTemplateVariablePresets::GROUP_CHILD));
     }
 
     private function makeDocxWithText(string $text): string

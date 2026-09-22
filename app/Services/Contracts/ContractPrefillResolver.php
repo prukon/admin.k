@@ -110,6 +110,8 @@ class ContractPrefillResolver
             ContractTemplatePrefillSources::CHILD_FULL_NAME_GENITIVE => trim((string) ($student->full_name_genitive ?? '')),
             ContractTemplatePrefillSources::CHILD_BIRTHDAY  => $this->studentBirthday($student),
             ContractTemplatePrefillSources::CHILD_ADDRESS   => trim((string) ($student->address ?? '')),
+            ContractTemplatePrefillSources::CHILD_PASSPORT  => trim((string) ($student->passport ?? '')),
+            ContractTemplatePrefillSources::CHILD_PASSPORT_ISSUED_AT => $this->studentPassportIssuedAt($student),
             ContractTemplatePrefillSources::STUDENT_PHONE      => (string) ($student->phone ?? ''),
             ContractTemplatePrefillSources::STUDENT_EMAIL     => (string) ($student->email ?? ''),
             ContractTemplatePrefillSources::PARENT_FULL_NAME  => (string) ($student->parent_full_name ?? ''),
@@ -150,5 +152,12 @@ class ContractPrefillResolver
         $birthday = $student->birthday;
 
         return $birthday ? $birthday->format('d.m.Y') : '';
+    }
+
+    private function studentPassportIssuedAt(User $student): string
+    {
+        $issuedAt = $student->passport_issued_at;
+
+        return $issuedAt ? $issuedAt->format('d.m.Y') : '';
     }
 }

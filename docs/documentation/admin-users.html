@@ -1001,7 +1001,10 @@
 
   <h3>2.7.3) Границы</h3>
   <ul>
-    <li>Поля <b>не</b> вынесены в личный кабинет, импорт Excel (§8) и шаблоны договоров (нет <code>{{child_passport}}</code>).</li>
+    <li>Поля <b>не</b> вынесены в личный кабинет как отдельная карточка профиля и <b>не</b> входят в импорт Excel (§8).</li>
+    <li>В шаблонах договоров есть пресеты <code>{{child_passport}}</code> и <code>{{child_passport_issued_at}}</code>
+      (группа «Ребёнок (ученик)» в модалке «Новый шаблон договора»): prefill из карточки, sync обратно после generate.
+      Подробно: <a href="/docs/documentation/contract-templates#legal-entity-variables">contract-templates §6.1</a>.</li>
     <li>Колонки в DataTables <code>/admin/users</code> нет.</li>
   </ul>
 

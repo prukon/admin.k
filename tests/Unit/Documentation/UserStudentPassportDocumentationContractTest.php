@@ -35,6 +35,9 @@ final class UserStudentPassportDocumentationContractTest extends TestCase
         $this->assertStringContainsString('admin-users#user-student-passport', $chunk);
         $this->assertStringContainsString('#edit-passport', $chunk);
         $this->assertStringContainsString('#edit-passport-issued-at', $chunk);
+        $this->assertStringContainsString('{{child_passport}}', $chunk);
+        $this->assertStringContainsString('{{child_passport_issued_at}}', $chunk);
+        $this->assertStringContainsString('id="child-passport-contract-presets-index"', $html);
     }
 
     public function test_admin_users_section_and_live_code_match_passport_contract(): void
@@ -54,7 +57,7 @@ final class UserStudentPassportDocumentationContractTest extends TestCase
         $this->assertStringContainsString('before_or_equal:today', $adminUsers);
         $this->assertStringContainsString('UserPassportFieldFeatureTest', $adminUsers);
 
-        $this->assertStringContainsString('users.passport, users.passport_issued_at', $controller);
+        $this->assertStringContainsString('users.passport → {{child_passport}}, users.passport_issued_at → {{child_passport_issued_at}}', $controller);
 
         $this->assertStringContainsString("'passport'    => 'nullable|string|max:100'", $store);
         $this->assertStringContainsString("'passport_issued_at' => 'nullable|date|before_or_equal:today'", $store);

@@ -51,6 +51,23 @@ class ContractStudentProfileSyncService
             $updates['address'] = $address !== '' ? $address : null;
         }
 
+        if (array_key_exists(ContractTemplatePrefillSources::CHILD_PASSPORT, $filledData)) {
+            $passport = trim((string) $filledData[ContractTemplatePrefillSources::CHILD_PASSPORT]);
+            $updates['passport'] = $passport !== '' ? mb_substr($passport, 0, 100) : null;
+        }
+
+        if (array_key_exists(ContractTemplatePrefillSources::CHILD_PASSPORT_ISSUED_AT, $filledData)) {
+            $rawIssuedAt = trim((string) $filledData[ContractTemplatePrefillSources::CHILD_PASSPORT_ISSUED_AT]);
+            if ($rawIssuedAt === '') {
+                $updates['passport_issued_at'] = null;
+            } else {
+                $issuedAt = ContractTemplateVariablePresets::parseFillFormDate($rawIssuedAt);
+                if ($issuedAt !== null && $issuedAt->lte(now()->startOfDay())) {
+                    $updates['passport_issued_at'] = $issuedAt->toDateString();
+                }
+            }
+        }
+
         if ($updates === []) {
             return;
         }
