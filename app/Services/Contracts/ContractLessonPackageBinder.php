@@ -24,6 +24,8 @@ class ContractLessonPackageBinder
 
     public const KEY_PRICE = 'package_price';
 
+    public const KEY_LESSONS_COUNT = 'package_lessons_count';
+
     public const KEY_LESSONS_PER_WEEK = 'package_lessons_per_week';
 
     public const KEY_DURATION_MINUTES = 'package_lesson_duration_minutes';
@@ -38,6 +40,7 @@ class ContractLessonPackageBinder
         return [
             self::KEY_NAME,
             self::KEY_PRICE,
+            self::KEY_LESSONS_COUNT,
             self::KEY_LESSONS_PER_WEEK,
             self::KEY_DURATION_MINUTES,
             self::KEY_LESSON_PRICE,
@@ -150,6 +153,7 @@ class ContractLessonPackageBinder
      * @return array{
      *     name: string,
      *     price_cents: int,
+     *     lessons_count: int|null,
      *     lessons_per_week: int|null,
      *     lesson_duration_minutes: int|null,
      *     lesson_price_cents: int|null
@@ -160,6 +164,7 @@ class ContractLessonPackageBinder
         return [
             'name'                      => (string) $package->name,
             'price_cents'               => (int) $package->price_cents,
+            'lessons_count'             => $this->nullableInt($package->lessons_count),
             'lessons_per_week'          => $this->nullableInt($package->lessons_per_week),
             'lesson_duration_minutes'   => $this->nullableInt($package->lesson_duration_minutes),
             'lesson_price_cents'        => $this->nullableInt($package->lesson_price_cents),
@@ -175,6 +180,7 @@ class ContractLessonPackageBinder
         $empty = [
             self::KEY_NAME               => '',
             self::KEY_PRICE              => '',
+            self::KEY_LESSONS_COUNT      => '',
             self::KEY_LESSONS_PER_WEEK   => '',
             self::KEY_DURATION_MINUTES   => '',
             self::KEY_LESSON_PRICE       => '',
@@ -189,6 +195,7 @@ class ContractLessonPackageBinder
         return [
             self::KEY_NAME              => trim((string) ($snapshot['name'] ?? '')),
             self::KEY_PRICE             => $this->formatMoney((int) ($snapshot['price_cents'] ?? 0)),
+            self::KEY_LESSONS_COUNT     => $this->formatInt($snapshot['lessons_count'] ?? null),
             self::KEY_LESSONS_PER_WEEK  => $this->formatInt($snapshot['lessons_per_week'] ?? null),
             self::KEY_DURATION_MINUTES  => $this->formatInt($snapshot['lesson_duration_minutes'] ?? null),
             self::KEY_LESSON_PRICE      => $lessonPriceCents === null ? '' : $this->formatMoney($lessonPriceCents),

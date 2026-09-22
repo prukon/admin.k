@@ -15,7 +15,9 @@ class ContractTemplateVariablePresets
 {
     public const GROUP_PARENT       = 'parent';
     public const GROUP_CHILD        = 'child';
+    public const GROUP_PLACE        = 'place';
     public const GROUP_LEGAL_ENTITY = 'legal_entity';
+    public const GROUP_PARTNER      = 'partner';
     public const GROUP_CONTRACT     = 'contract';
     public const GROUP_PACKAGE      = 'package';
 
@@ -70,7 +72,9 @@ class ContractTemplateVariablePresets
         return [
             self::GROUP_PARENT       => 'Родитель (заказчик)',
             self::GROUP_CHILD        => 'Ребёнок (ученик)',
+            self::GROUP_PLACE        => 'Группа и объект',
             self::GROUP_LEGAL_ENTITY => 'Юр. лицо',
+            self::GROUP_PARTNER      => 'Партнёр',
             self::GROUP_CONTRACT     => 'Договор',
             self::GROUP_PACKAGE      => 'Абонемент',
         ];
@@ -143,6 +147,21 @@ class ContractTemplateVariablePresets
      * }>
      */
     public static function recommended(): array
+    {
+        return array_merge(self::baseRecommended(), self::partnerSocialPresets());
+    }
+
+    /**
+     * @return list<array{
+     *     key: string,
+     *     label: string,
+     *     description: string,
+     *     group: string,
+     *     prefill_source: string|null,
+     *     required_default: bool
+     * }>
+     */
+    private static function baseRecommended(): array
     {
         return [
             [
@@ -483,6 +502,16 @@ class ContractTemplateVariablePresets
                 'required_default' => false,
             ],
             [
+                'key'              => ContractLessonPackageBinder::KEY_LESSONS_COUNT,
+                'label'            => 'Абонемент: кол-во занятий',
+                'description'      => 'Количество занятий в абонементе (lesson_packages.lessons_count) на момент создания договора.',
+                'admin_hint'       => 'Подставляется автоматически из выбранного абонемента. Родитель не заполняет.',
+                'group'            => self::GROUP_PACKAGE,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
                 'key'              => ContractLessonPackageBinder::KEY_LESSONS_PER_WEEK,
                 'label'            => 'Абонемент: занятий в неделю',
                 'description'      => 'Количество занятий в неделю из карточки абонемента.',
@@ -512,7 +541,101 @@ class ContractTemplateVariablePresets
                 'prefill_source'   => null,
                 'required_default' => false,
             ],
+            [
+                'key'              => ContractContextPlaceholderService::SPORT_TYPE_NAME,
+                'label'            => 'Вид спорта',
+                'description'      => 'Название вида спорта группы договора (teams.sport_type_id → sport_types.name).',
+                'admin_hint'       => 'Подставляется автоматически из группы договора. Родитель не заполняет. Если вид спорта не задан — пусто.',
+                'group'            => self::GROUP_PLACE,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractContextPlaceholderService::LOCATION_ADDRESS,
+                'label'            => 'Адрес объекта',
+                'description'      => 'Адрес объекта группы договора (teams.location_id → locations.address).',
+                'admin_hint'       => 'Подставляется автоматически из объекта группы. Родитель не заполняет. Если объект не задан — пусто.',
+                'group'            => self::GROUP_PLACE,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractContextPlaceholderService::LOCATION_ADMIN_EMAILS,
+                'label'            => 'Email администраторов объекта',
+                'description'      => 'Почты администраторов объекта группы через запятую.',
+                'admin_hint'       => 'Подставляется автоматически. Несколько администраторов — через запятую. Родитель не заполняет.',
+                'group'            => self::GROUP_PLACE,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractContextPlaceholderService::LOCATION_ADMIN_PHONES,
+                'label'            => 'Телефоны администраторов объекта',
+                'description'      => 'Телефоны администраторов объекта группы через запятую, формат +7 (999) 999-99-99.',
+                'admin_hint'       => 'Подставляется автоматически. Несколько администраторов — через запятую. Родитель не заполняет.',
+                'group'            => self::GROUP_PLACE,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractContextPlaceholderService::PARTNER_EMAIL,
+                'label'            => 'Партнёр: e-mail',
+                'description'      => 'Email партнёра из карточки /admin/partners (partners.email).',
+                'admin_hint'       => 'Подставляется автоматически из карточки партнёра. Родитель не заполняет.',
+                'group'            => self::GROUP_PARTNER,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractContextPlaceholderService::PARTNER_PHONE,
+                'label'            => 'Партнёр: телефон',
+                'description'      => 'Телефон партнёра из карточки /admin/partners (partners.phone), формат +7 (999) 999-99-99.',
+                'admin_hint'       => 'Подставляется автоматически из карточки партнёра. Родитель не заполняет.',
+                'group'            => self::GROUP_PARTNER,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
         ];
+    }
+
+    /**
+     * Отдельный ключ на каждую глобально включённую соцсеть справочника.
+     *
+     * @return list<array{
+     *     key: string,
+     *     label: string,
+     *     description: string,
+     *     group: string,
+     *     admin_hint: string,
+     *     fill_mode: string,
+     *     prefill_source: null,
+     *     required_default: bool
+     * }>
+     */
+    private static function partnerSocialPresets(): array
+    {
+        $presets = [];
+        foreach (app(ContractContextPlaceholderService::class)->enabledSocialPresets() as $item) {
+            $title = (string) $item['title'];
+            $presets[] = [
+                'key'              => (string) $item['key'],
+                'label'            => 'Соцсеть: '.$title,
+                'description'      => 'Ссылка на '.$title.' из модалки «Социальные сети» в настройках партнёра.',
+                'admin_hint'       => 'Подставляется автоматически, если ссылка включена и URL заполнен. Родитель не заполняет.',
+                'group'            => self::GROUP_PARTNER,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ];
+        }
+
+        return $presets;
     }
 
     /**
@@ -532,7 +655,8 @@ class ContractTemplateVariablePresets
     {
         $key = self::canonicalFieldKey($key);
 
-        if (DocxPlaceholderSupport::isSystemKey($key)) {
+        if (DocxPlaceholderSupport::isSystemKey($key)
+            || ContractContextPlaceholderService::isSocialPlaceholderKey($key)) {
             return self::FILL_MODE_SYSTEM;
         }
 
@@ -755,10 +879,31 @@ class ContractTemplateVariablePresets
                 continue;
             }
 
+            if ($key === ContractContextPlaceholderService::LOCATION_ADMIN_PHONES) {
+                $values[$key] = self::formatPhoneListForPdf($raw);
+                continue;
+            }
+
             $values[$key] = RuPhone::formatForInput($raw);
         }
 
         return $values;
+    }
+
+    public static function formatPhoneListForPdf(string $raw): string
+    {
+        $parts = preg_split('/\s*,\s*/u', trim($raw)) ?: [];
+        $formatted = [];
+        foreach ($parts as $part) {
+            $part = trim((string) $part);
+            if ($part === '') {
+                continue;
+            }
+
+            $formatted[] = RuPhone::formatForInput($part);
+        }
+
+        return implode(', ', $formatted);
     }
 
     public static function buildFullName(string $lastname, string $firstname, string $middlename = ''): string

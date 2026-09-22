@@ -83,10 +83,27 @@ class ContractTemplateVariablePresetsTest extends TestCase
         );
         $this->assertContains('package_name', $packageKeys);
         $this->assertContains('package_price', $packageKeys);
+        $this->assertContains('package_lessons_count', $packageKeys);
         $this->assertContains('package_lessons_per_week', $packageKeys);
         $this->assertNotContains('package_lessons_per_month', $packageKeys);
         $this->assertContains('package_lesson_duration_minutes', $packageKeys);
         $this->assertContains('package_lesson_price', $packageKeys);
+
+        $placeKeys = array_column(
+            ContractTemplateVariablePresets::recommendedForGroup(ContractTemplateVariablePresets::GROUP_PLACE),
+            'key',
+        );
+        $this->assertSame(
+            ['sport_type_name', 'location_address', 'location_admin_emails', 'location_admin_phones'],
+            $placeKeys,
+        );
+
+        $partnerKeys = array_column(
+            ContractTemplateVariablePresets::recommendedForGroup(ContractTemplateVariablePresets::GROUP_PARTNER),
+            'key',
+        );
+        $this->assertContains('partner_email', $partnerKeys);
+        $this->assertContains('partner_phone', $partnerKeys);
     }
 
     /** @test */
@@ -134,9 +151,17 @@ class ContractTemplateVariablePresetsTest extends TestCase
             ['key' => 'legal_entity_name', 'label' => 'Название', 'required' => false],
             ['key' => 'package_name', 'label' => 'Абонемент', 'required' => false],
             ['key' => 'package_price', 'label' => 'Стоимость', 'required' => false],
+            ['key' => 'package_lessons_count', 'label' => 'Занятия', 'required' => false],
+            ['key' => 'sport_type_name', 'label' => 'Спорт', 'required' => false],
+            ['key' => 'partner_email', 'label' => 'Email', 'required' => false],
+            ['key' => 'partner_social_vk', 'label' => 'VK', 'required' => false],
         ]);
 
         $this->assertSame(['child_address'], array_column($filtered, 'key'));
+        $this->assertSame(
+            ContractTemplateVariablePresets::FILL_MODE_SYSTEM,
+            ContractTemplateVariablePresets::fillModeForKey('partner_social_vk'),
+        );
     }
 
     /** @test */
@@ -216,6 +241,7 @@ class ContractTemplateVariablePresetsTest extends TestCase
             'student_phone'              => '79062475508',
             'spouse_phones'              => '+7 (900) 111-22-33',
             'custom_mobile'              => '8 (912) 345-67-89',
+            'location_admin_phones'      => '9061112233, 9064445566',
             'trusted_person_1_contacts'  => '9062475508, дом 12',
             'parent_email'               => 'a@example.com',
             'note'                       => '',
@@ -225,6 +251,7 @@ class ContractTemplateVariablePresetsTest extends TestCase
         $this->assertSame('+7 (906) 247-55-08', $formatted['student_phone']);
         $this->assertSame('+7 (900) 111-22-33', $formatted['spouse_phones']);
         $this->assertSame('+7 (912) 345-67-89', $formatted['custom_mobile']);
+        $this->assertSame('+7 (906) 111-22-33, +7 (906) 444-55-66', $formatted['location_admin_phones']);
         $this->assertSame('9062475508, дом 12', $formatted['trusted_person_1_contacts']);
         $this->assertSame('a@example.com', $formatted['parent_email']);
     }

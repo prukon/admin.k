@@ -217,6 +217,7 @@ class ContractLessonPackageBindFeatureTest extends ContractsFeatureTestCase
         $package = $this->makePackage([
             'name'                    => 'Старт',
             'price_cents'             => 50000,
+            'lessons_count'           => 8,
             'lessons_per_week'        => 2,
             'lesson_duration_minutes' => 45,
             'lesson_price_cents'      => 6250,
@@ -236,6 +237,7 @@ class ContractLessonPackageBindFeatureTest extends ContractsFeatureTestCase
         $this->assertSame([
             'name'                    => 'Старт',
             'price_cents'             => 50000,
+            'lessons_count'           => 8,
             'lessons_per_week'        => 2,
             'lesson_duration_minutes' => 45,
             'lesson_price_cents'      => 6250,
@@ -249,6 +251,7 @@ class ContractLessonPackageBindFeatureTest extends ContractsFeatureTestCase
         $values = app(ContractLessonPackageBinder::class)->placeholderValuesForContract($contract->fresh());
         $this->assertSame('Старт', $values[ContractLessonPackageBinder::KEY_NAME]);
         $this->assertSame(Money::formatRub(50000).' руб.', $values[ContractLessonPackageBinder::KEY_PRICE]);
+        $this->assertSame('8', $values[ContractLessonPackageBinder::KEY_LESSONS_COUNT]);
         $this->assertSame('2', $values[ContractLessonPackageBinder::KEY_LESSONS_PER_WEEK]);
         $this->assertSame('45', $values[ContractLessonPackageBinder::KEY_DURATION_MINUTES]);
         $this->assertSame(Money::formatRub(6250).' руб.', $values[ContractLessonPackageBinder::KEY_LESSON_PRICE]);

@@ -188,7 +188,14 @@
       <tr><td><code>legal_entity_*</code></td><td>не в форме родителя (<code>fill_mode=system</code>); подстановка при generate</td></tr>
       <tr><td><code>package_name</code></td><td>не в форме; название абонемента из снимка договора</td></tr>
       <tr><td><code>package_price</code></td><td>не в форме; стоимость абонемента, <code>Money::formatRub</code> + « руб.»</td></tr>
+      <tr><td><code>package_lessons_count</code></td><td>не в форме; число занятий абонемента из снимка (<code>lessons_count</code>)</td></tr>
       <tr><td><code>package_lessons_per_week</code></td><td>не в форме; занятий в неделю из снимка</td></tr>
+      <tr><td><code>sport_type_name</code></td><td>не в форме; вид спорта группы на момент generate</td></tr>
+      <tr><td><code>location_address</code></td><td>не в форме; адрес объекта группы</td></tr>
+      <tr><td><code>location_admin_emails</code></td><td>не в форме; email администраторов объекта через запятую</td></tr>
+      <tr><td><code>location_admin_phones</code></td><td>не в форме; телефоны администраторов объекта через запятую</td></tr>
+      <tr><td><code>partner_email</code> / <code>partner_phone</code></td><td>не в форме; контакты карточки партнёра</td></tr>
+      <tr><td><code>partner_social_{code}</code></td><td>не в форме; отдельная ссылка на каждую включённую соцсеть</td></tr>
       <tr><td><code>package_lesson_duration_minutes</code></td><td>не в форме; длительность занятия (мин)</td></tr>
       <tr><td><code>package_lesson_price</code></td><td>не в форме; стоимость одного занятия, с « руб.»; пустое поле каталога → пусто в PDF</td></tr>
     </tbody>
@@ -270,6 +277,7 @@
     <tbody>
       <tr><td><code>{{package_name}}</code></td><td>Абонемент: название</td><td><code>name</code></td></tr>
       <tr><td><code>{{package_price}}</code></td><td>Абонемент: цена</td><td><code>price_cents</code> → «N руб.»</td></tr>
+      <tr><td><code>{{package_lessons_count}}</code></td><td>Абонемент: кол-во занятий</td><td><code>lessons_count</code>; в старом снимке без ключа — пусто</td></tr>
       <tr><td><code>{{package_lessons_per_week}}</code></td><td>Абонемент: занятий в неделю</td><td><code>lessons_per_week</code></td></tr>
       <tr><td><code>{{package_lesson_duration_minutes}}</code></td><td>Абонемент: длительность занятия (мин)</td><td><code>lesson_duration_minutes</code></td></tr>
       <tr><td><code>{{package_lesson_price}}</code></td><td>Абонемент: стоимость одного занятия</td><td><code>lesson_price_cents</code> → «N руб.» или пусто</td></tr>
@@ -280,6 +288,28 @@
     <li>Блок срабатывает только если ключи есть в DOCX / <code>fields_schema</code> — как у юр. лица.</li>
   </ul>
 
+  <h3 id="context-placeholders">6.1.2) Группа, объект и партнёр</h3>
+  <div class="note">
+    Ключи групп «Группа и объект» и «Партнёр» — <code>fill_mode=system</code>.
+    В форме родителя их нет. Значения читаются при generate из текущих данных
+    (<code>ContractContextPlaceholderService</code>, мерж в <code>ContractTemplateSystemPlaceholders</code>),
+    не из снимка. Нет вида спорта, объекта, администратора или ссылки — пустая строка, договор не блокируется.
+    Справочник виден на <code>/client-contract-templates</code> и в модалке «Новый шаблон договора».
+  </div>
+  <table>
+    <thead><tr><th>Плейсхолдер Word</th><th>Подпись в CRM</th><th>Источник</th></tr></thead>
+    <tbody>
+      <tr><td><code>{{sport_type_name}}</code></td><td>Вид спорта</td><td><code>teams.sport_type_id</code> → <code>sport_types.name</code></td></tr>
+      <tr><td><code>{{location_address}}</code></td><td>Адрес объекта</td><td><code>teams.location_id</code> → <code>locations.address</code></td></tr>
+      <tr><td><code>{{location_admin_emails}}</code></td><td>Email администраторов объекта</td><td><code>location_admin_user</code> → <code>users.email</code>, через запятую, без пустых и дублей</td></tr>
+      <tr><td><code>{{location_admin_phones}}</code></td><td>Телефоны администраторов объекта</td><td>те же администраторы, <code>users.phone</code>, маска <code>+7 (999) 999-99-99</code>, через запятую</td></tr>
+      <tr><td><code>{{partner_email}}</code></td><td>Партнёр: e-mail</td><td><code>partners.email</code> (<code>/admin/partners</code>)</td></tr>
+      <tr><td><code>{{partner_phone}}</code></td><td>Партнёр: телефон</td><td><code>partners.phone</code>, та же маска</td></tr>
+      <tr><td><code>{{partner_social_vk}}</code> и соседние</td><td>Соцсеть: {название}</td><td>отдельный ключ <code>partner_social_{code}</code> на каждую сеть с <code>social_networks.is_enabled=1</code>. URL из <code>partner_social_links</code>, только если ссылка включена и не пустая. Выключенные в справочнике сети в аккордеон не попадают, в PDF ключ заменяется пустой строкой.</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Тест: <code>ContractContextPlaceholderFeatureTest</code>. Анонс: <a href="/doc#contract-template-context-placeholders-index">/doc#contract-template-context-placeholders-index</a>.</p>
+
   <h3 id="docx-placeholder-substitution">6.2) Подстановка плейсхолдеров и разрывы Word</h3>
   <div class="note">
     Извлечение ключей из DOCX и подстановка значений при generate PDF:
@@ -287,7 +317,10 @@
     (правки в <code>word/document.xml</code> и header/footer частей архива).<br><br>
     Значения служебных ключей при generate мержит <code>ContractTemplateSystemPlaceholders::forContract</code>:
     <code>documents_url</code>, <code>contract_id</code>, <code>contract_date</code> (текущая дата сервера, <code>d.m.Y</code>),
-    <code>legal_entity_*</code> и <code>package_*</code> из снимка абонемента.
+    <code>legal_entity_*</code>, <code>package_*</code> из снимка абонемента
+    (включая <code>package_lessons_count</code>) и блок группы/объекта/партнёра
+    (<code>sport_type_name</code>, <code>location_*</code>, <code>partner_email</code>,
+    <code>partner_phone</code>, <code>partner_social_*</code>).
     плюс блок <code>legal_entity_*</code> при наличии в схеме.<br><br>
     Телефонные ключи (<code>phone</code> / <code>tel</code> / <code>mobile</code>, в т.ч. <code>spouse_phones</code> и кастомные)
     перед подстановкой в DOCX приводит <code>ContractTemplateVariablePresets::formatPhoneFieldsForPdf</code>

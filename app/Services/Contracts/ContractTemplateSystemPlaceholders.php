@@ -12,6 +12,7 @@ class ContractTemplateSystemPlaceholders
     public function __construct(
         private readonly ContractLegalEntityPlaceholderService $legalEntityPlaceholders,
         private readonly ContractLessonPackageBinder $lessonPackageBinder,
+        private readonly ContractContextPlaceholderService $contextPlaceholders,
     ) {
     }
 
@@ -28,6 +29,7 @@ class ContractTemplateSystemPlaceholders
             ],
             $this->legalEntityPlaceholders->valuesForContract($contract),
             $this->lessonPackageBinder->placeholderValuesForContract($contract),
+            $this->contextPlaceholders->valuesForContract($contract),
         );
     }
 

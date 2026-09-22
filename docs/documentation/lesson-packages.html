@@ -715,9 +715,12 @@
       (тогглы <code>colLessonPackageLessonsPerWeek</code> и соседние).
       Пустое значение в JSON-лейбле — «—». JSON <code>…/data</code> отдаёт лейблы и без права
       (колонки просто скрыты).</li>
-    <li>Не путать с <code>lessons_count</code> (лимит занятий пакета),
-      <code>duration_days</code> (срок абонемента) и
-      <code>price_cents</code> (стоимость абонемента / ставка постоплаты).</li>
+    <li><code>lessons_count</code> (лимит занятий пакета) не входит в блок «Для договора»,
+      но при создании договора пишется в тот же снимок и подставляется как
+      <code>{{package_lessons_count}}</code>
+      (<a href="/docs/documentation/contract-templates#package-variables">contract-templates §6.1.1</a>).
+      <code>duration_days</code> в снимок договора не входит.
+      <code>price_cents</code> — стоимость абонемента / ставка постоплаты, в снимке как <code>package_price</code>.</li>
   </ul>
   <p class="small">Тесты: <code>LessonPackageContractFieldsMarkupFeatureTest</code>,
     <code>LessonPackageContractFieldsAjaxContractFeatureTest</code>,
