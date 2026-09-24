@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use App\Services\PartnerContext;
 use App\Services\TeamLocationAvailabilityService;
 use App\Models\UserCustomPayment;
+use App\Support\Reports\ReportFilterCatalog;
 use App\Support\UserTeamQuery;
 use App\Models\UserTableSetting;
 
@@ -90,6 +91,8 @@ class DeptReportController extends AdminBaseController
             'canViewTrainers'    => $canViewTrainers,
             'canViewLocations'   => $canViewLocations,
             'activeLocations'    => $activeLocations,
+            'filterTeams'        => ReportFilterCatalog::activeTeams($partnerId, $authUser),
+            'filterTrainers'     => ReportFilterCatalog::activeTrainers($partnerId, $canViewTrainers),
         ]);
     }
 
@@ -288,12 +291,16 @@ class DeptReportController extends AdminBaseController
         }
 
         $filterTeamId = $request->query('filter_team_id');
-        if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
-            $tid = (int) $filterTeamId;
-            if ($tid > 0) {
-                $query->where('users_prices.team_id', $tid);
+        $teamIsList = is_array($filterTeamId);
+        $hasTeamId = $teamIsList
+            ? $filterTeamId !== []
+            : ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId));
+        if ($hasTeamId) {
+            $allowed = UserTeamQuery::allowedTeamIds($filterTeamId, $partnerId);
+            if ($allowed !== []) {
+                $query->whereIn('users_prices.team_id', $allowed);
             }
-        } elseif ($request->filled('team_title')) {
+        } elseif (! $teamIsList && $request->filled('team_title')) {
             UserTeamQuery::applyStudentTeamTitleLikeExists(
                 $query,
                 $partnerId,
@@ -333,12 +340,16 @@ class DeptReportController extends AdminBaseController
         }
 
         $filterTeamId = $request->query('filter_team_id');
-        if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
-            $tid = (int) $filterTeamId;
-            if ($tid > 0) {
-                UserTeamQuery::applyStudentInTeamExists($query, $partnerId, $tid);
+        $teamIsList = is_array($filterTeamId);
+        $hasTeamId = $teamIsList
+            ? $filterTeamId !== []
+            : ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId));
+        if ($hasTeamId) {
+            $allowed = UserTeamQuery::allowedTeamIds($filterTeamId, $partnerId);
+            if ($allowed !== []) {
+                UserTeamQuery::applyStudentInAnyTeamExists($query, $partnerId, $allowed);
             }
-        } elseif ($request->filled('team_title')) {
+        } elseif (! $teamIsList && $request->filled('team_title')) {
             UserTeamQuery::applyStudentTeamTitleLikeExists(
                 $query,
                 $partnerId,
@@ -415,29 +426,11 @@ class DeptReportController extends AdminBaseController
     private function applyDebtReportTrainerFilter($query, Request $request, int $partnerId): void
     {
         $filterTrainerProfileId = $request->query('filter_trainer_profile_id');
-        if ($filterTrainerProfileId === null || $filterTrainerProfileId === '' || ! ctype_digit((string) $filterTrainerProfileId)) {
-            return;
-        }
-
-        $tpid = (int) $filterTrainerProfileId;
-        if ($tpid <= 0) {
-            return;
-        }
-
-        $trainerTeamIds = DB::table('team_trainer')
-            ->where('partner_id', $partnerId)
-            ->where('trainer_profile_id', $tpid)
-            ->pluck('team_id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        if ($trainerTeamIds === []) {
-            $query->whereRaw('1 = 0');
-
-            return;
-        }
-
-        UserTeamQuery::applyStudentInAnyTeamExists($query, $partnerId, $trainerTeamIds);
+        UserTeamQuery::applyReportTrainerTeamFilter(
+            $query,
+            $partnerId,
+            is_array($filterTrainerProfileId) ? UserTeamQuery::positiveIntIds($filterTrainerProfileId) : $filterTrainerProfileId,
+        );
     }
 
     /**

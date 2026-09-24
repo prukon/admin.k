@@ -199,6 +199,14 @@ class Contract extends Model
     }
 
     /**
+     * Отзыв черновика (PDF и шаблон): клиент ещё не ушёл в SMS, 70 ₽ не возвращаются.
+     */
+    public function canRevokeDraft(): bool
+    {
+        return $this->status === self::STATUS_DRAFT;
+    }
+
+    /**
      * Ссылка Подпислона из SMS ({@see \App\Services\Signatures\PodpislonSigningUrl}), или null.
      */
     public function providerSigningUrl(): ?string

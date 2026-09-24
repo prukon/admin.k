@@ -37,6 +37,20 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="account-contract-genitive-full-name-index">ЛК: ФИО в родительном падеже в модалке договора (2026‑09)</h2>
+  <div class="note">
+    В модалке заполнения на <code>/account-settings/documents</code> поля
+    <code>parent_full_name_genitive</code> и <code>child_full_name_genitive</code>, если не пустые,
+    должны содержать не меньше 10 символов и три слова (фамилия, имя, отчество) после обрезки и схлопывания пробелов.
+    Правило <code>GenitiveFullName</code> в <code>AccountContractGenerateRequest</code>.
+    Под полем подсказка «Фамилия, имя и отчество, например: Иванова Ивана Ивановича».
+    Ошибка «Укажите ФИО полностью в родительном падеже: фамилия, имя и отчество.» уходит в
+    <code>errors['fields.parent_full_name_genitive']</code> и <code>errors['fields.child_full_name_genitive']</code>.
+    Пустое необязательное поле допустимо. Карточки CRM и профиль ЛК не проверяются.
+    Тесты: <code>GenitiveFullNameTest</code>, <code>AccountContractFillGenitiveFullNameFeatureTest</code>.
+    Подробно — <a href="/docs/documentation/account-contract-fill#child-middlename">account-contract-fill §2.2</a>.
+  </div>
+
   <h2 id="contract-template-context-placeholders-index">Шаблоны договоров: занятия, объект, партнёр, соцсети (2026‑09)</h2>
   <div class="note">
     В справочнике <code>/client-contract-templates</code> и в модалке «Новый шаблон договора»
@@ -69,6 +83,36 @@
     <code>ContractStudentProfileSyncTest</code>, <code>ContractTemplatesModalsUiFeatureTest</code>.
     Подробно — <a href="/docs/documentation/contract-templates#legal-entity-variables">contract-templates §6.1</a>,
     карточка ученика — <a href="/docs/documentation/admin-users#user-student-passport">admin-users §2.7</a>.
+  </div>
+
+  <h2 id="reports-payments-user-card-index">Отчёт «Платежи»: карточка ученика по клику на ФИО (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/reports/payments</code> колонка «ФИО» (<code>user_name</code>, <code>type: 'link'</code>,
+    класс <code>js-payment-user-card</code>) открывает модалку <code>#paymentUserCardModal</code>
+    стандартной ширины. Запрос <code>GET /admin/reports/payments/users/{user}</code>
+    (<code>reports.payments.users.show</code>, право <code>reports.view</code>, ученик текущего партнёра,
+    в том числе soft-deleted). Без <code>user_id</code> имя остаётся текстом.<br>
+    Поля как у карточки «Контакт» в <code>/chat</code> (аватар, ФИО, школа, телефон, родитель,
+    телефон родителя, последний онлайн, группы) плюс email ученика, email родителя, дата рождения,
+    скидка (строка «Скидка» только если процент 1–100) и семейный аккаунт
+    (братья и сёстры или «Нет»). Под ФИО — иконки Font Awesome:
+    <code>fa-users</code> при семейном аккаунте, <code>fa-layer-group</code> при нескольких группах.
+    Та же модалка открывается в журнале <code>/schedule</code> по клику на ФИО слева
+    (<code>js-user-card</code>, <code>GET /schedule/users/{user}</code>, право <code>schedule.view</code>).
+    Разметка одна: <code>@include('partials.ui.user-card-modal')</code>, ссылка на имя —
+    <code>KidsCrmUserCard.renderName</code>. Тот же инклуд на
+    <code>/admin/reports/payments/monthly</code> (ФИО в раскрытии месяца),
+    <code>/admin/reports/ltv</code>, <code>/admin/reports/ltv/teams</code>,
+    <code>/admin/reports/ltv/locations</code> (список учеников и ФИО в раскрытии),
+    <code>/admin/reports/debts</code> и <code>/admin/reports/payment-intents</code>.
+    Запрос карточки на этих отчётах тот же <code>GET /admin/reports/payments/users/{user}</code>.
+    Чат свою модалку не меняет:
+    <code>#peerCardModal</code> без этих четырёх полей.<br>
+    Ошибка доступа и «не найден» — JSON <code>errors.user</code>, текст в <code>#paymentUserCardError</code>.
+    Тесты: <code>PaymentReportUserCardFeatureTest</code>,
+    <code>ReportsPaymentsUserCardDocumentationContractTest</code>.
+    Подробно — <a href="/docs/documentation/reports-payments#user-card">reports-payments §1.3</a>.
+    Анонс: <a href="/doc#reports-payments-user-card-index">/doc#reports-payments-user-card-index</a>.
   </div>
 
   <h2 id="lesson-package-clickable-name-index">Абонементы: кликабельное название шаблона (2026‑09)</h2>
@@ -209,6 +253,51 @@
     Тесты: <code>UserPassportFieldFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest::test_edit_user_modal_passport_fill_contract_is_valid_javascript</code>.
     Подробно — <a href="/docs/documentation/admin-users#user-student-passport">admin-users §2.7</a>.
+  </div>
+
+  <h2 id="user-student-middlename-index">Клиенты: отчество ученика (2026‑09)</h2>
+  <div class="note">
+    На карточке ученика (<code>/admin/users</code>, модалки «Создание клиента» и «Редактирование клиента»)
+    необязательное поле <b>Отчество ученика</b> — <code>users.middlename</code> (nullable, max 100),
+    в аккордеоне «Ученик» сразу после фамилии.<br>
+    Колонка «Имя» в таблице по-прежнему <code>User::full_name</code>: фамилия и имя, без отчества.
+    Поиск по полю «Имя» дополнительно смотрит <code>users.middlename</code>.
+    На редактировании поле доступно при том же праве, что имя и фамилия: <code>users.name.update</code>.
+    Пустая строка → <code>null</code>; 422 с текстом под полем (<code>errors.middlename</code>).
+    Оба JS-пути открытия edit заполняют <code>#edit-middlename</code> через <code>|| ''</code>.
+    Метод <code>User::fullNameWithPatronymic()</code> собирает «фамилия имя отчество». Списки CRM его не показывают.
+    Письмо-приглашение к договору подставляет его, если отчество заполнено
+    (<a href="/doc#account-contract-child-middlename-index">анонс</a>).
+    Импорт Excel и личный кабинет это поле не включают.
+    Тесты: <code>UserMiddlenameFieldFeatureTest</code>,
+    <code>UserFullNameWithPatronymicTest</code>.
+    Подробно — <a href="/docs/documentation/admin-users#user-student-middlename">admin-users §2.8</a>.
+  </div>
+
+  <h2 id="account-contract-child-middlename-index">Договоры: отчество ребёнка в тексте и в письме (2026‑09)</h2>
+  <div class="note">
+    В модалке заполнения на <code>/account-settings/documents</code> у ребёнка, кроме фамилии и имени,
+    есть необязательное поле <b>Отчество</b> (<code>child_middlename</code>, max 100).
+    Оно подставляется из <code>users.middlename</code>.
+    При генерации PDF <code>{{child_full_name}}</code> собирается как «фамилия имя отчество»;
+    пустое отчество в строку не входит.
+    Ошибка длиннее 100 символов — <code>errors['fields.child_middlename']</code> под полем.
+    После успешного generate непустое значение пишется обратно в <code>users.middlename</code>;
+    пустое поле карточку не очищает.
+    Письмо-приглашение (<code>ContractInvitationEmailRenderer</code>) подставляет
+    <code>User::fullNameWithPatronymic()</code>: отчество есть в теме и тексте, только если оно заполнено в карточке.
+    Списки CRM по-прежнему без отчества. Уже сформированный PDF сам не меняется.
+    Тесты: <code>AccountContractFillSplitNameFeatureTest</code>,
+    <code>ContractStudentProfileSyncTest</code>,
+    <code>ContractInvitationEmailRendererTest</code>,
+    <code>ContractTemplateVariablePresetsTest</code>,
+    <code>ContractPrefillResolverTest</code>,
+    <code>AccountContractChildMiddlenameDocumentationContractTest</code>.
+    Подробно —
+    <a href="/docs/documentation/account-contract-fill#child-middlename">account-contract-fill §2.2</a>,
+    шаблоны —
+    <a href="/docs/documentation/contract-templates#docx-variables">contract-templates §6</a>.
+    Анонс: <a href="/doc#account-contract-child-middlename-index">/doc#account-contract-child-middlename-index</a>.
   </div>
 
   <h2 id="reports-ltv-group-mode-index">Отчёты «Платежи по группам» и «Платежи по объектам»: группировка по месяцу абонемента / дате платежа (2026‑09)</h2>
@@ -4087,8 +4176,10 @@
     AJAX 200: <code>message</code> «Договор аннулирован. 70 ₽ не возвращаются.»,
     <code>status: revoked</code>. Native POST без <code>X-Requested-With</code>
     тоже аннулирует (не пустой 200, не 500).
-    draft / signed / failed / expired / generating_pdf / уже revoked → 422 +
-    <code>message</code>, строка не revoked. awaiting по-прежнему refund,
+    signed / failed / expired / generating_pdf / уже revoked → 422 +
+    <code>message</code>, строка не revoked. Черновик (<code>draft</code>, PDF и шаблон)
+    отзывается отдельно, без возврата
+    (<a href="/doc#contract-revoke-draft-index">анонс</a>). awaiting по-прежнему refund,
     текст «Договор отозван. Средства возвращены…», не текст аннулирования.
     <br>
     2) <b>Деньги и аудит.</b>
@@ -4207,6 +4298,47 @@
     Подробно —
     <a href="/docs/documentation/lesson-packages#duration-permission">lesson-packages §Срок действия</a>,
     <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
+  </div>
+
+  <h2 id="contract-revoke-draft-index">Договоры: отозвать черновик без возврата 70&nbsp;₽ (2026‑09)</h2>
+  <div class="note">
+    Пока договор в статусе <code>draft</code> («Черновик»), родитель в кабинете может
+    подписать его или изменить данные. Школа отзывает такой договор с карточки
+    <code>GET /client-contracts/{id}</code>: статус становится <code>revoked</code>
+    («Отозвано»), 70&nbsp;₽ <b>не</b> возвращаются. Это и шаблон после формирования PDF,
+    и загруженный PDF до SMS.
+    Это не «Отозвать» до заполнения (<code>awaiting_client_fill</code> — возврат 70&nbsp;₽)
+    и не «Аннулировать» после SMS (<code>sent</code> / <code>opened</code>).
+    <br><br>
+    1) <b>Кнопка и endpoint.</b>
+    <code>#revokeDraftBtn</code> «Отозвать» только при
+    <code>Contract::canRevokeDraft()</code> (статус <code>draft</code>, PDF и шаблон).
+    Confirm: клиент не сможет подписать и изменить, 70&nbsp;₽ не возвращаются.
+    JS: <code>POST /client-contracts/{id}/revoke</code>,
+    <code>Accept: application/json</code>, <code>_token</code>, затем
+    <code>location.reload()</code>.
+    Право — <code>contracts.view</code> + <code>contract.partner</code>.
+    AJAX 200: <code>message</code> «Договор отозван. 70 ₽ не возвращаются.»,
+    <code>status: revoked</code>. Native POST без <code>X-Requested-With</code>
+    тоже отзывает (не пустой 200, не 500).
+    <code>generating_pdf</code> / <code>signed</code> / <code>failed</code> /
+    <code>expired</code> / уже <code>revoked</code> этой веткой не отзываются.
+    <br>
+    2) <b>Деньги и аудит.</b>
+    <code>revokeDraftWithoutRefund</code>: credit в кошельке нет, API Подпислона не вызывается.
+    Событие <code>contract.revoked</code>, payload
+    <code>refunded: false</code>, <code>reason: revoke_draft</code>.
+    My log: «Договор отозван. Возврат 70 ₽: Нет».
+    <br>
+    3) <b>Кабинет.</b>
+    После отзыва нет «Подписать» и «Изменить» (<code>canClientSign</code> /
+    <code>canClientEditFilledData</code> требуют <code>draft</code>).
+    На карточке PDF пропадает «Отправить СМС на подпись».
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/contracts#contract-revoke-draft">contracts §7.3</a>.
+    Тесты: <code>ContractRevokeDraftFeatureTest</code>,
+    <code>ContractRevokeDraftDocumentationContractTest</code>.
   </div>
 
   <h2 id="lesson-package-freeze-permission-index">Абонементы: чекбокс «Разрешена заморозка» и право <code>scheduleSlots.view</code> (2026‑09)</h2>
@@ -5828,6 +5960,28 @@
     <code>CustomPaymentsDatatableSearchFullAccessFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest</code> (<code>custom_payments_edit_js</code>),
     <code>CustomPaymentsDatatableSearchDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="custom-payments-public-pay-link-index">Доп. платежи: ссылка на оплату СБП (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/setting-prices/custom-payments</code> в колонке «Действия», слева от «Редактировать»,
+    иконка <code>fa-copy</code> (<code>.js-custom-payment-copy-pay-link</code>). Ховер: «Ссылка на оплату».
+    Клик копирует короткую ссылку <code>https://{домен}/pc/{short_code}</code> (10 символов, без <code>0/O/1/I/l</code>).
+    На 1,5 с иконка становится зелёной галочкой, подсказка — «Скопировано».
+    <br><br>
+    1) <b>Когда иконка есть.</b> Платёж не оплачен (<code>effective_is_paid</code>), сумма от 10 ₽ до 1 000 000 ₽,
+    у группы есть ShopCode T‑Bank. Иначе в этой позиции «—». Флаг строки DataTables — <code>pay_link_available</code>.
+    <br>
+    2) <b>Выпуск.</b> <code>POST /admin/setting-prices/custom-payments/{id}/public-pay-link</code>
+    (<code>setPrices.customPayments.view</code>) → <code>{ url }</code>. Init банка при копировании не выполняется.
+    QR стартует при открытии <code>/pc/{code}</code> (длинный <code>/pay/ucp/{token}</code> тоже открывает страницу).
+    Payable — <code>custom_payment_fee</code>, <code>meta.user_period_price_id</code>.
+    Смена суммы выпускает новый код: старый адрес → 404.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/setting-prices-custom-payments#public-pay-link">setting-prices-custom-payments §7.1</a>.
+    Тесты: <code>CustomPaymentPublicPayFeatureTest</code>,
+    <code>CustomPaymentsPublicPayLinkDocumentationContractTest</code>.
   </div>
 
   <h2 id="users-contract-create-index">Клиенты: создать договор со списка /admin/users (2026‑08)</h2>
@@ -9041,7 +9195,8 @@
     При выставлении цены сумма считается по
     <a href="/docs/documentation/money#discount">Money, вариант А</a>
     (1 000 ₽ и 10% → 900 ₽). На начислении и назначении пишется <b>снимок</b>
-    процента и основания; правка карточки <b>не</b> пересчитывает уже выставленные суммы.
+    процента и основания. Смена процента в карточке спрашивает, пересчитать ли неоплаченные
+    строки установки цен (формульные предоплата и постоплата); ручные и оплаченные суммы не трогает.
     <br><br>
     1) <b>Карточка:</b> поля только в модалках create/edit, только роль «Ученик»
     (после комментария, до «Активность»). Колонки в таблице учеников <b>нет</b>.
@@ -10559,7 +10714,7 @@
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank; только СБП — без «Других способов» и без «Выберите ниже», <a href="/doc#payment-vitrina-sbp-only-index">анонс</a>), публичная СБП месяца из писем уведомлений (<code>/pm/{code}</code>, <a href="/doc#payment-notifications-sbp-link-index">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, <b>корзина неоплаченного начисления бывшего</b> (<a href="/doc#setting-prices-monthly-former-charge-clear-index">анонс</a>), apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа), <b>ручная пролонгация месяца</b> (<a href="/doc#setting-prices-month-prolong-index">анонс</a>), <b>абонемент и сумма из карточки при ручной оплате</b> (<a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>), <b>ручную оплату при 0 ₽ ставить нельзя</b> (<a href="/doc#setting-prices-manual-paid-zero-price-index">анонс</a>), <b>замена предоплаты в разложенном/оплаченном месяце</b> (<a href="/doc#setting-prices-flexible-replace-index">анонс</a>), <b>предоплата на оплаченный месяц без абонемента</b> (<a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>), <b>цену без абонемента ставить нельзя</b> (<a href="/doc#setting-prices-require-package-for-price-index">анонс</a>), <b>плашка группы только вместе со списком учеников</b> (<a href="/doc#setting-prices-monthly-team-select-index">анонс</a>)</a></li>
-    <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), поиск DataTables ФИО/группа/примечание (<a href="/doc#custom-payments-datatable-search-index">анонс</a>), JSON store/update/delete</a></li>
+    <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление по <code>setPrices.customPayments.view</code> (не в базовых ролях); <code>manualPaid.manage</code> только селект статуса оплаты (<a href="/doc#custom-payments-edit-permission-index">анонс</a>), поиск DataTables ФИО/группа/примечание (<a href="/doc#custom-payments-datatable-search-index">анонс</a>), публичная ссылка СБП <code>/pc/{code}</code> (<a href="/doc#custom-payments-public-pay-link-index">анонс</a>), JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, автособытия «ученик добавил группу» (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer) и <b>«договор подписан»</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>, только admin школы, 7 суток), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
     <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>оверлей «Пульт»</b> («Касса» — <a href="/doc#ops-till-missing-payout-index">анонс</a>, копирование строки — <a href="/doc#ops-row-copy-index">анонс</a>), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>карточка чужой школы</b> (<a href="/doc#chat-peer-card-cross-partner-index">анонс</a>: superadmin при живом общем треде, 403 <code>errors.user</code> по-русски), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>название партнёра в модалках</b> (<a href="/doc#chat-partner-name-index">анонс</a>: под ФИО в «Контакт» и под именем в «Группа», не вкладка «Аккаунт», не шапка), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>удаление своих сообщений</b> (<a href="/doc#chat-own-message-delete-index">анонс</a>: скрытое <code>messages.own.delete</code>, только автор, подтверждение), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, ссылка СБП <code>/pm/{code}</code> и автоблок «Оплатить через СБП», право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
@@ -10585,7 +10740,7 @@
     <li><a href="/docs/documentation/queues-monitoring">Очереди в админке: мониторинг, доступы, queue.log, restart worker; просроченный Init <code>overdueScheduled</code> ≠ «Касса» пульта — <a href="/doc#ops-till-missing-payout-index">анонс</a></a></li>
     <li><a href="/docs/documentation/tbank#payout-settings">T‑Bank: интервал джобы отложенных выплат, автовыплаты в правилах комиссий, защита от дублей</a></li>
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
-    <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>; те же правила у LTV/monthly — <a href="/doc#reports-ltv-monthly-paid-team-index">анонс</a>), локация, <b>активность ученика</b> (<code>status</code>), <b>«Email рассылка»</b> (<code>email_newsletter</code>, <code>up_public_pay</code> — <a href="/doc#reports-email-newsletter-source-index">анонс</a>), колонки, <b>«Показать N»</b> (<code>page_length</code>), <b>шапка и горизонтальный скролл на экране</b> (§3.1, <a href="/doc#reports-tables-sticky-header-index">анонс</a>), <b>поиск DataTables</b> только ФИО и группа (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>), права, история T‑Bank; вкладка T‑Bank «Чек» / комиссия без <code>reports.additional.value.view</code> (<a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>), фильтр «Не было выплаты» (<a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>), колонка «Статус выплаты» (<a href="/doc#reports-tbank-payments-payout-status-index">анонс</a>); ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
+    <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>; те же правила у LTV/monthly — <a href="/doc#reports-ltv-monthly-paid-team-index">анонс</a>), локация, <b>активность ученика</b> (<code>status</code>), <b>«Email рассылка»</b> (<code>email_newsletter</code>, <code>up_public_pay</code> — <a href="/doc#reports-email-newsletter-source-index">анонс</a>), колонки, <b>«Показать N»</b> (<code>page_length</code>), <b>шапка и горизонтальный скролл на экране</b> (§3.1, <a href="/doc#reports-tables-sticky-header-index">анонс</a>), <b>поиск DataTables</b> только ФИО и группа (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>), <b>карточка ученика по клику на ФИО</b> (<a href="/doc#reports-payments-user-card-index">анонс</a>), права, история T‑Bank; вкладка T‑Bank «Чек» / комиссия без <code>reports.additional.value.view</code> (<a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>), фильтр «Не было выплаты» (<a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>), колонка «Статус выплаты» (<a href="/doc#reports-tbank-payments-payout-status-index">анонс</a>); ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / «Платежи по группам» / intents / fiscal / tbank-payments; задолженности и письма — без opt-in), <b>шапка и горизонтальный скролл</b> (§1.3, payments / monthly / LTV / ltv-teams / debts / intents / fiscal / tbank / emails — <a href="/doc#reports-tables-sticky-header-index">анонс</a>; вкладка групп — <a href="/doc#reports-ltv-teams-index">анонс</a>), payment-intents / payments / fiscal / emails / <b>«Платежи T‑Bank»</b> (§9, <a href="/doc#reports-tbank-payments-index">анонс</a>, колонки «Чек» / «Комиссия платформы» — <a href="/doc#reports-tbank-payments-receipt-commission-index">анонс</a>, фильтр «Не было выплаты» — <a href="/doc#reports-tbank-payments-without-payout-index">анонс</a>, колонка «Статус выплаты» — <a href="/doc#reports-tbank-payments-payout-status-index">анонс</a>); <b>поиск DataTables</b> (§1.2, <a href="/doc#reports-datatable-search-index">анонс</a>: Платежи/LTV — ФИО+группа; monthly — ещё месяц; intents — ФИО/партнёр/ID; T‑Bank — Order/Deal/id/партнёр); фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4, в т.ч. T‑Bank); <b>«Чеки»</b> — только <code>source=marketplace</code>, продажи платформы не входят (<a href="/doc#tbank-acquiring-platform-index">анонс эквайринга</a>); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1), <b>без soft-deleted учеников</b> (<a href="/doc#reports-debts-hide-deleted-users-index">анонс</a>); <b>LTV / «Платежи по месяцам»</b> — колонка и фильтр оплаченной группы (<a href="/doc#reports-ltv-monthly-paid-team-index">анонс</a>); <b>«Платежи по группам»</b> — право <code>reports.ltv.teams.view</code>, группировка <code>payments.team_id</code> (<a href="/doc#reports-ltv-teams-index">анонс</a>), столбец «Ср. посещаемость» (<a href="/doc#reports-ltv-teams-avg-attendance-index">анонс</a>), табы периода current/previous/all (<a href="/doc#reports-ltv-teams-period-tabs-index">анонс</a>), группировка mode=operation|subscription (<a href="/doc#reports-ltv-group-mode-index">анонс</a>); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), <b>сумма неоплаченного месяца в колонке рубля</b> (<a href="/doc#journal-postpay-payment-due-index">анонс</a>), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = визиты с <code>consumes_lesson</code> × ставка, затем <b>скидка по снимку строки</b></a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, <b>кликабельное название</b> → модалка edit — <a href="/doc#lesson-package-clickable-name-index">анонс</a>, «Срок действия», аудит <code>lesson_package.*</code>, <b>тип flexible в UI — «Предоплата»</b> — <a href="/doc#flexible-ui-label-index">анонс</a>; <b>поля «Для договора»</b> (неделя/минуты/цена занятия, не в календаре; UI при <code>contracts.lessonPackage.bind</code>) — <a href="/doc#lesson-package-contract-fields-index">анонс</a>; <b>автосписание</b> <code>auto_attendance_enabled</code> — чекбокс при <code>scheduleSlots.view</code>, <a href="/doc#lesson-package-auto-attendance-index">анонс</a>; <b>заморозка</b> шаблона — тот же <code>@can</code>, <a href="/doc#lesson-package-freeze-permission-index">анонс</a>; <b>срок действия</b> в модалке и таблице — <a href="/doc#lesson-package-duration-permission-index">анонс</a>; <b>edit fill</b> не затирает занятия/срок 8/30 — <a href="/doc#lesson-package-edit-fill-defaults-index">анонс</a>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, причина ошибки sms.ru в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
@@ -10606,9 +10761,9 @@
     <li><a href="/docs/documentation/groups-own">Право <code>groups.own</code>: тренер видит только свои группы (<code>team_trainer</code>), учеников своих групп в журнале/клиентах/консоли, merge чужих групп ученика; не в базовых ролях — <a href="/doc#groups-own-index">анонс</a></a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>«Мои документы» активного ребёнка</b> и ссылка из письма <code>?student=&amp;fill=</code> (<a href="/doc#account-documents-family-link-index">анонс</a>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>SMS-2FA</b> (§4.6, <a href="/doc#account-two-factor-permission-index">анонс</a>), <b>подтверждение телефона SMS</b> (§4.7, <a href="/doc#account-phone-verify-permission-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «ФИО» (<code>users.view</code>) — только активные ученики <code>role=user</code> (<a href="/doc#cabinet-fio-select-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>оверлей «Пульт»</b> (<a href="/doc#ops-monitors-overlay-index">анонс</a>, «Касса» без выплаты после задержки — <a href="/doc#ops-till-missing-payout-index">анонс</a>, копирование строки — <a href="/doc#ops-row-copy-index">анонс</a>)</a></li>
-    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>колонка «Номер договора»</b> (<code>contracts.id</code>, дефолт сортировки, <a href="/doc#contract-list-number-and-fill-remaining-index">анонс</a>), <b>колонка «Договор»</b> — иконка PDF при <code>signed_pdf_path</code>, скачать в новой вкладке (<a href="/doc#contract-list-signed-file-index">анонс</a>), <b>колонка «Обновлён»</b> — последнее событие журнала (<a href="/doc#contract-list-updated-at-index">анонс</a>), <b>колонка «Срок подписания»</b> — <code>fill_expires_at</code> и остаток дней скрытым правом <code>contracts.fillExpiresAt.view</code> (<a href="/doc#contract-list-fill-expires-at-index">анонс</a>; без второй строки у signed/revoked — <a href="/doc#contract-list-hide-remaining-signed-revoked-index">анонс</a>), <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<code>provider_signing_url</code>, <a href="/doc#contract-podpislon-signing-url-index">анонс</a>), <b>текст ошибки Подпислона при failed</b> (<a href="/doc#contract-send-failure-message-index">анонс</a>), <b>телефон в PDF с маской</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>колонка «Номер договора»</b> (<code>contracts.id</code>, дефолт сортировки, <a href="/doc#contract-list-number-and-fill-remaining-index">анонс</a>), <b>колонка «Договор»</b> — иконка PDF при <code>signed_pdf_path</code>, скачать в новой вкладке (<a href="/doc#contract-list-signed-file-index">анонс</a>), <b>колонка «Обновлён»</b> — последнее событие журнала (<a href="/doc#contract-list-updated-at-index">анонс</a>), <b>колонка «Срок подписания»</b> — <code>fill_expires_at</code> и остаток дней скрытым правом <code>contracts.fillExpiresAt.view</code> (<a href="/doc#contract-list-fill-expires-at-index">анонс</a>; без второй строки у signed/revoked — <a href="/doc#contract-list-hide-remaining-signed-revoked-index">анонс</a>), <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<code>provider_signing_url</code>, <a href="/doc#contract-podpislon-signing-url-index">анонс</a>), <b>текст ошибки Подпислона при failed</b> (<a href="/doc#contract-send-failure-message-index">анонс</a>), <b>телефон в PDF с маской</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), <b>отзыв черновика без возврата 70 ₽</b> (<a href="/doc#contract-revoke-draft-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <b>«По умолчанию» → <code>{{documents_url}}</code></b> (<a href="/doc#contract-template-email-default-link-index">анонс</a>), <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), <b>телефон в PDF с маской +7 (999) 999-99-99</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), аккордеон «Юр. лицо» / <code>child_address</code>, пресеты <code>{{child_passport}}</code> / <code>{{child_passport_issued_at}}</code> (<a href="/doc#child-passport-contract-presets-index">анонс</a>), <b>{{package_lessons_count}} / объект группы / партнёр / соцсети</b> (<a href="/doc#contract-template-context-placeholders-index">анонс</a>), версии, аудит</a></li>
-    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица, <b>телефон с маской</b> — <a href="/doc#account-contract-phone-mask-index">анонс</a>, §2.2.1), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<a href="/doc#contract-podpislon-signing-url-index">анонс</a>, §1.3), <b>просрочка заполнения и SMS</b> (<a href="/doc#account-documents-expiry-notice-index">анонс</a>, §1.4), <b>повтор SMS из кабинета</b> (<a href="/doc#account-documents-resend-sms-index">анонс</a>, §1.5), <b>оставшиеся дни до срока подписания</b> (<a href="/doc#account-documents-fill-remaining-days-index">анонс</a>, §1.6), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>семейная ссылка из письма на нужного ребёнка</b> (<a href="/doc#account-documents-family-link-index">анонс</a>, §1.2), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на email ученика и родителя</b> (§6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>отчество ребёнка в <code>{{child_full_name}}</code></b> — <a href="/doc#account-contract-child-middlename-index">анонс</a>, <b>авто <code>{{contract_date}}</code></b>, inject юрлица, <b>телефон с маской</b> — <a href="/doc#account-contract-phone-mask-index">анонс</a>, §2.2.1), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<a href="/doc#contract-podpislon-signing-url-index">анонс</a>, §1.3), <b>просрочка заполнения и SMS</b> (<a href="/doc#account-documents-expiry-notice-index">анонс</a>, §1.4), <b>повтор SMS из кабинета</b> (<a href="/doc#account-documents-resend-sms-index">анонс</a>, §1.5), <b>оставшиеся дни до срока подписания</b> (<a href="/doc#account-documents-fill-remaining-days-index">анонс</a>, §1.6), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>семейная ссылка из письма на нужного ребёнка</b> (<a href="/doc#account-documents-family-link-index">анонс</a>, §1.2), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями, <b>ФИО в родительном: ≥10 символов и 3 слова</b> (<a href="/doc#account-contract-genitive-full-name-index">анонс</a>, §2.2) (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на email ученика и родителя</b> (§6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
     <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>create/edit без «OK» и без F5</b> (<a href="/doc#users-create-edit-toast-index">анонс</a>), <b>шапка и горизонтальный скролл на экране</b> (§2.0.1, <a href="/doc#users-sticky-header-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>паспорт/св-во ученика</b> (<code>users.passport</code>, <code>users.passport_issued_at</code>, §2.7, <a href="/doc#user-student-passport-index">анонс</a>), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>

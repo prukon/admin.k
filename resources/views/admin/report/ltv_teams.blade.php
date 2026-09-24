@@ -162,48 +162,11 @@
                     @endif
                 </select>
             </div>
-            <div class="col-12 col-md-3">
-                <label class="form-label" for="pay-ltv-teams-filter-team">Группа</label>
-                <select class="form-select payments-report-filter-select2"
-                        id="pay-ltv-teams-filter-team"
-                        name="filter_team_id"
-                        data-placeholder="Все группы"
-                        data-search-url="{{ route('reports.ltv.teams.teams.search') }}">
-                    <option value=""></option>
-                    @if($paymentsFilterTeam)
-                        <option value="{{ $paymentsFilterTeam['id'] }}" selected>{{ $paymentsFilterTeam['text'] }}</option>
-                    @endif
-                </select>
-            </div>
-            @if($canViewTrainers)
-            <div class="col-12 col-md-3">
-                <label class="form-label" for="pay-ltv-teams-filter-trainer">Тренер</label>
-                <select class="form-select payments-report-filter-select2"
-                        id="pay-ltv-teams-filter-trainer"
-                        name="filter_trainer_profile_id"
-                        data-placeholder="Все тренеры"
-                        data-search-url="{{ route('reports.ltv.teams.trainers.search') }}">
-                    <option value=""></option>
-                    @if($paymentsFilterTrainer)
-                        <option value="{{ $paymentsFilterTrainer['id'] }}" selected>{{ $paymentsFilterTrainer['text'] }}</option>
-                    @endif
-                </select>
-            </div>
-            @endif
-            @if($canViewLocations)
-            <div class="col-12 col-md-3">
-                <label class="form-label" for="pay-ltv-teams-filter-location">Объект</label>
-                <select class="form-select" id="pay-ltv-teams-filter-location" name="filter_location_id">
-                    <option value="">Все объекты</option>
-                    <option value="none" {{ (string) $payFilterLocation === 'none' ? 'selected' : '' }}>Без объекта</option>
-                    @foreach($activeLocations as $location)
-                        <option value="{{ $location->id }}" {{ (string) $payFilterLocation === (string) $location->id ? 'selected' : '' }}>
-                            {{ $location->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            @endif
+            @include('admin.report.partials.entity-multiselects', [
+                'teamFieldId' => 'pay-ltv-teams-filter-team',
+                'trainerFieldId' => 'pay-ltv-teams-filter-trainer',
+                'locationFieldId' => 'pay-ltv-teams-filter-location',
+            ])
             <div class="col-12 col-md-2">
                 <label class="form-label" for="pay-ltv-teams-filter-payment-month">Оплаченный месяц</label>
                 <input class="form-control" id="pay-ltv-teams-filter-payment-month" type="month" name="payment_month"
@@ -357,19 +320,28 @@
                 window.requestAnimationFrame(step);
             }
 
+            function reportMultiValues($el) {
+                if (!$el || !$el.length) {
+                    return [];
+                }
+                var val = $el.val();
+                if (val === null || val === undefined || val === '') {
+                    return [];
+                }
+                return Array.isArray(val) ? val : [String(val)];
+            }
+
             function ltvTeamsReportFilterParams() {
                 var uid = $ltvFiltersForm.find('[name="filter_user_id"]').val() || '';
-                var tid = $ltvFiltersForm.find('[name="filter_team_id"]').val() || '';
-                var tpid = $ltvFilterTrainer.length
-                    ? ($ltvFiltersForm.find('[name="filter_trainer_profile_id"]').val() || '')
-                    : '';
+                var teamIds = reportMultiValues($ltvFilterTeam);
+                var trainerIds = $ltvFilterTrainer.length ? reportMultiValues($ltvFilterTrainer) : [];
                 return {
                     filter_user_id: uid,
-                    filter_team_id: tid,
-                    filter_trainer_profile_id: tpid,
+                    filter_team_id: teamIds,
+                    filter_trainer_profile_id: trainerIds,
                     filter_location_id: canViewLocations
-                        ? ($ltvFiltersForm.find('[name="filter_location_id"]').val() || '')
-                        : '',
+                        ? reportMultiValues($('#pay-ltv-teams-filter-location'))
+                        : [],
                     status: $ltvFiltersForm.find('[name="status"]').val() || '',
                     user_name: '',
                     team_title: '',
@@ -444,8 +416,6 @@
             }
 
             initPaymentsReportFilterSelect2($ltvFilterUser);
-            initPaymentsReportFilterSelect2($ltvFilterTeam);
-            initPaymentsReportFilterSelect2($ltvFilterTrainer);
 
             function formatLtvDate(data) {
                 if (!data) {
@@ -573,7 +543,13 @@
                         },
                         {
                             data: 'user_name',
-                            name: 'user_name'
+                            name: 'user_name',
+                            render: function (data, type, row) {
+                                if (type !== 'display' || !window.KidsCrmUserCard) {
+                                    return data || '';
+                                }
+                                return window.KidsCrmUserCard.renderName(data, row.user_id);
+                            }
                         },
                         {
                             data: 'summ',
@@ -692,7 +668,25 @@
                         }
                     },
                     { key: 'team_title', type: 'text', data: 'team_title', name: 'team_title' },
-                    { key: 'user_names', type: 'list', data: 'user_names', name: 'user_names', itemsKey: 'user_names_items', listOptions: { customClass: 'kids-hover-list-tooltip--two-col' } },
+                    {
+                        key: 'user_names',
+                        type: 'list',
+                        data: 'user_names',
+                        name: 'user_names',
+                        itemsKey: 'user_names_items',
+                        listOptions: { customClass: 'kids-hover-list-tooltip--two-col' },
+                        render: function (data, type, row) {
+                            if (type !== 'display' || !window.KidsCrmUserCard) {
+                                return data || '';
+                            }
+                            return window.KidsCrmUserCard.renderLinkedList(
+                                row.user_name_cards,
+                                row.user_names_items,
+                                data,
+                                { customClass: 'kids-hover-list-tooltip--two-col' }
+                            );
+                        }
+                    },
                     {
                         key: 'avg_attendance',
                         type: 'count',
@@ -824,12 +818,16 @@
             $('#ltvTeamsReportFiltersResetBtn').on('click', function () {
                 $ltvFiltersForm[0].reset();
                 $ltvFilterUser.val(null).trigger('change');
-                $ltvFilterTeam.val(null).trigger('change');
-                $ltvFilterTrainer.val(null).trigger('change');
-                $('#pay-ltv-teams-filter-user-status').val(defaultFilterUserStatus);
-                if (canViewLocations) {
-                    $('#pay-ltv-teams-filter-location').val('');
+                if (window.KidsCrmGenericMultiselectSelect2) {
+                    KidsCrmGenericMultiselectSelect2.reset($ltvFilterTeam);
+                    if ($ltvFilterTrainer.length) {
+                        KidsCrmGenericMultiselectSelect2.reset($ltvFilterTrainer);
+                    }
+                    if (canViewLocations) {
+                        KidsCrmGenericMultiselectSelect2.reset($('#pay-ltv-teams-filter-location'));
+                    }
                 }
+                $('#pay-ltv-teams-filter-user-status').val(defaultFilterUserStatus);
                 Object.keys(ltvTeamsDetailTables).forEach(function (teamId) {
                     destroyLtvTeamsDetailTable(teamId);
                 });
@@ -869,3 +867,30 @@
         });
     </script>
 @endsection
+
+@include('partials.ui.user-card-modal', [
+    'userCardUrl' => url('/admin/reports/payments/users'),
+])
+
+@include('partials.select2.generic-multiselect')
+
+@push('scripts')
+    <script>
+        $(function () {
+            if (!window.KidsCrmGenericMultiselectSelect2) {
+                return;
+            }
+            ['#pay-ltv-teams-filter-team', '#pay-ltv-teams-filter-trainer', '#pay-ltv-teams-filter-location'].forEach(function (selector) {
+                var $el = $(selector);
+                if (!$el.length) {
+                    return;
+                }
+                KidsCrmGenericMultiselectSelect2.init($el, {
+                    placeholder: $el.data('placeholder') || '',
+                    allowClear: true,
+                    dropdownParent: $('#ltv-teams-report-filters')
+                });
+            });
+        });
+    </script>
+@endpush

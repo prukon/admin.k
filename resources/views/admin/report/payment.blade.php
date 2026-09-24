@@ -13,12 +13,36 @@
     $paymentsFilterTeam = $paymentsFilterTeam ?? null;
     $paymentsFilterTrainer = $paymentsFilterTrainer ?? null;
     $canViewTrainers = $canViewTrainers ?? (auth()->user() && auth()->user()->can('trainers.view'));
+    $filterTeams = $filterTeams ?? collect();
+    $filterTrainers = $filterTrainers ?? collect();
     $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider', 'payment_method', 'email_newsletter', 'payment_refund_status', 'bank_commission_acquiring_min', 'bank_commission_acquiring_max', 'bank_commission_payout_min', 'bank_commission_payout_max'];
-    $payFilterLocation = $filters['filter_location_id'] ?? '';
+    $payFilterSelected = function (string $key) use ($filters): array {
+        $raw = $filters[$key] ?? null;
+        $items = is_array($raw) ? $raw : ($raw === null || $raw === '' ? [] : [$raw]);
+        $out = [];
+        foreach ($items as $item) {
+            $value = trim((string) $item);
+            if ($value !== '') {
+                $out[] = $value;
+            }
+        }
+
+        return $out;
+    };
+    $payFilterTeamIds = $payFilterSelected('filter_team_id');
+    $payFilterTrainerIds = $payFilterSelected('filter_trainer_profile_id');
+    $payFilterLocationIds = $payFilterSelected('filter_location_id');
     $payFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
+        if (is_array($v)) {
+            if ($payFilterSelected($k) !== []) {
+                $payHasActiveFilters = true;
+                break;
+            }
+            continue;
+        }
         if ($v !== null && $v !== '') {
             $payHasActiveFilters = true;
             break;
@@ -314,42 +338,43 @@
                     @endif
                 </select>
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-3 generic-multiselect-field">
                 <label class="form-label" for="pay-filter-team">Группа</label>
-                <select class="form-select payments-report-filter-select2"
+                <select class="form-select js-generic-multiselect-select"
                         id="pay-filter-team"
-                        name="filter_team_id"
-                        data-placeholder="Все группы"
-                        data-search-url="{{ route('reports.payments.teams.search') }}">
-                    <option value=""></option>
-                    @if($paymentsFilterTeam)
-                        <option value="{{ $paymentsFilterTeam['id'] }}" selected>{{ $paymentsFilterTeam['text'] }}</option>
-                    @endif
+                        name="filter_team_id[]"
+                        multiple
+                        data-placeholder="Все группы">
+                    @foreach($filterTeams as $team)
+                        <option value="{{ $team->id }}" @selected(in_array((string) $team->id, $payFilterTeamIds, true))>{{ $team->title }}</option>
+                    @endforeach
                 </select>
             </div>
             @if($canViewTrainers)
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-3 generic-multiselect-field">
                 <label class="form-label" for="pay-filter-trainer">Тренер</label>
-                <select class="form-select payments-report-filter-select2"
+                <select class="form-select js-generic-multiselect-select"
                         id="pay-filter-trainer"
-                        name="filter_trainer_profile_id"
-                        data-placeholder="Все тренеры"
-                        data-search-url="{{ route('reports.payments.trainers.search') }}">
-                    <option value=""></option>
-                    @if($paymentsFilterTrainer)
-                        <option value="{{ $paymentsFilterTrainer['id'] }}" selected>{{ $paymentsFilterTrainer['text'] }}</option>
-                    @endif
+                        name="filter_trainer_profile_id[]"
+                        multiple
+                        data-placeholder="Все тренеры">
+                    @foreach($filterTrainers as $trainer)
+                        <option value="{{ $trainer->id }}" @selected(in_array((string) $trainer->id, $payFilterTrainerIds, true))>{{ $trainer->user?->full_name }}</option>
+                    @endforeach
                 </select>
             </div>
             @endif
             @if($canViewLocations)
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-3 generic-multiselect-field">
                 <label class="form-label" for="pay-filter-location">Объект</label>
-                <select class="form-select" id="pay-filter-location" name="filter_location_id">
-                    <option value="">Все объекты</option>
-                    <option value="none" {{ (string) $payFilterLocation === 'none' ? 'selected' : '' }}>Без объекта</option>
+                <select class="form-select js-generic-multiselect-select"
+                        id="pay-filter-location"
+                        name="filter_location_id[]"
+                        multiple
+                        data-placeholder="Все объекты">
+                    <option value="none" @selected(in_array('none', $payFilterLocationIds, true))>Без объекта</option>
                     @foreach($activeLocations as $location)
-                        <option value="{{ $location->id }}" {{ (string) $payFilterLocation === (string) $location->id ? 'selected' : '' }}>
+                        <option value="{{ $location->id }}" @selected(in_array((string) $location->id, $payFilterLocationIds, true))>
                             {{ $location->name }}
                         </option>
                     @endforeach
@@ -486,6 +511,10 @@
     </tr>
     </thead>
 </table>
+
+@include('partials.ui.user-card-modal', [
+    'userCardUrl' => url('/admin/reports/payments/users'),
+])
 
 <!-- Модальное окно возврата -->
 <div class="modal fade" id="refundModal" tabindex="-1" aria-labelledby="refundModalLabel" aria-hidden="true">
@@ -694,22 +723,31 @@
                 window.requestAnimationFrame(step);
             }
 
+            function paymentsReportMultiValues($el) {
+                if (!$el || !$el.length) {
+                    return [];
+                }
+                var val = $el.val();
+                if (val === null || val === undefined || val === '') {
+                    return [];
+                }
+                return Array.isArray(val) ? val : [String(val)];
+            }
+
             function paymentsReportFilterParams() {
                 var uid = $payFiltersForm.find('[name="filter_user_id"]').val() || '';
-                var tid = $payFiltersForm.find('[name="filter_team_id"]').val() || '';
-                var tpid = $payFilterTrainer.length
-                    ? ($payFiltersForm.find('[name="filter_trainer_profile_id"]').val() || '')
-                    : '';
+                var teamIds = paymentsReportMultiValues($payFilterTeam);
+                var trainerIds = $payFilterTrainer.length ? paymentsReportMultiValues($payFilterTrainer) : [];
                 return {
                     filter_user_id: uid,
-                    filter_team_id: tid,
-                    filter_trainer_profile_id: tpid,
+                    filter_team_id: teamIds,
+                    filter_trainer_profile_id: trainerIds,
                     filter_location_id: canViewLocations
-                        ? ($payFiltersForm.find('[name="filter_location_id"]').val() || '')
-                        : '',
+                        ? paymentsReportMultiValues($('#pay-filter-location'))
+                        : [],
                     status: $payFiltersForm.find('[name="status"]').val() || '',
                     user_name: uid ? '' : (payReportLegacyFilters.user_name || ''),
-                    team_title: tid ? '' : (payReportLegacyFilters.team_title || ''),
+                    team_title: teamIds.length ? '' : (payReportLegacyFilters.team_title || ''),
                     payment_month: $payFiltersForm.find('[name="payment_month"]').val(),
                     operation_date_from: $payFiltersForm.find('[name="operation_date_from"]').val(),
                     operation_date_to: $payFiltersForm.find('[name="operation_date_to"]').val(),
@@ -784,8 +822,6 @@
             }
 
             initPaymentsReportFilterSelect2($payFilterUser);
-            initPaymentsReportFilterSelect2($payFilterTeam);
-            initPaymentsReportFilterSelect2($payFilterTrainer);
 
             const defaultColumnsVisibility = {
                 user_name: true,
@@ -824,7 +860,11 @@ const columns = [
         data: null,
         name: 'user_name',
         render: function (data, type, row) {
-            return row.user_name ? row.user_name : 'Без имени';
+            var name = row.user_name ? String(row.user_name) : 'Без имени';
+            if (type !== 'display' || !row.user_id || !window.KidsCrmUserCard) {
+                return name;
+            }
+            return window.KidsCrmUserCard.renderName(name, row.user_id);
         }
     },
     {data: 'team_title', name: 'team_title'},
@@ -1260,6 +1300,9 @@ columns.push(
 
             function paymentsColumnPresetType(col) {
                 const name = col && col.name ? col.name : '';
+                if (name === 'user_name') {
+                    return 'link';
+                }
                 if (name === 'receipt') {
                     return 'icon';
                 }
@@ -1410,12 +1453,16 @@ columns.push(
                 payReportLegacyFilters.user_name = '';
                 payReportLegacyFilters.team_title = '';
                 $payFilterUser.val(null).trigger('change');
-                $payFilterTeam.val(null).trigger('change');
-                $payFilterTrainer.val(null).trigger('change');
-                $('#pay-filter-user-status').val(defaultFilterUserStatus);
-                if (canViewLocations) {
-                    $('#pay-filter-location').val('');
+                if (window.KidsCrmGenericMultiselectSelect2) {
+                    KidsCrmGenericMultiselectSelect2.reset($payFilterTeam);
+                    if ($payFilterTrainer.length) {
+                        KidsCrmGenericMultiselectSelect2.reset($payFilterTrainer);
+                    }
+                    if (canViewLocations) {
+                        KidsCrmGenericMultiselectSelect2.reset($('#pay-filter-location'));
+                    }
                 }
+                $('#pay-filter-user-status').val(defaultFilterUserStatus);
                 $payFiltersForm.find('[name="bank_commission_acquiring_min"],[name="bank_commission_acquiring_max"],[name="bank_commission_payout_min"],[name="bank_commission_payout_max"]').val('');
                 refreshPaymentsReportTotal();
                 dtApi.reload();
@@ -1600,6 +1647,31 @@ columns.push(
         });
     </script>
 @endsection
+
+
+@include('partials.select2.generic-multiselect')
+
+@push('scripts')
+    <script>
+        $(function () {
+            if (!window.KidsCrmGenericMultiselectSelect2) {
+                return;
+            }
+            var $filters = $('#payments-report-filters');
+            ['#pay-filter-team', '#pay-filter-trainer', '#pay-filter-location'].forEach(function (selector) {
+                var $el = $(selector);
+                if (!$el.length) {
+                    return;
+                }
+                KidsCrmGenericMultiselectSelect2.init($el, {
+                    placeholder: $el.data('placeholder') || '',
+                    allowClear: true,
+                    dropdownParent: $filters
+                });
+            });
+        });
+    </script>
+@endpush
 
 
 

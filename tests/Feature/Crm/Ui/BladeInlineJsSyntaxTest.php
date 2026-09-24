@@ -49,6 +49,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'payment intents report tab' => ['admin/report/payment_intents.blade.php'];
         yield 'debts report tab' => ['admin/report/debt.blade.php'];
         yield 'payments report tab' => ['admin/report/payment.blade.php'];
+        yield 'user card modal partial' => ['partials/ui/user-card-modal.blade.php'];
         yield 'ltv report tab' => ['admin/report/ltv.blade.php'];
         yield 'ltv teams report tab' => ['admin/report/ltv_teams.blade.php'];
         yield 'ltv locations report tab' => ['admin/report/ltv_locations.blade.php'];
@@ -6222,7 +6223,8 @@ JS;
     /**
      * P1: фильтр оплаченной группы уходит и в основную таблицу, и во вложенную
      * (два JS-пути: paymentsMonthlyFilterParams / ltvReportFilterParams → ajax.data).
-     * Сброс очищает Select2 группы, не пересоздаёт таблицу.
+     * Monthly читает одно значение Select2. LTV, группы и локации читают мультиселект
+     * через reportMultiValues. Сброс чистит выбор группы и не пересоздаёт таблицу.
      */
     public function test_monthly_and_ltv_nested_ajax_copy_paid_team_filter_and_reset_clears_select2(): void
     {
@@ -6256,8 +6258,8 @@ JS;
         $ltvParamsPos = strpos($ltv, 'function ltvReportFilterParams()');
         $this->assertNotFalse($ltvParamsPos);
         $ltvParams = substr($ltv, $ltvParamsPos, 1800);
-        $this->assertStringContainsString('[name="filter_team_id"]', $ltvParams);
-        $this->assertStringContainsString('filter_team_id: tid', $ltvParams);
+        $this->assertStringContainsString('reportMultiValues($ltvFilterTeam)', $ltvParams);
+        $this->assertStringContainsString('filter_team_id: teamIds', $ltvParams);
 
         $ltvNestedPos = strpos($ltv, 'function initLtvUserPaymentsDetailTable');
         $this->assertNotFalse($ltvNestedPos);
@@ -6274,7 +6276,7 @@ JS;
         $ltvResetPos = strpos($ltv, "$('#ltvReportFiltersResetBtn').on('click'");
         $this->assertNotFalse($ltvResetPos);
         $ltvReset = substr($ltv, $ltvResetPos, 1600);
-        $this->assertStringContainsString('$ltvFilterTeam.val(null).trigger(\'change\')', $ltvReset);
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.reset($ltvFilterTeam)', $ltvReset);
         $this->assertStringContainsString('dtApi.reload()', $ltvReset);
         $this->assertStringNotContainsString('KidsCrmDataTable.create', $ltvReset);
 
@@ -6304,8 +6306,8 @@ JS;
         $ltvTeamsParamsPos = strpos($ltvTeams, 'function ltvTeamsReportFilterParams()');
         $this->assertNotFalse($ltvTeamsParamsPos);
         $ltvTeamsParams = substr($ltvTeams, $ltvTeamsParamsPos, 1800);
-        $this->assertStringContainsString('[name="filter_team_id"]', $ltvTeamsParams);
-        $this->assertStringContainsString('filter_team_id: tid', $ltvTeamsParams);
+        $this->assertStringContainsString('reportMultiValues($ltvFilterTeam)', $ltvTeamsParams);
+        $this->assertStringContainsString('filter_team_id: teamIds', $ltvTeamsParams);
         $this->assertStringContainsString('period: currentPeriod', $ltvTeamsParams);
         $this->assertStringContainsString('mode: currentMode', $ltvTeamsParams);
 
@@ -6345,8 +6347,8 @@ JS;
         $ltvLocationsParamsPos = strpos($ltvLocations, 'function ltvLocationsReportFilterParams()');
         $this->assertNotFalse($ltvLocationsParamsPos);
         $ltvLocationsParams = substr($ltvLocations, $ltvLocationsParamsPos, 1800);
-        $this->assertStringContainsString('[name="filter_team_id"]', $ltvLocationsParams);
-        $this->assertStringContainsString('filter_team_id: tid', $ltvLocationsParams);
+        $this->assertStringContainsString('reportMultiValues($ltvFilterTeam)', $ltvLocationsParams);
+        $this->assertStringContainsString('filter_team_id: teamIds', $ltvLocationsParams);
         $this->assertStringContainsString('period: currentPeriod', $ltvLocationsParams);
         $this->assertStringContainsString('mode: currentMode', $ltvLocationsParams);
 
@@ -8585,7 +8587,11 @@ JS;
         );
         $this->assertStringContainsString('function editUserLink2()', $content);
         $this->assertStringContainsString('function editUserLink()', $content);
-        $this->assertStringContainsString("\$percent.val(p === 0 || p === '0' ? '' : p)", $content);
+        $this->assertStringContainsString("const shown = (p === 0 || p === '0') ? '' : p;", $content);
+        $this->assertStringContainsString('$percent.val(shown);', $content);
+        $this->assertStringContainsString("\$percent.data('original-percent', parseInt(shown, 10) || 0);", $content);
+        $this->assertStringContainsString('id="discountUnpaidPricesModal"', $content);
+        $this->assertStringContainsString('function loadDiscountUnpaidPricesPreview()', $content);
         $this->assertStringContainsString('ui?.canManageUserDiscount === true', $content);
         $this->assertStringContainsString("\$('.js-user-discount-wrap').remove()", $content);
         $this->assertStringContainsString("find('.js-user-sex-wrap, .js-user-comment-wrap, .js-user-discount-wrap')", $content);
@@ -10087,6 +10093,32 @@ JS;
             $path,
             'annulAfterSendBtn',
             'blade-js-contract-show-annul'
+        );
+    }
+
+    public function test_contract_show_revoke_draft_js_posts_revoke_and_is_valid_javascript(): void
+    {
+        $path = resource_path('views/contracts/show.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="revokeDraftBtn"', $content);
+        $this->assertStringContainsString("\$('#revokeDraftBtn').on('click'", $content);
+        $this->assertStringContainsString('70 ₽ не возвращаются', $content);
+
+        $start = strpos($content, "$('#revokeDraftBtn').on('click'");
+        $this->assertNotFalse($start);
+        $chunk = substr($content, $start, 1600);
+        $this->assertStringContainsString("method: 'POST'", $chunk);
+        $this->assertStringContainsString("/client-contracts/' + contractId + '/revoke'", $chunk);
+        $this->assertStringContainsString("headers: {'Accept': 'application/json'}", $chunk);
+        $this->assertStringContainsString('_token: csrf', $chunk);
+        $this->assertStringContainsString('location.reload()', $chunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'revokeDraftBtn',
+            'blade-js-contract-show-revoke-draft'
         );
     }
 

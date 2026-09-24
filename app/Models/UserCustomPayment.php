@@ -40,6 +40,11 @@ final class UserCustomPayment extends Model
         return $this->belongsTo(Team::class);
     }
 
+    public function publicPayLink()
+    {
+        return $this->hasOne(UserCustomPaymentPublicPayLink::class, 'user_custom_payment_id');
+    }
+
     public function manualPaidBy()
     {
         return $this->belongsTo(User::class, 'manual_paid_by');

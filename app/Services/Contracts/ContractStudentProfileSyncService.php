@@ -30,6 +30,13 @@ class ContractStudentProfileSyncService
             }
         }
 
+        if (array_key_exists(ContractTemplatePrefillSources::CHILD_MIDDLENAME, $filledData)) {
+            $middlename = trim((string) $filledData[ContractTemplatePrefillSources::CHILD_MIDDLENAME]);
+            if ($middlename !== '') {
+                $updates['middlename'] = mb_substr($middlename, 0, 100);
+            }
+        }
+
         if (array_key_exists(ContractTemplatePrefillSources::CHILD_FULL_NAME_GENITIVE, $filledData)) {
             $genitive = trim((string) $filledData[ContractTemplatePrefillSources::CHILD_FULL_NAME_GENITIVE]);
             if ($genitive !== '') {

@@ -12,6 +12,7 @@
     $rawValue = old('fields.' . $key, $prefill[$key] ?? '');
     $isPhoneField = ContractTemplateVariablePresets::isFillFormPhoneField($key);
     $isDateField = ContractTemplateVariablePresets::isFillFormDateField($key);
+    $isGenitiveFullName = ContractTemplateVariablePresets::isFillFormGenitiveFullNameField($key);
     $value = $isDateField
         ? ContractTemplateVariablePresets::dateValueForFillInput($rawValue)
         : $rawValue;
@@ -45,6 +46,9 @@
                class="form-control @error('fields.' . $key) is-invalid @enderror"
                value="{{ $value }}"
                maxlength="{{ ContractTemplateVariablePresets::fillFormTextMax($key) }}">
+    @endif
+    @if($isGenitiveFullName)
+        <div class="form-text">{{ \App\Rules\GenitiveFullName::HINT }}</div>
     @endif
     <div class="invalid-feedback" data-error-for="fields.{{ $key }}">@error('fields.' . $key){{ $message }}@enderror</div>
 </div>

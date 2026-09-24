@@ -12,6 +12,8 @@ use App\Models\Setting;
 use App\Rules\AllowedActorTeam;
 use App\Rules\EmailHasDomainDot;
 use App\Services\PartnerContext;
+use App\Services\Pricing\UserPercentDiscount;
+use App\Services\Pricing\UserUnpaidPriceDiscountRecalc;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -86,6 +88,17 @@ class UpdateRequest extends FormRequest
             ]);
         }
 
+        if ($this->user()?->can('users.name.update')) {
+            if ($this->has('middlename') && is_string($this->input('middlename'))) {
+                $middlename = trim($this->input('middlename'));
+                $this->merge([
+                    'middlename' => $middlename !== '' ? $middlename : null,
+                ]);
+            }
+        } else {
+            $this->offsetUnset('middlename');
+        }
+
         if ($this->user()?->can('users.full_name_genitive')) {
             if ($this->has('full_name_genitive') && is_string($this->input('full_name_genitive'))) {
                 $genitive = trim($this->input('full_name_genitive'));
@@ -153,6 +166,7 @@ class UpdateRequest extends FormRequest
         if ($this->user()->can('users.name.update')) {
             $rules['name'] = ['required', 'string', 'max:30'];
             $rules['lastname'] = ['required', 'string', 'max:30'];
+            $rules['middlename'] = ['nullable', 'string', 'max:100'];
         }
 
         if ($this->user()->can('users.full_name_genitive')) {
@@ -211,7 +225,31 @@ class UpdateRequest extends FormRequest
             ];
         }
 
+        if ($this->unpaidPriceDiscountChoiceRequired()) {
+            $rules['recalculate_unpaid_prices'] = ['required', 'in:0,1'];
+        }
+
         return array_merge($rules, $this->studentHealthFieldRules(), $this->studentCommentAndSexRules());
+    }
+
+    private function unpaidPriceDiscountChoiceRequired(): bool
+    {
+        if (! $this->user()?->can('users.discount.manage') || ! $this->isStudentRoleEffective()) {
+            return false;
+        }
+
+        $targetUser = $this->route('user');
+        if (! $targetUser instanceof User) {
+            return false;
+        }
+
+        $oldPercent = UserPercentDiscount::percent($targetUser);
+        $newPercent = $this->normalizedDiscountPercentInput();
+        if ($oldPercent === $newPercent) {
+            return false;
+        }
+
+        return app(UserUnpaidPriceDiscountRecalc::class)->preview($targetUser, $newPercent) !== [];
     }
 
     protected function effectiveRoleIdForCommentSexCheck(): ?int
@@ -324,6 +362,7 @@ class UpdateRequest extends FormRequest
         return [
             'name' => 'Имя',
             'lastname' => 'Фамилия',
+            'middlename' => 'Отчество',
             'full_name_genitive' => 'ФИО ученика в родительном падеже',
             'birthday' => 'Дата рождения',
             'team_ids' => 'Группы',
@@ -337,6 +376,7 @@ class UpdateRequest extends FormRequest
             'is_enabled' => 'Активность',
             'role_id' => 'Роль',
             'two_factor_enabled' => 'Двухфакторная аутентификация',
+            'recalculate_unpaid_prices' => 'Изменение неоплаченных цен',
         ] + $this->studentParentAttributes()
             + $this->studentHealthFieldAttributes()
             + $this->studentCommentAndSexAttributes();
@@ -357,6 +397,9 @@ class UpdateRequest extends FormRequest
             'lastname.required' => 'Поле "Фамилия" обязательно для заполнения.',
             'lastname.string' => 'Поле "Фамилия" должно быть строкой.',
             'lastname.max' => 'Поле "Фамилия" не должно превышать :max символов.',
+
+            'middlename.string' => 'Поле "Отчество" должно быть строкой.',
+            'middlename.max' => 'Поле "Отчество" не должно превышать :max символов.',
 
             'full_name_genitive.string' => 'Поле «ФИО ученика в родительном падеже» должно быть строкой.',
             'full_name_genitive.max' => 'Поле «ФИО ученика в родительном падеже» не должно превышать :max символов.',
@@ -399,6 +442,9 @@ class UpdateRequest extends FormRequest
             // Роль
             'role_id.integer' => 'Некорректный формат роли.',
             'role_id.exists' => 'Выбранная роль не существует в базе.',
+
+            'recalculate_unpaid_prices.required' => 'Выберите, изменять ли неоплаченные установленные цены.',
+            'recalculate_unpaid_prices.in' => 'Выберите, изменять ли неоплаченные установленные цены.',
 
             // 2FA
             'two_factor_enabled.boolean' => 'Некорректное значение поля 2FA.',

@@ -282,6 +282,15 @@ class ContractTemplateVariablePresets
                 'fill_sort_order'  => 12,
             ],
             [
+                'key'              => ContractTemplatePrefillSources::CHILD_MIDDLENAME,
+                'label'            => 'Ребёнок: отчество',
+                'description'      => 'Отчество ученика (карточка users.middlename), если есть.',
+                'group'            => self::GROUP_CHILD,
+                'prefill_source'   => ContractTemplatePrefillSources::CHILD_MIDDLENAME,
+                'required_default' => false,
+                'fill_sort_order'  => 13,
+            ],
+            [
                 'key'              => ContractTemplatePrefillSources::CHILD_FULL_NAME_GENITIVE,
                 'label'            => 'Ребёнок: ФИО в родительном падеже',
                 'description'      => 'ФИО ученика в родительном падеже (например: Иванова Ивана Ивановича).',
@@ -750,7 +759,8 @@ class ContractTemplateVariablePresets
 
         $needsChildParts = isset($byKey[ContractTemplatePrefillSources::CHILD_FULL_NAME])
             || isset($byKey[ContractTemplatePrefillSources::CHILD_LASTNAME])
-            || isset($byKey[ContractTemplatePrefillSources::CHILD_FIRSTNAME]);
+            || isset($byKey[ContractTemplatePrefillSources::CHILD_FIRSTNAME])
+            || isset($byKey[ContractTemplatePrefillSources::CHILD_MIDDLENAME]);
 
         $out = [];
         foreach ($enriched as $field) {
@@ -788,9 +798,12 @@ class ContractTemplateVariablePresets
             foreach ([
                 ContractTemplatePrefillSources::CHILD_LASTNAME,
                 ContractTemplatePrefillSources::CHILD_FIRSTNAME,
+                ContractTemplatePrefillSources::CHILD_MIDDLENAME,
             ] as $partKey) {
                 if (!isset($presentKeys[$partKey])) {
-                    $required = $childFullRequired || !empty($byKey[$partKey]['required']);
+                    $required = $partKey === ContractTemplatePrefillSources::CHILD_MIDDLENAME
+                        ? false
+                        : ($childFullRequired || !empty($byKey[$partKey]['required']));
                     $out[] = self::makeSplitNameFormField($partKey, $required);
                 }
             }
@@ -822,11 +835,14 @@ class ContractTemplateVariablePresets
         $childFull = trim($prefill[ContractTemplatePrefillSources::CHILD_FULL_NAME] ?? '');
         if ($childFull !== '') {
             $parts = SchoolLead::splitFullName($childFull);
-            if (trim($prefill[ContractTemplatePrefillSources::CHILD_LASTNAME] ?? '') === '' && $parts['lastname'] !== '') {
-                $prefill[ContractTemplatePrefillSources::CHILD_LASTNAME] = $parts['lastname'];
-            }
-            if (trim($prefill[ContractTemplatePrefillSources::CHILD_FIRSTNAME] ?? '') === '' && $parts['firstname'] !== '') {
-                $prefill[ContractTemplatePrefillSources::CHILD_FIRSTNAME] = $parts['firstname'];
+            foreach ([
+                ContractTemplatePrefillSources::CHILD_LASTNAME   => 'lastname',
+                ContractTemplatePrefillSources::CHILD_FIRSTNAME  => 'firstname',
+                ContractTemplatePrefillSources::CHILD_MIDDLENAME => 'middlename',
+            ] as $targetKey => $partKey) {
+                if (trim($prefill[$targetKey] ?? '') === '' && $parts[$partKey] !== '') {
+                    $prefill[$targetKey] = $parts[$partKey];
+                }
             }
         }
 
@@ -853,6 +869,7 @@ class ContractTemplateVariablePresets
         $childFull = self::buildFullName(
             $values[ContractTemplatePrefillSources::CHILD_LASTNAME] ?? '',
             $values[ContractTemplatePrefillSources::CHILD_FIRSTNAME] ?? '',
+            $values[ContractTemplatePrefillSources::CHILD_MIDDLENAME] ?? '',
         );
         if ($childFull !== '') {
             $values[ContractTemplatePrefillSources::CHILD_FULL_NAME] = $childFull;
@@ -1284,7 +1301,8 @@ class ContractTemplateVariablePresets
     {
         $key = self::canonicalFieldKey($key);
 
-        if ($key === ContractTemplatePrefillSources::CHILD_PASSPORT) {
+        if ($key === ContractTemplatePrefillSources::CHILD_PASSPORT
+            || $key === ContractTemplatePrefillSources::CHILD_MIDDLENAME) {
             return 100;
         }
 
@@ -1298,6 +1316,14 @@ class ContractTemplateVariablePresets
         return str_contains($key, 'phone')
             || str_contains($key, 'tel')
             || str_contains($key, 'mobile');
+    }
+
+    public static function isFillFormGenitiveFullNameField(string $key): bool
+    {
+        $key = self::canonicalFieldKey($key);
+
+        return $key === ContractTemplatePrefillSources::PARENT_FULL_NAME_GENITIVE
+            || $key === ContractTemplatePrefillSources::CHILD_FULL_NAME_GENITIVE;
     }
 
     public static function dateValueForFillInput(?string $value): string

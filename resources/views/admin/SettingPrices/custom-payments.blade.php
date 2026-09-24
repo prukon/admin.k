@@ -7,8 +7,27 @@
             #custom-payments-table.dt-columns-managed th.dt-col-actions,
             #custom-payments-table.dt-columns-managed td.dt-col-actions {
                 width: 1% !important;
-                max-width: 9.5rem;
+                max-width: 13rem;
                 white-space: nowrap;
+            }
+
+            #custom-payments-table .js-custom-payment-copy-pay-link {
+                line-height: 1;
+                padding: 0.25rem 0.45rem;
+            }
+
+            #custom-payments-table .js-custom-payment-copy-pay-link i {
+                transition: transform 0.2s ease;
+            }
+
+            #custom-payments-table .js-custom-payment-copy-pay-link.is-copied {
+                color: #198754;
+                border-color: #198754;
+                background-color: #fff;
+            }
+
+            #custom-payments-table .js-custom-payment-copy-pay-link.is-copied i {
+                transform: scale(1.15);
             }
 
             #custom-payments-table.dt-columns-managed th.dt-col-text,

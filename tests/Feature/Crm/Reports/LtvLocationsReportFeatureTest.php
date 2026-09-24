@@ -66,7 +66,8 @@ final class LtvLocationsReportFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('Платежи по ученикам', $html);
         $this->assertStringContainsString('Отчеты', $html);
         $this->assertStringContainsString('/admin/reports/ltv/locations/users-search', $html);
-        $this->assertStringContainsString('/admin/reports/ltv/locations/teams-search', $html);
+        $this->assertStringContainsString('name="filter_team_id[]"', $html);
+        $this->assertStringContainsString('id="pay-ltv-locations-filter-team"', $html);
         $this->assertStringNotContainsString('/admin/reports/payments/users-search', $html);
         $this->assertStringNotContainsString('/admin/reports/payments/teams-search', $html);
 
@@ -291,6 +292,10 @@ final class LtvLocationsReportFeatureTest extends CrmTestCase
         $row = $rows[0];
         $this->assertSame('Алексеев Игорь, Борисова Мария', $row['user_names']);
         $this->assertSame(['Алексеев Игорь', 'Борисова Мария'], $row['user_names_items']);
+        $this->assertSame([
+            ['id' => (int) $first->id, 'name' => 'Алексеев Игорь'],
+            ['id' => (int) $second->id, 'name' => 'Борисова Мария'],
+        ], $row['user_name_cards']);
     }
 
     public function test_nested_location_payments_include_user_name_and_team_title(): void
@@ -339,6 +344,7 @@ final class LtvLocationsReportFeatureTest extends CrmTestCase
         $this->assertNotEmpty($json['data'] ?? []);
         $row = $json['data'][0];
         $this->assertStringContainsString('Козлов', (string) ($row['user_name'] ?? ''));
+        $this->assertSame((int) $student->id, (int) ($row['user_id'] ?? 0));
         $this->assertStringContainsString('Детализация-группа', (string) ($row['team_title'] ?? ''));
         $this->assertArrayHasKey('payment_provider', $row);
         $this->assertSame(1, (int) ($json['meta_payments_count'] ?? 0));

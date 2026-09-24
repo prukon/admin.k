@@ -38,6 +38,9 @@
 {{-- Как на /admin/districts: include на корне view, чтобы @push styles/scripts попали в layout stacks --}}
 @if(($activeTab ?? 'journal') === 'journal')
     @include('partials.select2.generic-multiselect')
+    @include('partials.ui.user-card-modal', [
+        'userCardUrl' => url('/schedule/users'),
+    ])
 @endif
 
 @push('styles')

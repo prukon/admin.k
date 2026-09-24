@@ -349,6 +349,7 @@ class PaymentMonthlyReportController extends AdminBaseController
                 'payments.payment_id',
                 'payments.payment_status',
                 'payments.user_name as payment_user_name',
+                'users.id as user_id',
                 'users.name as user_firstname',
                 'users.lastname as user_lastname',
             )

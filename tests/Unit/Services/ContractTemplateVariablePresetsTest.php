@@ -205,9 +205,10 @@ class ContractTemplateVariablePresetsTest extends TestCase
         ]);
 
         $this->assertSame(
-            ['child_lastname', 'child_firstname'],
+            ['child_lastname', 'child_firstname', 'child_middlename'],
             array_column($filtered, 'key'),
         );
+        $this->assertFalse($filtered[2]['required']);
     }
 
     /** @test */
@@ -219,10 +220,11 @@ class ContractTemplateVariablePresetsTest extends TestCase
             'parent_middlename' => 'Иванович',
             'child_lastname'   => 'Петров',
             'child_firstname'  => 'Пётр',
+            'child_middlename' => 'Петрович',
         ]);
 
         $this->assertSame('Иванов Иван Иванович', $composed['parent_full_name']);
-        $this->assertSame('Петров Пётр', $composed['child_full_name']);
+        $this->assertSame('Петров Пётр Петрович', $composed['child_full_name']);
     }
 
     /** @test */

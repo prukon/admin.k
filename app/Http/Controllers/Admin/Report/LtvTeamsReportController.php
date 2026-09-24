@@ -13,6 +13,7 @@ use App\Models\UserTableSetting;
 use App\Services\PartnerContext;
 use App\Services\Reports\TeamAverageAttendanceAggregator;
 use App\Services\TrainerOwnTeamsScope;
+use App\Support\Reports\ReportFilterCatalog;
 use App\Support\UserTeamQuery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -75,6 +76,8 @@ class LtvTeamsReportController extends AdminBaseController
             'canViewTrainers'    => $canViewTrainers,
             'canViewLocations'   => $canViewLocations,
             'activeLocations'    => $activeLocations,
+            'filterTeams'        => ReportFilterCatalog::activeTeams($partnerId, $authUser),
+            'filterTrainers'     => ReportFilterCatalog::activeTrainers($partnerId, $canViewTrainers),
             'ltvTeamsPageLength' => UserTableSetting::pageLengthForUser(
                 Auth::id() !== null ? (int) Auth::id() : null,
                 self::TABLE_KEY
@@ -149,6 +152,7 @@ class LtvTeamsReportController extends AdminBaseController
                     )
                 END as team_title,
                 GROUP_CONCAT(DISTINCT TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) ORDER BY users.lastname, users.name SEPARATOR ', ') as user_names,
+                GROUP_CONCAT(DISTINCT CONCAT(users.id, ':::', TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,'')))) ORDER BY users.lastname, users.name SEPARATOR '|||') as user_name_pairs,
                 MAX(team_avg_att.avg_attendance) as avg_attendance,
                 SUM(payments.summ_cents) as total_price_cents,
                 COUNT(payments.id) as payment_count,
@@ -168,6 +172,9 @@ class LtvTeamsReportController extends AdminBaseController
             })
             ->addColumn('user_names_items', function ($row) {
                 return $this->splitLtvTeamsUserNames($row->user_names ?? '');
+            })
+            ->addColumn('user_name_cards', function ($row) {
+                return $this->ltvUserNameCards($row->user_name_pairs ?? '');
             })
             ->addColumn('avg_attendance', function ($row) {
                 if ((int) ($row->team_id ?? 0) <= 0) {
@@ -316,6 +323,7 @@ class LtvTeamsReportController extends AdminBaseController
                 payments.deal_id,
                 payments.payment_id,
                 payments.payment_status,
+                users.id as user_id,
                 TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) as user_name,
                 {$teamTitleExpr} as team_title
             ")
@@ -392,17 +400,18 @@ class LtvTeamsReportController extends AdminBaseController
             });
         }
 
-        UserTeamQuery::applyPaymentLedgerTeamFilters(
+        UserTeamQuery::applyScopedPaymentLedgerTeamFilter(
             $paymentsQuery,
             $partnerId,
             $request->query('filter_team_id'),
             $request->filled('team_title') ? (string) $request->query('team_title') : null,
         );
 
+        $trainerRaw = $request->query('filter_trainer_profile_id');
         UserTeamQuery::applyReportTrainerTeamFilter(
             $paymentsQuery,
             $partnerId,
-            $request->query('filter_trainer_profile_id'),
+            is_array($trainerRaw) ? UserTeamQuery::positiveIntIds($trainerRaw) : $trainerRaw,
         );
 
         $this->applyOwnTeamsScope($paymentsQuery, $partnerId, $forTeamDetail);
@@ -410,17 +419,7 @@ class LtvTeamsReportController extends AdminBaseController
         /** @var \App\Models\User|null $filterActor */
         $filterActor = Auth::user();
         if ($filterActor?->can('locations.view')) {
-            $filterLocationId = $request->query('filter_location_id');
-            if ($filterLocationId !== null && $filterLocationId !== '') {
-                if ($filterLocationId === 'none') {
-                    $paymentsQuery->whereNull('payments.location_id');
-                } elseif (ctype_digit((string) $filterLocationId)) {
-                    $lid = (int) $filterLocationId;
-                    if ($lid > 0) {
-                        $paymentsQuery->where('payments.location_id', $lid);
-                    }
-                }
-            }
+            UserTeamQuery::applyPaymentLocationIdsFilter($paymentsQuery, $request->query('filter_location_id'));
         }
 
         if ($request->filled('payment_month')) {
@@ -693,5 +692,35 @@ class LtvTeamsReportController extends AdminBaseController
         }
 
         return $items !== [] ? $items : ['Без имени'];
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function ltvUserNameCards(?string $pairs): array
+    {
+        $raw = (string) $pairs;
+        if ($raw === '') {
+            return [];
+        }
+
+        $cards = [];
+        foreach (explode('|||', $raw) as $pair) {
+            $parts = explode(':::', $pair, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+            $id = (int) $parts[0];
+            $name = trim($parts[1]);
+            if ($id < 1) {
+                continue;
+            }
+            $cards[] = [
+                'id' => $id,
+                'name' => $name !== '' ? $name : 'Без имени',
+            ];
+        }
+
+        return $cards;
     }
 }

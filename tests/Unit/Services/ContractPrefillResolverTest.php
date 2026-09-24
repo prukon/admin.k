@@ -121,6 +121,7 @@ final class ContractPrefillResolverTest extends CrmTestCase
             'role_id'    => $this->user->role_id,
             'lastname'   => 'Петров',
             'name'       => 'Пётр',
+            'middlename' => 'Петрович',
             'birthday'   => '2018-05-10',
             'address'            => 'г. Казань, ул. Ученическая, д. 3',
             'passport'           => 'II-АБ 123456',
@@ -134,6 +135,7 @@ final class ContractPrefillResolverTest extends CrmTestCase
                 ['key' => 'child_full_name', 'prefill_source' => ContractTemplatePrefillSources::CHILD_FULL_NAME],
                 ['key' => 'child_lastname', 'prefill_source' => ContractTemplatePrefillSources::CHILD_LASTNAME],
                 ['key' => 'child_firstname', 'prefill_source' => ContractTemplatePrefillSources::CHILD_FIRSTNAME],
+                ['key' => 'child_middlename', 'prefill_source' => ContractTemplatePrefillSources::CHILD_MIDDLENAME],
                 ['key' => 'child_birthday', 'prefill_source' => ContractTemplatePrefillSources::CHILD_BIRTHDAY],
                 ['key' => 'child_address', 'prefill_source' => ContractTemplatePrefillSources::CHILD_ADDRESS],
                 ['key' => 'child_passport', 'prefill_source' => ContractTemplatePrefillSources::CHILD_PASSPORT],
@@ -144,6 +146,7 @@ final class ContractPrefillResolverTest extends CrmTestCase
         $this->assertSame('Петров Пётр', $values['child_full_name']);
         $this->assertSame('Петров', $values['child_lastname']);
         $this->assertSame('Пётр', $values['child_firstname']);
+        $this->assertSame('Петрович', $values['child_middlename']);
         $this->assertSame('10.05.2018', $values['child_birthday']);
         $this->assertSame('г. Казань, ул. Ученическая, д. 3', $values['child_address']);
         $this->assertSame('II-АБ 123456', $values['child_passport']);

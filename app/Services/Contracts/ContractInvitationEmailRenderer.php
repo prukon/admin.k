@@ -58,7 +58,7 @@ final class ContractInvitationEmailRenderer
         $contract->loadMissing('templateVersion.template.partner');
 
         $documentsUrl = $this->documentsUrl($contract, $student);
-        $childFullName = trim((string) ($student->full_name ?? ''));
+        $childFullName = trim($student->fullNameWithPatronymic());
         if ($childFullName === '') {
             $childFullName = trim(($student->lastname ?? '') . ' ' . ($student->name ?? ''));
         }

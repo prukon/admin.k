@@ -68,6 +68,18 @@
                                                     </div>
                                                 </div>
 
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="create-middlename" class="form-label">Отчество ученика</label>
+                                                        <input type="text"
+                                                               name="middlename"
+                                                               class="form-control"
+                                                               id="create-middlename"
+                                                               maxlength="100"
+                                                               value="{{ old('middlename') }}">
+                                                    </div>
+                                                </div>
+
                                                 @can('users.full_name_genitive')
                                                 <div class="col-12">
                                                     <div class="mb-3">

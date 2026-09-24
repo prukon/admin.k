@@ -35,6 +35,7 @@ class ContractInvitationEmailRendererTest extends ContractsFeatureTestCase
         $body = $this->renderer->renderBodyHtml($contract, $student);
 
         $this->assertStringContainsString('Договор для Иванов Пётр — в личном кабинете', $subject);
+        $this->assertStringNotContainsString('Петрович', $subject);
         $this->assertStringContainsString('KidsCRM.online', $subject);
         $this->assertStringNotContainsString('{{child_full_name}}', $subject);
 
@@ -46,6 +47,23 @@ class ContractInvitationEmailRendererTest extends ContractsFeatureTestCase
         $this->assertStringContainsString('href="' . e($expectedDocumentsUrl) . '"', $body);
         $this->assertStringContainsString('Номер договора в системе: ' . $contract->id, $body);
         $this->assertStringNotContainsString('{{partner_name}}', $body);
+    }
+
+    /** @test */
+    public function it_includes_child_patronymic_in_subject_and_body_when_present(): void
+    {
+        [$contract, $student] = $this->makeContractWithVersion(emailSubject: null, emailBody: null);
+
+        $student->name = 'Пётр';
+        $student->lastname = 'Иванов';
+        $student->middlename = 'Петрович';
+        $student->save();
+
+        $subject = $this->renderer->renderSubject($contract, $student);
+        $body = $this->renderer->renderBodyHtml($contract, $student);
+
+        $this->assertStringContainsString('Договор для Иванов Пётр Петрович — в личном кабинете', $subject);
+        $this->assertStringContainsString('Иванов Пётр Петрович', $body);
     }
 
     /** @test */

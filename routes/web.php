@@ -51,6 +51,7 @@ use App\Http\Controllers\GuestPartnerRegistrationController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\MyGroupController;
 use App\Http\Controllers\PartnerPaymentController;
+use App\Http\Controllers\PublicCustomPaymentPayController;
 use App\Http\Controllers\PublicLessonPackagePayController;
 use App\Http\Controllers\PublicUserPricePayController;
 use App\Http\Controllers\Security\PhoneChangeController;
@@ -281,6 +282,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Отчеты -> вкладка Платежи, задолженности, LTV (feature test +)
     Route::middleware(['can:reports.view'])->group(function () {
         Route::get('/admin/reports/payments/users-search', [PaymentReportController::class, 'usersSearch'])->name('reports.payments.users.search');
+        Route::get('/admin/reports/payments/users/{user}', [PaymentReportController::class, 'userCard'])
+            ->whereNumber('user')
+            ->name('reports.payments.users.show');
         Route::get('/admin/reports/payments/teams-search', [PaymentReportController::class, 'teamsSearch'])->name('reports.payments.teams.search');
         Route::get('/admin/reports/payments/trainers-search', [PaymentReportController::class, 'trainersSearch'])->name('reports.payments.trainers.search');
         //Отчеты -> Платежи
@@ -432,6 +436,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
             Route::delete('admin/setting-prices/custom-payments/{id}', [SettingPricesController::class, 'destroyCustomPayment'])
                 ->whereNumber('id')
                 ->name('admin.settingPrices.customPayments.destroy');
+            Route::post('admin/setting-prices/custom-payments/{id}/public-pay-link', [SettingPricesController::class, 'issueCustomPaymentPublicPayLink'])
+                ->whereNumber('id')
+                ->name('admin.settingPrices.customPayments.public-pay-link');
         });
 
         Route::post('admin/setting-prices/user-year-prices', [SettingPricesController::class, 'userYearPrices'])->name('setting-prices.user-year-prices');
@@ -507,6 +514,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     Route::middleware('can:schedule.view')->group(function () {
+        Route::get('/schedule/users/{user}', [\App\Http\Controllers\Admin\Report\PaymentReportController::class, 'userCard'])
+            ->whereNumber('user')
+            ->name('schedule.users.show');
         Route::get('/schedule/cell-context', [ScheduleController::class, 'cellContext'])->name('schedule.cell-context');
         Route::post('/schedule/update', [ScheduleController::class, 'update'])->name('schedule.update');
         Route::delete('/schedule/occurrence/{utss}', [ScheduleController::class, 'destroyOccurrence'])
@@ -692,6 +702,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/users', [UserController::class, 'index'])->name('admin.user1');
         Route::post('admin/users', [UserController::class, 'store'])->name('admin.user.store');
         Route::get('admin/users/{user}/edit', [UserController::class, 'edit'])->name('admin.user.edit');
+        Route::get('admin/users/{user}/unpaid-price-discount-preview', [UserController::class, 'previewUnpaidPriceDiscount'])
+            ->name('admin.user.unpaid-price-discount-preview')
+            ->middleware('can:users.discount.manage');
         Route::patch('admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
         Route::delete('admin/user/{user}', [UserController::class, 'delete'])->name('admin.user.delete');
         Route::get('admin/user/logs-data', [UserController::class, 'log'])->name('logs.data.user');
@@ -1396,6 +1409,25 @@ Route::middleware(['throttle:ulp-public-pay'])->group(function () {
     Route::get('/pay/ulp/{token}/qr/state', [PublicLessonPackagePayController::class, 'qrState'])
         ->where('token', '[a-f0-9]{64}')
         ->name('ulp.public.pay.qr.state');
+});
+
+// Публичная оплата дополнительного платежа по СБП (ссылка из админки, без авторизации)
+Route::middleware(['throttle:ucp-public-pay'])->group(function () {
+    Route::get('/pay/ucp/{token}', [PublicCustomPaymentPayController::class, 'show'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('ucp.public.pay');
+    Route::get('/pc/{code}', [PublicCustomPaymentPayController::class, 'showShort'])
+        ->where('code', '[A-Za-z0-9]{8,12}')
+        ->name('ucp.public.pay.short');
+    Route::get('/pay/ucp/{token}/qr/json', [PublicCustomPaymentPayController::class, 'qrJson'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('ucp.public.pay.qr.json');
+    Route::get('/pay/ucp/{token}/qr/payload', [PublicCustomPaymentPayController::class, 'qrPayload'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('ucp.public.pay.qr.payload');
+    Route::get('/pay/ucp/{token}/qr/state', [PublicCustomPaymentPayController::class, 'qrState'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('ucp.public.pay.qr.state');
 });
 
 // Публичная оплата месячного начисления по СБП (ссылка из email-уведомления)

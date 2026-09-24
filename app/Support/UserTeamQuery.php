@@ -123,6 +123,21 @@ SQL;
         ?string $teamTitle,
         string $usersAlias = 'users',
     ): void {
+        if (is_array($filterTeamId)) {
+            $teamIds = self::positiveIntIds($filterTeamId);
+            if ($teamIds !== []) {
+                $query->where(function ($q) use ($partnerId, $teamIds, $usersAlias) {
+                    $q->whereIn('payments.team_id', $teamIds)
+                        ->orWhere(function ($q2) use ($partnerId, $teamIds, $usersAlias) {
+                            $q2->whereNull('payments.team_id');
+                            self::applyStudentInAnyTeamExists($q2, $partnerId, $teamIds, $usersAlias);
+                        });
+                });
+            }
+
+            return;
+        }
+
         if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
             $tid = (int) $filterTeamId;
             if ($tid > 0) {
@@ -196,6 +211,30 @@ SQL;
         mixed $filterTrainerProfileId,
         string $usersAlias = 'users',
     ): void {
+        if (is_array($filterTrainerProfileId)) {
+            $profileIds = self::positiveIntIds($filterTrainerProfileId);
+            if ($profileIds === []) {
+                return;
+            }
+
+            $trainerTeamIds = DB::table('team_trainer')
+                ->where('partner_id', $partnerId)
+                ->whereIn('trainer_profile_id', $profileIds)
+                ->pluck('team_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            if ($trainerTeamIds === []) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
+
+            self::applyStudentInAnyTeamExists($query, $partnerId, $trainerTeamIds, $usersAlias);
+
+            return;
+        }
+
         if ($filterTrainerProfileId === null || $filterTrainerProfileId === '' || ! ctype_digit((string) $filterTrainerProfileId)) {
             return;
         }
@@ -294,6 +333,26 @@ SQL;
     /**
      * @param  QueryBuilder|\Illuminate\Database\Eloquent\Builder  $query
      */
+    /**
+     * @param  array<int, mixed>  $rawIds
+     * @return int[]
+     */
+    public static function positiveIntIds(array $rawIds): array
+    {
+        $ids = [];
+        foreach ($rawIds as $raw) {
+            if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+                continue;
+            }
+            $id = (int) $raw;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
     public static function applyStudentInTeamExists($query, int $partnerId, int $teamId, string $usersAlias = 'users'): void
     {
         if ($teamId <= 0) {
@@ -379,6 +438,85 @@ SQL;
                 ->where('team_user.partner_id', $partnerId)
                 ->where('teams.partner_id', $partnerId)
                 ->where('teams.location_id', $locationId);
+        });
+    }
+
+    /**
+     * Несколько групп — OR. Чужие id при groups.own отбрасываются.
+     *
+     * @param  QueryBuilder|\Illuminate\Database\Eloquent\Builder  $query
+     */
+    public static function applyScopedPaymentLedgerTeamFilter($query, int $partnerId, mixed $raw, ?string $teamTitle): void
+    {
+        $isList = is_array($raw);
+        $hasTeamId = $isList
+            ? $raw !== []
+            : ($raw !== null && $raw !== '' && ctype_digit((string) $raw));
+
+        if ($hasTeamId) {
+            $allowed = self::allowedTeamIds($raw, $partnerId);
+            if ($allowed !== []) {
+                self::applyPaymentLedgerTeamFilters(
+                    $query,
+                    $partnerId,
+                    (! $isList && count($allowed) === 1) ? $allowed[0] : $allowed,
+                    null,
+                );
+            }
+
+            return;
+        }
+
+        self::applyPaymentLedgerTeamFilters($query, $partnerId, $isList ? null : $raw, $teamTitle);
+    }
+
+    /**
+     * @return int[]
+     */
+    public static function allowedTeamIds(mixed $raw, int $partnerId): array
+    {
+        $ids = self::positiveIntIds(is_array($raw) ? $raw : [$raw]);
+        $scope = app(\App\Services\TrainerOwnTeamsScope::class);
+        $actor = \Illuminate\Support\Facades\Auth::user();
+
+        return array_values(array_filter(
+            $ids,
+            fn (int $id) => $scope->allowsTeamId($actor, $partnerId, $id)
+        ));
+    }
+
+    /**
+     * Несколько объектов платежа — OR. «none» можно вместе с id.
+     *
+     * @param  QueryBuilder|\Illuminate\Database\Eloquent\Builder  $query
+     */
+    public static function applyPaymentLocationIdsFilter($query, mixed $raw): void
+    {
+        $tokens = is_array($raw) ? $raw : ($raw === null || $raw === '' ? [] : [$raw]);
+        $includeNone = false;
+        $ids = [];
+        foreach ($tokens as $token) {
+            $value = trim((string) $token);
+            if ($value === 'none') {
+                $includeNone = true;
+            } elseif (ctype_digit($value) && (int) $value > 0) {
+                $ids[] = (int) $value;
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        if (! $includeNone && $ids === []) {
+            return;
+        }
+
+        $query->where(function ($q) use ($includeNone, $ids) {
+            if ($ids !== []) {
+                $q->whereIn('payments.location_id', $ids);
+                if ($includeNone) {
+                    $q->orWhereNull('payments.location_id');
+                }
+            } else {
+                $q->whereNull('payments.location_id');
+            }
         });
     }
 }

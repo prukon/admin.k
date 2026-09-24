@@ -83,7 +83,7 @@
       <tr><td>PUT</td><td><code>…/{template}/email</code></td><td>Обновление email <b>только</b> текущей версии (отдельно от PUT шаблона)</td></tr>
       <tr><td>GET</td><td><code>/client-contract-templates/logs-data</code> (<code>logs.data.contract-template</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract_template</code>)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts</code> + <code>creation_mode=template</code></td><td>Создание договора «форма клиенту»</td></tr>
-      <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code></td><td>В <code>awaiting_client_fill</code> — отзыв + возврат 70&nbsp;₽; в <code>sent</code>/<code>opened</code> — аннулирование без возврата</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code></td><td>В <code>awaiting_client_fill</code> — отзыв + возврат 70&nbsp;₽; в <code>draft</code> — отзыв без возврата; в <code>sent</code>/<code>opened</code> — аннулирование без возврата</td></tr>
     </tbody>
   </table>
   <div class="warn">
@@ -176,7 +176,7 @@
     <tbody>
       <tr><td><code>parent_full_name</code></td><td><code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code></td></tr>
       <tr><td><code>parent_full_name_genitive</code></td><td>одно поле; prefill из <code>parents.full_name_genitive</code> (необязательное; тест <code>ContractParentFullNameGenitivePrefillFeatureTest</code>)</td></tr>
-      <tr><td><code>child_full_name</code></td><td><code>child_lastname</code>, <code>child_firstname</code></td></tr>
+      <tr><td><code>child_full_name</code></td><td><code>child_lastname</code>, <code>child_firstname</code>, <code>child_middlename</code> (необязательное, max 100, prefill из <code>users.middlename</code>; пустое в ФИО не входит; <a href="/doc#account-contract-child-middlename-index">анонс</a>)</td></tr>
       <tr><td><code>child_full_name_genitive</code></td><td>одно поле; prefill из <code>users.full_name_genitive</code> (необязательное; тест <code>ContractChildFullNameGenitivePrefillFeatureTest</code>)</td></tr>
       <tr><td><code>child_birthday</code></td><td>поле даты; в PDF — <code>d.m.Y</code></td></tr>
       <tr><td><code>child_address</code></td><td>текст; prefill из <code>users.address</code>; после generate — sync обратно в карточку ученика</td></tr>
@@ -403,8 +403,9 @@
     <li><code>ContractCreationService</code> — создание договора template mode, billing, notify</li>
     <li><code>ContractBillingService</code> — списание 70&nbsp;₽ в <code>wallet_balance_cents</code>
       и debit/credit в <code>partner_wallet_transactions</code>; возврат только при отзыве
-      <code>awaiting_client_fill</code>; аннулирование sent/opened без возврата
-      (<a href="/doc#contract-annul-after-send-index">анонс</a>)</li>
+      <code>awaiting_client_fill</code>; отзыв <code>draft</code> и аннулирование sent/opened без возврата
+      (<a href="/doc#contract-revoke-draft-index">анонс черновика</a>,
+      <a href="/doc#contract-annul-after-send-index">анонс аннулирования</a>)</li>
   </ul>
 
   <h2>10) Feature-тесты</h2>

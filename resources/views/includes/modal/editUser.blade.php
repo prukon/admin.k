@@ -94,6 +94,18 @@
                                                     </div>
                                                 </div>
 
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="edit-middlename" class="form-label">Отчество ученика</label>
+                                                        <input type="text"
+                                                               name="middlename"
+                                                               class="form-control"
+                                                               id="edit-middlename"
+                                                               maxlength="100"
+                                                               @cannot('users.name.update') disabled aria-disabled="true" @endcannot>
+                                                    </div>
+                                                </div>
+
                                                 @can('users.full_name_genitive')
                                                 <div class="col-12">
                                                     <div class="mb-3">
@@ -396,6 +408,32 @@
     </div>
 </div>
 
+<div class="modal fade" id="discountUnpaidPricesModal" tabindex="-1" aria-labelledby="discountUnpaidPricesModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="discountUnpaidPricesModalLabel">Неоплаченные установленные цены</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Процент скидки изменился. Выберите, что сделать с уже установленными неоплаченными ценами.</p>
+                <label for="discount-unpaid-prices-choice" class="form-label">Действие</label>
+                <select id="discount-unpaid-prices-choice" class="form-select">
+                    <option value="" selected>Выберите</option>
+                    <option value="1">Изменить неоплаченные установленные цены</option>
+                    <option value="0">Не изменять установленные цены</option>
+                </select>
+                <div class="invalid-feedback" data-error-for="recalculate_unpaid_prices"></div>
+                <div id="discount-unpaid-prices-preview" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="discount-unpaid-prices-continue" disabled>Продолжить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     // Отрисовка индикатора по значению select
     function renderContractIndicator() {
@@ -487,7 +525,9 @@
                 const p = user && user.discount_percent != null && user.discount_percent !== ''
                     ? user.discount_percent
                     : '';
-                $percent.val(p === 0 || p === '0' ? '' : p);
+                const shown = (p === 0 || p === '0') ? '' : p;
+                $percent.val(shown);
+                $percent.data('original-percent', parseInt(shown, 10) || 0);
             }
             if ($comment.length) {
                 $comment.val((user && user.discount_comment) || '');
@@ -878,6 +918,7 @@
                         // 1) Заполняем стандартные поля
                         $('#edit-user-form #edit-name').val(response.user.name);
                         $('#edit-user-form #edit-lastname').val(response.user.lastname);
+                        $('#edit-user-form #edit-middlename').val(response.user.middlename || '');
                         $('#edit-user-form #edit-full-name-genitive').val(response.user.full_name_genitive || '');
                         if (typeof window.setStudentParentForm === 'function') {
                             window.setStudentParentForm('edit', {
@@ -1006,6 +1047,7 @@
                         // 1) Заполняем стандартные поля
                         $('#edit-user-form #edit-name').val(response.user.name);
                         $('#edit-user-form #edit-lastname').val(response.user.lastname);
+                        $('#edit-user-form #edit-middlename').val(response.user.middlename || '');
                         $('#edit-user-form #edit-full-name-genitive').val(response.user.full_name_genitive || '');
                         if (typeof window.setStudentParentForm === 'function') {
                             window.setStudentParentForm('edit', {
@@ -1102,6 +1144,69 @@
         }
 
 
+        function currentEditDiscountPercent() {
+            return parseInt($('#edit-discount_percent').val(), 10) || 0;
+        }
+
+        function editDiscountPercentChanged() {
+            const $percent = $('#edit-discount_percent');
+            if (!$percent.length) {
+                return false;
+            }
+            return currentEditDiscountPercent() !== (parseInt($percent.data('original-percent'), 10) || 0);
+        }
+
+        function resetDiscountUnpaidPricesModal() {
+            const $select = $('#discount-unpaid-prices-choice');
+            $select.val('').removeClass('is-invalid');
+            $select.siblings('.invalid-feedback').text('').removeClass('d-block');
+            $('#discount-unpaid-prices-preview').empty();
+            $('#discount-unpaid-prices-continue').prop('disabled', true);
+        }
+
+        function renderDiscountUnpaidPricesPreview(rows) {
+            const $box = $('#discount-unpaid-prices-preview');
+            if (!rows || !rows.length) {
+                $box.html('<div class="text-muted">Нет неоплаченных цен, которые изменятся.</div>');
+                return;
+            }
+            let html = '<div class="table-responsive"><table class="table table-sm mb-0">'
+                + '<thead><tr><th>Месяц</th><th>Тип</th><th>Сейчас</th><th>Станет</th></tr></thead><tbody>';
+            rows.forEach(function (row) {
+                const month = $('<div>').text(row.month_label || '').html();
+                const team = row.team_title
+                    ? '<div class="small text-muted">' + $('<div>').text(row.team_title).html() + '</div>'
+                    : '';
+                html += '<tr>'
+                    + '<td>' + month + team + '</td>'
+                    + '<td>' + $('<div>').text(row.kind_label || '').html() + '</td>'
+                    + '<td><s>' + $('<div>').text(row.current_label || '').html() + '</s></td>'
+                    + '<td>' + $('<div>').text(row.new_label || '').html() + '</td>'
+                    + '</tr>';
+            });
+            html += '</tbody></table></div>';
+            $box.html(html);
+        }
+
+        function loadDiscountUnpaidPricesPreview() {
+            const $box = $('#discount-unpaid-prices-preview');
+            const userId = String($('#edit-user-form').attr('action') || '').split('/').pop();
+            $box.html('<div class="text-muted">Загрузка…</div>');
+            $.ajax({
+                url: '/admin/users/' + userId + '/unpaid-price-discount-preview',
+                method: 'GET',
+                data: { discount_percent: currentEditDiscountPercent() },
+                headers: { 'Accept': 'application/json' },
+                success: function (response) {
+                    renderDiscountUnpaidPricesPreview(response.rows || []);
+                },
+                error: function (xhr) {
+                    const msg = xhr.responseJSON?.message || 'Не удалось загрузить список цен.';
+                    $box.html('<div class="text-danger"></div>').find('.text-danger').text(msg);
+                }
+            });
+        }
+
         function editUserForm() {
             $('#edit-user-form')
                 .off('submit') // чтобы не дублировались хендлеры при повторном открытии
@@ -1109,16 +1214,77 @@
                     e.preventDefault();
 
                     const $form = $(this);
+                    if (editDiscountPercentChanged() && !$form.data('discount-price-choice')) {
+                        const userId = String($form.attr('action') || '').split('/').pop();
+                        $.ajax({
+                            url: '/admin/users/' + userId + '/unpaid-price-discount-preview',
+                            method: 'GET',
+                            data: { discount_percent: currentEditDiscountPercent() },
+                            headers: { 'Accept': 'application/json' },
+                            success: function (response) {
+                                const rows = response.rows || [];
+                                if (!rows.length) {
+                                    $form.data('discount-price-choice', '0');
+                                    $form.trigger('submit');
+                                    return;
+                                }
+                                resetDiscountUnpaidPricesModal();
+                                const modalEl = document.getElementById('discountUnpaidPricesModal');
+                                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                                $(modalEl).css('z-index', 1065);
+                                $('.modal-backdrop').last().css('z-index', 1060);
+                            },
+                            error: function () {
+                                submitEditUserForm($form, null);
+                            }
+                        });
+                        return;
+                    }
+
+                    const choice = $form.data('discount-price-choice') || null;
+                    $form.removeData('discount-price-choice');
+                    submitEditUserForm($form, choice);
+                });
+
+            $('#discount-unpaid-prices-choice').on('change', function () {
+                const value = $(this).val();
+                $(this).removeClass('is-invalid');
+                $(this).siblings('.invalid-feedback').text('').removeClass('d-block');
+                $('#discount-unpaid-prices-continue').prop('disabled', value !== '0' && value !== '1');
+                if (value === '1') {
+                    loadDiscountUnpaidPricesPreview();
+                } else {
+                    $('#discount-unpaid-prices-preview').empty();
+                }
+            });
+
+            $('#discount-unpaid-prices-continue').on('click', function () {
+                const value = $('#discount-unpaid-prices-choice').val();
+                if (value !== '0' && value !== '1') {
+                    return;
+                }
+                $('#edit-user-form').data('discount-price-choice', value);
+                bootstrap.Modal.getInstance(document.getElementById('discountUnpaidPricesModal'))?.hide();
+                $('#edit-user-form').trigger('submit');
+            });
+        }
+
+        function submitEditUserForm($form, discountPriceChoice) {
                     const url = $form.attr('action');
 
                     // Сброс прошлых ошибок
                     $form.find('.is-invalid').removeClass('is-invalid');
                     $form.find('.invalid-feedback').remove();
 
+                    let payload = $form.serialize();
+                    if (discountPriceChoice === '0' || discountPriceChoice === '1') {
+                        payload += '&recalculate_unpaid_prices=' + encodeURIComponent(discountPriceChoice);
+                    }
+
                     $.ajax({
                         url: url,
                         method: 'PATCH',
-                        data: $form.serialize(),
+                        data: payload,
                         headers: {'Accept': 'application/json'}, // Laravel вернёт JSON для 422
                         success: function (response) {
                             bootstrap.Modal.getInstance(document.getElementById('editUserModal'))?.hide();
@@ -1135,6 +1301,16 @@
                             // Валидация
                             if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
                                 const errors = xhr.responseJSON.errors;
+
+                                if (errors.recalculate_unpaid_prices) {
+                                    const $select = $('#discount-unpaid-prices-choice');
+                                    $select.addClass('is-invalid');
+                                    $select.siblings('.invalid-feedback')
+                                        .text(errors.recalculate_unpaid_prices[0])
+                                        .addClass('d-block');
+                                    const modalEl = document.getElementById('discountUnpaidPricesModal');
+                                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                                }
 
                                 Object.keys(errors).forEach(function (field) {
                                     const messages = errors[field];
@@ -1188,7 +1364,6 @@
                             }
                         }
                     });
-                });
         }
 
         // Вызов модалки удаления (только кнопка в этой модалке)

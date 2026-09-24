@@ -37,7 +37,7 @@
     <thead><tr><th>Permission</th><th>Назначение</th></tr></thead>
     <tbody>
       <tr><td><code>setPrices.view</code></td><td>Родительский middleware раздела «Установка цен» (обязателен для всех URL вкладки)</td></tr>
-      <tr><td><code>setPrices.customPayments.view</code></td><td>Вкладка «Дополнительные платежи»; GET page/data/users-search/teams-for-user; POST store; PUT update (сумма/описание); DELETE destroy (неоплаченный); кнопка «Редактировать»; блок доп. платежей на консоли (<code>/cabinet</code>)</td></tr>
+      <tr><td><code>setPrices.customPayments.view</code></td><td>Вкладка «Дополнительные платежи»; GET page/data/users-search/teams-for-user; POST store; PUT update (сумма/описание); DELETE destroy (неоплаченный); POST <code>…/{id}/public-pay-link</code>; кнопка «Редактировать»; иконка копирования ссылки на оплату; блок доп. платежей на консоли (<code>/cabinet</code>)</td></tr>
       <tr><td><code>setPrices.manualPaid.manage</code></td><td>Селект «Статус оплаты» в модалке редактирования (флаг <code>window.__customPaymentsCanManualPaid</code>, блок <code>#custom-payment-edit-is-paid-wrap</code>); смена <code>is_paid</code> в PUT; POST <code>…/{id}/manual-paid</code>. Без права кнопка «Редактировать» видна</td></tr>
       <tr><td><code>setPrices.cabinetSeasons.view</code></td><td>Не относится к доп. платежам — только сезоны на консоли. См. <a href="/docs/documentation/dashboard-cabinet#cabinet-seasons-permission">dashboard-cabinet §2.1</a></td></tr>
     </tbody>
@@ -102,7 +102,14 @@
         <td><code>/admin/setting-prices/custom-payments/{id}</code></td>
         <td><code>admin.settingPrices.customPayments.destroy</code></td>
         <td><code>customPayments.view</code></td>
-        <td>JSON <code>{ success: true }</code>. Если <code>effective_is_paid</code> — <b>422</b>. Чужой партнёр / нет записи — <b>404</b>. Ответ всегда JSON</td>
+        <td>JSON <code>{ success: true }</code>. Если <code>effective_is_paid</code> — <b>422</b>. Чужой партнёр / нет записи — <b>404</b>. Ответ всегда JSON. Перед удалением отменяется активный T‑Bank-платёж публичной ссылки, если он ещё не CONFIRMED</td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/custom-payments/{id}/public-pay-link</code></td>
+        <td><code>admin.settingPrices.customPayments.public-pay-link</code></td>
+        <td><code>customPayments.view</code></td>
+        <td>JSON <code>{ url }</code> — короткая ссылка <code>/pc/{short_code}</code> (10 символов). Init T‑Bank при копировании <b>не</b> выполняется. Уже оплачен / сумма вне 10 ₽…1 000 000 ₽ / нет ShopCode — <b>422</b> + <code>message</code>. Чужой партнёр — <b>404</b></td>
       </tr>
       <tr>
         <td>POST</td>
@@ -120,6 +127,7 @@
     <li>Таблица <code>#custom-payments-table</code> (KidsCrmDataTable): колонки <b>ID</b>, <b>Ученик</b>, <b>Группа</b>, <b>Сумма</b>, <b>Описание</b> (<code>note</code>), <b>Статус</b>, <b>Действия</b>.</li>
     <li>Колонки «Период» в UI <b>нет</b> (даты в БД по-прежнему nullable; в JSON data поле <code>period</code> может быть «—»).</li>
     <li>В «Действия» — кнопка <b>«Редактировать»</b> при <code>customPayments.view</code> (отдельных кнопок «Оплачено»/«Не оплачено» в таблице нет). Право <code>manualPaid.manage</code> кнопку не скрывает.</li>
+    <li>Слева от «Редактировать» — иконка <code>fa-copy</code> (<code>.js-custom-payment-copy-pay-link</code>), ховер «Ссылка на оплату». Показывается только если платёж не оплачен, сумма от 10 ₽ до 1 000 000 ₽ и у группы настроен T‑Bank (ShopCode). Иначе в этой позиции «—». Клик копирует <code>/pc/{code}</code> в буфер: иконка на 1,5 с становится зелёной галочкой, подсказка «Скопировано». Ошибка — <code>window.showToast(..., 'error')</code>.</li>
     <li>JS: <code>resources/js/setting-prices-custom-payments.js</code> (на стенде без vite build может отдаваться из <code>public/js/setting-prices-custom-payments.js</code>).</li>
   </ul>
 
@@ -183,6 +191,7 @@
     <li>Таблица <code>user_custom_payment</code>: <code>partner_id</code>, <code>user_id</code>, <code>team_id</code>, <code>amount_cents</code> (копейки; в HTTP/JSON — <code>amount</code> в рублях), <code>note</code>, <code>date_start</code>/<code>date_end</code> (nullable), <code>is_paid</code>, <code>is_manual_paid</code>, <code>manual_paid_*</code>.</li>
     <li>Accessor <code>effective_is_paid</code>: если <code>is_manual_paid !== null</code> — он, иначе <code>is_paid</code>.</li>
     <li>Миграции team_id / backfill — как раньше (<code>2026_06_29_150000</code>, <code>2026_06_29_160000</code>).</li>
+    <li>Таблица <code>user_custom_payment_public_pay_links</code> (миграция <code>2026_09_24_183000</code>): одна строка на платёж, <code>token</code> (64 hex), <code>short_code</code> (10 символов, без <code>0/O/1/I/l</code>), срок 30 дней, привязка <code>tinkoff_payment_id</code> / <code>payable_id</code> / <code>payment_intent_id</code>. Удаление платежа каскадом удаляет ссылку.</li>
   </ul>
 
   <h2 id="debts-report">5.1) Связь с отчётом «Задолженности»</h2>
@@ -207,14 +216,27 @@
   </ul>
 
   <h2 id="payment">7) Связь с оплатой</h2>
-  <p>При Init (<code>custom_payment_fee</code>) <code>PayableTeamResolver</code> читает <code>user_custom_payment.team_id</code>. Без группы на записи — <b>422</b> при старте оплаты. Источник суммы — <code>user_custom_payment.amount_cents</code> (не POST <code>outSum</code>). Webhook выставляет <code>is_paid=1</code>.</p>
+  <p>При Init (<code>custom_payment_fee</code>) <code>PayableTeamResolver</code> читает <code>user_custom_payment.team_id</code>. Без группы на записи — <b>422</b> при старте оплаты. Источник суммы — <code>user_custom_payment.amount_cents</code> (не POST <code>outSum</code>). Webhook выставляет <code>is_paid=1</code> по <code>payables.meta.user_period_price_id</code>.</p>
+  <h3 id="public-pay-link">7.1) Публичная ссылка на оплату (СБП, без авторизации)</h3>
+  <div class="note">
+    Тот же приём, что у абонемента (<code>/p/{code}</code>): админ копирует короткую ссылку, ученик открывает её без входа и платит по QR.
+    Анонс — <a href="/doc#custom-payments-public-pay-link-index">/doc</a>.
+  </div>
+  <ul>
+    <li>Выпуск: <code>POST /admin/setting-prices/custom-payments/{id}/public-pay-link</code> → <code>{ url: https://{домен}/pc/{short_code} }</code>. Длинный <code>/pay/ucp/{token}</code> открывает ту же страницу, в буфер не кладётся.</li>
+    <li>Init T‑Bank — только при открытии страницы / запросе QR, не при копировании.</li>
+    <li>Смена суммы в админке выпускает новый token и short_code: старые адреса → <b>404</b>. Активный незавершённый платёж T‑Bank отменяется.</li>
+    <li>Страница QR — общий шаблон <code>payment.ulp-public-pay</code>, запросы <code>/pay/ucp/{token}/qr/*</code>. В <code>payables.meta</code>: <code>user_period_price_id</code>, <code>team_id</code>, <code>ucp_public_pay</code>.</li>
+    <li>В таблице флаг <code>pay_link_available</code>: не оплачен, сумма 10 ₽…1 000 000 ₽, ShopCode группы. Иначе иконки нет («—»).</li>
+  </ul>
   <p class="small">Селект «Выбор группы» на консоли <b>не</b> фильтрует доп. платежи — группа зафиксирована при создании. См. <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §5</a>.</p>
 
   <h2 id="code">8) Код</h2>
   <ul class="small">
     <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>customPayments*</code>, <code>storeCustomPayment</code>, <code>updateCustomPayment</code>, <code>destroyCustomPayment</code>, <code>setManualPaidCustomPayment</code></li>
     <li><code>app/Http/Requests/Admin/UserCustomPaymentStoreRequest.php</code>, <code>UserCustomPaymentUpdateRequest.php</code>, <code>SetManualUserCustomPaymentPaidRequest.php</code></li>
-    <li><code>app/Models/UserCustomPayment.php</code></li>
+    <li><code>app/Models/UserCustomPayment.php</code>, <code>UserCustomPaymentPublicPayLink.php</code></li>
+    <li><code>app/Services/Payments/UserCustomPaymentPublicPayService.php</code>, <code>app/Http/Controllers/PublicCustomPaymentPayController.php</code></li>
     <li><code>resources/views/admin/SettingPrices/custom-payments.blade.php</code></li>
     <li><code>resources/js/setting-prices-custom-payments.js</code> и стендовый <code>public/js/setting-prices-custom-payments.js</code> (страница грузит <code>public/js</code>)</li>
     <li><code>resources/views/dashboard.blade.php</code> — блок доп. платежей</li>
@@ -230,6 +252,7 @@
     <li><code>CustomPaymentsEditPermissionFeatureTest</code> — UX: кнопка «Редактировать» без <code>manualPaid.manage</code>, селект статуса скрыт; PUT/DELETE по view; смена <code>is_paid</code> — 403 <code>errors.is_paid</code>; вкладка <code>@can</code>; оба JS-пути</li>
     <li><code>CustomPaymentsEditPermissionDocumentationContractTest</code> — анонс <code>/doc#custom-payments-edit-permission-index</code> совпадает с §1 и JS (кнопка edit не завязана на <code>manualPaid</code>)</li>
     <li><code>CustomPaymentsCrudAccessFeatureTest</code> — update/delete по <code>customPayments.view</code>, смена статуса + comment только с <code>manualPaid.manage</code>, запрет суммы у оплаченного, users-search только <code>user</code>, guest/403</li>
+    <li><code>CustomPaymentPublicPayFeatureTest</code> — выпуск <code>/pc/{code}</code>, страница QR и <code>custom_payment_fee</code>, ротация ссылки при смене суммы, 422 оплачен/сумма/нет T‑Bank, <code>pay_link_available</code>, иконка в обоих JS</li>
     <li><code>SettingPricesSectionFullAccessFeatureTest</code> — матрица прав раздела: update/delete по view, смена статуса + <code>manualPaid.manage</code></li>
     <li><code>BladeInlineJsSyntaxTest</code> — inline JS вкладки + оба файла <code>setting-prices-custom-payments.js</code> (Vite-источник и <code>public/js</code>), кнопка edit не завязана на <code>manualPaid</code></li>
     <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — оба JS-пути: create «Дополнительный платеж успешно создан.», update «Изменения сохранены.», delete «Дополнительный платеж удалён.» через <code>window.showToast</code>; нет <code>showSuccessModal</code> / <code>#priceToast</code> / <code>alert(</code></li>

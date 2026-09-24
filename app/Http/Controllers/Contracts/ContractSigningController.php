@@ -238,6 +238,10 @@ class ContractSigningController extends Controller
             return $this->annulAfterSend($contract);
         }
 
+        if ($contract->canRevokeDraft()) {
+            return $this->revokeDraftWithoutRefund($contract);
+        }
+
         try {
             $provider->revoke($contract);
 
@@ -311,6 +315,59 @@ class ContractSigningController extends Controller
 
             return response()->json([
                 'message' => 'Договор аннулирован. 70 ₽ не возвращаются.',
+                'status'  => 'revoked',
+            ]);
+        } catch (\Throwable $e) {
+            ContractEvent::create([
+                'contract_id'  => $contract->id,
+                'author_id'    => Auth::id(),
+                'type'         => 'failed',
+                'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
+            ]);
+
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Отзыв draft: локальный статус revoked, без возврата 70 ₽ и без вызова Подпислона.
+     */
+    private function revokeDraftWithoutRefund(Contract $contract)
+    {
+        try {
+            DB::transaction(function () use ($contract) {
+                $fresh = Contract::query()->whereKey($contract->id)->lockForUpdate()->firstOrFail();
+
+                if (! $fresh->canRevokeDraft()) {
+                    abort(422, 'Договор нельзя отозвать в текущем статусе.');
+                }
+
+                $fresh->status = Contract::STATUS_REVOKED;
+                $fresh->save();
+
+                ContractEvent::create([
+                    'contract_id'  => $fresh->id,
+                    'author_id'    => Auth::id(),
+                    'type'         => 'revoked',
+                    'payload_json' => json_encode([
+                        'refunded' => false,
+                        'reason'   => 'revoke_draft',
+                    ], JSON_UNESCAPED_UNICODE),
+                ]);
+            });
+
+            $contract->refresh();
+
+            $this->contractAudit->record(
+                AuditEvent::ContractRevoked,
+                "Договор отозван.\nВозврат 70 ₽: Нет",
+                userId: (int) $contract->user_id,
+                authorId: Auth::id(),
+                contract: $contract,
+            );
+
+            return response()->json([
+                'message' => 'Договор отозван. 70 ₽ не возвращаются.',
                 'status'  => 'revoked',
             ]);
         } catch (\Throwable $e) {

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Account;
 
 use App\Models\Contract;
 use App\Models\User;
+use App\Rules\GenitiveFullName;
 use App\Services\Contracts\ContractPdfGenerationService;
 use App\Services\Contracts\ContractTemplatePrefillSources;
 use App\Services\Contracts\ContractTemplateVariablePresets;
@@ -48,6 +49,9 @@ class AccountContractGenerateRequest extends FormRequest
                 if (!empty($field['required'])) {
                     $fieldRules = ['required', 'string', 'max:' . $max];
                 }
+                if (ContractTemplateVariablePresets::isFillFormGenitiveFullNameField($key)) {
+                    $fieldRules[] = new GenitiveFullName;
+                }
             }
 
             $rules['fields.' . $key] = $fieldRules;
@@ -78,6 +82,8 @@ class AccountContractGenerateRequest extends FormRequest
             '*.before'        => 'Поле «:attribute» должно быть датой в прошлом.',
             '*.before_or_equal' => 'Поле «:attribute» не может быть позднее сегодняшнего дня.',
             '*.max'           => 'Поле «:attribute» не должно превышать :max символов.',
+            'fields.parent_full_name_genitive.genitive_full_name' => GenitiveFullName::MESSAGE,
+            'fields.child_full_name_genitive.genitive_full_name'  => GenitiveFullName::MESSAGE,
         ];
     }
 

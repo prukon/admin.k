@@ -110,48 +110,11 @@
                     @endif
                 </select>
             </div>
-            <div class="col-12 col-md-3">
-                <label class="form-label" for="pay-debt-filter-team">Группа</label>
-                <select class="form-select payments-report-filter-select2"
-                        id="pay-debt-filter-team"
-                        name="filter_team_id"
-                        data-placeholder="Все группы"
-                        data-search-url="{{ route('reports.payments.teams.search') }}">
-                    <option value=""></option>
-                    @if($paymentsFilterTeam)
-                        <option value="{{ $paymentsFilterTeam['id'] }}" selected>{{ $paymentsFilterTeam['text'] }}</option>
-                    @endif
-                </select>
-            </div>
-            @if($canViewTrainers)
-            <div class="col-12 col-md-3">
-                <label class="form-label" for="pay-debt-filter-trainer">Тренер</label>
-                <select class="form-select payments-report-filter-select2"
-                        id="pay-debt-filter-trainer"
-                        name="filter_trainer_profile_id"
-                        data-placeholder="Все тренеры"
-                        data-search-url="{{ route('reports.payments.trainers.search') }}">
-                    <option value=""></option>
-                    @if($paymentsFilterTrainer)
-                        <option value="{{ $paymentsFilterTrainer['id'] }}" selected>{{ $paymentsFilterTrainer['text'] }}</option>
-                    @endif
-                </select>
-            </div>
-            @endif
-            @if($canViewLocations)
-            <div class="col-12 col-md-3">
-                <label class="form-label" for="pay-debt-filter-location">Объект</label>
-                <select class="form-select" id="pay-debt-filter-location" name="filter_location_id">
-                    <option value="">Все объекты</option>
-                    <option value="none" {{ (string) $payFilterLocation === 'none' ? 'selected' : '' }}>Без объекта</option>
-                    @foreach($activeLocations as $location)
-                        <option value="{{ $location->id }}" {{ (string) $payFilterLocation === (string) $location->id ? 'selected' : '' }}>
-                            {{ $location->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            @endif
+            @include('admin.report.partials.entity-multiselects', [
+                'teamFieldId' => 'pay-debt-filter-team',
+                'trainerFieldId' => 'pay-debt-filter-trainer',
+                'locationFieldId' => 'pay-debt-filter-location',
+            ])
             <div class="col-12 col-md-3">
                 <label class="form-label" for="pay-debt-filter-debt-month">Месяц задолженности</label>
                 <input class="form-control" id="pay-debt-filter-debt-month" type="month" name="debt_month"
@@ -304,22 +267,29 @@
             }
 
             initPaymentsReportFilterSelect2($debtFilterUser);
-            initPaymentsReportFilterSelect2($debtFilterTeam);
-            initPaymentsReportFilterSelect2($debtFilterTrainer);
+
+            function reportMultiValues($el) {
+                if (!$el || !$el.length) {
+                    return [];
+                }
+                var val = $el.val();
+                if (val === null || val === undefined || val === '') {
+                    return [];
+                }
+                return Array.isArray(val) ? val : [String(val)];
+            }
 
             function debtReportFilterParams() {
                 var uid = $debtFiltersForm.find('[name="filter_user_id"]').val() || '';
-                var tid = $debtFiltersForm.find('[name="filter_team_id"]').val() || '';
-                var tpid = $debtFilterTrainer.length
-                    ? ($debtFiltersForm.find('[name="filter_trainer_profile_id"]').val() || '')
-                    : '';
+                var teamIds = reportMultiValues($debtFilterTeam);
+                var trainerIds = $debtFilterTrainer.length ? reportMultiValues($debtFilterTrainer) : [];
                 return {
                     filter_user_id: uid,
-                    filter_team_id: tid,
-                    filter_trainer_profile_id: tpid,
+                    filter_team_id: teamIds,
+                    filter_trainer_profile_id: trainerIds,
                     filter_location_id: canViewLocations
-                        ? ($debtFiltersForm.find('[name="filter_location_id"]').val() || '')
-                        : '',
+                        ? reportMultiValues($('#pay-debt-filter-location'))
+                        : [],
                     status: $debtFiltersForm.find('[name="status"]').val() || '',
                     user_name: '',
                     team_title: '',
@@ -394,13 +364,10 @@
                         data: 'user_name',
                         name: 'user_name',
                         render: function (data, type, row) {
-                            if (type !== 'display') {
+                            if (type !== 'display' || !window.KidsCrmUserCard) {
                                 return row.user_name || '';
                             }
-                            if (row.user_id) {
-                                return row.user_name || '';
-                            }
-                            return row.user_name ? row.user_name : 'Без имени';
+                            return window.KidsCrmUserCard.renderName(row.user_name, row.user_id);
                         }
                     },
                     { key: 'month', type: 'text', data: 'month', name: 'month' },
@@ -417,15 +384,46 @@
             $('#debtReportFiltersResetBtn').on('click', function () {
                 $debtFiltersForm[0].reset();
                 $debtFilterUser.val(null).trigger('change');
-                $debtFilterTeam.val(null).trigger('change');
-                $debtFilterTrainer.val(null).trigger('change');
-                $('#pay-debt-filter-user-status').val(defaultFilterUserStatus);
-                if (canViewLocations) {
-                    $('#pay-debt-filter-location').val('');
+                if (window.KidsCrmGenericMultiselectSelect2) {
+                    KidsCrmGenericMultiselectSelect2.reset($debtFilterTeam);
+                    if ($debtFilterTrainer.length) {
+                        KidsCrmGenericMultiselectSelect2.reset($debtFilterTrainer);
+                    }
+                    if (canViewLocations) {
+                        KidsCrmGenericMultiselectSelect2.reset($('#pay-debt-filter-location'));
+                    }
                 }
+                $('#pay-debt-filter-user-status').val(defaultFilterUserStatus);
                 refreshDebtReportTotal();
                 dtApi.reload();
             });
         });
     </script>
 @endsection
+
+@include('partials.ui.user-card-modal', [
+    'userCardUrl' => url('/admin/reports/payments/users'),
+])
+
+@include('partials.select2.generic-multiselect')
+
+@push('scripts')
+    <script>
+        $(function () {
+            if (!window.KidsCrmGenericMultiselectSelect2) {
+                return;
+            }
+            ['#pay-debt-filter-team', '#pay-debt-filter-trainer', '#pay-debt-filter-location'].forEach(function (selector) {
+                var $el = $(selector);
+                if (!$el.length) {
+                    return;
+                }
+                KidsCrmGenericMultiselectSelect2.init($el, {
+                    placeholder: $el.data('placeholder') || '',
+                    allowClear: true,
+                    dropdownParent: $('#debt-report-filters')
+                });
+            });
+        });
+    </script>
+@endpush

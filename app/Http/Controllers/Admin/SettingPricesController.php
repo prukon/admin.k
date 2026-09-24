@@ -44,6 +44,7 @@ use App\Services\Pricing\UserPercentDiscount;
 use App\Services\SettingPrices\FormerMemberMonthChargeService;
 use App\Services\SettingPrices\UsersPriceLessonPackageSync;
 use App\Services\SettingPrices\UsersPriceLessonPackageSyncException;
+use App\Services\Payments\UserCustomPaymentPublicPayService;
 use App\Services\SettingPrices\MonthlyPricesProlongService;
 use App\Support\Money;
 use Illuminate\Support\Carbon as SupportCarbon;
@@ -468,6 +469,7 @@ class SettingPricesController extends AdminBaseController
                 'user_custom_payment.date_start',
                 'user_custom_payment.date_end',
                 DB::raw('ROUND(user_custom_payment.amount_cents / 100, 2) as amount'),
+                'user_custom_payment.amount_cents',
                 'user_custom_payment.note',
                 'user_custom_payment.is_paid',
                 'user_custom_payment.is_manual_paid',
@@ -476,6 +478,8 @@ class SettingPricesController extends AdminBaseController
                 DB::raw("CASE WHEN user_custom_payment.is_manual_paid IS NULL THEN user_custom_payment.is_paid ELSE user_custom_payment.is_manual_paid END as effective_is_paid"),
                 DB::raw("COALESCE(NULLIF(TRIM(teams.title), ''), '') as team_title"),
             ]);
+
+        $tbankReadyByTeam = [];
 
         return DataTables::of($q)
             ->addColumn('period', function ($row) {
@@ -506,6 +510,9 @@ class SettingPricesController extends AdminBaseController
             })
             ->addColumn('manual_paid_note', function ($row) {
                 return (string) ($row->manual_paid_note ?? '');
+            })
+            ->addColumn('pay_link_available', function ($row) use ($partnerId, &$tbankReadyByTeam) {
+                return $this->customPaymentPayLinkAvailable($row, $partnerId, $tbankReadyByTeam);
             })
             // Без второго аргумента true: иначе Yajra autoFilter ищет
             // user_custom_payment.user_name / amount (это alias, не колонки) → 42S22.
@@ -682,14 +689,17 @@ class SettingPricesController extends AdminBaseController
         }
 
         $authorId = auth()->id();
+        $previousAmountCents = (int) $row->amount_cents;
+        $amountChanged = false;
 
-        DB::transaction(function () use ($row, $data, $wantPaid, $wasPaid, $authorId) {
+        DB::transaction(function () use ($row, $data, $wantPaid, $wasPaid, $authorId, $previousAmountCents, &$amountChanged) {
             $fill = [
                 'note' => $data['note'] ?? null,
             ];
 
             if (! $wasPaid && array_key_exists('amount', $data)) {
                 $fill['amount_cents'] = Money::toCentsOrFail($data['amount']);
+                $amountChanged = (int) $fill['amount_cents'] !== $previousAmountCents;
             }
 
             if ($wantPaid !== $wasPaid) {
@@ -702,6 +712,10 @@ class SettingPricesController extends AdminBaseController
             $row->forceFill($fill);
             $row->save();
         });
+
+        if ($amountChanged) {
+            app(UserCustomPaymentPublicPayService::class)->resetPublicPayAfterAmountChange($row->fresh() ?? $row);
+        }
 
         $row->refresh();
         $row->setAttribute('amount', (float) Money::fromCents((int) ($row->amount_cents ?? 0)));
@@ -742,11 +756,82 @@ class SettingPricesController extends AdminBaseController
             ], 422);
         }
 
+        app(UserCustomPaymentPublicPayService::class)->cancelActivePublicPay($row);
         $row->delete();
 
         return response()->json([
             'success' => true,
         ]);
+    }
+
+    public function issueCustomPaymentPublicPayLink(int $id, UserCustomPaymentPublicPayService $service)
+    {
+        $partnerId = $this->requirePartnerId();
+        if (! request()->user()?->can('setPrices.customPayments.view')) {
+            abort(403);
+        }
+
+        $row = UserCustomPayment::query()
+            ->whereKey($id)
+            ->where('partner_id', $partnerId)
+            ->first();
+
+        if (! $row) {
+            return response()->json([
+                'message' => 'Дополнительный платеж не найден или недоступен в контексте текущего партнёра.',
+            ], 404);
+        }
+
+        if ($row->effective_is_paid) {
+            return response()->json(['message' => 'Дополнительный платеж уже оплачен'], 422);
+        }
+
+        $teamId = (int) ($row->team_id ?? 0);
+        if ($teamId <= 0 || ! $service->partnerTbankConfigured($partnerId, $teamId)) {
+            return response()->json(['message' => 'Оплата T‑Bank не подключена для этого клуба'], 422);
+        }
+
+        if (! $service->isAmountAllowedForSbp((int) $row->amount_cents)) {
+            return response()->json([
+                'message' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.',
+            ], 422);
+        }
+
+        $row->loadMissing('user');
+        $link = $service->ensureFreshLink($row);
+
+        return response()->json([
+            'url' => $service->publicShareUrl($link),
+        ]);
+    }
+
+    /**
+     * Иконка «Ссылка на оплату»: неоплачен, сумма 10 ₽…1 000 000 ₽, у группы есть ShopCode T‑Bank.
+     *
+     * @param  array<string, bool>  $tbankReadyByTeam
+     */
+    private function customPaymentPayLinkAvailable($row, int $partnerId, array &$tbankReadyByTeam): bool
+    {
+        if ((bool) $row->effective_is_paid) {
+            return false;
+        }
+
+        $service = app(UserCustomPaymentPublicPayService::class);
+        if (! $service->isAmountAllowedForSbp((int) ($row->amount_cents ?? 0))) {
+            return false;
+        }
+
+        $teamId = (int) ($row->team_id ?? 0);
+        if ($teamId <= 0) {
+            return false;
+        }
+
+        $cacheKey = $partnerId.':'.$teamId;
+        if (! array_key_exists($cacheKey, $tbankReadyByTeam)) {
+            $tbankReadyByTeam[$cacheKey] = $service->partnerTbankConfigured($partnerId, $teamId);
+        }
+
+        return $tbankReadyByTeam[$cacheKey];
     }
 
     public function setManualPaidCustomPayment(int $id, SetManualUserCustomPaymentPaidRequest $request)

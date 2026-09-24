@@ -76,6 +76,13 @@ class StoreRequest extends FormRequest
             ]);
         }
 
+        if ($this->has('middlename') && is_string($this->input('middlename'))) {
+            $middlename = trim($this->input('middlename'));
+            $this->merge([
+                'middlename' => $middlename !== '' ? $middlename : null,
+            ]);
+        }
+
         if ($this->user()?->can('users.full_name_genitive')) {
             if ($this->has('full_name_genitive') && is_string($this->input('full_name_genitive'))) {
                 $genitive = trim($this->input('full_name_genitive'));
@@ -114,6 +121,7 @@ class StoreRequest extends FormRequest
         $rules = [
             'name'        => 'required|string|max:25',
             'lastname'    => 'required|string|max:25',
+            'middlename'  => 'nullable|string|max:100',
             'birthday'    => 'nullable|date',
             'team_ids'    => 'nullable|array',
             'team_ids.*'  => ['integer', 'min:1'],
@@ -175,6 +183,7 @@ class StoreRequest extends FormRequest
         return [
             'name'       => 'Имя',
             'lastname'   => 'Фамилия',
+            'middlename' => 'Отчество',
             'full_name_genitive' => 'ФИО ученика в родительном падеже',
             'email'      => 'Email',
             'password'   => 'Пароль',
@@ -279,6 +288,9 @@ class StoreRequest extends FormRequest
             'lastname.required'     => 'Пожалуйста, укажите фамилию.',
             'lastname.string'       => 'Фамилия должна быть строкой.',
             'lastname.max'          => 'Фамилия не должно превышать :max символов.',
+
+            'middlename.string'     => 'Отчество должно быть строкой.',
+            'middlename.max'        => 'Отчество не должно превышать :max символов.',
 
             'email.email'       => 'Введите корректный адрес электронной почты.',
             'email.unique'      => 'Этот адрес электронной почты уже зарегистрирован.',

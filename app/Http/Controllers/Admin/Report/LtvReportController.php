@@ -9,6 +9,7 @@ use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\PartnerContext;
+use App\Support\Reports\ReportFilterCatalog;
 use App\Support\UserTeamQuery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -71,6 +72,8 @@ class LtvReportController extends AdminBaseController
             'canViewTrainers'    => $canViewTrainers,
             'canViewLocations'   => $canViewLocations,
             'activeLocations'    => $activeLocations,
+            'filterTeams'        => ReportFilterCatalog::activeTeams($partnerId, $authUser),
+            'filterTrainers'     => ReportFilterCatalog::activeTrainers($partnerId, $canViewTrainers),
             'ltvPageLength' => UserTableSetting::pageLengthForUser(
                 Auth::id() !== null ? (int) Auth::id() : null,
                 self::TABLE_KEY
@@ -387,7 +390,7 @@ class LtvReportController extends AdminBaseController
     }
 
     /**
-     * Фильтры отчёта LTV (как у «Платежи» / «Платежи по месяцам»).
+     * Фильтры отчёта LTV (как у «Платежи» / «Платежи по месяцам», applyPaymentLedgerTeamFilters).
      * Для детализации по ученику — без фильтра по ученику (строка уже конкретный user_id);
      * фильтр оплаченной группы и тренера применяется, как шлёт UI (`ltvReportFilterParams`).
      *
@@ -411,33 +414,24 @@ class LtvReportController extends AdminBaseController
             }
         }
 
-        UserTeamQuery::applyPaymentLedgerTeamFilters(
+        UserTeamQuery::applyScopedPaymentLedgerTeamFilter(
             $paymentsQuery,
             $partnerId,
             $request->query('filter_team_id'),
             $request->filled('team_title') ? (string) $request->query('team_title') : null,
         );
 
+        $trainerRaw = $request->query('filter_trainer_profile_id');
         UserTeamQuery::applyReportTrainerTeamFilter(
             $paymentsQuery,
             $partnerId,
-            $request->query('filter_trainer_profile_id'),
+            is_array($trainerRaw) ? UserTeamQuery::positiveIntIds($trainerRaw) : $trainerRaw,
         );
 
         /** @var \App\Models\User|null $filterActor */
         $filterActor = Auth::user();
         if ($filterActor?->can('locations.view')) {
-            $filterLocationId = $request->query('filter_location_id');
-            if ($filterLocationId !== null && $filterLocationId !== '') {
-                if ($filterLocationId === 'none') {
-                    $paymentsQuery->whereNull('payments.location_id');
-                } elseif (ctype_digit((string) $filterLocationId)) {
-                    $lid = (int) $filterLocationId;
-                    if ($lid > 0) {
-                        $paymentsQuery->where('payments.location_id', $lid);
-                    }
-                }
-            }
+            UserTeamQuery::applyPaymentLocationIdsFilter($paymentsQuery, $request->query('filter_location_id'));
         }
 
         if ($request->filled('payment_month')) {

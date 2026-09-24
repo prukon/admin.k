@@ -649,7 +649,18 @@
                     { key: 'id', type: 'id', data: 'id', name: 'id' },
                     { key: 'provider_inv_id', type: 'text', data: 'provider_inv_id', name: 'provider_inv_id' },
                     { key: 'partner', type: 'text', data: 'partner_title', name: 'partner_title' },
-                    { key: 'user', type: 'text', data: 'user_name', name: 'user_name' },
+                    {
+                        key: 'user',
+                        type: 'text',
+                        data: 'user_name',
+                        name: 'user_name',
+                        render: function (data, type, row) {
+                            if (type !== 'display' || !window.KidsCrmUserCard) {
+                                return data || '';
+                            }
+                            return window.KidsCrmUserCard.renderName(data, row.user_id);
+                        }
+                    },
                     {
                         key: 'provider',
                         type: 'badge',
@@ -791,3 +802,7 @@
         });
     </script>
 @endpush
+
+@include('partials.ui.user-card-modal', [
+    'userCardUrl' => url('/admin/reports/payments/users'),
+])

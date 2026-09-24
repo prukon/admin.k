@@ -211,6 +211,7 @@
   <h3>Реализация</h3>
   <ul>
     <li>Scope модели <code>User::scopeWithSystemRoleUser()</code> — <code>whereHas('role')</code> с <code>name = user</code> и <code>is_sistem = true</code>.</li>
+    <li><b>Клик по ФИО</b> слева (<code>button.schedule-user-card-name.js-user-card</code>, <code>data-user-id</code>) открывает ту же модалку, что отчёт «Платежи»: <code>#paymentUserCardModal</code> из <code>partials.ui.user-card-modal</code>. Данные — <code>GET /schedule/users/{user}</code> (<code>schedule.view</code>). Подробно — <a href="/docs/documentation/reports-payments#user-card">reports-payments §1.3</a>.</li>
     <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>team_ids[]</code>: пусто = все, <code>none</code>, один или несколько id — OR; legacy <code>team=all|none|id</code>) и поиск <code>q</code> — по pivot <code>team_user</code> (<code>UserTeamQuery::applyJournalTeamFilter</code>) и ФИО. Список учеников пагинируется, занятия и абонементы грузятся только для текущей страницы — см. <a href="#journal-pagination">§2.2</a>, фильтр групп — <a href="#journal-team-filter">§2.2.1</a>.</li>
     <li>API: <code>findScheduleStudentForPartner()</code> и <code>assertScheduleStudent()</code> — те же условия; иначе <b>404</b>.</li>
   </ul>

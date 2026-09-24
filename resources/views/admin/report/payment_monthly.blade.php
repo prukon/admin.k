@@ -510,7 +510,16 @@
                                 return formatOperationDateTime(data);
                             }
                         },
-                        { data: 'user_name', name: 'user_name' },
+                        {
+                            data: 'user_name',
+                            name: 'user_name',
+                            render: function (data, type, row) {
+                                if (type !== 'display' || !window.KidsCrmUserCard) {
+                                    return data || '';
+                                }
+                                return window.KidsCrmUserCard.renderName(data, row.user_id);
+                            }
+                        },
                         { data: 'team_title', name: 'team_title' },
                         {
                             data: 'summ',
@@ -727,3 +736,7 @@
         });
     </script>
 @endsection
+
+@include('partials.ui.user-card-modal', [
+    'userCardUrl' => url('/admin/reports/payments/users'),
+])

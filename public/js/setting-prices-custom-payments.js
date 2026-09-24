@@ -220,8 +220,23 @@
                                 return '';
                             }
 
-                            return '<button type="button" class="btn btn-sm btn-outline-primary" data-custom-payment-action="edit" data-id="'
+                            var editBtn = '<button type="button" class="btn btn-sm btn-outline-primary" data-custom-payment-action="edit" data-id="'
                                 + String(row.id) + '">Редактировать</button>';
+                            var copyBtn = '';
+                            if (row.pay_link_available) {
+                                copyBtn = '<button type="button" class="btn btn-sm btn-outline-secondary js-custom-payment-copy-pay-link" '
+                                    + 'data-id="' + String(row.id) + '" '
+                                    + 'title="Ссылка на оплату" '
+                                    + 'aria-label="Ссылка на оплату" '
+                                    + 'data-bs-toggle="tooltip" '
+                                    + 'data-bs-placement="top" '
+                                    + 'data-bs-custom-class="ulp-assignment-paid-tooltip">'
+                                    + '<i class="fas fa-copy" aria-hidden="true"></i></button>';
+                            } else {
+                                copyBtn = '<span class="text-muted small">—</span>';
+                            }
+
+                            return '<div class="d-inline-flex align-items-center gap-1">' + copyBtn + editBtn + '</div>';
                         },
                     },
                 ],
@@ -443,6 +458,137 @@
                 );
             });
         }
+
+        function fallbackCopy(text) {
+            var area = document.createElement('textarea');
+            area.value = text;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.left = '-9999px';
+            document.body.appendChild(area);
+            area.select();
+            var ok = false;
+            try {
+                ok = document.execCommand('copy');
+            } catch (err) {
+                ok = false;
+            }
+            document.body.removeChild(area);
+            return ok;
+        }
+
+        function copyText(text) {
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                return navigator.clipboard.writeText(text).then(function () {
+                    return true;
+                }).catch(function () {
+                    return fallbackCopy(text);
+                });
+            }
+            return Promise.resolve(fallbackCopy(text));
+        }
+
+        function setCopyTooltip(btn, text) {
+            btn.setAttribute('title', text);
+            btn.setAttribute('aria-label', text);
+            btn.setAttribute('data-bs-original-title', text);
+            if (window.bootstrap && bootstrap.Tooltip && typeof bootstrap.Tooltip.getInstance === 'function') {
+                var inst = bootstrap.Tooltip.getInstance(btn);
+                if (inst && typeof inst.setContent === 'function') {
+                    inst.setContent({ '.tooltip-inner': text });
+                }
+            }
+        }
+
+        function initCopyPayLinkTooltips() {
+            if (!window.bootstrap || !bootstrap.Tooltip) {
+                return;
+            }
+            document.querySelectorAll('#custom-payments-table .js-custom-payment-copy-pay-link').forEach(function (btn) {
+                if (!bootstrap.Tooltip.getInstance(btn)) {
+                    new bootstrap.Tooltip(btn, {
+                        placement: 'top',
+                        trigger: 'hover focus',
+                        customClass: 'ulp-assignment-paid-tooltip'
+                    });
+                }
+            });
+        }
+
+        function markPayLinkCopied(btn) {
+            var icon = btn.querySelector('i');
+            if (icon) {
+                icon.classList.remove('fa-copy');
+                icon.classList.add('fa-check');
+            }
+            btn.classList.add('is-copied');
+            setCopyTooltip(btn, 'Скопировано');
+            if (btn._copyTimer) {
+                clearTimeout(btn._copyTimer);
+            }
+            btn._copyTimer = setTimeout(function () {
+                if (icon) {
+                    icon.classList.remove('fa-check');
+                    icon.classList.add('fa-copy');
+                }
+                btn.classList.remove('is-copied');
+                setCopyTooltip(btn, 'Ссылка на оплату');
+                btn._copyTimer = null;
+            }, 1500);
+        }
+
+        if (window.$) {
+            $('#custom-payments-table').on('draw.dt.customPayLink', initCopyPayLinkTooltips);
+        }
+
+        document.addEventListener('click', function (e) {
+            var copyBtn = e.target.closest('.js-custom-payment-copy-pay-link');
+            if (!copyBtn) {
+                return;
+            }
+            e.preventDefault();
+            if (copyBtn.getAttribute('data-busy') === '1') {
+                return;
+            }
+            var id = copyBtn.getAttribute('data-id');
+            if (!id) {
+                return;
+            }
+            copyBtn.setAttribute('data-busy', '1');
+            fetch('/admin/setting-prices/custom-payments/' + encodeURIComponent(id) + '/public-pay-link', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrf()
+                },
+                body: '{}'
+            })
+                .then(async function (res) {
+                    var data = null;
+                    try {
+                        data = await res.json();
+                    } catch (err) {}
+                    if (!res.ok || !data || !data.url) {
+                        throw new Error((data && data.message) ? data.message : 'Не удалось получить ссылку на оплату.');
+                    }
+                    return data.url;
+                })
+                .then(function (url) {
+                    return copyText(url).then(function (ok) {
+                        if (!ok) {
+                            throw new Error('Не удалось скопировать ссылку на оплату.');
+                        }
+                        markPayLinkCopied(copyBtn);
+                    });
+                })
+                .catch(function (err) {
+                    showAppToast(err && err.message ? err.message : 'Не удалось скопировать ссылку на оплату.', 'error');
+                })
+                .finally(function () {
+                    copyBtn.removeAttribute('data-busy');
+                });
+        });
 
         document.addEventListener('click', function (e) {
             var btn = e.target.closest('[data-custom-payment-action="edit"]');

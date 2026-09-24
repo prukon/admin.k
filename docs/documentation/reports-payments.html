@@ -44,13 +44,14 @@
         <li>если <code>payments.team_id IS NULL</code> (legacy до миграции) — все группы ученика через запятую (pivot <code>team_user</code>, <code>TeamUserSyncService::teamTitlesLabel</code>).</li>
       </ul>
     </li>
-    <li><b>Фильтр</b> <code>filter_team_id</code> (Select2, <code>GET …/payments/teams-search</code>):
+    <li><b>Фильтр</b> <code>filter_team_id</code> (несколько значений, <code>filter_team_id[]</code>; одно значение в старой ссылке тоже принимается). Мультиселект <code>KidsCrmGenericMultiselectSelect2</code> (<code>#pay-filter-team</code>, placeholder «Все группы»): чекбоксы, чипы, при 3+ сводка «первый, еще N шт.». В списке только активные группы партнёра (<code>teams.is_enabled</code>). Пустой выбор — все группы.
       <ul>
-        <li>платёж попадает, если <code>payments.team_id = выбранная группа</code>;</li>
-        <li><b>или</b> (<code>payments.team_id IS NULL</code> <i>и</i> ученик состоит в выбранной группе по pivot) — для старых записей без снимка;</li>
-        <li>реализация: <code>UserTeamQuery::applyPaymentLedgerTeamFilters</code> (те же правила у LTV и «Платежи по месяцам», <a href="/doc#reports-ltv-monthly-paid-team-index">анонс</a>).</li>
-        <li>право <code>groups.own</code>: Select2 <code>GET …/payments/teams-search</code> отдаёт только группы тренера;
-            без выбранной группы строки отчёта не сужаются. Чужой <code>filter_team_id</code> игнорируется (как «все»), не 422.
+        <li>несколько групп — ИЛИ: платёж попадает, если <code>payments.team_id</code> равен любой из выбранных;</li>
+        <li><b>или</b> (<code>payments.team_id IS NULL</code> <i>и</i> ученик состоит в любой из выбранных групп по pivot) — для старых записей без снимка;</li>
+        <li>реализация: <code>UserTeamQuery::applyPaymentLedgerTeamFilters</code> (одно значение — те же правила у LTV и «Платежи по месяцам», <a href="/doc#reports-ltv-monthly-paid-team-index">анонс</a>). Несколько id: <code>PaymentReportController::applyPaymentsReportTeamFilter</code> и <code>UserTeamQuery::applyScopedPaymentLedgerTeamFilter</code> (LTV по ученикам, группам и объектам). Задолженности фильтруют <code>users_prices.team_id</code> / членство ученика по тем же выбранным id.</li>
+        <li>право <code>groups.own</code>: в списке только группы тренера (<code>TrainerOwnTeamsScope::restrictTeamsQuery</code>).
+            Без выбранной группы строки отчёта не сужаются. Чужой <code>filter_team_id</code> игнорируется (как «все»), не 422.
+            Эндпоинт <code>GET …/payments/teams-search</code> остаётся для других отчётов и тоже отдаёт только группы тренера.
             См. <a href="/docs/documentation/groups-own">groups-own</a>, анонс <a href="/doc#groups-own-index">/doc</a>.</li>
       </ul>
     </li>
@@ -77,11 +78,29 @@
     <li>«Применить» / «Сброс» фильтров делают <code>dtApi.reload()</code>, таблицу не пересоздают — поле поиска не сбрасывается.</li>
   </ul>
 
+  <h2 id="user-card">1.3) Карточка ученика по клику на ФИО</h2>
+  <div class="note">
+    Клик по ФИО в таблице открывает модалку с теми же полями, что карточка «Контакт» в чате,
+    и дополнительно email, дату рождения и скидку. Модалка чата (<code>#peerCardModal</code>) не меняется.
+    Анонс: <a href="/doc#reports-payments-user-card-index">/doc</a>.
+  </div>
+  <ul>
+    <li><b>Колонка</b> «ФИО» (<code>user_name</code>): <code>type: 'link'</code>, класс <code>js-payment-user-card</code>, атрибут <code>data-user-id</code>. Ссылка только если в строке есть <code>user_id</code>. «Без пользователя» и снимок имени без ученика остаются обычным текстом. Для сортировки в ячейку уходит текст, не HTML.</li>
+    <li><b>Модалка</b> <code>#paymentUserCardModal</code>, заголовок «Ученик», стандартная ширина Bootstrap. Ошибка — <code>#paymentUserCardError</code> (текст <code>errors.user</code> или <code>message</code>).</li>
+    <li><b>Запрос</b>: <code>GET /admin/reports/payments/users/{user}</code> (<code>reports.payments.users.show</code>, право <code>reports.view</code>) и тот же JSON на <code>GET /schedule/users/{user}</code> (<code>schedule.users.show</code>, право <code>schedule.view</code>). Разметка одна: <code>partials.ui.user-card-modal</code>. Ученик должен быть текущего партнёра. Soft-deleted тоже открывается (<code>User::withTrashed()</code>). Чужой партнёр — 403, нет пользователя — 404, оба с <code>errors.user</code>.</li>
+    <li><b>Поля</b>: аватар, ФИО, школа (<code>partner_name</code>, пустое не рисуем), телефон, email, дата рождения (<code>d.m.Y</code>), родитель, телефон родителя, email родителя, семейный аккаунт, последний онлайн, группы. Телефоны — <code>tel:</code>, email — <code>mailto:</code>. Пустые значения — «-».</li>
+    <li><b>Семейный аккаунт</b>: активные братья и сёстры с тем же <code>parent_id</code> и <code>partner_id</code>, роль <code>user</code>, без самого ученика (как переключатель кабинета: отключённые и удалённые не входят). Нет таких — текст «Нет». Есть — ФИО через запятую (<code>family_siblings</code>). Флаг <code>has_family_account</code>.</li>
+    <li><b>Иконки под ФИО</b> (Font Awesome, потом заменятся на брендовые): <code>fa-users</code> «Семейный аккаунт», если <code>has_family_account</code>; <code>fa-layer-group</code> «Несколько групп», если групп ученика в партнёре больше одной (<code>has_multiple_teams</code>, pivot <code>team_user</code>). Нет признака — иконка не рисуется. Ховер — <code>@include('partials.ui.tooltip-hint')</code> (шаблоны <code>#paymentUserCardFamilyIconTpl</code> / <code>#paymentUserCardTeamsIconTpl</code>), после отрисовки <code>KidsCrmTooltip.init(..., { scopes: ['hint'] })</code>.</li>
+    <li><b>Скидка</b>: строка только если <code>discount_percent</code> от 1 до 100 (<code>UserPercentDiscount</code>). Рядом комментарий, если он задан. Иначе ключ <code>discount_percent</code> = <code>null</code>, строка в модалке не рисуется.</li>
+    <li><b>Реализация</b>: <code>PaymentReportUserCard</code> берёт базовый JSON из <code>ChatService::userCard()</code> и добавляет <code>email</code>, <code>parent_email</code>, <code>birthday</code>, <code>discount_percent</code>, <code>discount_comment</code>.</li>
+    <li><b>Где ещё</b>: разметка не копируется. Страница делает <code>@include('partials.ui.user-card-modal')</code> с <code>userCardUrl</code> = <code>/admin/reports/payments/users</code> (журнал — <code>/schedule/users</code>). Имя в ячейке — <code>KidsCrmUserCard.renderName(name, userId)</code>. Так открывается карточка на «Платежи по месяцам» (ФИО вложенной таблицы), LTV по ученикам, «Платежи по группам» и «Платежи по объектам» (колонка «Ученики» через <code>user_name_cards</code> и <code>KidsCrmUserCard.renderLinkedList</code>, ховер списка сохраняется; ФИО во вложенных платежах — <code>user_id</code>), «Задолженности» и «Платежные запросы». <code>user_names_items</code> по-прежнему список строк.</li>
+  </ul>
+
   <h2>2) Локация (при праве <code>locations.view</code>)</h2>
   <ul>
     <li><b>Колонка</b> «Локация» — после «Группа», ключ в настройках колонок: <code>location</code>.</li>
     <li><b>Источник</b>: поле <code>payments.location_id</code> — снимок <code>teams.location_id</code> оплаченной группы при первой записи платежа (webhook).</li>
-    <li><b>Фильтр</b>: параметр <code>filter_location_id</code> — id активной локации партнёра или <code>none</code> («Без локации»).</li>
+    <li><b>Фильтр</b>: <code>filter_location_id</code> / <code>filter_location_id[]</code> — мультиселект активных локаций и пункт <code>none</code> («Без объекта»). Несколько значений — ИЛИ, <code>none</code> можно выбрать вместе с объектами. Одно значение в старой ссылке принимается. Пустой выбор — все объекты. UI: <code>KidsCrmGenericMultiselectSelect2</code>, <code>#pay-filter-location</code>.</li>
     <li>Старые платежи (до записи объекта в webhook) имеют <code>location_id = NULL</code> и отображаются как «Без локации».</li>
     <li>Без права <code>locations.view</code> колонка, фильтр и ключ <code>location</code> в columns-settings недоступны; переданный <code>filter_location_id</code> в запросе игнорируется.</li>
     <li>Тот же фильтр (без отдельной колонки) есть в отчётах «Платежи по месяцам», LTV и «Задолженности» — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1).</li>
@@ -89,8 +108,8 @@
 
   <h2>2.1) Фильтр «Тренер» (при праве <code>trainers.view</code>)</h2>
   <ul>
-    <li><b>Параметр</b>: <code>filter_trainer_profile_id</code> — id из <code>trainer_profiles</code>; отбор учеников по pivot: состоит хотя бы в одной группе тренера (<code>team_trainer</code> + <code>team_user</code>).</li>
-    <li><b>UI</b>: Select2, поиск <code>GET /admin/reports/payments/trainers-search</code>; блок скрыт без <code>trainers.view</code>.</li>
+    <li><b>Параметр</b>: <code>filter_trainer_profile_id</code> / <code>filter_trainer_profile_id[]</code> — id из <code>trainer_profiles</code>. Несколько тренеров — ИЛИ: ученик состоит хотя бы в одной группе любого из выбранных (<code>team_trainer</code> + <code>team_user</code>). Одно значение в старой ссылке принимается. Пустой выбор — все тренеры.</li>
+    <li><b>UI</b>: мультиселект <code>KidsCrmGenericMultiselectSelect2</code> (<code>#pay-filter-trainer</code>, placeholder «Все тренеры»). В списке только активные профили с активным пользователем. Блок скрыт без <code>trainers.view</code>. Поиск <code>GET /admin/reports/payments/trainers-search</code> остаётся для других отчётов.</li>
     <li>Тот же фильтр в monthly, LTV, debts — см. <a href="/docs/documentation/reports-admin#trainer-filter">reports-admin.html</a> (§2.2) и <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.</li>
   </ul>
 
@@ -378,6 +397,10 @@ net_to_partner   = gross - commission_total</pre>
     (четыре страницы: guest/403/с правом/SA, non-AJAX 404, методы без 500, вложенные monthly/LTV, total игнорирует <code>search.value</code>, без организации),
     <br><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (<code>test_payments_and_ltv_datatable_search_js_contract</code>, <code>test_monthly_and_intents_datatable_search_js_contract</code>, <code>test_four_report_pages_keep_search_box_on_filter_reload</code>, <code>node --check</code>),
     <br><code>tests/Unit/Documentation/ReportsDatatableSearchDocumentationContractTest.php</code> (анонс <code>/doc#reports-datatable-search-index</code>),
+    <br><code>tests/Feature/Crm/Reports/PaymentReportUserCardFeatureTest.php</code>
+    (клик по ФИО, <code>#paymentUserCardModal</code>, email / дата рождения / скидка),
+    <br><code>tests/Unit/Documentation/ReportsPaymentsUserCardDocumentationContractTest.php</code>
+    (анонс <code>/doc#reports-payments-user-card-index</code>),
     <br><code>tests/Feature/Crm/Reports/PaymentReportTest.php</code>,
     <br><code>tests/Feature/Crm/Reports/ReportsEmailNewsletterSourceFeatureTest.php</code>
     (колонка/фильтр «Email рассылка», <code>up_public_pay</code>, не <code>ulp_public_pay</code>),

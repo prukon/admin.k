@@ -25,7 +25,10 @@ use Illuminate\Support\Facades\Log;
 use App\Enums\AuditEvent;
 use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
+use App\Http\Requests\Admin\PreviewUserUnpaidPriceDiscountRequest;
 use App\Http\Requests\User\UpdateRequest;
+use App\Services\Pricing\UserPercentDiscount;
+use App\Services\Pricing\UserUnpaidPriceDiscountRecalc;
 use App\Models\UserFieldValue;
 use Illuminate\Support\Str;
 use Yajra\DataTables\DataTables;
@@ -60,6 +63,7 @@ class UserController extends AdminBaseController
         private readonly FamilyStudentLoginResolver $familyStudentLoginResolver,
         private readonly ContractCreationService $contractCreationService,
         private readonly ContractLessonPackageBinder $lessonPackageBinder,
+        private readonly UserUnpaidPriceDiscountRecalc $unpaidPriceDiscountRecalc,
     )
     {
         parent::__construct($partnerContext); // <-- КРИТИЧЕСКИЙ МОМЕНТ
@@ -201,6 +205,7 @@ class UserController extends AdminBaseController
             $baseQuery->where(function ($q) use ($like) {
                 $q->where('users.name', 'like', $like)
                     ->orWhere('users.lastname', 'like', $like)
+                    ->orWhere('users.middlename', 'like', $like)
                     ->orWhere('users.email', 'like', $like)
                     ->orWhere('users.phone', 'like', $like)
                     ->orWhere('users.birthday', 'like', $like)
@@ -842,6 +847,23 @@ class UserController extends AdminBaseController
         // если когда-нибудь захочешь не-AJAX — сюда можно добавить view/redirect
     }
 
+    public function previewUnpaidPriceDiscount(PreviewUserUnpaidPriceDiscountRequest $request, User $user)
+    {
+        $user = $this->scopeByPartner(User::query()->with('role'), 'users.partner_id')
+            ->whereKey($user->id)
+            ->firstOrFail();
+
+        if ($user->role?->name !== 'user') {
+            return response()->json(['rows' => []]);
+        }
+
+        $percent = (int) $request->validated()['discount_percent'];
+
+        return response()->json([
+            'rows' => $this->unpaidPriceDiscountRecalc->preview($user, $percent),
+        ]);
+    }
+
     public function update(UpdateRequest $request, User $user)
     {
         $partnerId = $this->requirePartnerId();
@@ -857,6 +879,7 @@ class UserController extends AdminBaseController
         $old = [
             'name'       => (string) ($user->name ?? ''),
             'lastname'   => (string) ($user->lastname ?? ''),
+            'middlename' => (string) ($user->middlename ?? ''),
             'full_name_genitive' => (string) ($user->full_name_genitive ?? ''),
             'email'      => (string) ($user->email ?? ''),
             'is_enabled' => (bool)   ($user->is_enabled ?? false),
@@ -876,6 +899,8 @@ class UserController extends AdminBaseController
 
         // Валидные входные данные
         $validatedData = $request->validated();
+        $applyUnpaidPrices = (string) $request->input('recalculate_unpaid_prices') === '1';
+        unset($validatedData['recalculate_unpaid_prices']);
 
         // Текущее состояние кастом-полей: field_id => value
         $existingCustomValues = UserFieldValue::where('user_id', $user->id)
@@ -884,7 +909,7 @@ class UserController extends AdminBaseController
             ->map(fn (UserFieldValue $v) => $v->value)
             ->all();
 
-        DB::transaction(function () use ($user, $validatedData, $existingCustomValues, $old, $actor, $partnerId) {
+        DB::transaction(function () use ($user, $validatedData, $existingCustomValues, $old, $actor, $partnerId, $applyUnpaidPrices) {
             // 1) Телефон: менять и логировать только при наличии права
             if (array_key_exists('phone', $validatedData)) {
                 $newPhoneIncoming = (string) $validatedData['phone'];
@@ -960,6 +985,7 @@ class UserController extends AdminBaseController
             $new = [
                 'name'       => (string) ($user->name ?? ''),
                 'lastname'   => (string) ($user->lastname ?? ''),
+                'middlename' => (string) ($user->middlename ?? ''),
                 'full_name_genitive' => (string) ($user->full_name_genitive ?? ''),
                 'email'      => (string) ($user->email ?? ''),
                 'is_enabled' => (bool)   ($user->is_enabled ?? false),
@@ -984,6 +1010,11 @@ class UserController extends AdminBaseController
             }
             if ($old['lastname'] !== $new['lastname']) {
                 $changes[] = "Фамилия: {$old['lastname']} → {$new['lastname']}";
+            }
+            if ($old['middlename'] !== $new['middlename']) {
+                $oldMiddle = $old['middlename'] !== '' ? $old['middlename'] : '—';
+                $newMiddle = $new['middlename'] !== '' ? $new['middlename'] : '—';
+                $changes[] = "Отчество: {$oldMiddle} → {$newMiddle}";
             }
             if ($old['full_name_genitive'] !== $new['full_name_genitive']) {
                 $oldGenitive = $old['full_name_genitive'] !== '' ? $old['full_name_genitive'] : '—';
@@ -1071,6 +1102,18 @@ class UserController extends AdminBaseController
                         . ($oldDiscountComment !== '' ? $oldDiscountComment : '-')
                         . ' → '
                         . ($newDiscountComment !== '' ? $newDiscountComment : '-');
+                }
+
+                $oldPercentForPrices = (int) ($old['discount_percent'] ?? 0);
+                if ($oldPercentForPrices < 1) {
+                    $oldPercentForPrices = 0;
+                }
+                $newPercentForPrices = UserPercentDiscount::percent($user);
+                if ($applyUnpaidPrices && $oldPercentForPrices !== $newPercentForPrices) {
+                    $recalculated = $this->unpaidPriceDiscountRecalc->apply($user, $actor?->id);
+                    if ($recalculated > 0) {
+                        $changes[] = 'Неоплаченные установленные цены пересчитаны: '.$recalculated;
+                    }
                 }
             }
 

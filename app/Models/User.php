@@ -257,8 +257,21 @@ class User extends Authenticatable
 
     public function getFullNameAttribute(): string
     {
-        // Склеиваем фамилию и имя с пробелом, убираем лишние
+        // Склеиваем фамилию и имя с пробелом, убираем лишние.
+        // Отчество сюда не входит: списки CRM остаются короткими.
         return trim(collect([$this->lastname, $this->name])->filter()->implode(' '));
+    }
+
+    /**
+     * Фамилия, имя и отчество. Списки CRM это не показывают.
+     * Письмо-приглашение к договору подставляет строку, если отчество заполнено.
+     */
+    public function fullNameWithPatronymic(): string
+    {
+        return collect([$this->lastname, $this->name, $this->middlename])
+            ->map(fn ($part) => trim((string) $part))
+            ->filter(fn (string $part) => $part !== '')
+            ->implode(' ');
     }
 
     public function getParentFullNameAttribute(): string

@@ -219,7 +219,7 @@
                     <tr data-user-id="{{ $user->id }}">
                         <td class="text-center align-middle sticky-col-1 number-line">{{ ($users->firstItem() ?? 1) + $index }}</td>
                         <td class="schedule-user-name sticky-col-2">
-                            <div>{{ $user?->full_name ?: 'Без имени' }}</div>
+                            <button type="button" class="schedule-user-card-name js-user-card" data-user-id="{{ $user->id }}">{{ $user?->full_name ?: 'Без имени' }}</button>
                             @if(! $journalTeamFilter->isSingleTeam() && $user->teams->isNotEmpty())
                                 <small class="text-muted d-block">{{ $user->teams->pluck('title')->join(', ') }}</small>
                             @endif

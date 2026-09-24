@@ -76,7 +76,7 @@
       <tr><td>POST</td><td><code>/client-contracts/{contract}/send-email</code></td><td>Отправка PDF на email</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/download-original</code></td><td>Скачивание неподписанного PDF</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/download-signed</code></td><td>Скачивание подписанного PDF</td></tr>
-      <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code></td><td>Отзыв до заполнения (<code>awaiting_client_fill</code>, возврат 70&nbsp;₽) или аннулирование после отправки в Подпислон (<code>sent</code> / <code>opened</code>, без возврата)</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code></td><td>Отзыв до заполнения (<code>awaiting_client_fill</code>, возврат 70&nbsp;₽), отзыв черновика (<code>draft</code>, PDF и шаблон, без возврата — <a href="#contract-revoke-draft">§7.3</a>) или аннулирование после отправки в Подпислон (<code>sent</code> / <code>opened</code>, без возврата)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}/status</code></td><td>Ручная синхронизация с Подпислоном (<code>contracts.sync</code>). Пишет <code>provider_signing_url</code> из <code>contacts[].link</code> даже если статус уже <code>sent</code> (<code>synced: false</code>). Первый переход в <code>signed</code> создаёт колокольчик админам школы. Для <code>revoked</code> статус не поднимается; если Подпислон уже подписал — докачивается PDF</td></tr>
     </tbody>
   </table>
@@ -104,7 +104,7 @@
       <tr><td><code>contract.sign_request_created</code></td><td>Создан запрос на подпись (первая отправка)</td></tr>
       <tr><td><code>contract.sign_sent_success</code> / <code>…_failed</code></td><td>Результат первичной SMS-отправки</td></tr>
       <tr><td><code>contract.sign_resent_success</code> / <code>…_failed</code></td><td>Повторная отправка SMS</td></tr>
-      <tr><td><code>contract.revoked</code></td><td>Отзыв до заполнения (<code>POST …/revoke</code>, возврат 70&nbsp;₽) или аннулирование <code>sent</code>/<code>opened</code> (без возврата)</td></tr>
+      <tr><td><code>contract.revoked</code></td><td>Отзыв до заполнения (<code>POST …/revoke</code>, возврат 70&nbsp;₽), отзыв <code>draft</code> (без возврата, <code>reason: revoke_draft</code>) или аннулирование <code>sent</code>/<code>opened</code> (без возврата)</td></tr>
       <tr><td><code>contract.email_sent</code></td><td>Отправка PDF на email (<code>POST …/send-email</code>)</td></tr>
       <tr><td><code>contract.signed</code>, <code>contract.sms_opened</code>, …</td><td>Webhook / синхронизация / кабинет родителя. При первом переходе в <code>signed</code> — in-app уведомление админам школы (<a href="/doc#contract-signed-in-app-index">анонс</a>)</td></tr>
     </tbody>
@@ -611,7 +611,8 @@
     Анонс: <a href="/doc#contract-annul-after-send-index">/doc</a>.
     Один endpoint <code>POST /client-contracts/{contract}/revoke</code>
     (<code>ContractSigningController::revoke</code>, право <code>contracts.view</code>):
-    awaiting_client_fill → отзыв с возвратом; sent/opened →
+    awaiting_client_fill → отзыв с возвратом; <code>draft</code> → отзыв без возврата
+    (<a href="#contract-revoke-draft">§7.3</a>); sent/opened →
     <code>annulAfterSend</code>; иначе вызов <code>provider->revoke()</code>
     (Подпислон бросает → JSON 422, статус не меняется).
   </div>
@@ -622,8 +623,9 @@
         <td>Когда можно</td>
         <td><code>Contract::canAnnulAfterSend()</code> — статус <code>sent</code> или <code>opened</code>
           (режим PDF и template одинаково). Кнопка <code>#annulAfterSendBtn</code> «Аннулировать».
-          draft / generating_pdf / signed / failed / expired / revoked — кнопки нет;
-          POST → 422 + <code>message</code>.</td>
+          generating_pdf / signed / failed / expired / revoked — кнопки аннулирования нет;
+          POST revoke на этих статусах → 422 + <code>message</code>.
+          Черновик отзывается отдельно (<a href="#contract-revoke-draft">§7.3</a>).</td>
       </tr>
       <tr>
         <td>Чего нет</td>
@@ -666,6 +668,44 @@
           После аннулирования opened снова «Создать договор», если нет другого
           не-отозванного. Фильтр <code>with</code> считает любой договор, в том числе
           только revoked; <code>unsigned</code> — по последнему не-отозванному.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="contract-revoke-draft">7.3) Отзыв черновика (без возврата 70&nbsp;₽)</h2>
+  <div class="note">
+    Анонс: <a href="/doc#contract-revoke-draft-index">/doc</a>.
+    Тот же <code>POST /client-contracts/{contract}/revoke</code>:
+    статус <code>draft</code> → <code>revokeDraftWithoutRefund</code>.
+  </div>
+  <table>
+    <thead><tr><th>Что</th><th>Факт в коде</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Когда можно</td>
+        <td><code>Contract::canRevokeDraft()</code> — статус <code>draft</code>
+          (режим PDF и template одинаково). Кнопка <code>#revokeDraftBtn</code> «Отозвать».
+          У PDF рядом остаётся «Отправить СМС на подпись».</td>
+      </tr>
+      <tr>
+        <td>Чего нет</td>
+        <td>Возврата 70&nbsp;₽ и credit в <code>partner_wallet_transactions</code>.
+          Вызова API Подпислона.</td>
+      </tr>
+      <tr>
+        <td>JSON 200</td>
+        <td><code>message</code>: «Договор отозван. 70 ₽ не возвращаются.»;
+          <code>status</code>: <code>revoked</code>.</td>
+      </tr>
+      <tr>
+        <td>Аудит / событие</td>
+        <td><code>contract.revoked</code>; payload <code>refunded: false</code>,
+          <code>reason: revoke_draft</code>; my_logs:
+          «Договор отозван. Возврат 70 ₽: Нет».</td>
+      </tr>
+      <tr>
+        <td>Кабинет</td>
+        <td>После отзыва нет «Подписать» и «Изменить». Бейдж — «Отозвано».</td>
       </tr>
     </tbody>
   </table>
@@ -762,7 +802,9 @@
     <ul>
       <li><code>ContractAnnulAfterSendAccessFeatureTest.php</code> — гость / без <code>contracts.view</code> / тренер / чужая школа → отказ; viewer → 200</li>
       <li><code>ContractAnnulAfterSendFullAccessFeatureTest.php</code> — admin/superadmin 200; GET/PUT/PATCH/DELETE revoke → 404/405</li>
-      <li><code>ContractAnnulAfterSendAjaxContractFeatureTest.php</code> — JSON 200 <code>message</code>+<code>status</code>; 422 на draft/signed/failed/expired; awaiting по-прежнему refund</li>
+      <li><code>ContractAnnulAfterSendAjaxContractFeatureTest.php</code> — JSON 200 <code>message</code>+<code>status</code>; 422 на signed/failed/expired/generating_pdf; awaiting по-прежнему refund; черновик — <code>ContractRevokeDraftFeatureTest</code></li>
+      <li><code>ContractRevokeDraftFeatureTest.php</code> — отзыв <code>draft</code> (PDF и шаблон) без возврата 70&nbsp;₽ и без вызова провайдера; кнопка <code>#revokeDraftBtn</code>; кабинет теряет «Подписать»</li>
+      <li><code>ContractRevokeDraftDocumentationContractTest.php</code> — анонс /doc совпадает с кодом</li>
       <li><code>ContractAnnulAfterSendNonAjaxSafetyNetFeatureTest.php</code> — native POST без X-Requested-With всё равно аннулирует, не 500 и не пустой ответ</li>
       <li><code>ContractAnnulAfterSendUxFeatureTest.php</code> — кнопка только sent/opened; после аннулирования нет resend; sync у revoked без PDF</li>
       <li><code>ContractAnnulAfterSendFeatureTest.php</code> — sent/opened без возврата 70&nbsp;₽ и без вызова провайдера</li>

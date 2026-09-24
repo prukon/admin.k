@@ -24,11 +24,15 @@ use Illuminate\Support\Carbon;
 use Yajra\DataTables\DataTables;
 use App\Services\PartnerContext;
 use App\Services\TeamUserSyncService;
+use App\Services\TrainerOwnTeamsScope;
 use App\Support\UserTeamQuery;
 use App\Support\Payments\EmailNewsletterPaymentSource;
 use App\Support\Payments\PaymentTeamTitleDisplay;
 use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
+use App\Http\Requests\Admin\Report\PaymentReportUserCardRequest;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
+use App\Services\Reports\PaymentReportUserCard;
+use Illuminate\Http\JsonResponse;
 
 
 class PaymentReportController extends AdminBaseController
@@ -73,6 +77,24 @@ class PaymentReportController extends AdminBaseController
                 ->get(['id', 'name'])
             : collect();
 
+        $filterTeams = Team::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->orderBy('title');
+        app(TrainerOwnTeamsScope::class)->restrictTeamsQuery($filterTeams, $authUser, $partnerId);
+        $filterTeams = $filterTeams->get(['id', 'title']);
+
+        $filterTrainers = $canViewTrainers
+            ? TrainerProfile::query()
+                ->with('user:id,name,lastname')
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', true)
+                ->whereHas('user', fn ($q) => $q->where('is_enabled', true))
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get(['id', 'user_id', 'sort_order'])
+            : collect();
+
         // 7) представление
         return view(
             'admin.report.index',
@@ -90,6 +112,8 @@ class PaymentReportController extends AdminBaseController
                 'canViewTrainers' => $canViewTrainers,
                 'canViewLocations' => $canViewLocations,
                 'activeLocations' => $activeLocations,
+                'filterTeams' => $filterTeams,
+                'filterTrainers' => $filterTrainers,
                 'paymentsPageLength' => UserTableSetting::pageLengthForUser(
                     Auth::id() !== null ? (int) Auth::id() : null,
                     'reports_payments'
@@ -132,6 +156,14 @@ class PaymentReportController extends AdminBaseController
         $payload['total_raw'] = $payload['sum_payments_raw'];
 
         return response()->json($payload);
+    }
+
+    /**
+     * Карточка ученика по клику на ФИО в таблице платежей.
+     */
+    public function userCard(PaymentReportUserCardRequest $request, PaymentReportUserCard $cards): JsonResponse
+    {
+        return response()->json($cards->payload($request->student()));
     }
 
     /**
@@ -1321,6 +1353,82 @@ SQL;
         });
     }
 
+    /**
+     * Несколько групп — OR. Чужие id при groups.own отбрасываются; если не осталось своих — фильтр как «все».
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $paymentsQuery
+     */
+    private function applyPaymentsReportTeamFilter($paymentsQuery, Request $request, int $partnerId): void
+    {
+        $raw = $request->query('filter_team_id');
+        $isList = is_array($raw);
+        $hasTeamId = $isList
+            ? $raw !== []
+            : ($raw !== null && $raw !== '' && ctype_digit((string) $raw));
+
+        if ($hasTeamId) {
+            $ids = UserTeamQuery::positiveIntIds($isList ? $raw : [$raw]);
+            $scope = app(TrainerOwnTeamsScope::class);
+            $actor = Auth::user();
+            $allowed = array_values(array_filter(
+                $ids,
+                fn (int $id) => $scope->allowsTeamId($actor, $partnerId, $id)
+            ));
+            if ($allowed !== []) {
+                UserTeamQuery::applyPaymentLedgerTeamFilters(
+                    $paymentsQuery,
+                    $partnerId,
+                    (! $isList && count($allowed) === 1) ? $allowed[0] : $allowed,
+                    null,
+                );
+            }
+
+            return;
+        }
+
+        UserTeamQuery::applyPaymentLedgerTeamFilters(
+            $paymentsQuery,
+            $partnerId,
+            $isList ? null : $raw,
+            $request->filled('team_title') ? (string) $request->query('team_title') : null,
+        );
+    }
+
+    /**
+     * Несколько объектов — OR. «none» — платежи без объекта, можно вместе с id.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $paymentsQuery
+     */
+    private function applyPaymentsReportLocationFilter($paymentsQuery, mixed $raw): void
+    {
+        $tokens = is_array($raw) ? $raw : ($raw === null || $raw === '' ? [] : [$raw]);
+        $includeNone = false;
+        $ids = [];
+        foreach ($tokens as $token) {
+            $value = trim((string) $token);
+            if ($value === 'none') {
+                $includeNone = true;
+            } elseif (ctype_digit($value) && (int) $value > 0) {
+                $ids[] = (int) $value;
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        if (! $includeNone && $ids === []) {
+            return;
+        }
+
+        $paymentsQuery->where(function ($q) use ($includeNone, $ids) {
+            if ($ids !== []) {
+                $q->whereIn('payments.location_id', $ids);
+                if ($includeNone) {
+                    $q->orWhereNull('payments.location_id');
+                }
+            } else {
+                $q->whereNull('payments.location_id');
+            }
+        });
+    }
+
     private function applyPaymentsReportFilters($paymentsQuery, Request $request, int $partnerId): void
     {
         $filterUserId = $request->query('filter_user_id');
@@ -1337,33 +1445,19 @@ SQL;
             });
         }
 
-        UserTeamQuery::applyPaymentLedgerTeamFilters(
-            $paymentsQuery,
-            $partnerId,
-            $request->query('filter_team_id'),
-            $request->filled('team_title') ? (string) $request->query('team_title') : null,
-        );
+        $this->applyPaymentsReportTeamFilter($paymentsQuery, $request, $partnerId);
 
+        $trainerRaw = $request->query('filter_trainer_profile_id');
         UserTeamQuery::applyReportTrainerTeamFilter(
             $paymentsQuery,
             $partnerId,
-            $request->query('filter_trainer_profile_id'),
+            is_array($trainerRaw) ? UserTeamQuery::positiveIntIds($trainerRaw) : $trainerRaw,
         );
 
         /** @var \App\Models\User|null $filterActor */
         $filterActor = Auth::user();
         if ($filterActor?->can('locations.view')) {
-            $filterLocationId = $request->query('filter_location_id');
-            if ($filterLocationId !== null && $filterLocationId !== '') {
-                if ($filterLocationId === 'none') {
-                    $paymentsQuery->whereNull('payments.location_id');
-                } elseif (ctype_digit((string) $filterLocationId)) {
-                    $lid = (int) $filterLocationId;
-                    if ($lid > 0) {
-                        $paymentsQuery->where('payments.location_id', $lid);
-                    }
-                }
-            }
+            $this->applyPaymentsReportLocationFilter($paymentsQuery, $request->query('filter_location_id'));
         }
 
         if ($request->filled('payment_month')) {

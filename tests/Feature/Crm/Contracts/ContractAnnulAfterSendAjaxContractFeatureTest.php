@@ -81,7 +81,6 @@ final class ContractAnnulAfterSendAjaxContractFeatureTest extends ContractAnnulA
     public static function statusesThatCannotBeAnnulled(): array
     {
         return [
-            'draft' => [Contract::STATUS_DRAFT],
             'generating_pdf' => [Contract::STATUS_GENERATING_PDF],
             'signed' => [Contract::STATUS_SIGNED],
             'expired' => [Contract::STATUS_EXPIRED],

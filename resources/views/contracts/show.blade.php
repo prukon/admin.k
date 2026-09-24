@@ -121,6 +121,12 @@
                             </button>
                         @endif
 
+                        @if($contract->canRevokeDraft())
+                            <button type="button" class="btn btn-outline-danger" id="revokeDraftBtn" data-id="{{ $contract->id }}">
+                                Отозвать
+                            </button>
+                        @endif
+
                         @if($contract->canRevokeWithRefund())
                             <button type="button" class="btn btn-outline-danger" id="revokeAwaitingBtn" data-id="{{ $contract->id }}">
                                 Отозвать
@@ -659,6 +665,25 @@
                         $('#error-modal-message').text(msg);
                         eroorRespone(response);
                     }
+                });
+            });
+
+            $('#revokeDraftBtn').on('click', function () {
+                if (!confirm('Отозвать договор? Клиент не сможет его подписать и изменить. 70 ₽ не возвращаются.')) {
+                    return;
+                }
+                var contractId = $(this).data('id');
+                $.ajax({
+                    method: 'POST',
+                    url: '/client-contracts/' + contractId + '/revoke',
+                    dataType: 'json',
+                    headers: {'Accept': 'application/json'},
+                    data: {_token: csrf}
+                }).done(function (resp) {
+                    alert((resp && resp.message) ? resp.message : 'Договор отозван.');
+                    location.reload();
+                }).fail(function (xhr) {
+                    alert((xhr.responseJSON && xhr.responseJSON.message) || 'Ошибка отзыва.');
                 });
             });
 

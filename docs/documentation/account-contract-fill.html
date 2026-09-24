@@ -311,18 +311,27 @@
     <thead><tr><th>Панель</th><th>CSS</th><th>Содержимое</th></tr></thead>
     <tbody>
       <tr><td>Родитель</td><td><code>contract-fill-panel--parent</code></td><td>Поля группы «родитель» из <code>fields_schema</code> (ФИО по частям, телефон, паспорт (серия и номер), адрес, супруг(а)…). Подпись <code>parent_passport</code> в модалке — «Паспорт (серия и номер)» (<code>fillFormFieldLabel</code>; пресет <code>Родитель: паспорт (серия и номер)</code>)</td></tr>
-      <tr><td>Ребёнок</td><td><code>contract-fill-panel--child</code></td><td>Поля группы «ученик» (фамилия/имя, дата рождения и т.д.)</td></tr>
+      <tr><td>Ребёнок</td><td><code>contract-fill-panel--child</code></td><td>Поля группы «ученик» (фамилия/имя/отчество, дата рождения и т.д.)</td></tr>
       <tr><td>Подписание</td><td><code>contract-fill-sign-block</code></td><td>После успешного generate: ФИО подписанта, телефон SMS, кнопка «Подписать договор»</td></tr>
     </tbody>
   </table>
 
-  <h3>2.2) Поля ФИО и даты</h3>
+  <h3 id="child-middlename">2.2) Поля ФИО и даты</h3>
   <div class="note">
     Составные ключи DOCX (<code>parent_full_name</code>, <code>child_full_name</code>) в форме разбиты на части:
     <code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code>,
-    <code>child_lastname</code>, <code>child_firstname</code>.
+    <code>child_lastname</code>, <code>child_firstname</code>, <code>child_middlename</code>.
+    <code>child_middlename</code> необязательное, max 100, подпись «Отчество», prefill из <code>users.middlename</code>.
+    Пустое отчество в <code>{{child_full_name}}</code> не входит. Ошибка валидации — под полем
+    (<code>errors['fields.child_middlename']</code>).
+    Анонс: <a href="/doc#account-contract-child-middlename-index">/doc#account-contract-child-middlename-index</a>.
     Ключ <code>parent_full_name_genitive</code> — одно поле (не разбивается), prefill из <code>parents.full_name_genitive</code>.
     Ключ <code>child_full_name_genitive</code> — одно поле (не разбивается), prefill из <code>users.full_name_genitive</code>.
+    Если значение непустое, <code>GenitiveFullName</code> требует после обрезки и схлопывания пробелов не меньше 10 символов и не меньше трёх слов.
+    Пустое необязательное поле по-прежнему можно оставить пустым. Под полем подсказка «Фамилия, имя и отчество, например: Иванова Ивана Ивановича».
+    Ошибка «Укажите ФИО полностью в родительном падеже: фамилия, имя и отчество.» — <code>errors['fields.parent_full_name_genitive']</code> / <code>errors['fields.child_full_name_genitive']</code>.
+    Карточки CRM и профиль ЛК это правило не используют.
+    Анонс: <a href="/doc#account-contract-genitive-full-name-index">/doc#account-contract-genitive-full-name-index</a>.
     При генерации PDF полные ФИО собираются в <code>ContractPdfGenerationService</code> / <code>ContractTemplateVariablePresets::composeNameFieldsForPdf</code>.<br><br>
     <code>child_birthday</code> — <code>&lt;input type="date"&gt;</code>, валидация <code>date</code> + <code>before:today</code> (<code>AccountContractGenerateRequest</code>).
     <code>child_passport_issued_at</code> — тоже поле даты, правило <code>before_or_equal:today</code> (сегодня допустимо; ошибка «не может быть позднее сегодняшнего дня» под полем).
@@ -371,7 +380,7 @@
   После успешного generate данные синхронизируются обратно:</p>
   <ul>
     <li><code>ContractParentProfileSyncService</code> — ФИО, паспорт, адрес, телефон и непустой <code>parent_email</code> в <code>parents</code></li>
-    <li><code>ContractStudentProfileSyncService</code> — фамилия, имя, дата рождения, <b>адрес проживания</b> (<code>child_address</code> → <code>users.address</code>), <b>паспорт/св-во</b> (<code>child_passport</code> → <code>users.passport</code>, пустая строка очищает), <b>дата выдачи</b> (<code>child_passport_issued_at</code> → <code>users.passport_issued_at</code>, пустая строка очищает, дата позже сегодня не пишется) и <b>ФИО в родительном</b> (<code>child_full_name_genitive</code> → <code>users.full_name_genitive</code>, только непустое)</li>
+    <li><code>ContractStudentProfileSyncService</code> — фамилия, имя, <b>отчество</b> (<code>child_middlename</code> → <code>users.middlename</code>, только непустое, max 100), дата рождения, <b>адрес проживания</b> (<code>child_address</code> → <code>users.address</code>), <b>паспорт/св-во</b> (<code>child_passport</code> → <code>users.passport</code>, пустая строка очищает), <b>дата выдачи</b> (<code>child_passport_issued_at</code> → <code>users.passport_issued_at</code>, пустая строка очищает, дата позже сегодня не пишется) и <b>ФИО в родительном</b> (<code>child_full_name_genitive</code> → <code>users.full_name_genitive</code>, только непустое)</li>
   </ul>
 
   <h3 id="fill-legal-entity">2.5) Реквизиты юрлица и <code>child_address</code></h3>
@@ -438,7 +447,7 @@
     <tbody>
       <tr><td><code>awaiting_client_fill</code></td><td>Форма «Сформировать договор»; доступен fill JSON. Пока <code>fill_expires_at</code> в будущем — на карточке «Срок подписания» / оставшиеся дни (§<a href="#account-documents-fill-remaining-days">1.6</a>). Если <code>fill_expires_at</code> в прошлом — бейдж «Срок заполнения истёк», alert «Обратитесь к администратору школы», кнопки «Заполнить договор» нет, поле дней скрыто; fill/generate 422 (§<a href="#account-documents-expiry-notice">1.4</a>)</td></tr>
       <tr><td><code>generating_pdf</code></td><td>Спиннер, <code>poll: true</code> в JSON — автообновление модалки</td></tr>
-      <tr><td><code>draft</code> + PDF</td><td>Блок подписания SMS + «Скачать PDF»</td></tr>
+      <tr><td><code>draft</code> + PDF</td><td>Блок подписания SMS + «Скачать PDF». Школа может <b>отозвать</b> черновик на карточке CRM («Отозвать», <a href="/doc#contract-revoke-draft-index">анонс</a>): статус <code>revoked</code>, 70&nbsp;₽ не возвращаются, «Подписать» и «Изменить» пропадают</td></tr>
       <tr><td><code>sent</code> / <code>opened</code></td><td>Fill JSON → 422 «Договор недоступен для заполнения»; подсказка про SMS на странице при других сценариях. Если в БД есть <code>provider_signing_url</code> — на карточке договора кнопка <b>«Открыть ссылку из SMS»</b> и сам URL (<code>target="_blank"</code>, <code>noopener noreferrer</code>; §<a href="#account-documents-podpislon-signing-url">1.3</a>). Если пакет и номер последней отправки есть — кнопка <b>«Отправить SMS ещё раз»</b> и маска номера (§<a href="#account-documents-resend-sms">1.5</a>). Школа может <b>аннулировать</b> договор на карточке CRM («Аннулировать», <a href="/doc#contract-annul-after-send-index">анонс</a>): статус <code>revoked</code>, 70&nbsp;₽ не возвращаются. Кнопка «Изменить» в кабинете не появляется. В каунтере сайдбара sent/opened ещё считаются, revoked — нет</td></tr>
       <tr><td><code>expired</code></td><td>Бейдж «Истёк срок». Alert: срок подписи по SMS истёк, нажать «Отправить SMS ещё раз» — сообщение уйдёт на тот же номер. Кнопки «Открыть ссылку из SMS» нет даже при URL в БД (§<a href="#account-documents-expiry-notice">1.4</a>). Повтор SMS — §<a href="#account-documents-resend-sms">1.5</a>. Fill JSON → 422 «Договор недоступен для заполнения». В каунтере сайдбара не считается</td></tr>
       <tr><td><code>revoked</code></td><td>Нет «Заполнить» / «Подписать» / «Изменить». Если позже пришёл signed PDF (старое SMS) — «Скачать подписанный» (и «Скачать PDF» оригинала, пока статус не <code>signed</code>). Если в БД остался валидный <code>provider_signing_url</code> — кнопка «Открыть ссылку из SMS» всё ещё на карточке (§<a href="#account-documents-podpislon-signing-url">1.3</a>). Бейдж статуса — «Отозвано», не «Подписано»</td></tr>
@@ -504,6 +513,7 @@
   Текст берётся из версии шаблона (<code>email_subject</code>, <code>email_body_html</code>)
   или системных дефолтов (<code>ContractTemplateEmailDefaults</code>); плейсхолдеры подставляет <code>ContractInvitationEmailRenderer</code>
   (<code>{{child_full_name}}</code>, <code>{{partner_name}}</code>, <code>{{documents_url}}</code>, <code>{{fill_deadline}}</code>, <code>{{contract_id}}</code>).
+  <code>{{child_full_name}}</code> в письме — <code>User::fullNameWithPatronymic()</code>: фамилия, имя и отчество, если отчество в карточке есть; иначе фамилия и имя.
   В письме <code>{{documents_url}}</code> = <code>/account-settings/documents?student={contract.user_id}&amp;fill={contract.id}</code>
   (ребёнок договора + автооткрытие модалки). В PDF тот же ключ остаётся общим
   <code>/account-settings/documents</code> без query (<code>ContractTemplateSystemPlaceholders</code>).
@@ -525,6 +535,7 @@
         <code>filled_data</code>; 422 <code>errors['fields.parent_phone']</code>; 403/гость; чужие методы</li>
       <li><code>AccountContractFillPhoneMaskNonAjaxSafetyNetFeatureTest.php</code> — native POST 302 + маска в БД;
         пустой телефон 302 + session errors под полем; GET fill → redirect на документы; 403/гость</li>
+      <li><code>AccountContractFillSplitNameFeatureTest.php</code> — отчество ребёнка в форме, в <code>{{child_full_name}}</code> и в <code>users.middlename</code>; 422 <code>errors['fields.child_middlename']</code></li>
       <li><code>AccountContractFillFormFeatureTest.php</code> — UI полей, порядок, дата, маска телефона, sync профилей,
         подпись <code>parent_passport</code>, fallback <code>parent_email</code> ← <code>users.email</code>,
         <code>novalidate</code> + слоты Laravel-ошибок, 422 с подписью поля</li>
@@ -532,6 +543,7 @@
         fallback Email (пусто у родителя → ученик; иначе родитель; оба JS-триггера открытия)</li>
       <li><code>AccountContractFillFieldErrorsAjaxContractFeatureTest.php</code> — AJAX generate 200 JSON / 422
         <code>errors['fields.{key}']</code>, 403, гость, чужие HTTP-методы</li>
+      <li><code>AccountContractFillGenitiveFullNameFeatureTest.php</code> — ФИО в родительном: подсказка, 422 под полем, пустое необязательное, non-AJAX 302</li>
       <li><code>AccountContractFillGenerateNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX generate 302 + запись /
         302 + session errors по полям</li>
       <li><code>AccountContractDatePlaceholderFeatureTest.php</code> — <code>contract_date</code> скрыт в форме; AJAX/non-AJAX generate;

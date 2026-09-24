@@ -12,6 +12,7 @@ final class ContractStudentProfileSyncTest extends CrmTestCase
         $this->user->forceFill([
             'lastname' => 'Старое',
             'name'     => 'Имя',
+            'middlename' => null,
             'address'  => 'старый адрес',
             'full_name_genitive' => 'Старого Имени',
         ])->save();
@@ -19,6 +20,7 @@ final class ContractStudentProfileSyncTest extends CrmTestCase
         app(ContractStudentProfileSyncService::class)->syncFromFilledData($this->user, [
             'child_lastname'  => 'Петров',
             'child_firstname' => 'Пётр',
+            'child_middlename' => '  Петрович  ',
             'child_address'   => 'г. Казань, ул. Новая, д. 5',
             'child_full_name_genitive' => 'Петрова Петра',
         ]);
@@ -27,8 +29,23 @@ final class ContractStudentProfileSyncTest extends CrmTestCase
 
         $this->assertSame('Петров', $this->user->lastname);
         $this->assertSame('Пётр', $this->user->name);
+        $this->assertSame('Петрович', $this->user->middlename);
         $this->assertSame('г. Казань, ул. Новая, д. 5', $this->user->address);
         $this->assertSame('Петрова Петра', $this->user->full_name_genitive);
+    }
+
+    public function test_empty_child_middlename_does_not_clear_existing_value(): void
+    {
+        $this->user->forceFill([
+            'middlename' => 'Петрович',
+        ])->save();
+
+        app(ContractStudentProfileSyncService::class)->syncFromFilledData($this->user, [
+            'child_middlename' => '   ',
+        ]);
+
+        $this->user->refresh();
+        $this->assertSame('Петрович', $this->user->middlename);
     }
 
     public function test_empty_child_genitive_does_not_clear_existing_value(): void
