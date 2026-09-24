@@ -226,7 +226,7 @@
     <li>Выпуск: <code>POST /admin/setting-prices/custom-payments/{id}/public-pay-link</code> → <code>{ url: https://{домен}/pc/{short_code} }</code>. Длинный <code>/pay/ucp/{token}</code> открывает ту же страницу, в буфер не кладётся.</li>
     <li>Init T‑Bank — только при открытии страницы / запросе QR, не при копировании.</li>
     <li>Смена суммы в админке выпускает новый token и short_code: старые адреса → <b>404</b>. Активный незавершённый платёж T‑Bank отменяется.</li>
-    <li>Страница QR — общий шаблон <code>payment.ulp-public-pay</code>, запросы <code>/pay/ucp/{token}/qr/*</code>. В <code>payables.meta</code>: <code>user_period_price_id</code>, <code>team_id</code>, <code>ucp_public_pay</code>.</li>
+    <li>Страница QR — общий шаблон <code>payment.ulp-public-pay</code>, запросы <code>/pay/ucp/{token}/qr/*</code>. Под суммой выводится <code>user_custom_payment.note</code> (поле «Описание» из админки); пустое описание не показывается. У абонемента и месяца этого блока нет. В <code>payables.meta</code>: <code>user_period_price_id</code>, <code>team_id</code>, <code>ucp_public_pay</code>.</li>
     <li>В таблице флаг <code>pay_link_available</code>: не оплачен, сумма 10 ₽…1 000 000 ₽, ShopCode группы. Иначе иконки нет («—»).</li>
   </ul>
   <p class="small">Селект «Выбор группы» на консоли <b>не</b> фильтрует доп. платежи — группа зафиксирована при создании. См. <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §5</a>.</p>

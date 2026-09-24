@@ -198,7 +198,9 @@ final class CustomPaymentPublicPayFeatureTest extends CrmTestCase
         $this->get(route('ucp.public.pay.short', ['code' => $code]))
             ->assertOk()
             ->assertViewIs('payment.ulp-public-pay')
-            ->assertSee('Оплата через СБП', false);
+            ->assertSee('Оплата через СБП', false)
+            ->assertSee('Описание:', false)
+            ->assertSee('Интенсив', false);
 
         $payable = Payable::query()->where('type', 'custom_payment_fee')->first();
         $this->assertNotNull($payable);

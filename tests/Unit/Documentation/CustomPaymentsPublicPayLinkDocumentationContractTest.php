@@ -25,6 +25,8 @@ final class CustomPaymentsPublicPayLinkDocumentationContractTest extends TestCas
         $this->assertStringContainsString('public-pay-link', $chunk);
         $this->assertStringContainsString('CustomPaymentPublicPayFeatureTest', $chunk);
         $this->assertStringContainsString('setting-prices-custom-payments#public-pay-link', $chunk);
+        $this->assertStringContainsString('user_custom_payment.note', $chunk);
+        $this->assertStringContainsString('Описание (отображается у ученика)', $chunk);
     }
 
     public function test_custom_payments_and_payments_docs_describe_public_link(): void
@@ -33,6 +35,7 @@ final class CustomPaymentsPublicPayLinkDocumentationContractTest extends TestCas
         $payments = $this->docFile('payments.html');
 
         $this->assertStringContainsString('id="public-pay-link"', $custom);
+        $this->assertStringContainsString('Под суммой выводится', $custom);
         $this->assertStringContainsString('/pc/{short_code}', $custom);
         $this->assertStringContainsString('js-custom-payment-copy-pay-link', $custom);
         $this->assertStringContainsString('user_period_price_id', $custom);

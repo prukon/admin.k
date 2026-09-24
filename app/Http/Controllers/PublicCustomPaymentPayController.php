@@ -64,6 +64,7 @@ final class PublicCustomPaymentPayController extends Controller
                 'serviceProviderTeamTitle' => $result['serviceProviderTeamTitle'],
                 'serviceProviderLabel' => $result['serviceProviderLabel'],
                 'showTbankLegalEntityBlock' => $result['showTbankLegalEntityBlock'],
+                'paymentDescription' => $result['paymentDescription'],
                 'qrJsonUrl' => route('ucp.public.pay.qr.json', ['token' => $link->token]),
                 'qrPayloadUrl' => route('ucp.public.pay.qr.payload', ['token' => $link->token]),
                 'qrStateUrl' => route('ucp.public.pay.qr.state', ['token' => $link->token]),

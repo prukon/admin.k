@@ -5977,6 +5977,9 @@
     QR стартует при открытии <code>/pc/{code}</code> (длинный <code>/pay/ucp/{token}</code> тоже открывает страницу).
     Payable — <code>custom_payment_fee</code>, <code>meta.user_period_price_id</code>.
     Смена суммы выпускает новый код: старый адрес → 404.
+    <br>
+    3) <b>Текст на странице оплаты.</b> Под суммой показывается <code>user_custom_payment.note</code>
+    — то, что админ написал в «Описание (отображается у ученика)». Пустое поле на странице не выводится.
     <br><br>
     Подробно —
     <a href="/docs/documentation/setting-prices-custom-payments#public-pay-link">setting-prices-custom-payments §7.1</a>.

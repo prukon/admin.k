@@ -248,7 +248,8 @@ final class UserCustomPaymentPublicPayService
      *     isMobileClient: bool,
      *     serviceProviderTeamTitle: ?string,
      *     serviceProviderLabel: ?string,
-     *     showTbankLegalEntityBlock: bool
+     *     showTbankLegalEntityBlock: bool,
+     *     paymentDescription: string
      * }|array{kind: 'paid'}|array{kind: 'expired'}|array{kind: 'config'}|array{kind: 'error', message: string}
      */
     public function resolvePublicShow(UserCustomPaymentPublicPayLink $link, Request $request): array
@@ -308,6 +309,7 @@ final class UserCustomPaymentPublicPayService
             'serviceProviderTeamTitle' => $checkoutDisplay['teamTitle'],
             'serviceProviderLabel' => $checkoutDisplay['serviceProviderLabel'],
             'showTbankLegalEntityBlock' => true,
+            'paymentDescription' => trim((string) ($payment->note ?? '')),
         ];
     }
 

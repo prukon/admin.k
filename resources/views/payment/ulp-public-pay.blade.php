@@ -48,6 +48,10 @@
             <p class="mb-3"><span class="text-muted">К оплате:</span> <strong>{{ $amountRubFormatted }}&nbsp;₽</strong></p>
         @endif
 
+        @if(filled($paymentDescription ?? null))
+            <p class="mb-3"><span class="text-muted">Описание:</span> {{ $paymentDescription }}</p>
+        @endif
+
         @if(!empty($showTbankLegalEntityBlock))
             <div class="ulp-pay-summary mb-3">
                 @include('payment.partials.service-provider', [
