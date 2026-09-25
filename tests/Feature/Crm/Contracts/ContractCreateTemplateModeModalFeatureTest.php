@@ -32,6 +32,7 @@ class ContractCreateTemplateModeModalFeatureTest extends ContractsFeatureTestCas
             'is_enabled' => 1,
             'email'      => 'modal-template@example.com',
         ]);
+        $this->attachTeamForContract($student);
 
         $template = $this->createContractTemplateWithVersion(['title' => 'Шаблон из модалки']);
 
@@ -90,6 +91,7 @@ class ContractCreateTemplateModeModalFeatureTest extends ContractsFeatureTestCas
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
         ]);
+        $this->attachTeamForContract($student);
 
         $template = $this->createContractTemplateWithVersion();
 

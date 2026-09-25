@@ -41,6 +41,8 @@ final class SchoolLeadEditModalFeatureTest extends CrmTestCase
             ->assertSee('setLeadModalClientInfo', false)
             ->assertSee('openCreateContractFromLead', false)
             ->assertSee('id="createContractModal"', false)
+            ->assertSee('noStudentGroupMessage', false)
+            ->assertSee('contractStudentGroupCount === 0', false)
             ->assertSee('KidsCrmContractCreate.openModal', false)
             ->assertSee('{ lockUser: true }', false)
             ->assertSee('js-lead-health-checkbox', false)

@@ -216,9 +216,12 @@ class ContractCreateModalFeatureTest extends ContractsFeatureTestCase
 
     private function createEnabledStudent(): User
     {
-        return User::factory()->create([
+        $student = User::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
         ]);
+        $this->attachTeamForContract($student);
+
+        return $student;
     }
 }

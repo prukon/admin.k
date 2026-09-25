@@ -25,6 +25,7 @@ class ContractStoreTemplateModeTest extends ContractsFeatureTestCase
             'is_enabled' => 1,
             'email'      => 'client@example.com',
         ]);
+        $this->attachTeamForContract($student);
 
         $template = $this->makeUsableTemplate();
 

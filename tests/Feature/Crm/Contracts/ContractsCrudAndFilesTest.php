@@ -37,6 +37,7 @@ class ContractsCrudAndFilesTest extends ContractsFeatureTestCase
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
         ]);
+        $this->attachTeamForContract($student);
 
         Storage::fake();
 
@@ -65,6 +66,7 @@ class ContractsCrudAndFilesTest extends ContractsFeatureTestCase
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
         ]);
+        $this->attachTeamForContract($student);
 
         Storage::fake();
 

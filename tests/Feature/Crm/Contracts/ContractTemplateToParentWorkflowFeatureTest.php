@@ -333,10 +333,13 @@ class ContractTemplateToParentWorkflowFeatureTest extends ContractsFeatureTestCa
      */
     private function makeStudent(array $studentAttrs = []): User
     {
-        return User::factory()->create(array_merge([
+        $student = User::factory()->create(array_merge([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
         ], $studentAttrs));
+        $this->attachTeamForContract($student);
+
+        return $student;
     }
 
     /**

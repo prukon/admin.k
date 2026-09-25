@@ -126,6 +126,15 @@ trait ValidatesLeadSendContract
 
         $templateId = (int) $this->input('contract_template_id', 0);
         $groupId = $this->resolveLeadSendContractGroupId();
+        if ($groupId === null || $groupId <= 0) {
+            $validator->errors()->add(
+                'send_contract',
+                ContractCreationService::NO_STUDENT_GROUP_MESSAGE,
+            );
+
+            return;
+        }
+
         $binder = app(ContractLessonPackageBinder::class);
         $packageIdRaw = $this->input('lesson_package_id');
         $packageId = ($packageIdRaw !== null && $packageIdRaw !== '') ? (int) $packageIdRaw : null;

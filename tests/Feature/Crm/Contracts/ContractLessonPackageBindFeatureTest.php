@@ -310,11 +310,14 @@ class ContractLessonPackageBindFeatureTest extends ContractsFeatureTestCase
 
     private function makeStudent(): User
     {
-        return User::factory()->create([
+        $student = User::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
             'email'      => 'bind-'.uniqid('', true).'@example.test',
         ]);
+        $this->attachTeamForContract($student);
+
+        return $student;
     }
 
     /**

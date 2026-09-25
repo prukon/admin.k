@@ -6,6 +6,7 @@ namespace Tests\Feature\Crm\SchoolLeads;
 
 use App\Models\Contract;
 use App\Models\User;
+use App\Services\Contracts\ContractCreationService;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -38,6 +39,29 @@ final class SchoolLeadCreateClientWithContractFeatureTest extends SchoolLeadCrea
         $this->assertSame(0, Contract::query()->count());
         $this->assertSame(0, User::query()->where('partner_id', $this->partner->id)->where('lastname', $lead->child_lastname)->count());
         Mail::assertNothingSent();
+    }
+
+    public function test_send_contract_without_group_does_not_create_client(): void
+    {
+        $this->actingAsLeadsUsersAndContractsViewer();
+        $template = $this->makeContractTemplate();
+        $lead = $this->makeLead(['team_id' => null]);
+
+        $this->postJson(
+            route('admin.user.store'),
+            $this->createClientPayload($lead, [
+                'send_contract'        => 1,
+                'contract_template_id' => $template->id,
+            ]),
+            $this->ajaxHeaders()
+        )
+            ->assertStatus(422)
+            ->assertJsonValidationErrors([
+                'send_contract' => ContractCreationService::NO_STUDENT_GROUP_MESSAGE,
+            ]);
+
+        $this->assertNull($lead->fresh()->user_id);
+        $this->assertSame(0, Contract::query()->count());
     }
 
     public function test_without_contract_creates_client_when_balance_is_zero(): void

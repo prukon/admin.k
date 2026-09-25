@@ -30,6 +30,7 @@ final class AdminUsersContractCreateNonAjaxSafetyNetFeatureTest extends AdminUse
     public function test_store_from_clients_page_redirects_to_contract_card_and_creates_row(): void
     {
         $student = $this->createStudent(['lastname' => 'NonAjaxCreate']);
+        $this->attachTeam($student);
         $pdf = UploadedFile::fake()->create('from-users.pdf', 20, 'application/pdf');
 
         $response = $this->from(route('admin.user1'))
@@ -117,6 +118,7 @@ final class AdminUsersContractCreateNonAjaxSafetyNetFeatureTest extends AdminUse
         $this->partner->save();
 
         $student = $this->createStudent(['lastname' => 'НетБалансаCreate']);
+        $this->attachTeam($student);
         $pdf = UploadedFile::fake()->create('no-balance.pdf', 20, 'application/pdf');
 
         $response = $this->from(route('admin.user1'))

@@ -6,6 +6,7 @@ use App\Models\Contract;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\Contracts\ContractCreationService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -105,6 +106,42 @@ final class ContractGroupPivotFeatureTest extends ContractsFeatureTestCase
                 return (int) $pre['id'] === $student->id
                     && $groupIds === collect([$teamA->id, $teamB->id])->sort()->values()->all();
             });
+    }
+
+    public function test_store_rejects_student_without_group(): void
+    {
+        Storage::fake();
+
+        $student = User::factory()->withoutTeam()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+
+        $this->assertSame(
+            0,
+            DB::table('team_user')->where('user_id', $student->id)->count()
+        );
+
+        $balance = (int) $this->partner->wallet_balance_cents;
+        $pdf = UploadedFile::fake()->create('contract.pdf', 20, 'application/pdf');
+
+        $this->from(route('contracts.index', ['create' => 1]))
+            ->post(route('contracts.store'), [
+                'creation_mode' => Contract::CREATION_MODE_PDF,
+                'user_id'       => $student->id,
+                'pdf'           => $pdf,
+            ])
+            ->assertRedirect(route('contracts.index', [
+                'create'  => 1,
+                'user_id' => $student->id,
+            ]))
+            ->assertSessionHasErrors([
+                'group_id' => ContractCreationService::NO_STUDENT_GROUP_MESSAGE,
+            ]);
+
+        $this->assertDatabaseCount('contracts', 0);
+        $this->partner->refresh();
+        $this->assertSame($balance, (int) $this->partner->wallet_balance_cents);
     }
 
     public function test_store_assigns_single_group_automatically(): void

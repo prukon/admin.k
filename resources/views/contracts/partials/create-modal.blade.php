@@ -308,10 +308,12 @@
             const userPackagesUrl = @json(route('contracts.user.packages'));
             const preselectedUser = @json($preselectedUser);
             const shouldOpenCreateModal = @json($shouldOpenCreateModal ?? false);
+            const noStudentGroupMessage = @json(\App\Services\Contracts\ContractCreationService::NO_STUDENT_GROUP_MESSAGE);
             const createModalEl = document.getElementById('createContractModal');
             let suppressCreateModalReset = false;
             let activePreselectedUser = preselectedUser;
             let lockPreselectedUser = false;
+            let contractStudentGroupCount = null;
 
             function getContractCreateFieldInput(fieldName) {
                 if (fieldName === 'creation_mode') {
@@ -400,7 +402,11 @@
 
                 const mode = $('input[name="creation_mode"]:checked').val();
 
-                if (!$('#group_id_select').prop('disabled') && $('#group_id_select').find('option').length > 1) {
+                if (contractStudentGroupCount === 0) {
+                    showContractCreateFieldError('group_id', noStudentGroupMessage);
+                    valid = false;
+                    firstInvalidField = firstInvalidField || 'group_id';
+                } else if (!$('#group_id_select').prop('disabled') && $('#group_id_select').find('option').length > 1) {
                     const groupId = $('#group_id_hidden').val();
                     if (!groupId || String(groupId).trim() === '') {
                         showContractCreateFieldError('group_id', 'Выберите группу для договора.');
@@ -491,11 +497,19 @@
                 $h.val('');
                 clearContractCreateFieldError('group_id');
 
+                const userSelected = !!($('#user_id').val() && String($('#user_id').val()).trim() !== '');
+
                 if (!groups || !groups.length) {
                     $g.append(new Option('— группы нет —', '', true, true));
                     $g.prop('disabled', true);
+                    contractStudentGroupCount = userSelected ? 0 : null;
+                    if (contractStudentGroupCount === 0) {
+                        showContractCreateFieldError('group_id', noStudentGroupMessage);
+                    }
                     return;
                 }
+
+                contractStudentGroupCount = groups.length;
 
                 if (groups.length === 1) {
                     $g.append(new Option(groups[0].title, groups[0].id, true, true));
@@ -522,6 +536,8 @@
                     applyStudentGroupsToForm(prefetchGroups);
                     return;
                 }
+
+                contractStudentGroupCount = null;
 
                 $.getJSON(@json(route('contracts.user.group')), {user_id: userId})
                     .done(function (resp) {
@@ -810,6 +826,7 @@
                 destroyContractUserSelect2();
 
                 activePreselectedUser = null;
+                contractStudentGroupCount = null;
 
                 applyStudentGroupsToForm([]);
                 resetLessonPackageSelect();

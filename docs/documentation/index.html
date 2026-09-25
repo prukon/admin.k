@@ -37,6 +37,25 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="contract-create-requires-student-group-index">Договор: нельзя создать, если у ученика нет группы (2026‑09)</h2>
+  <div class="note">
+    Админ не создаёт договор ученику без группы в pivot <code>team_user</code>.
+    Одна и та же модалка на <code>/client-contracts</code>, <code>/admin/users</code> и <code>/admin/school-leads</code>
+    (кнопка «Создать договор» у заявки, <code>openCreateContractFromLead</code>).
+    После выбора ученика <code>GET /client-contracts/user-group</code> (или prefetch <code>groups[]</code>):
+    0 групп — селект «— группы нет —» и ошибка под полем
+    «Нельзя создать договор: у ученика нет группы.», кнопка «Создать договор» форму не отправляет.
+    <code>POST /client-contracts</code> с таким учеником — redirect с <code>errors.group_id</code>,
+    строка договора не создаётся, 70&nbsp;₽ не списываются.
+    Группа заявки <code>school_leads.team_id</code> группу ученика не заменяет.
+    «Создать клиента и отправить договор» без группы заявки — 422 <code>errors.send_contract</code> с тем же текстом, клиент не создаётся.
+    Одна группа подставляется сама, две и больше — обязательный выбор.
+    Подробно — <a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a>,
+    <a href="/docs/documentation/student-team-membership#contracts">student-team-membership §4</a>,
+    <a href="/docs/documentation/school-leads-widget#school-lead-contract-inline">school-leads-widget §5.8</a>.
+    Тест: <code>ContractGroupPivotFeatureTest::test_store_rejects_student_without_group</code>.
+  </div>
+
   <h2 id="account-contract-genitive-full-name-index">ЛК: ФИО в родительном падеже в модалке договора (2026‑09)</h2>
   <div class="note">
     В модалке заполнения на <code>/account-settings/documents</code> поля

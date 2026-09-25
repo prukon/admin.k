@@ -166,10 +166,13 @@ class ContractInvitationEmailFeatureTest extends ContractsFeatureTestCase
      */
     private function makeStudent(array $attrs = []): User
     {
-        return User::factory()->create(array_merge([
+        $student = User::factory()->create(array_merge([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
         ], $attrs));
+        $this->attachTeamForContract($student);
+
+        return $student;
     }
 
     private function attachParent(User $student, ?string $email): ParentProfile

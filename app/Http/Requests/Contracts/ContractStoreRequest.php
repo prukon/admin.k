@@ -5,6 +5,7 @@ namespace App\Http\Requests\Contracts;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\User;
+use App\Services\Contracts\ContractCreationService;
 use App\Services\Contracts\ContractLessonPackageBinder;
 use App\Services\TeamUserSyncService;
 use Illuminate\Contracts\Validation\Validator;
@@ -100,12 +101,10 @@ class ContractStoreRequest extends FormRequest
             $groupId = $this->input('group_id');
 
             if ($teamIds === []) {
-                if ($groupId !== null && $groupId !== '') {
-                    $afterValidator->errors()->add(
-                        'group_id',
-                        'У ученика нет групп — поле «Группа» для договора не заполняется.'
-                    );
-                }
+                $afterValidator->errors()->add(
+                    'group_id',
+                    ContractCreationService::NO_STUDENT_GROUP_MESSAGE,
+                );
             } elseif (count($teamIds) > 1) {
                 if ($groupId === null || $groupId === '') {
                     $afterValidator->errors()->add('group_id', 'Выберите группу для договора.');

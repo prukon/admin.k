@@ -7,6 +7,7 @@ namespace Tests\Feature\Crm\SchoolLeads;
 use App\Models\ContractTemplate;
 use App\Models\ContractTemplateVersion;
 use App\Models\PartnerLegalEntity;
+use App\Models\SchoolLead;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\Contracts\ContractTemplatePrefillSources;
@@ -25,6 +26,20 @@ abstract class SchoolLeadCreateClientWithContractTestCase extends SchoolLeadCrea
         config(['billing.contract_create_fee' => 70.00]);
         $this->partner->wallet_balance_cents = 10000;
         $this->partner->save();
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    protected function makeLead(array $overrides = []): SchoolLead
+    {
+        if (! array_key_exists('team_id', $overrides)) {
+            $overrides['team_id'] = Team::factory()->create([
+                'partner_id' => $this->partner->id,
+            ])->id;
+        }
+
+        return parent::makeLead($overrides);
     }
 
     protected function actingAsLeadsUsersAndContractsViewer(): User

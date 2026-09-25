@@ -104,7 +104,7 @@
     <li><code>GET /client-contracts/users-search</code> — поля <code>team_ids</code>, <code>groups[]</code> для модалки создания.</li>
     <li><code>POST /client-contracts</code> (<code>ContractStoreRequest</code>):
       <ul>
-        <li>0 групп у ученика → <code>contracts.group_id = null</code>;</li>
+        <li>0 групп у ученика → создание запрещено: ошибка <code>group_id</code> «Нельзя создать договор: у ученика нет группы.», договор не создаётся, 70&nbsp;₽ не списываются (<a href="/doc#contract-create-requires-student-group-index">анонс</a>);</li>
         <li>1 группа → подставляется автоматически;</li>
         <li>2+ группы → обязателен <code>group_id</code> из списка групп ученика.</li>
       </ul>

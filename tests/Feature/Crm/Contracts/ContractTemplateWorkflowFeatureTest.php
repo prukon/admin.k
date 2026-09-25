@@ -45,6 +45,8 @@ class ContractTemplateWorkflowFeatureTest extends ContractsFeatureTestCase
             ->where('title', 'Оферта E2E')
             ->firstOrFail();
 
+        $this->attachTeamForContract($this->user);
+
         $this->post('/client-contracts', [
             'creation_mode'        => Contract::CREATION_MODE_TEMPLATE,
             'user_id'              => $this->user->id,

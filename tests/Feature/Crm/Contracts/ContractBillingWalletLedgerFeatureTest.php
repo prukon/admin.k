@@ -28,6 +28,7 @@ final class ContractBillingWalletLedgerFeatureTest extends ContractsFeatureTestC
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
         ]);
+        $this->attachTeamForContract($student);
 
         Storage::fake();
         $pdf = UploadedFile::fake()->create('contract.pdf', 20, 'application/pdf');
@@ -71,6 +72,7 @@ final class ContractBillingWalletLedgerFeatureTest extends ContractsFeatureTestC
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
         ]);
+        $this->attachTeamForContract($student);
 
         Storage::fake();
         $pdf = UploadedFile::fake()->create('contract.pdf', 20, 'application/pdf');
@@ -100,6 +102,7 @@ final class ContractBillingWalletLedgerFeatureTest extends ContractsFeatureTestC
             'is_enabled' => 1,
             'email' => 'ledger-revoke@example.com',
         ]);
+        $this->attachTeamForContract($student);
 
         $template = $this->createContractTemplateWithVersion();
 

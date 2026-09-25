@@ -22,6 +22,8 @@ use Illuminate\Validation\ValidationException;
 
 class ContractCreationService
 {
+    public const NO_STUDENT_GROUP_MESSAGE = 'Нельзя создать договор: у ученика нет группы.';
+
     public function __construct(
         private readonly ContractBillingService $billing,
         private readonly ContractTemplateService $templateService,
@@ -267,7 +269,7 @@ class ContractCreationService
     }
 
     /**
-     * Группа для договора: 0 групп → null; 1 → auto; 2+ → обязателен выбор.
+     * Группа для договора: 0 групп → запрет; 1 → auto; 2+ → обязателен выбор.
      *
      * @throws ValidationException
      */
@@ -285,7 +287,9 @@ class ContractCreationService
         $teamIds = $this->teamUserSync->teamIdsForStudent($student);
 
         if ($teamIds === []) {
-            return null;
+            throw ValidationException::withMessages([
+                'group_id' => self::NO_STUDENT_GROUP_MESSAGE,
+            ]);
         }
 
         if (count($teamIds) === 1) {

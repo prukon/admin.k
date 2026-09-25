@@ -86,6 +86,7 @@ final class ContractsAuditLogsFeatureTest extends ContractsFeatureTestCase
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
         ]);
+        $this->attachTeamForContract($student);
 
         $pdf = UploadedFile::fake()->create('audit-contract.pdf', 20, 'application/pdf');
 

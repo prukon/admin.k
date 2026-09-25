@@ -151,6 +151,23 @@ abstract class ContractsFeatureTestCase extends CrmTestCase
         return $bytes;
     }
 
+    protected function attachTeamForContract(\App\Models\User $student): \App\Models\Team
+    {
+        $team = \App\Models\Team::factory()->create([
+            'partner_id' => $student->partner_id,
+        ]);
+
+        DB::table('team_user')->insert([
+            'partner_id' => $student->partner_id,
+            'team_id'    => $team->id,
+            'user_id'    => $student->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $team;
+    }
+
     protected function grantLessonPackageBindPermission(?int $roleId = null): void
     {
         $this->grantPermissionToRoleForPartner(
