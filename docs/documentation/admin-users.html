@@ -463,7 +463,7 @@
     Колонка в таблице <code>/admin/users</code> сразу после «Телефон родителя». Показывается только если у актора есть <code>contracts.view</code>
     (в Blade: <code>$canViewContracts</code>, в JS: <code>canViewContracts</code>).<br>
     <b>Отличие от заявок с сайта:</b> на <a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> колонка «Договор» видна при <code>users.view</code> <b>или</b> <code>contracts.view</code>. Без клиента в ячейке «—»; после создания клиента из модалки §<a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">5.5.2</a> — ссылка на договор или кнопка «Создать договор» (встроенная модалка, §<a href="/docs/documentation/school-leads-widget#school-lead-contract-inline">5.8</a>).
-    На <code>/admin/users</code> колонка только при <code>contracts.view</code>: нет не-отозванного договора — «Создать договор»; неподписанный последний (sent/opened в том числе) — «Посмотреть черновик»; подписанный — иконка PDF и плюс «Создать ещё один договор».
+    На <code>/admin/users</code> колонка только при <code>contracts.view</code>: нет не-отозванного договора — «Создать договор»; неподписанный последний (sent/opened в том числе) — «Посмотреть черновик» и плюс «Создать ещё один договор»; подписанный — иконка PDF и тот же плюс.
     <code>revoked</code> последним не считается
     (<a href="/doc#contract-annul-after-send-index">анонс аннулирования</a>).
     Модалка создания — та же, что на заявках (§<a href="#user-contract-create">2.3.9</a>).
@@ -508,12 +508,12 @@
       </tr>
       <tr>
         <td>Есть последний не-отозванный договор, статус <b>не</b> <code>signed</code> (черновик, <code>sent</code>, <code>opened</code>, ожидает заполнения и т.д.; <code>revoked</code> в эту ячейку не попадает)</td>
-        <td>Кнопка-ссылка <b>«Посмотреть черновик»</b> (<code>btn btn-sm btn-outline-primary</code>) → <code>GET /client-contracts/{id}</code> (карточка этого договора).</td>
+        <td>Кнопка-ссылка <b>«Посмотреть черновик»</b> (<code>btn btn-sm btn-outline-primary</code>) → <code>GET /client-contracts/{id}</code> (карточка этого договора). Рядом — тот же плюсик <code>.users-contract-add-btn</code>, что у подписанного: «Создать ещё один договор», не внутри ссылки. Плюс есть у любого статуса последнего договора.</td>
       </tr>
       <tr>
         <td>Последний договор в статусе <code>signed</code></td>
         <td>Ссылка с иконкой <code>&lt;i class="fa-solid fa-file-pdf"&gt;</code> цвета <code>#0d6efd</code> на карточку договора (статус <code>signed</code>, не скачивание файла). Ховер — <code>@include('partials.ui.tooltip-hint')</code> (клон <code>#users-signed-contract-hint-tpl</code>, scope <code>hint</code>, класс <code>ulp-assignment-paid-tooltip</code>), текст «Статус: Подписано». Не ellipsis.
-          Рядом — отдельная кнопка-плюсик <code>fa-plus</code> того же цвета (<code>.users-contract-add-btn</code>, класс <code>js-open-create-contract-from-user</code>), тултип «Создать ещё один договор»; не внутри PDF-ссылки. Открывает ту же встроенную модалку (§<a href="#user-contract-create">2.3.9</a>), ученик заперт (<code>lockUser</code>). У черновика плюса нет.
+          Рядом — отдельная кнопка-плюсик <code>fa-plus</code> того же цвета (<code>.users-contract-add-btn</code>, класс <code>js-open-create-contract-from-user</code>), тултип «Создать ещё один договор»; не внутри PDF-ссылки. Открывает ту же встроенную модалку (§<a href="#user-contract-create">2.3.9</a>), ученик заперт (<code>lockUser</code>). Плюс есть у любого статуса последнего договора. У пустой ячейки плюса нет.
           На списке <code>/client-contracts</code> такая же иконка скачивает signed PDF в новой вкладке по <code>signed_pdf_path</code> — <a href="/docs/documentation/contracts#contract-list-signed-file">contracts §4.1.1</a>, <a href="/doc#contract-list-signed-file-index">анонс</a>.</td>
       </tr>
     </tbody>
@@ -570,7 +570,7 @@
   <ul class="small">
     <li><code>app/Http/Controllers/Admin/UserController.php</code> — <code>index()</code>: <code>canViewContracts</code>, шаблоны и партнёр для модалки создания; <code>data()</code>: валидация <code>contract</code>, фильтр, сортировка col=4</li>
     <li><code>app/Services/SchoolLeads/LatestUserContractLookup.php</code> — <code>forUserIds</code>, <code>applyUsersListContractFilter</code>, <code>applyUsersListSortByLatestContractStatus</code>, <code>latestContractsSubquery</code></li>
-    <li><code>resources/views/admin/user.blade.php</code> — колонка, фильтр <code>#filter-contract</code>, <code>renderContractCell</code> (PDF + плюс у signed), встроенная модалка, tooltip, AJAX-параметр <code>contract</code></li>
+    <li><code>resources/views/admin/user.blade.php</code> — колонка, фильтр <code>#filter-contract</code>, <code>renderContractCell</code> (плюс у любого статуса последнего договора), встроенная модалка, tooltip, AJAX-параметр <code>contract</code></li>
     <li><code>resources/views/contracts/partials/create-modal.blade.php</code> — общая модалка «Создать договор» (<code>KidsCrmContractCreate.openModal</code>, <code>lockUser</code>)</li>
   </ul>
 
@@ -578,7 +578,7 @@
   <p>Колонка, фильтр, сортировка: <code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.</p>
   <p>Создание договора со списка клиентов (§<a href="#user-contract-create">2.3.9</a>):</p>
   <ul class="small">
-    <li><code>AdminUsersContractCreateUxFeatureTest.php</code> — три состояния ячейки (создать / черновик / PDF signed + плюс «ещё один»: <code>type="button"</code>, тот же click-handler, не внутри PDF-ссылки), opened блокирует создание пока школа не аннулирует, latest unsigned без плюса, lockUser + hidden <code>user_id</code>, оба пути на заявках, тулбар /client-contracts без lock</li>
+    <li><code>AdminUsersContractCreateUxFeatureTest.php</code> — три состояния ячейки (создать / черновик + плюс / PDF signed + плюс «ещё один»: <code>type="button"</code>, тот же click-handler, не внутри ссылки), плюс у sent/opened и остальных неподписанных, после annul пустая ячейка снова «Создать договор», lockUser + hidden <code>user_id</code>, оба пути на заявках, тулбар /client-contracts без lock</li>
     <li><code>AdminUsersContractCreateAccessFeatureTest.php</code> — гость 302/401, без <code>users.view</code> 403, только <code>users.view</code> без модалки и lookup 403, оба права → 200</li>
     <li><code>AdminUsersContractCreateFullAccessFeatureTest.php</code> — admin/viewer 200 на страницу, data, users-search, user-group, check-balance, карточку черновика; PUT/PATCH/DELETE → 404/405</li>
     <li><code>AdminUsersContractCreateAjaxContractFeatureTest.php</code> — JSON users-search / user-group / check-balance 200 или 422 с <code>message</code> / <code>errors[field]</code></li>
@@ -589,13 +589,13 @@
       <tr><th>Группа</th><th>Что проверяется</th></tr>
     </thead>
     <tbody>
-      <tr><td>UI колонки</td><td>Колонка и фильтр при <code>contracts.view</code>; скрытие без права; «Создать договор» / «Посмотреть черновик» / иконка PDF подписанного (<code>#0d6efd</code>) + плюс «Создать ещё один договор»; встроенная модалка; tooltip «Статус: …» у PDF</td></tr>
+      <tr><td>UI колонки</td><td>Колонка и фильтр при <code>contracts.view</code>; скрытие без права; «Создать договор» / «Посмотреть черновик» + плюс / иконка PDF подписанного (<code>#0d6efd</code>) + плюс «Создать ещё один договор»; встроенная модалка; tooltip «Статус: …» у PDF</td></tr>
       <tr><td>JSON <code>latest_contract</code></td><td>signed/unsigned payload, несколько договоров → последний, отозванный не считается последним, изоляция <code>school_id</code>, пустая ячейка</td></tr>
       <tr><td>Фильтр <code>contract</code></td><td><code>with</code>, <code>without</code>, <code>signed</code>, <code>unsigned</code>; игнор без <code>contracts.view</code>; 422 на invalid; signed/unsigned по последнему договору</td></tr>
       <tr><td>Сортировка</td><td>col=4 по статусу договора; col=5 по группе при наличии колонки «Договор»</td></tr>
       <tr><td>Доступ 200</td><td>Гость → redirect/401; <code>users.view</code> + <code>contracts.view</code> — страница, data, все фильтры, CRUD, logs; только <code>users.view</code> — без полей договора</td></tr>
       <tr><td>Доступ 403</td><td>Без <code>users.view</code> (в т.ч. data с <code>contract</code> и сортировкой col=4)</td></tr>
-      <tr><td>Создание из строки</td><td>Кнопка вместо пустой ячейки; плюс у signed (сосед PDF, не внутри ссылки, тот же <code>js-open-create-contract-from-user</code>); lockUser; disabled Select2 + hidden <code>#user_id_locked</code>; native POST 302 на show; AJAX lookup 200/422; без <code>contracts.view</code> плюса и модалки нет</td></tr>
+      <tr><td>Создание из строки</td><td>Кнопка вместо пустой ячейки; плюс у любого статуса последнего договора (сосед ссылки или PDF, не внутри неё, тот же <code>js-open-create-contract-from-user</code>); lockUser; disabled Select2 + hidden <code>#user_id_locked</code>; native POST 302 на show; AJAX lookup 200/422; без <code>contracts.view</code> плюса и модалки нет</td></tr>
     </tbody>
   </table>
   <p class="small">Запуск колонки: <code>php artisan test --env=testing tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.
@@ -607,17 +607,17 @@
   <div class="note">
     При <code>contracts.view</code> на <code>/admin/users</code> подключается тот же partial
     <code>contracts/partials/create-modal.blade.php</code>, что на <code>/client-contracts</code> и <code>/admin/school-leads</code>.
-    Кнопка «Создать договор» в колонке и плюс у подписанного договора вызывают <code>openCreateContractFromUser(row)</code> →
+    Кнопка «Создать договор» в колонке и плюс у любого существующего договора вызывают <code>openCreateContractFromUser(row)</code> →
     <code>window.KidsCrmContractCreate.openModal(preselectedUser, { lockUser: true })</code>.
     Страница <b>не меняется</b> до submit. В footer модалки — «Отмена» и «Создать договор» (<code>#btn-save</code>), не «Сохранить».
     После успешного <code>POST /client-contracts</code> — редирект на карточку договора.
     Анонс — <a href="/doc#users-contract-create-index">/doc</a>.
-    Opened/sent в ячейке — «Посмотреть черновик», пока школа не аннулирует
+    Opened/sent в ячейке — «Посмотреть черновик» и плюс «Создать ещё один договор». После аннулирования, если других не-отозванных нет, ячейка снова «Создать договор»
     (<a href="/doc#contract-annul-after-send-index">анонс</a>).
   </div>
   <ul>
     <li>Предзаполнение ученика из строки DataTables: <code>id</code>, <code>name</code> → <code>text</code>, <code>parent</code> → <code>parent_full_name</code>. Группы подгружаются AJAX <code>GET /client-contracts/user-group</code>.</li>
-    <li>У подписанного последнего договора справа от PDF — плюс (<code>button type="button"</code>, <code>.users-contract-add-btn</code>, <code>fa-plus</code> цвета <code>#0d6efd</code>, тултип и <code>aria-label</code> «Создать ещё один договор»). Тот же делегированный клик <code>.js-open-create-contract-from-user</code> и <code>lockUser</code>, что у кнопки «Создать договор». Не внутри <code>&lt;a class="users-contract-icon-link"&gt;</code> (<code>stopPropagation</code>). У черновика и пустой ячейки плюса нет. На <code>/admin/school-leads</code> плюса нет.</li>
+    <li>Справа от «Посмотреть черновик» и справа от PDF подписанного — плюс (<code>button type="button"</code>, <code>.users-contract-add-btn</code>, <code>fa-plus</code> цвета <code>#0d6efd</code>, тултип и <code>aria-label</code> «Создать ещё один договор»). Тот же делегированный клик <code>.js-open-create-contract-from-user</code> и <code>lockUser</code>, что у кнопки «Создать договор». Не внутри ссылки на карточку (<code>stopPropagation</code>). Плюс есть у любого статуса последнего договора. У пустой ячейки плюса нет. На <code>/admin/school-leads</code> плюса нет.</li>
     <li><code>lockUser: true</code> — поле «Ученик» выбрано и задисейблено (Select2 <code>disabled</code>, <code>allowClear: false</code>, hidden <code>#user_id_locked</code> с <code>name="user_id"</code> для submit). Тот же флаг на заявках при клике по строке лида. На <code>/client-contracts</code> по кнопке «Создать» без контекста строки поиск ученика остаётся свободным.</li>
     <li>Списание с баланса — только при submit модалки (<code>POST /client-contracts/check-balance</code> → <code>POST /client-contracts</code>), не при открытии.</li>
     <li>Без <code>contracts.view</code> partial и JS кнопки на страницу не попадают.</li>

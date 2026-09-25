@@ -912,7 +912,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     (<a href="/doc#contract-annul-after-send-index">анонс аннулирования</a>).
     Сервис: <code>App\Services\SchoolLeads\LatestUserContractLookup</code>. Подпись статуса — из <code>Contract::$STATUS_RU</code> (любой статус: Черновик, Отправлено, Подписано и т.д.).
     Список <code>/client-contracts</code> для <code>sent</code>/<code>opened</code> показывает «Отправлено СМС» / «Открыто СМС» (<code>Contract::schoolStatusLabel</code>), виджет заявок и колонка клиентов — нет.
-    На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> тот же lookup, другой UI: колонка только при <code>contracts.view</code>; нет не-отозванного договора — «Создать договор» (встроенная модалка); неподписанный последний — «Посмотреть черновик»; подписанный — иконка PDF и плюс «Создать ещё один договор». См. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>, анонс <a href="/doc#users-contract-create-index">/doc</a>.
+    На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> тот же lookup, другой UI: колонка только при <code>contracts.view</code>; нет не-отозванного договора — «Создать договор» (встроенная модалка); неподписанный последний — «Посмотреть черновик» и плюс «Создать ещё один договор»; подписанный — иконка PDF и тот же плюс. См. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>, анонс <a href="/doc#users-contract-create-index">/doc</a>.
   </p>
 
   <h3>5.7) Создание клиента из заявки (лид → ученик)</h3>

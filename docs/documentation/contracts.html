@@ -535,7 +535,7 @@
   <ul>
     <li>После привязки ученика к заявке — кнопка «Создать договор» в колонке «Договор» (после «Телефон родителя» на <code>/admin/school-leads</code>, §5.5.3 / §5.6) и в read-only модалке лида открывает ту же модалку создания <b>на странице заявок</b> (<code>KidsCrmContractCreate.openModal(..., { lockUser: true })</code>). Альтернатива — прямой переход <code>GET /client-contracts?user_id={id}</code>.</li>
     <li>Ученик и ФИО родителя предзаполняются в модалке, если у ученика есть запись в <code>parents</code>. При открытии из строки лида/клиента поле «Ученик» задисейблено (§5.3, <code>lockUser</code>).</li>
-    <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — колонка и фильтр «Договор» (только при <code>contracts.view</code>): нет не-отозванного договора — «Создать договор» (встроенная модалка, <code>lockUser</code>); неподписанный последний — «Посмотреть черновик»; подписанный — иконка PDF и плюс «Создать ещё один договор».
+    <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — колонка и фильтр «Договор» (только при <code>contracts.view</code>): нет не-отозванного договора — «Создать договор» (встроенная модалка, <code>lockUser</code>); неподписанный последний — «Посмотреть черновик» и плюс «Создать ещё один договор»; подписанный — иконка PDF и тот же плюс.
       <code>revoked</code> не считается последним — <a href="#contract-annul-after-send">§7.2</a>,
       <a href="/doc#contract-annul-after-send-index">анонс</a>.
       См. <a href="/docs/documentation/admin-users#user-contract-create">admin-users §2.3.9</a>.</li>
@@ -809,7 +809,7 @@
       <li><code>ContractAnnulAfterSendUxFeatureTest.php</code> — кнопка только sent/opened; после аннулирования нет resend; sync у revoked без PDF</li>
       <li><code>ContractAnnulAfterSendFeatureTest.php</code> — sent/opened без возврата 70&nbsp;₽ и без вызова провайдера</li>
       <li><code>ContractAnnulRevokedSignedWebhookFeatureTest.php</code> — вебхук/sync signed при revoked (PDF есть, статус revoked, без колокольчика)</li>
-      <li><code>AdminUsersContractCreateUxFeatureTest</code> — opened блокирует «Создать договор» на /admin/users, после annul ячейка снова «Создать договор»</li>
+      <li><code>AdminUsersContractCreateUxFeatureTest</code> — у opened на /admin/users «Посмотреть черновик» и плюс «Создать ещё один договор», после annul ячейка снова «Создать договор»</li>
       <li><code>ContractAnnulAfterSendDocumentationContractTest</code> — анонс /doc совпадает с кодом</li>
     </ul>
     <p><b>Раздел «Документы» (вкладки + шаблоны):</b></p>

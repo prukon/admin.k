@@ -4151,8 +4151,9 @@
   <h2 id="contract-annul-after-send-index">Договоры: аннулировать sent/opened без возврата 70&nbsp;₽ (2026‑09)</h2>
   <div class="note">
     Если клиент уже нажал «Подписать» (статус <code>sent</code> или <code>opened</code>),
-    школьная карточка больше не предлагает «Изменить» в кабинете, а на
-    <code>/admin/users</code> вместо плюса — «Посмотреть черновик».
+    школьная карточка больше не предлагает «Изменить» в кабинете. На
+    <code>/admin/users</code> ячейка показывает «Посмотреть черновик» и плюс
+    «Создать ещё один договор».
     Школа может <b>аннулировать</b> такой договор: в CRM он становится
     <code>revoked</code> («Отозвано»), 70&nbsp;₽ <b>не</b> возвращаются,
     API Подпислона не вызывается (отзыв там не поддерживается).
@@ -4210,7 +4211,7 @@
     4) <b>/admin/users и заявки.</b>
     <code>LatestUserContractLookup</code> не считает <code>revoked</code> последним.
     После аннулирования, если других не-отозванных нет, ячейка снова
-    «Создать договор» (это и был UX-баг: opened блокировал создание).
+    «Создать договор». Пока sent/opened ещё последний, плюс «Создать ещё один договор» остаётся.
     Фильтр <code>with</code> по-прежнему «есть любой договор, в т.ч. только revoked»;
     <code>unsigned</code> / колонка смотрят на последний <b>не</b>-revoked.
     <br><br>
@@ -4223,7 +4224,7 @@
     Тесты: <code>ContractAnnulAfterSend*FeatureTest</code>,
     <code>ContractAnnulRevokedSignedWebhookFeatureTest</code>,
     <code>AdminUsersContractCreateUxFeatureTest</code>
-    (<code>opened_contract_blocks_create_on_users_list_until_school_annuls</code>),
+    (<code>opened_contract_shows_draft_and_plus_and_create_button_after_annul</code>),
     <code>ContractAnnulAfterSendDocumentationContractTest</code>.
   </div>
 
@@ -6000,11 +6001,11 @@
     <b>«Создать договор»</b> (<code>js-open-create-contract-from-user</code>, встроенная модалка,
     страница не меняется); последний статус не <code>signed</code> (черновик, отправлено,
     opened, ожидает заполнения — <b>не</b> отозванный) — <b>«Посмотреть черновик»</b> →
-    <code>GET /client-contracts/{id}</code>; <code>signed</code> — иконка PDF
+    <code>GET /client-contracts/{id}</code> и рядом плюс <code>fa-plus</code>; <code>signed</code> — иконка PDF
     <code>#0d6efd</code> и ховер <code>@include('partials.ui.tooltip-hint')</code>
-    («Статус: …», scope <code>hint</code>), рядом плюс <code>fa-plus</code>
+    («Статус: …», scope <code>hint</code>), рядом тот же плюс <code>fa-plus</code>
     (тултип «Создать ещё один договор», тот же <code>js-open-create-contract-from-user</code>,
-    не внутри PDF-ссылки). У черновика плюса нет. Пустой ячейки больше нет.
+    не внутри PDF-ссылки). Плюс есть у любого статуса последнего договора. У пустой ячейки плюса нет. Пустой ячейки больше нет.
     <br>
     2) <b>Из строки клиента</b> ученик предзаполнен и <b>заперт</b>:
     <code>KidsCrmContractCreate.openModal(preselected, { lockUser: true })</code>.
@@ -6024,7 +6025,7 @@
     <code>create_contract_url</code>. На <code>/admin/users</code> колонка только при
     <code>contracts.view</code>; ключа <code>create_contract_url</code> в JSON списка
     учеников нет. Тип колонки DataTables — <code>actions</code>, не <code>icon</code>.
-    Плюс «ещё один договор» у signed — <b>только</b> на клиентах, на заявках его нет.
+    Плюс «ещё один договор» у любого статуса последнего договора — <b>только</b> на клиентах, на заявках его нет.
     «Создать клиента» из лида с опцией «отправить договор» — другой поток:
     <code>POST /admin/users</code> + <code>send_contract</code>, не
     <code>POST /client-contracts</code>

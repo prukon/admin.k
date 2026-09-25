@@ -32,7 +32,7 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $this->assertStringContainsString('#0d6efd', $chunk);
         $this->assertStringContainsString('Создать ещё один договор', $chunk);
         $this->assertStringContainsString('fa-plus', $chunk);
-        $this->assertStringContainsString('У черновика плюса нет', $chunk);
+        $this->assertStringContainsString('Плюс есть у любого статуса последнего договора', $chunk);
         $this->assertStringContainsString('не-отозванному', $chunk);
         $this->assertStringContainsString('/doc#contract-annul-after-send-index', $chunk);
         $this->assertStringNotContainsString('отозван и т.д.', $chunk);
@@ -67,7 +67,7 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $this->assertStringContainsString('«Создать договор» (<code>#btn-save</code>), не «Сохранить»', $users);
         $this->assertStringContainsString('Создать ещё один договор', $users);
         $this->assertStringContainsString('users-contract-add-btn', $users);
-        $this->assertStringContainsString('У черновика плюса нет', $users);
+        $this->assertStringContainsString('Плюс есть у любого статуса последнего договора', $users);
 
         $this->assertStringContainsString('/doc#users-contract-create-index', $contracts);
         $this->assertStringContainsString('lockUser: true', $contracts);
@@ -80,7 +80,7 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $this->assertStringContainsString('create_contract_url', $leads);
         $this->assertStringContainsString('Создать ещё один договор', $leads);
 
-        $this->assertStringContainsString('<code>actions</code> (договор: создать / черновик / PDF + плюс у signed)', $partials);
+        $this->assertStringContainsString('<code>actions</code> (договор: создать / черновик + плюс / PDF + плюс)', $partials);
         $this->assertStringNotContainsString('<code>icon</code> (договор)', $partials);
     }
 
@@ -94,7 +94,7 @@ final class UsersContractCreateDocumentationContractTest extends TestCase
         $this->assertStringContainsString('встроенная модалка, <code>lockUser</code>', $index);
         $this->assertStringContainsString('создание со списка клиентов и заявок', $index);
 
-        $this->assertStringContainsString('договор (создать / черновик / иконка signed + плюс ещё один, встроенная модалка, lockUser)', $controller);
+        $this->assertStringContainsString('договор (создать / любой статус + плюс ещё один, встроенная модалка, lockUser)', $controller);
         $this->assertStringContainsString('создание со списка клиентов/заявок (lockUser)', $controller);
     }
 

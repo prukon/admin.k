@@ -46,7 +46,7 @@ final class ContractAnnulAfterSendDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Посмотреть черновик', $chunk);
         $this->assertStringContainsString('contracts §7.2', $chunk);
         $this->assertStringContainsString('ContractAnnulAfterSend*FeatureTest', $chunk);
-        $this->assertStringContainsString('opened_contract_blocks_create_on_users_list_until_school_annuls', $chunk);
+        $this->assertStringContainsString('opened_contract_shows_draft_and_plus_and_create_button_after_annul', $chunk);
         $this->assertStringContainsString('ContractAnnulAfterSendDocumentationContractTest', $chunk);
         $this->assertStringContainsString('/doc#contract-signed-in-app-index', $chunk);
 
