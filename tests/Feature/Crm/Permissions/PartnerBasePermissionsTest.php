@@ -96,9 +96,12 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('platformPayments.method.yookassa', $userPerms);
         $this->assertNotContains('platformPayments.method.yookassa', $adminPerms);
         $this->assertNotContains('platformPayments.method.yookassa', $trainerPerms);
-        $this->assertNotContains('platformPayments.method.tbankSbp', $userPerms);
-        $this->assertNotContains('platformPayments.method.tbankSbp', $trainerPerms);
-        $this->assertContains('platformPayments.method.tbankSbp', $adminPerms);
+        $this->assertNotContains('platformPayments.method.acquiringSbp', $userPerms);
+        $this->assertNotContains('platformPayments.method.acquiringSbp', $trainerPerms);
+        $this->assertContains('platformPayments.method.acquiringSbp', $adminPerms);
+        $this->assertNotContains('platformPayments.method.acquiringCard', $userPerms);
+        $this->assertNotContains('platformPayments.method.acquiringCard', $trainerPerms);
+        $this->assertContains('platformPayments.method.acquiringCard', $adminPerms);
         $this->assertContains('inAppNotifications.view', $userPerms);
         $this->assertContains('inAppNotifications.view', $adminPerms);
         $this->assertContains('inAppNotifications.view', $trainerPerms);

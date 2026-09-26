@@ -57,7 +57,7 @@ final class PlatformPaymentsMethodAccessFeatureTest extends CrmTestCase
 
     public function test_user_without_wallet_view_gets_403_even_with_platform_tbank_permission(): void
     {
-        $actor = $this->userWithOnlyPermissions(['platformPayments.method.tbankSbp']);
+        $actor = $this->userWithOnlyPermissions(['platformPayments.method.acquiringSbp']);
         $this->actingAs($actor);
 
         $this->get(route('partner.wallet'))->assertForbidden();
@@ -74,7 +74,7 @@ final class PlatformPaymentsMethodAccessFeatureTest extends CrmTestCase
 
     public function test_user_without_service_view_gets_403_even_with_platform_tbank_permission(): void
     {
-        $actor = $this->userWithOnlyPermissions(['platformPayments.method.tbankSbp']);
+        $actor = $this->userWithOnlyPermissions(['platformPayments.method.acquiringSbp']);
         $this->actingAs($actor);
 
         $this->get(route('partner.payment.recharge'))->assertForbidden();
@@ -167,7 +167,9 @@ final class PlatformPaymentsMethodAccessFeatureTest extends CrmTestCase
 
         $response = $this->get(route('partner.wallet'))->assertOk();
         $this->assertNotSame('', trim((string) $response->getContent()));
-        $this->assertStringContainsString('id="walletPayTinkoffSbp"', $response->getContent());
+        $this->assertStringContainsString('Перейти к оплате', $response->getContent());
+        $checkout = $this->get(route('partner.wallet.checkout', ['amount' => 100]))->assertOk();
+        $this->assertStringContainsString('id="walletCheckoutSbp"', $checkout->getContent());
     }
 
     public function test_disallowed_http_methods_on_wallet_topup_do_not_return_500_or_empty_200(): void

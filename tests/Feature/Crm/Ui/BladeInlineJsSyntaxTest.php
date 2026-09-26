@@ -5820,57 +5820,47 @@ JS;
         $this->assertStringNotContainsString('wallet_balance ??', $content);
         $this->assertStringContainsString('id="walletTopupForm"', $content);
         $this->assertStringContainsString('id="walletTopupAmount"', $content);
+        $this->assertStringContainsString('method="get"', $content);
+        $this->assertStringContainsString("route('partner.wallet.checkout')", $content);
         $this->assertStringContainsString('data-error-for="amount"', $content);
         $this->assertStringContainsString('data-error-for="partner_id"', $content);
         $this->assertStringContainsString('data-error-for="payment_method"', $content);
-        $this->assertStringContainsString("@can('platformPayments.method.tbankSbp')", $content);
-        $this->assertStringContainsString("@can('platformPayments.method.yookassa')", $content);
-        $this->assertStringContainsString('id="walletPayTinkoffSbp"', $content);
-        $this->assertStringContainsString('id="walletPayYookassa"', $content);
-        $this->assertStringContainsString("old('payment_method', \$platformPaymentDefaultMethod)", $content);
-        $this->assertStringNotContainsString("old('payment_method', 'yookassa')", $content);
-        $this->assertStringContainsString('$canPayTbankSbp || $canPayYookassa', $content);
-        $tbankCan = strpos($content, "@can('platformPayments.method.tbankSbp')");
-        $ykCan = strpos($content, "@can('platformPayments.method.yookassa')");
-        $this->assertNotFalse($tbankCan);
-        $this->assertNotFalse($ykCan);
-        $this->assertTrue($tbankCan < $ykCan, 'Радио T‑Bank СБП должно быть выше ЮKassa');
+        $this->assertStringContainsString('$canPayAcquiringSbp || $canPayAcquiringCard || $canPayYookassa', $content);
+        $this->assertStringContainsString('Перейти к оплате', $content);
+        $this->assertStringNotContainsString('id="walletPayTinkoffSbp"', $content);
+        $this->assertStringNotContainsString('id="walletPayYookassa"', $content);
         $this->assertStringContainsString("@error('amount')", $content);
         $this->assertStringContainsString("@error('partner_id')", $content);
         $this->assertStringContainsString("@error('description')", $content);
         $this->assertStringContainsString("{{ \$message }}", $content);
         $this->assertStringContainsString("url: '/partner-wallet/transactions'", $content);
-        $this->assertStringContainsString("url: '/partner-wallet/topup'", $content);
-
-        $this->assertSame(1, substr_count($content, "$('#walletTopupForm').on('submit'"));
-        $submitPos = strpos($content, "$('#walletTopupForm').on('submit'");
-        $this->assertNotFalse($submitPos);
-        $submitChunk = substr($content, (int) $submitPos, 2500);
-        $this->assertStringContainsString('e.preventDefault()', $submitChunk);
-        $this->assertStringContainsString('$.ajax({', $submitChunk);
-        $this->assertStringContainsString('showWalletTopupErrors', $submitChunk);
-        $this->assertStringContainsString('json.errors', $submitChunk);
-        $this->assertStringNotContainsString('alert(', $submitChunk);
-
-        $this->assertStringContainsString('function showWalletTopupErrors', $content);
-        $this->assertStringContainsString('[data-error-for="', $content);
+        $this->assertStringNotContainsString("url: '/partner-wallet/topup'", $content);
+        $this->assertStringNotContainsString("$('#walletTopupForm').on('submit'", $content);
         $this->assertStringNotContainsString('Partner::first()', $content);
-
         $this->assertSame(1, substr_count($content, "$('#reloadTable').on('click'"));
         $this->assertStringContainsString('txTable.ajax.reload', $content);
-        $this->assertStringContainsString('window.location = res.redirect', $content);
-        $this->assertStringContainsString('$(this).serialize()', $submitChunk);
-        $this->assertStringNotContainsString("payment_method: 'yookassa'", $submitChunk);
-        $this->assertStringNotContainsString('payment_method: "yookassa"', $submitChunk);
-        $this->assertStringNotContainsString("$('#walletTopupAmount').val('')", $content);
-        $this->assertStringNotContainsString('$("#walletTopupAmount").val("")', $content);
-        $this->assertStringContainsString("$('#topupBtn').prop('disabled', false).text('Оплатить')", $content);
 
-        $this->assertInlineScriptsContainingHaveValidJavascript(
-            $path,
-            "$('#walletTopupForm').on('submit'",
-            'blade-js-partner-wallet-topup'
-        );
+        $checkout = (string) file_get_contents(resource_path('views/payment/partnerWalletCheckout.blade.php'));
+        $this->assertStringContainsString('id="walletCheckoutSbp"', $checkout);
+        $this->assertStringContainsString('id="walletCheckoutCard"', $checkout);
+        $this->assertStringContainsString('id="walletCheckoutYookassa"', $checkout);
+        $this->assertStringContainsString('value="acquiring_sbp"', $checkout);
+        $this->assertStringContainsString('value="acquiring_card"', $checkout);
+        $this->assertStringContainsString('value="yookassa"', $checkout);
+        $this->assertStringContainsString('СБП · эквайринг', $checkout);
+        $this->assertStringContainsString('Карта · эквайринг', $checkout);
+        $this->assertStringContainsString("route('partner.wallet.topup')", $checkout);
+        $this->assertStringContainsString('data-error-for="amount"', $checkout);
+        $this->assertStringContainsString('data-error-for="payment_method"', $checkout);
+        $sbpPos = strpos($checkout, 'id="walletCheckoutSbp"');
+        $cardPos = strpos($checkout, 'id="walletCheckoutCard"');
+        $ykPos = strpos($checkout, 'id="walletCheckoutYookassa"');
+        $this->assertNotFalse($sbpPos);
+        $this->assertNotFalse($cardPos);
+        $this->assertNotFalse($ykPos);
+        $this->assertTrue($sbpPos < $cardPos);
+        $this->assertTrue($cardPos < $ykPos);
+
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $path,
             "$('#reloadTable').on('click'",
@@ -5931,7 +5921,7 @@ JS;
         $this->assertStringContainsString('data-error-for="days"', $content);
         $this->assertStringContainsString('data-error-for="description"', $content);
         $this->assertStringContainsString('data-error-for="payment_method"', $content);
-        $this->assertStringContainsString("@can('platformPayments.method.tbankSbp')", $content);
+        $this->assertStringContainsString("@can('platformPayments.method.acquiringSbp')", $content);
         $this->assertStringContainsString("@can('platformPayments.method.yookassa')", $content);
         $this->assertStringContainsString("old('payment_method', \$platformPaymentDefaultMethod)", $content);
         $this->assertStringNotContainsString("old('payment_method', 'yookassa')", $content);
@@ -5946,7 +5936,7 @@ JS;
         $formChunk = substr($content, $formPos, $formEnd - $formPos);
         $this->assertStringNotContainsString('$.ajax', $formChunk);
         $this->assertStringNotContainsString('e.preventDefault()', $formChunk);
-        $tbankCan = strpos($formChunk, "@can('platformPayments.method.tbankSbp')");
+        $tbankCan = strpos($formChunk, "@can('platformPayments.method.acquiringSbp')");
         $ykCan = strpos($formChunk, "@can('platformPayments.method.yookassa')");
         $this->assertNotFalse($tbankCan);
         $this->assertNotFalse($ykCan);

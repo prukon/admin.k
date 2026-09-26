@@ -38,12 +38,25 @@ final class PartnerWalletPartnerIsolationFeatureTest extends CrmTestCase
         $this->partner->forceFill(['wallet_balance_cents' => 12345])->save();
         $this->foreignPartner->forceFill(['wallet_balance_cents' => 99900])->save();
 
-        $this->get(route('partner.wallet'))
+        $page = $this->get(route('partner.wallet'))
+            ->assertOk()
+            ->assertSee('123,45', false)
+            ->assertDontSee('999,00', false)
+            ->getContent();
+
+        $formPos = strpos($page, 'id="walletTopupForm"');
+        $this->assertNotFalse($formPos);
+        $formEnd = strpos($page, '</form>', $formPos);
+        $this->assertNotFalse($formEnd);
+        $form = substr($page, $formPos, $formEnd - $formPos);
+        $this->assertStringContainsString('method="get"', $form);
+        $this->assertStringContainsString('/partner-wallet/checkout', $form);
+        $this->assertStringNotContainsString('name="partner_id"', $form);
+
+        $this->get(route('partner.wallet.checkout', ['amount' => 100]))
             ->assertOk()
             ->assertSee('name="partner_id" value="'.$this->partner->id.'"', false)
-            ->assertDontSee('name="partner_id" value="'.$this->foreignPartner->id.'"', false)
-            ->assertSee('123,45', false)
-            ->assertDontSee('999,00', false);
+            ->assertDontSee('name="partner_id" value="'.$this->foreignPartner->id.'"', false);
     }
 
     public function test_transactions_endpoint_returns_only_current_partner_rows(): void

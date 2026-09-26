@@ -202,9 +202,10 @@ class ContractTemplateLegalEntityVariablesFeatureTest extends ContractsFeatureTe
         $this->partner->wallet_balance_cents = 10000;
         $this->partner->save();
 
+        $team = Team::factory()->for($this->partner)->create(['legal_entity_id' => null]);
         $student = User::factory()->create([
             'partner_id' => $this->partner->id,
-            'team_id'    => null,
+            'team_id'    => $team->id,
             'is_enabled' => 1,
             'email'      => 'no-le@example.com',
         ]);
@@ -214,16 +215,19 @@ class ContractTemplateLegalEntityVariablesFeatureTest extends ContractsFeatureTe
             ->post('/client-contracts', [
                 'creation_mode'        => Contract::CREATION_MODE_TEMPLATE,
                 'user_id'              => $student->id,
+                'group_id'             => $team->id,
                 'contract_template_id' => $template->id,
             ])
             ->assertStatus(302)
             ->assertSessionHasErrors('group_id');
 
         $this->assertStringContainsString(
-            'Не найдено активное юр. лицо',
+            'У выбранной группы не привязано юр. лицо',
             session('errors')->first('group_id'),
         );
         $this->assertSame(0, Contract::query()->count());
+        $this->partner->refresh();
+        $this->assertSame(10000, (int) $this->partner->wallet_balance_cents);
         Mail::assertNothingSent();
     }
 

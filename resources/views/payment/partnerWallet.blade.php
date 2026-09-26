@@ -16,44 +16,21 @@
                 <div class="card">
                     <div class="card-header">Пополнить баланс</div>
                     <div class="card-body">
-                        <form id="walletTopupForm">
-                            @csrf
-                            <input type="hidden" name="partner_id" value="{{ $partner->id }}">
+                        <form id="walletTopupForm" method="get" action="{{ route('partner.wallet.checkout') }}">
                             <div class="mb-3">
                                 <label class="form-label" for="walletTopupAmount">Сумма, ₽</label>
-                                <input type="number" step="0.01" min="1" class="form-control @error('amount') is-invalid @enderror" id="walletTopupAmount" name="amount" required>
+                                <input type="number" step="0.01" min="1" class="form-control @error('amount') is-invalid @enderror" id="walletTopupAmount" name="amount" value="{{ old('amount') }}" required>
                                 <div class="invalid-feedback @error('amount') d-block @enderror" data-error-for="amount">@error('amount'){{ $message }}@enderror</div>
-                            </div>
-                            <div class="mb-3">
-                                <div class="form-label">Способ оплаты</div>
-                                @can('platformPayments.method.tbankSbp')
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="payment_method" id="walletPayTinkoffSbp" value="tinkoff_sbp" {{ old('payment_method', $platformPaymentDefaultMethod) === 'tinkoff_sbp' ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="walletPayTinkoffSbp">T‑Bank СБП</label>
-                                </div>
-                                @endcan
-                                @can('platformPayments.method.yookassa')
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="payment_method" id="walletPayYookassa" value="yookassa" {{ old('payment_method', $platformPaymentDefaultMethod) === 'yookassa' ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="walletPayYookassa">ЮKassa</label>
-                                </div>
-                                @endcan
-                                <div class="invalid-feedback d-block" data-error-for="payment_method">@error('payment_method'){{ $message }}@enderror</div>
                             </div>
                             <div class="invalid-feedback d-block" data-error-for="partner_id">@error('partner_id'){{ $message }}@enderror</div>
                             <div class="invalid-feedback d-block" data-error-for="description">@error('description'){{ $message }}@enderror</div>
-                            <div class="text-danger small mb-2 d-none" id="walletTopupFormError"></div>
-                            {{--<div class="mb-3">--}}
-                                {{--<label class="form-label">Описание (необязательно)</label>--}}
-                                {{--<input type="text" class="form-control" name="description" placeholder="Пополнение баланса">--}}
-                            {{--</div>--}}
-                            @if($canPayTbankSbp || $canPayYookassa)
-                            <button type="submit" class="btn btn-primary w-100" id="topupBtn">Оплатить</button>
+                            <div class="invalid-feedback d-block" data-error-for="payment_method">@error('payment_method'){{ $message }}@enderror</div>
+                            @if($canPayAcquiringSbp || $canPayAcquiringCard || $canPayYookassa)
+                            <button type="submit" class="btn btn-primary w-100" id="topupBtn">Перейти к оплате</button>
                             @else
                             <div class="alert alert-warning">Нет доступного способа оплаты.</div>
-                            <button type="submit" class="btn btn-primary w-100" id="topupBtn" disabled>Оплатить</button>
+                            <button type="submit" class="btn btn-primary w-100" id="topupBtn" disabled>Перейти к оплате</button>
                             @endif
-                            {{--<div class="small text-muted mt-2">Оплата через YooKassa. После оплаты вы вернётесь на сайт.</div>--}}
                         </form>
                     </div>
                 </div>
@@ -138,68 +115,6 @@
                 txTable.ajax.reload(null, false);
             });
 
-            function clearWalletTopupErrors() {
-                var $form = $('#walletTopupForm');
-                $form.find('.is-invalid').removeClass('is-invalid');
-                $form.find('[data-error-for]').text('');
-                $('#walletTopupFormError').addClass('d-none').text('');
-            }
-
-            function showWalletTopupErrors(errors, fallbackMessage) {
-                var $form = $('#walletTopupForm');
-                var shown = false;
-
-                if (errors && typeof errors === 'object') {
-                    Object.keys(errors).forEach(function (field) {
-                        var messages = errors[field];
-                        var text = Array.isArray(messages) ? messages[0] : messages;
-                        if (!text) {
-                            return;
-                        }
-                        var $input = $form.find('[name="' + field + '"]');
-                        var $slot = $form.find('[data-error-for="' + field + '"]');
-                        if ($input.length) {
-                            $input.addClass('is-invalid');
-                        }
-                        if ($slot.length) {
-                            $slot.text(text);
-                            shown = true;
-                        }
-                    });
-                }
-
-                if (!shown) {
-                    $('#walletTopupFormError').removeClass('d-none').text(fallbackMessage || 'Ошибка сервера');
-                }
-            }
-
-            // Ajax пополнение
-            $('#walletTopupForm').on('submit', function(e) {
-                e.preventDefault();
-
-                clearWalletTopupErrors();
-                $('#topupBtn').prop('disabled', true).text('Создаём платёж...');
-
-                $.ajax({
-                    url: '/partner-wallet/topup',
-                    method: 'POST',
-                    data: $(this).serialize(),
-                    success: function(res) {
-                        if (res && res.ok && res.redirect) {
-                            window.location = res.redirect;
-                        } else {
-                            showWalletTopupErrors(null, 'Не удалось создать платёж');
-                            $('#topupBtn').prop('disabled', false).text('Оплатить');
-                        }
-                    },
-                    error: function(xhr) {
-                        var json = xhr.responseJSON || {};
-                        var msg = json.message ? json.message : 'Ошибка сервера';
-                        showWalletTopupErrors(json.errors, msg);
-                        $('#topupBtn').prop('disabled', false).text('Оплатить');
-                    }
-                });
-            });
         });
     </script>
 @endpush

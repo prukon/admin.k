@@ -60,10 +60,10 @@
 
                                             <div class="mb-3 text-start">
                                                 <div class="form-label">Способ оплаты</div>
-                                                @can('platformPayments.method.tbankSbp')
+                                                @can('platformPayments.method.acquiringSbp')
                                                 <div class="form-check">
-                                                    <input class="form-check-input" type="radio" name="payment_method" id="servicePayTinkoffSbp" value="tinkoff_sbp" {{ old('payment_method', $platformPaymentDefaultMethod) === 'tinkoff_sbp' ? 'checked' : '' }}>
-                                                    <label class="form-check-label" for="servicePayTinkoffSbp">T‑Bank СБП</label>
+                                                    <input class="form-check-input" type="radio" name="payment_method" id="servicePayTinkoffSbp" value="acquiring_sbp" {{ \App\Support\PlatformPaymentMethods::canonicalize(old('payment_method', $platformPaymentDefaultMethod)) === 'acquiring_sbp' ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="servicePayTinkoffSbp">СБП · эквайринг</label>
                                                 </div>
                                                 @endcan
                                                 @can('platformPayments.method.yookassa')

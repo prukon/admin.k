@@ -19,11 +19,15 @@ final class PlatformPaymentsMethodPermissionCatalogFeatureTest extends CrmTestCa
 {
     private const GROUP_SLUG = 'platformPayments';
 
-    private const PERM_TBANK = 'platformPayments.method.tbankSbp';
+    private const PERM_TBANK = 'platformPayments.method.acquiringSbp';
+
+    private const PERM_CARD = 'platformPayments.method.acquiringCard';
 
     private const PERM_YOOKASSA = 'platformPayments.method.yookassa';
 
-    private const DESC_TBANK = 'T‑Bank СБП (кошелёк и абонплата)';
+    private const DESC_TBANK = 'СБП · эквайринг (кошелёк и абонплата)';
+
+    private const DESC_CARD = 'Карта · эквайринг (кошелёк и абонплата)';
 
     private const DESC_YOOKASSA = 'ЮKassa (кошелёк и абонплата)';
 
@@ -43,6 +47,13 @@ final class PlatformPaymentsMethodPermissionCatalogFeatureTest extends CrmTestCa
         $this->assertSame($groupId, (int) $tbank->permission_group_id);
         $this->assertSame(0, (int) $tbank->is_visible);
         $this->assertSame(10, (int) $tbank->sort_order);
+
+        $card = DB::table('permissions')->where('name', self::PERM_CARD)->first();
+        $this->assertNotNull($card);
+        $this->assertSame(self::DESC_CARD, (string) $card->description);
+        $this->assertSame($groupId, (int) $card->permission_group_id);
+        $this->assertSame(0, (int) $card->is_visible);
+        $this->assertSame(15, (int) $card->sort_order);
 
         $yookassa = DB::table('permissions')->where('name', self::PERM_YOOKASSA)->first();
         $this->assertNotNull($yookassa);
@@ -66,8 +77,10 @@ final class PlatformPaymentsMethodPermissionCatalogFeatureTest extends CrmTestCa
 
         $this->assertStringContainsString('Оплата платформы', $html);
         $this->assertStringContainsString(self::PERM_TBANK, $html);
+        $this->assertStringContainsString(self::PERM_CARD, $html);
         $this->assertStringContainsString(self::PERM_YOOKASSA, $html);
         $this->assertStringContainsString(self::DESC_TBANK, $html);
+        $this->assertStringContainsString(self::DESC_CARD, $html);
         $this->assertStringContainsString(self::DESC_YOOKASSA, $html);
     }
 
@@ -75,6 +88,7 @@ final class PlatformPaymentsMethodPermissionCatalogFeatureTest extends CrmTestCa
     {
         $partner = Partner::factory()->create();
         $tbankId = $this->permissionId(self::PERM_TBANK);
+        $cardId = $this->permissionId(self::PERM_CARD);
         $yookassaId = $this->permissionId(self::PERM_YOOKASSA);
 
         $adminRoleId = $this->roleId('admin');
@@ -84,7 +98,7 @@ final class PlatformPaymentsMethodPermissionCatalogFeatureTest extends CrmTestCa
                 ->where('role_id', $adminRoleId)
                 ->where('permission_id', $tbankId)
                 ->exists(),
-            'Новый партнёр: admin должен получить T‑Bank СБП платформы из role_base_permissions'
+            'Новый партнёр: admin должен получить СБП · эквайринг из role_base_permissions'
         );
 
         foreach (['user', 'admin', 'trainer'] as $roleName) {
@@ -97,6 +111,15 @@ final class PlatformPaymentsMethodPermissionCatalogFeatureTest extends CrmTestCa
                 "Роль {$roleName} нового партнёра не должна иметь ".self::PERM_YOOKASSA
             );
         }
+
+        $this->assertTrue(
+            DB::table('permission_role')
+                ->where('partner_id', $partner->id)
+                ->where('role_id', $adminRoleId)
+                ->where('permission_id', $cardId)
+                ->exists(),
+            'Новый партнёр: admin должен получить карту · эквайринг из role_base_permissions'
+        );
 
         foreach (['user', 'trainer'] as $roleName) {
             $this->assertFalse(

@@ -23,7 +23,7 @@ final class CreatePartnerWalletTopupRequest extends FormRequest
     public function rules(): array
     {
         $currentPartnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
-        $isSbp = $this->input('payment_method') === PlatformPaymentMethods::METHOD_TBANK_SBP;
+        $isSbp = PlatformPaymentMethods::isAcquiringSbp($this->input('payment_method'));
         $allowedMethods = PlatformPaymentMethods::allowedMethods($this->user());
 
         return [
@@ -65,7 +65,7 @@ final class CreatePartnerWalletTopupRequest extends FormRequest
 
     public function messages(): array
     {
-        $isSbp = $this->input('payment_method') === PlatformPaymentMethods::METHOD_TBANK_SBP;
+        $isSbp = PlatformPaymentMethods::isAcquiringSbp($this->input('payment_method'));
 
         return [
             'amount.required' => 'Укажите сумму.',
@@ -103,7 +103,10 @@ final class CreatePartnerWalletTopupRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->filled('payment_method')) {
+        $method = PlatformPaymentMethods::canonicalize($this->input('payment_method'));
+        if (is_string($method) && $method !== '') {
+            $this->merge(['payment_method' => $method]);
+
             return;
         }
 

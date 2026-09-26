@@ -55,7 +55,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             'account'         => 13,
             'users'           => 17,
             'settings'        => 8,
-            'platformPayments' => 2,
+            'platformPayments' => 3,
             'paymentMethods'  => 6,
             'inAppNotifications' => 2,
             'misc'            => 1,
@@ -224,7 +224,8 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'settings.systemMonitors.view',
             ],
             'platformPayments' => [
-                'platformPayments.method.tbankSbp',
+                'platformPayments.method.acquiringSbp',
+                'platformPayments.method.acquiringCard',
                 'platformPayments.method.yookassa',
             ],
             'paymentMethods' => [

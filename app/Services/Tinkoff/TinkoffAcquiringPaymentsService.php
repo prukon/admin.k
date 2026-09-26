@@ -27,6 +27,25 @@ class TinkoffAcquiringPaymentsService
         array $data,
         string $successUrl,
     ): TinkoffPayment {
+        return $this->init('sbp', $partnerId, $amountCents, $data, $successUrl);
+    }
+
+    public function initCard(
+        int $partnerId,
+        int $amountCents,
+        array $data,
+        string $successUrl,
+    ): TinkoffPayment {
+        return $this->init('card', $partnerId, $amountCents, $data, $successUrl);
+    }
+
+    private function init(
+        string $method,
+        int $partnerId,
+        int $amountCents,
+        array $data,
+        string $successUrl,
+    ): TinkoffPayment {
         $orderId = Str::uuid()->toString();
 
         $payment = TinkoffPayment::create([
@@ -34,7 +53,7 @@ class TinkoffAcquiringPaymentsService
             'partner_id' => $partnerId,
             'legal_entity_id' => null,
             'amount' => $amountCents,
-            'method' => 'sbp',
+            'method' => $method,
             'channel' => TinkoffPayment::CHANNEL_ACQUIRING,
             'status' => 'NEW',
         ]);

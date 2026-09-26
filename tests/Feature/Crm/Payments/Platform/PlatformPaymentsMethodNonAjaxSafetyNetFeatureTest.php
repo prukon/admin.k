@@ -48,8 +48,8 @@ final class PlatformPaymentsMethodNonAjaxSafetyNetFeatureTest extends CrmTestCas
             ));
 
         $this->assertNotSame(422, $response->getStatusCode());
-        $this->assertContains($response->getStatusCode(), [200, 302]);
-        $this->assertNotSame('', trim((string) $response->getContent()));
+        $response->assertRedirect();
+        $this->assertStringContainsString('/tinkoff/qr/996101', (string) $response->headers->get('Location'));
 
         $tx = $this->latestWalletTx();
         $this->assertNotNull($tx);
@@ -96,7 +96,7 @@ final class PlatformPaymentsMethodNonAjaxSafetyNetFeatureTest extends CrmTestCas
     {
         $this->grantNamedPermission($this->user, 'platformPayments.method.yookassa');
 
-        $html = $this->from(route('partner.wallet'))
+        $html = $this->from(route('partner.wallet.checkout', ['amount' => 100]))
             ->followingRedirects()
             ->post(route('partner.wallet.topup'), [
                 '_token' => csrf_token(),
@@ -107,8 +107,8 @@ final class PlatformPaymentsMethodNonAjaxSafetyNetFeatureTest extends CrmTestCas
             ->assertOk()
             ->getContent();
 
-        $this->assertRadioChecked($html, 'walletPayYookassa');
-        $this->assertRadioNotChecked($html, 'walletPayTinkoffSbp');
+        $this->assertStringContainsString('id="walletCheckoutYookassa"', $html);
+        $this->assertStringContainsString('id="walletCheckoutSbp"', $html);
         $this->assertFieldSlotContains($html, 'amount', 'Сумма должна быть не меньше 1 ₽.');
         $this->assertTopupDidNotCreateTransaction();
     }
@@ -117,7 +117,7 @@ final class PlatformPaymentsMethodNonAjaxSafetyNetFeatureTest extends CrmTestCas
     {
         $this->grantNamedPermission($this->user, 'platformPayments.method.yookassa');
 
-        $html = $this->from(route('partner.wallet'))
+        $html = $this->from(route('partner.wallet.checkout', ['amount' => 100]))
             ->followingRedirects()
             ->post(route('partner.wallet.topup'), array_merge(
                 ['_token' => csrf_token()],
@@ -126,8 +126,8 @@ final class PlatformPaymentsMethodNonAjaxSafetyNetFeatureTest extends CrmTestCas
             ->assertOk()
             ->getContent();
 
-        $this->assertRadioChecked($html, 'walletPayTinkoffSbp');
-        $this->assertRadioNotChecked($html, 'walletPayYookassa');
+        $this->assertStringContainsString('id="walletCheckoutSbp"', $html);
+        $this->assertStringContainsString('id="walletCheckoutYookassa"', $html);
         $this->assertFieldSlotContains($html, 'amount', 'Сумма для СБП должна быть не меньше 10 ₽.');
     }
 
@@ -205,7 +205,7 @@ final class PlatformPaymentsMethodNonAjaxSafetyNetFeatureTest extends CrmTestCas
 
         $payment = PartnerPayment::query()->first();
         $this->assertNotNull($payment);
-        $this->assertSame('tinkoff_sbp', $payment->payment_method);
+        $this->assertSame('acquiring_sbp', $payment->payment_method);
         $this->assertSame('pending', $payment->payment_status);
     }
 

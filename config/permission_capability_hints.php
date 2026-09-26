@@ -293,21 +293,26 @@ return [
     'servicePayments.view' => [
         'Пункт «Оплата сервиса» в шапке',
         'Страницы пополнения и истории /partner-payment',
-        'QR оплаты абонплаты T‑Bank СБП (нужно ещё platformPayments.method.tbankSbp)',
+        'QR оплаты абонплаты СБП · эквайринг (нужно ещё platformPayments.method.acquiringSbp)',
     ],
     'partnerWallet.view' => [
         'Пункт «Кошелек» в шапке',
         'Страница /partner-wallet: баланс, пополнение, история',
-        'QR пополнения кошелька T‑Bank СБП (нужно ещё platformPayments.method.tbankSbp)',
+        'Страница способов /partner-wallet/checkout и QR СБП · эквайринг (нужно ещё platformPayments.method.acquiringSbp)',
     ],
     'partner.oferta.pdf' => [
         'Кнопка «Скачать PDF» на партнёрской оферте',
         'Скачивание /partner/oferta.pdf и /admin/partner-offerta/pdf',
     ],
 
-    'platformPayments.method.tbankSbp' => [
-        'Радио T‑Bank СБП на /partner-wallet и /partner-payment/recharge',
-        'Создание платежа СБП обычного эквайринга платформы',
+    'platformPayments.method.acquiringSbp' => [
+        'Карточка «СБП · эквайринг» на /partner-wallet/checkout',
+        'Радио СБП · эквайринг на /partner-payment/recharge',
+        'Создание платежа СБП обычного эквайринга (терминал tbank_acquiring)',
+    ],
+    'platformPayments.method.acquiringCard' => [
+        'Карточка «Карта · эквайринг» на /partner-wallet/checkout',
+        'Редирект на платёжную форму T‑Bank обычного эквайринга',
     ],
     'platformPayments.method.yookassa' => [
         'Радио ЮKassa на /partner-wallet и /partner-payment/recharge',

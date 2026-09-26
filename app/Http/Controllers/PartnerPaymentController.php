@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Partner\CreatePartnerServicePaymentRequest;
 use App\Http\Requests\Partner\CreatePartnerWalletTopupRequest;
+use App\Http\Requests\Partner\ShowPartnerWalletCheckoutRequest;
 use App\Models\Partner;
 use App\Models\PartnerAccess;
 use App\Models\PartnerPayment;
@@ -118,7 +119,7 @@ class PartnerPaymentController extends AdminBaseController
         $partner = $this->currentUserPartnerOrFail();
         $this->guardPartnerAccess((int) $data['partner_id']);
 
-        if (($data['payment_method'] ?? PlatformPaymentMethods::METHOD_TBANK_SBP) === PlatformPaymentMethods::METHOD_YOOKASSA) {
+        if (($data['payment_method'] ?? PlatformPaymentMethods::METHOD_ACQUIRING_SBP) === PlatformPaymentMethods::METHOD_YOOKASSA) {
             return $this->createServicePaymentYookassa($data, $partner);
         }
 
@@ -153,7 +154,7 @@ class PartnerPaymentController extends AdminBaseController
         $curUserId = $curUser->id;
 
         try {
-            $partnerPayment = $this->createPendingServicePayment($data, $partner, PlatformPaymentMethods::METHOD_TBANK_SBP);
+            $partnerPayment = $this->createPendingServicePayment($data, $partner, PlatformPaymentMethods::METHOD_ACQUIRING_SBP);
 
             $tinkoffPayment = $acquiring->initSbp(
                 $partnerId,
@@ -313,7 +314,7 @@ class PartnerPaymentController extends AdminBaseController
 
     // ---------- НОВЫЕ МЕТОДЫ ДЛЯ КОШЕЛЬКА ПАРТНЁРА (ДОБАВЛЕНО) ----------
 
-    // Страница кошелька (пополнение + история)
+    // Страница кошелька (сумма + история)
     public function showWallet()
     {
         return view('payment.partnerWallet', array_merge([
@@ -322,7 +323,15 @@ class PartnerPaymentController extends AdminBaseController
         ], PlatformPaymentMethods::viewState(auth()->user())));
     }
 
-    // Создать платёж на пополнение кошелька (ЮKassa или T‑Bank СБП)
+    public function showWalletCheckout(ShowPartnerWalletCheckoutRequest $request)
+    {
+        return view('payment.partnerWalletCheckout', array_merge([
+            'partner' => $this->currentUserPartnerOrFail(),
+            'amount' => (float) $request->validated()['amount'],
+        ], PlatformPaymentMethods::viewState(auth()->user())));
+    }
+
+    // Создать платёж на пополнение кошелька (эквайринг СБП / карта или ЮKassa)
     public function createWalletTopup(CreatePartnerWalletTopupRequest $request, TinkoffAcquiringPaymentsService $acquiring)
     {
         $data = $request->validated();
@@ -330,8 +339,12 @@ class PartnerPaymentController extends AdminBaseController
         $partner = $this->currentUserPartnerOrFail();
         $this->guardPartnerAccess((int) $data['partner_id']);
 
-        if (($data['payment_method'] ?? PlatformPaymentMethods::METHOD_TBANK_SBP) === PlatformPaymentMethods::METHOD_TBANK_SBP) {
+        $method = (string) ($data['payment_method'] ?? PlatformPaymentMethods::METHOD_ACQUIRING_SBP);
+        if ($method === PlatformPaymentMethods::METHOD_ACQUIRING_SBP) {
             return $this->createWalletTopupTinkoffSbp($data, $partner, $acquiring);
+        }
+        if ($method === PlatformPaymentMethods::METHOD_ACQUIRING_CARD) {
+            return $this->createWalletTopupTinkoffCard($data, $partner, $acquiring);
         }
 
         return $this->createWalletTopupYookassaInner($data, $partner);
@@ -400,19 +413,83 @@ class PartnerPaymentController extends AdminBaseController
             $tx->payment_id = (string) $tinkoffPayment->tinkoff_payment_id;
             $tx->save();
 
-            return response()->json([
-                'ok' => true,
-                'redirect' => route('tinkoff.qr', $tinkoffPayment->tinkoff_payment_id),
-            ]);
+            return $this->walletPayResult(route('tinkoff.qr', $tinkoffPayment->tinkoff_payment_id));
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            Log::error('Wallet topup T‑Bank createPayment error: '.$e->getMessage());
+            return $this->walletPayError($e, 'Wallet topup T‑Bank createPayment error: ');
+        }
+    }
 
-            return response()->json([
-                'ok' => false,
-                'message' => 'Ошибка создания платежа: '.$e->getMessage(),
-            ], 500);
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function createWalletTopupTinkoffCard(array $data, Partner $partner, TinkoffAcquiringPaymentsService $acquiring)
+    {
+        if (! TbankAcquiringTerminalConfig::isActive()) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Оплата картой · эквайринг не подключена на платформе.',
+            ]);
+        }
+
+        $partnerEmail = trim((string) ($partner->email ?? ''));
+        if ($partnerEmail === '') {
+            throw ValidationException::withMessages([
+                'payment_method' => 'У школы не указан email. Он нужен для чека.',
+            ]);
+        }
+
+        $partnerId = (int) $partner->id;
+        $amount    = (float) $data['amount'];
+        $desc      = (isset($data['description']) && is_string($data['description']) && $data['description'] !== '')
+            ? $data['description']
+            : 'Пополнение баланса KidsCRM';
+
+        $user = auth()->user();
+        if (! $user) {
+            return response()->json(['ok' => false, 'message' => 'Не авторизован'], 401);
+        }
+
+        $tx = DB::transaction(function () use ($partnerId, $user, $amount, $desc) {
+            return PartnerWalletTransaction::create([
+                'partner_id' => $partnerId,
+                'user_id'    => $user->id,
+                'type'       => 'credit',
+                'amount_cents' => Money::toCentsOrFail($amount),
+                'currency'   => 'RUB',
+                'provider'   => 'tinkoff',
+                'status'     => 'pending',
+                'description'=> $desc,
+                'meta'       => null,
+            ]);
+        });
+
+        try {
+            $tinkoffPayment = $acquiring->initCard(
+                $partnerId,
+                Money::toCentsOrFail($amount),
+                [
+                    'scope' => TinkoffAcquiringPaymentsService::SCOPE_WALLET_TOPUP,
+                    'wallet_transaction_id' => (string) $tx->id,
+                    'partner_id' => (string) $partnerId,
+                    'user_id' => (string) $user->id,
+                ],
+                url('/partner-wallet/success'),
+            );
+
+            $paymentUrl = trim((string) ($tinkoffPayment->payment_url ?? ''));
+            if ($paymentUrl === '' || empty($tinkoffPayment->tinkoff_payment_id)) {
+                throw new \RuntimeException('Не удалось инициализировать оплату T‑Bank (карта)');
+            }
+
+            $tx->payment_id = (string) $tinkoffPayment->tinkoff_payment_id;
+            $tx->save();
+
+            return $this->walletPayResult($paymentUrl);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return $this->walletPayError($e, 'Wallet topup T‑Bank card createPayment error: ');
         }
     }
 
@@ -491,19 +568,40 @@ class PartnerPaymentController extends AdminBaseController
                 $tx->save();
             });
 
-            return response()->json([
-                'ok' => true,
-                'redirect' => $confirmationUrl,
-            ]);
+            return $this->walletPayResult($confirmationUrl);
 
         } catch (\Throwable $e) {
-            Log::error('Wallet topup createPayment error: '.$e->getMessage());
+            return $this->walletPayError($e, 'Wallet topup createPayment error: ');
+        }
+    }
 
+    private function walletPayResult(string $url)
+    {
+        if (request()->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'redirect' => $url,
+            ]);
+        }
+
+        return redirect()->to($url);
+    }
+
+    private function walletPayError(\Throwable $e, string $logPrefix)
+    {
+        Log::error($logPrefix.$e->getMessage());
+        $message = 'Ошибка создания платежа: '.$e->getMessage();
+
+        if (request()->expectsJson()) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Ошибка создания платежа: '.$e->getMessage(),
+                'message' => $message,
             ], 500);
         }
+
+        return back()->withErrors([
+            'payment_method' => $message,
+        ]);
     }
 
     public function partnerPaymentSuccess()

@@ -50,11 +50,12 @@ final class TbankAcquiringTerminalConfig
 
         $s = $ps->settings;
         $isTest = (bool) $ps->test_mode;
+        $terminalKey = (string) ($s['terminal_key'] ?? '');
 
         return [
-            'terminal_key' => (string) ($s['terminal_key'] ?? ''),
+            'terminal_key' => $terminalKey,
             'password' => (string) ($s['token_password'] ?? ''),
-            'base_url' => $isTest ? 'https://rest-api-test.tinkoff.ru' : 'https://securepay.tinkoff.ru',
+            'base_url' => self::apiBaseUrl($isTest, $terminalKey),
             'notify_url' => url('/webhooks/tinkoff/acquiring'),
         ];
     }
@@ -66,5 +67,18 @@ final class TbankAcquiringTerminalConfig
         } catch (RuntimeException) {
             return null;
         }
+    }
+
+    /**
+     * Тестовый терминал из кабинета (ключ с приставкой DEMO) живёт на боевом хосте.
+     * rest-api-test — отдельная песочница, не для DEMO.
+     */
+    public static function apiBaseUrl(bool $isTest, string $terminalKey): string
+    {
+        if ($isTest && ! str_ends_with($terminalKey, 'DEMO')) {
+            return 'https://rest-api-test.tinkoff.ru';
+        }
+
+        return 'https://securepay.tinkoff.ru';
     }
 }

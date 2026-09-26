@@ -493,8 +493,12 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         // Оплата платформы (кошелёк и абонплата CRM, не витрина)
-        Gate::define('platformPayments.method.tbankSbp', function (User $user) {
-            return $user->hasPermission('platformPayments.method.tbankSbp');
+        Gate::define('platformPayments.method.acquiringSbp', function (User $user) {
+            return $user->hasPermission('platformPayments.method.acquiringSbp');
+        });
+
+        Gate::define('platformPayments.method.acquiringCard', function (User $user) {
+            return $user->hasPermission('platformPayments.method.acquiringCard');
         });
 
         Gate::define('platformPayments.method.yookassa', function (User $user) {

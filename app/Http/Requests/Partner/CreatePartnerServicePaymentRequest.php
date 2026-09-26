@@ -23,8 +23,8 @@ final class CreatePartnerServicePaymentRequest extends FormRequest
     public function rules(): array
     {
         $currentPartnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
-        $isSbp = $this->input('payment_method') === PlatformPaymentMethods::METHOD_TBANK_SBP;
-        $allowedMethods = PlatformPaymentMethods::allowedMethods($this->user());
+        $isSbp = PlatformPaymentMethods::isAcquiringSbp($this->input('payment_method'));
+        $allowedMethods = PlatformPaymentMethods::allowedServiceMethods($this->user());
 
         return [
             'amount' => [
@@ -72,7 +72,7 @@ final class CreatePartnerServicePaymentRequest extends FormRequest
 
     public function messages(): array
     {
-        $isSbp = $this->input('payment_method') === PlatformPaymentMethods::METHOD_TBANK_SBP;
+        $isSbp = PlatformPaymentMethods::isAcquiringSbp($this->input('payment_method'));
 
         return [
             'amount.required' => 'Укажите сумму.',
@@ -108,7 +108,7 @@ final class CreatePartnerServicePaymentRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            if (PlatformPaymentMethods::allowedMethods($this->user()) === []) {
+            if (PlatformPaymentMethods::allowedServiceMethods($this->user()) === []) {
                 $validator->errors()->add('payment_method', 'Нет доступного способа оплаты.');
             }
         });
@@ -116,11 +116,14 @@ final class CreatePartnerServicePaymentRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->filled('payment_method')) {
+        $method = PlatformPaymentMethods::canonicalize($this->input('payment_method'));
+        if (is_string($method) && $method !== '') {
+            $this->merge(['payment_method' => $method]);
+
             return;
         }
 
-        $default = PlatformPaymentMethods::defaultMethod($this->user());
+        $default = PlatformPaymentMethods::defaultServiceMethod($this->user());
         if ($default !== null) {
             $this->merge(['payment_method' => $default]);
         }

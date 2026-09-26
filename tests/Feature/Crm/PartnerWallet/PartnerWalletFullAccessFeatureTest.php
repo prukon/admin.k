@@ -69,8 +69,14 @@ final class PartnerWalletFullAccessFeatureTest extends CrmTestCase
 
         $this->get(route('partner.wallet'))
             ->assertOk()
-            ->assertSee('name="partner_id" value="'.$this->foreignPartner->id.'"', false)
+            ->assertSee('method="get"', false)
+            ->assertSee('/partner-wallet/checkout', false)
             ->assertSee('88,00', false);
+
+        $this->get(route('partner.wallet.checkout', ['amount' => 100]))
+            ->assertOk()
+            ->assertSee('name="partner_id" value="'.$this->foreignPartner->id.'"', false)
+            ->assertDontSee('name="partner_id" value="'.$this->partner->id.'"', false);
 
         $json = $this->getJson($this->walletTransactionsUrl())->assertOk()->json();
         $ids = $this->walletTxIds($json);

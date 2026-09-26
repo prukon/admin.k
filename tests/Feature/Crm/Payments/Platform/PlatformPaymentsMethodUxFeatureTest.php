@@ -36,31 +36,30 @@ final class PlatformPaymentsMethodUxFeatureTest extends CrmTestCase
 
     public function test_wallet_first_open_checks_tbank_enables_pay_and_hides_yookassa_for_admin(): void
     {
-        $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
+        $wallet = $this->get(route('partner.wallet'))->assertOk()->getContent();
+        $this->assertDoesNotMatchRegularExpression('/id="topupBtn"[^>]*disabled/', $wallet);
+        $this->assertStringContainsString('Перейти к оплате', $wallet);
 
-        $this->assertStringContainsString('id="walletPayTinkoffSbp"', $html);
-        $this->assertStringNotContainsString('id="walletPayYookassa"', $html);
-        $this->assertRadioChecked($html, 'walletPayTinkoffSbp');
-        $this->assertDoesNotMatchRegularExpression('/id="topupBtn"[^>]*disabled/', $html);
+        $html = $this->get(route('partner.wallet.checkout', ['amount' => 100]))->assertOk()->getContent();
+        $this->assertStringContainsString('id="walletCheckoutSbp"', $html);
+        $this->assertStringContainsString('id="walletCheckoutCard"', $html);
+        $this->assertStringNotContainsString('id="walletCheckoutYookassa"', $html);
 
-        $amountPos = strpos($html, 'id="walletTopupAmount"');
-        $methodPos = strpos($html, 'id="walletPayTinkoffSbp"');
-        $submitPos = strpos($html, 'id="topupBtn"');
+        $amountPos = strpos($wallet, 'id="walletTopupAmount"');
+        $submitPos = strpos($wallet, 'id="topupBtn"');
         $this->assertNotFalse($amountPos);
-        $this->assertNotFalse($methodPos);
         $this->assertNotFalse($submitPos);
-        $this->assertTrue($amountPos < $methodPos);
-        $this->assertTrue($methodPos < $submitPos);
+        $this->assertTrue($amountPos < $submitPos);
     }
 
     public function test_wallet_reopen_keeps_tbank_checked_when_not_old_input(): void
     {
-        $first = $this->get(route('partner.wallet'))->assertOk()->getContent();
-        $second = $this->get(route('partner.wallet'))->assertOk()->getContent();
+        $first = $this->get(route('partner.wallet.checkout', ['amount' => 100]))->assertOk()->getContent();
+        $second = $this->get(route('partner.wallet.checkout', ['amount' => 80]))->assertOk()->getContent();
 
         foreach ([$first, $second] as $html) {
-            $this->assertRadioChecked($html, 'walletPayTinkoffSbp');
-            $this->assertStringNotContainsString('id="walletPayYookassa"', $html);
+            $this->assertStringContainsString('id="walletCheckoutSbp"', $html);
+            $this->assertStringNotContainsString('id="walletCheckoutYookassa"', $html);
         }
     }
 
@@ -68,14 +67,12 @@ final class PlatformPaymentsMethodUxFeatureTest extends CrmTestCase
     {
         $this->grantNamedPermission($this->user, 'platformPayments.method.yookassa');
 
-        $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
+        $html = $this->get(route('partner.wallet.checkout', ['amount' => 100]))->assertOk()->getContent();
 
-        $this->assertStringContainsString('id="walletPayYookassa"', $html);
-        $this->assertRadioChecked($html, 'walletPayTinkoffSbp');
-        $this->assertRadioNotChecked($html, 'walletPayYookassa');
-
-        $tbankPos = strpos($html, 'id="walletPayTinkoffSbp"');
-        $yookassaPos = strpos($html, 'id="walletPayYookassa"');
+        $this->assertStringContainsString('id="walletCheckoutYookassa"', $html);
+        $this->assertStringContainsString('id="walletCheckoutSbp"', $html);
+        $tbankPos = strpos($html, 'id="walletCheckoutSbp"');
+        $yookassaPos = strpos($html, 'id="walletCheckoutYookassa"');
         $this->assertNotFalse($tbankPos);
         $this->assertNotFalse($yookassaPos);
         $this->assertTrue($tbankPos < $yookassaPos);
@@ -89,12 +86,13 @@ final class PlatformPaymentsMethodUxFeatureTest extends CrmTestCase
         ]);
         $this->actingAs($actor);
 
-        $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
+        $wallet = $this->get(route('partner.wallet'))->assertOk()->getContent();
+        $this->assertDoesNotMatchRegularExpression('/id="topupBtn"[^>]*disabled/', $wallet);
 
-        $this->assertStringNotContainsString('id="walletPayTinkoffSbp"', $html);
-        $this->assertStringContainsString('id="walletPayYookassa"', $html);
-        $this->assertRadioChecked($html, 'walletPayYookassa');
-        $this->assertDoesNotMatchRegularExpression('/id="topupBtn"[^>]*disabled/', $html);
+        $html = $this->get(route('partner.wallet.checkout', ['amount' => 100]))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="walletCheckoutSbp"', $html);
+        $this->assertStringNotContainsString('id="walletCheckoutCard"', $html);
+        $this->assertStringContainsString('id="walletCheckoutYookassa"', $html);
     }
 
     public function test_wallet_without_method_permissions_hides_radios_and_disables_pay(): void
@@ -104,8 +102,8 @@ final class PlatformPaymentsMethodUxFeatureTest extends CrmTestCase
 
         $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
 
-        $this->assertStringNotContainsString('id="walletPayTinkoffSbp"', $html);
-        $this->assertStringNotContainsString('id="walletPayYookassa"', $html);
+        $this->assertStringNotContainsString('id="walletCheckoutSbp"', $html);
+        $this->assertStringNotContainsString('id="walletCheckoutYookassa"', $html);
         $this->assertStringContainsString('Нет доступного способа оплаты.', $html);
         $this->assertMatchesRegularExpression('/id="topupBtn"[^>]*disabled/', $html);
     }
@@ -196,11 +194,10 @@ final class PlatformPaymentsMethodUxFeatureTest extends CrmTestCase
     {
         $this->asSuperadmin();
 
-        $wallet = $this->get(route('partner.wallet'))->assertOk()->getContent();
-        $this->assertStringContainsString('id="walletPayTinkoffSbp"', $wallet);
-        $this->assertStringContainsString('id="walletPayYookassa"', $wallet);
-        $this->assertRadioChecked($wallet, 'walletPayTinkoffSbp');
-        $this->assertRadioNotChecked($wallet, 'walletPayYookassa');
+        $wallet = $this->get(route('partner.wallet.checkout', ['amount' => 100]))->assertOk()->getContent();
+        $this->assertStringContainsString('id="walletCheckoutSbp"', $wallet);
+        $this->assertStringContainsString('id="walletCheckoutCard"', $wallet);
+        $this->assertStringContainsString('id="walletCheckoutYookassa"', $wallet);
 
         $this->grantNamedPermission($this->user, 'servicePayments.view');
         $card = $this->serviceRechargeCardHtml(
@@ -224,6 +221,6 @@ final class PlatformPaymentsMethodUxFeatureTest extends CrmTestCase
         $this->assertNotSame('', trim($html));
         $this->assertStringContainsString('id="paymentsTable"', $html);
         $this->assertStringNotContainsString('id="servicePayTinkoffSbp"', $html);
-        $this->assertStringNotContainsString('id="walletPayTinkoffSbp"', $html);
+        $this->assertStringNotContainsString('id="walletCheckoutSbp"', $html);
     }
 }

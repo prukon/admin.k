@@ -9,7 +9,8 @@ use Tests\Feature\Crm\PartnerWallet\Concerns\PartnerWalletTestHelpers;
 
 /**
  * Разметка /partner-wallet и правила «если X, то по умолчанию Y»:
- * баланс текущей школы, hidden partner_id, пустая сумма, ошибки под полями, @can в сайдбаре.
+ * баланс текущей школы, GET на checkout, пустая сумма, ошибки под полями, @can в сайдбаре.
+ * Hidden partner_id и CSRF — на POST-формах /partner-wallet/checkout.
  *
  * @see TeamControllerTest::test_store_non_ajax_redirects_and_creates_team
  * @see /docs/documentation/partner-wallet.html
@@ -42,8 +43,7 @@ final class PartnerWalletUxFeatureTest extends CrmTestCase
         $this->assertStringContainsString('id="walletTopupForm"', $html);
         $this->assertStringContainsString('id="walletTopupAmount"', $html);
         $this->assertStringContainsString('id="walletTxTable"', $html);
-        $this->assertStringContainsString('name="partner_id" value="'.$this->partner->id.'"', $html);
-        $this->assertStringNotContainsString('name="partner_id" value="'.$this->foreignPartner->id.'"', $html);
+        $this->assertWalletAmountFormGoesToCheckout($html);
         $this->assertStringContainsString('123,45', $html);
         $this->assertStringNotContainsString('999,00', $html);
         $this->assertStringNotContainsString('wallet_balance ??', $html);
@@ -52,7 +52,13 @@ final class PartnerWalletUxFeatureTest extends CrmTestCase
         $submitPos = strpos($html, 'id="topupBtn"');
         $this->assertNotFalse($amountPos);
         $this->assertNotFalse($submitPos);
-        $this->assertTrue($amountPos < $submitPos, 'Поле суммы должно быть выше кнопки «Оплатить»');
+        $this->assertTrue($amountPos < $submitPos, 'Поле суммы должно быть выше кнопки «Перейти к оплате»');
+
+        $checkout = $this->get(route('partner.wallet.checkout', ['amount' => 100]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('name="partner_id" value="'.$this->partner->id.'"', $checkout);
+        $this->assertStringNotContainsString('name="partner_id" value="'.$this->foreignPartner->id.'"', $checkout);
 
         $amountChunk = substr($html, $amountPos, 220);
         $this->assertDoesNotMatchRegularExpression('/\bvalue="[^"]+"/', $amountChunk);
@@ -77,10 +83,15 @@ final class PartnerWalletUxFeatureTest extends CrmTestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('name="partner_id" value="'.$this->foreignPartner->id.'"', $html);
-        $this->assertStringNotContainsString('name="partner_id" value="'.$this->partner->id.'"', $html);
+        $this->assertWalletAmountFormGoesToCheckout($html);
         $this->assertStringContainsString('222,00', $html);
         $this->assertStringNotContainsString('111,00', $html);
+
+        $checkout = $this->get(route('partner.wallet.checkout', ['amount' => 100]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('name="partner_id" value="'.$this->foreignPartner->id.'"', $checkout);
+        $this->assertStringNotContainsString('name="partner_id" value="'.$this->partner->id.'"', $checkout);
     }
 
     public function test_wallet_page_does_not_prefill_amount_when_reopened_as_html(): void
@@ -167,7 +178,26 @@ final class PartnerWalletUxFeatureTest extends CrmTestCase
             '/<input[^>]*min="1"[^>]*id="walletTopupAmount"[^>]*>/',
             $html
         );
-        $this->assertStringContainsString('name="_token"', $html);
+        $this->assertWalletAmountFormGoesToCheckout($html);
+
+        $checkout = $this->get(route('partner.wallet.checkout', ['amount' => 100]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('name="_token"', $checkout);
+    }
+
+    private function assertWalletAmountFormGoesToCheckout(string $html): void
+    {
+        $formPos = strpos($html, 'id="walletTopupForm"');
+        $this->assertNotFalse($formPos);
+        $formEnd = strpos($html, '</form>', $formPos);
+        $this->assertNotFalse($formEnd);
+        $form = substr($html, $formPos, $formEnd - $formPos);
+
+        $this->assertStringContainsString('method="get"', $form);
+        $this->assertStringContainsString('/partner-wallet/checkout', $form);
+        $this->assertStringNotContainsString('name="partner_id"', $form);
+        $this->assertStringNotContainsString('name="_token"', $form);
     }
 
     public function test_sidebar_does_not_say_partner_not_selected_when_school_is_chosen(): void

@@ -49,15 +49,14 @@ final class TbankAcquiringNonAjaxSafetyNetFeatureTest extends CrmTestCase
             ]);
 
         $this->assertNotSame(422, $response->getStatusCode());
-        $this->assertContains($response->getStatusCode(), [200, 302]);
-        $this->assertNotSame('', trim((string) $response->getContent()));
+        $response->assertRedirect();
+        $this->assertStringContainsString('/tinkoff/qr/994001', (string) $response->headers->get('Location'));
 
         $tx = $this->latestWalletTx();
         $this->assertNotNull($tx);
         $this->assertSame('tinkoff', $tx->provider);
         $this->assertSame('pending', $tx->status);
         $this->assertSame(8000, (int) $tx->amount_cents);
-        $this->assertStringContainsString('/tinkoff/qr/994001', (string) $response->json('redirect'));
     }
 
     public function test_non_ajax_wallet_sbp_below_ten_redirects_with_amount_error(): void
@@ -83,7 +82,7 @@ final class TbankAcquiringNonAjaxSafetyNetFeatureTest extends CrmTestCase
 
     public function test_after_sbp_validation_redirect_keeps_tinkoff_radio_checked(): void
     {
-        $html = $this->from(route('partner.wallet'))
+        $html = $this->from(route('partner.wallet.checkout', ['amount' => 100]))
             ->followingRedirects()
             ->post(route('partner.wallet.topup'), [
                 '_token' => csrf_token(),
@@ -94,14 +93,8 @@ final class TbankAcquiringNonAjaxSafetyNetFeatureTest extends CrmTestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertMatchesRegularExpression(
-            '/id="walletPayTinkoffSbp"[^>]*checked/',
-            $html
-        );
-        $this->assertDoesNotMatchRegularExpression(
-            '/id="walletPayYookassa"[^>]*checked/',
-            $html
-        );
+        $this->assertStringContainsString('id="walletCheckoutSbp"', $html);
+        $this->assertStringNotContainsString('id="walletCheckoutYookassa"', $html);
         $this->assertWalletFieldSlotContains($html, 'amount', 'Сумма для СБП должна быть не меньше 10 ₽.');
         $this->assertWalletFieldSlotNotContains($html, 'payment_method', 'Сумма для СБП должна быть не меньше 10 ₽.');
     }
@@ -123,7 +116,7 @@ final class TbankAcquiringNonAjaxSafetyNetFeatureTest extends CrmTestCase
 
         $payment = PartnerPayment::query()->first();
         $this->assertNotNull($payment);
-        $this->assertSame('tinkoff_sbp', $payment->payment_method);
+        $this->assertSame('acquiring_sbp', $payment->payment_method);
         $this->assertSame('pending', $payment->payment_status);
     }
 

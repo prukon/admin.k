@@ -47,7 +47,38 @@ final class TbankAcquiringPlatformPaymentsFeatureTest extends CrmTestCase
         $this->assertTrue(TbankAcquiringTerminalConfig::isActive());
         $cfg = TbankAcquiringTerminalConfig::paymentConfig();
         $this->assertSame('TERM_ACQ', $cfg['terminal_key']);
+        $this->assertSame('https://rest-api-test.tinkoff.ru', $cfg['base_url']);
         $this->assertStringContainsString('/webhooks/tinkoff/acquiring', $cfg['notify_url']);
+    }
+
+    public function test_demo_terminal_in_test_mode_uses_securepay_host(): void
+    {
+        $this->seedGlobalTbankAcquiring([
+            'terminal_key' => '1234567890123DEMO',
+            'token_password' => 'PWD_ACQ',
+        ], ['test_mode' => true]);
+
+        $cfg = TbankAcquiringTerminalConfig::paymentConfig();
+        $this->assertSame('https://securepay.tinkoff.ru', $cfg['base_url']);
+    }
+
+    public function test_wallet_card_redirects_to_payment_url_without_deal(): void
+    {
+        $this->fakeAcquiringInit('991901');
+
+        $response = $this->postJson(route('partner.wallet.topup'), [
+            'amount' => 100,
+            'partner_id' => $this->partner->id,
+            'payment_method' => 'acquiring_card',
+        ], $this->walletAjaxHeaders());
+
+        $response->assertOk()->assertJsonPath('ok', true);
+        $this->assertSame('https://securepay.tinkoff.ru/991901', $response->json('redirect'));
+
+        $payment = TinkoffPayment::query()->where('tinkoff_payment_id', '991901')->first();
+        $this->assertNotNull($payment);
+        $this->assertSame('card', $payment->method);
+        $this->assertSame(TinkoffPayment::CHANNEL_ACQUIRING, $payment->channel);
     }
 
     public function test_wallet_sbp_topup_inits_without_deal_and_redirects_to_qr(): void
@@ -206,7 +237,7 @@ final class TbankAcquiringPlatformPaymentsFeatureTest extends CrmTestCase
 
         $payment = PartnerPayment::query()->first();
         $this->assertNotNull($payment);
-        $this->assertSame('tinkoff_sbp', $payment->payment_method);
+        $this->assertSame('acquiring_sbp', $payment->payment_method);
         $this->assertSame('pending', $payment->payment_status);
         $this->assertSame(250000, (int) $payment->amount_cents);
 

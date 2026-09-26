@@ -105,7 +105,7 @@
       Зачисление СБП по <code>POST /webhooks/tinkoff/acquiring</code>; ЮKassa —
       <code>/webhook/yookassa</code> (<code>partner_payments.payment_id</code> = id платежа ЮKassa).</li>
     <li>Форма recharge: радио способов по <code>@can</code>
-      <code>platformPayments.method.tbankSbp</code> /
+      <code>platformPayments.method.acquiringSbp</code> (раньше <code>platformPayments.method.tbankSbp</code>) /
       <code>platformPayments.method.yookassa</code> (группа «Оплата платформы»).
       Если оба права — дефолт T‑Bank. Без права — кнопка disabled.
       Витринные <code>payment.method.*</code> абонплату не открывают.

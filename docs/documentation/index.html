@@ -4525,8 +4525,11 @@
     <br><br>
     1) <b>Каталог.</b>
     Скрытые права (<code>is_visible=0</code>):
-    <code>platformPayments.method.tbankSbp</code> — «T‑Bank СБП (кошелёк и абонплата)»,
+    <code>platformPayments.method.acquiringSbp</code> — «СБП · эквайринг (кошелёк и абонплата)»
+    (раньше <code>platformPayments.method.tbankSbp</code>),
     <code>sort_order=10</code>;
+    <code>platformPayments.method.acquiringCard</code> — «Карта · эквайринг (кошелёк и абонплата)»,
+    <code>sort_order=15</code>, страница <code>/partner-wallet/checkout</code>;
     <code>platformPayments.method.yookassa</code> — «ЮKassa (кошелёк и абонплата)»,
     <code>sort_order=20</code>.
     Хелпер <code>App\Support\PlatformPaymentMethods</code>:
@@ -4555,9 +4558,10 @@
     достаточно <code>partnerWallet.view</code> или <code>servicePayments.view</code>;
     ни витринный <code>payment.method.tbankSBP</code>, ни
     <code>platformPayments.method.*</code> для просмотра QR не требуются.
-    POST кошелька: AJAX <code>serialize()</code> выбранного radio
-    (не хардкод <code>yookassa</code>), native POST без
-    <code>X-Requested-With</code> — safety-net (запись + не пустой 200).
+    Кошелёк: сумма уходит GET на <code>/partner-wallet/checkout</code>,
+    оплата — native POST <code>/partner-wallet/topup</code>
+    (AJAX <code>serialize()</code> на этой форме больше нет, не хардкод <code>yookassa</code>).
+    Native POST без <code>X-Requested-With</code> — 302 на QR, форму карты или ЮKassa.
     Абонплата: native POST на тот же
     <code>POST payment/service/tinkoff-sbp</code>
     (<code>partner.payment.tinkoff.sbp</code>); маршрут
@@ -4572,11 +4576,11 @@
     (у admin со СБП сумма 5 ₽ падает на минимум СБП 10 ₽, не на 1 ₽ ЮKassa).
     <br>
     3) <b>Дефолты и UX.</b>
-    Оба права — radio T‑Bank выше ЮKassa, по умолчанию
-    <code>tinkoff_sbp</code> <code>checked</code> (первое открытие и повторный GET
-    без <code>old()</code>). Только ЮKassa — дефолт <code>yookassa</code>,
-    T‑Bank не рендерится и не навязывается. Без прав способа: радио скрыто,
-    alert «Нет доступного способа оплаты.», кнопка «Оплатить» <code>disabled</code>,
+    На checkout СБП слева, карта и ЮKassa справа. Старое значение
+    <code>tinkoff_sbp</code> приводится к <code>acquiring_sbp</code>.
+    Только ЮKassa — карточка ЮKassa, СБП и карта не рендерятся.
+    Без прав способа: alert «Нет доступного способа оплаты.»,
+    кнопка «Перейти к оплате» <code>disabled</code>,
     POST 422/302, записи нет. Витринные <code>payment.method.*</code>
     (в т.ч. роль <code>user</code> с выданным <code>partnerWallet.view</code>)
     способы платформы <b>не</b> открывают.
@@ -4817,14 +4821,16 @@
     <br>
     2) <b>Кошелёк</b> <code>/partner-wallet</code> (<code>partnerWallet.view</code>).
     Радио <code>payment_method</code> по скрытым правам группы «Оплата платформы»
-    (<code>platformPayments.method.tbankSbp</code> / <code>platformPayments.method.yookassa</code>),
+    (<code>platformPayments.method.acquiringSbp</code>, раньше <code>platformPayments.method.tbankSbp</code>,
+    <code>platformPayments.method.acquiringCard</code> / <code>platformPayments.method.yookassa</code>),
     не <code>payment.method.tbankSBP</code> витрины.
     Права способов подробно —
     <a href="/doc#platform-payments-methods-index">анонс «Оплата платформы»</a>.
-    Если оба права есть — по умолчанию T‑Bank СБП (в т.ч. если поле не прислали).
-    При первом открытии и повторном GET без <code>old()</code>
-    СБП <code>checked</code>, ЮKassa нет (пока нет права — радио скрыто).
-    AJAX сериализует выбранный radio, не хардкодит <code>yookassa</code>.
+    Сумма на <code>/partner-wallet</code>, способы на <code>/partner-wallet/checkout</code>:
+    слева «СБП · эквайринг» (<code>acquiring_sbp</code>, старое значение <code>tinkoff_sbp</code> принимается),
+    справа «Карта · эквайринг» (<code>acquiring_card</code>, редирект на <code>PaymentURL</code>) и ЮKassa.
+    Ключ терминала с приставкой <code>DEMO</code> при включённом тестовом режиме
+    ходит на <code>https://securepay.tinkoff.ru</code>, не на <code>rest-api-test</code>.
     ЮKassa от 1 ₽ — как раньше, вебхук ЮKassa.
     СБП от 10 ₽ до 1 000 000 ₽ → Init → QR <code>/tinkoff/qr/{PaymentId}</code>.
     После <code>CONFIRMED</code> зачисление на <code>tx.partner_id</code>,
@@ -5276,8 +5282,10 @@
     <code>WHERE partner_id = current</code>; чужие строки не в <code>data</code> /
     <code>recordsTotal</code>. В историю текущей школы попадают пополнения ЮKassa, SMS
     и (после леджера) создание/отзыв договора; старые договорные списания без строки
-    не видны. Hidden <code>partner_id</code> в форме = current.
-    Поле суммы при GET пустое (нет <code>value</code>).
+    не видны. Сумма уходит <code>GET</code> на <code>/partner-wallet/checkout</code>
+    без hidden <code>partner_id</code>. Hidden <code>partner_id</code> и CSRF —
+    на POST-формах checkout, значение = current.
+    Поле суммы на <code>/partner-wallet</code> при первом GET пустое.
     <br>
     3) <b>Пополнение.</b> <code>POST /partner-wallet/topup</code>,
     <code>CreatePartnerWalletTopupRequest</code>: сумма ≥ 1 ₽. Чужой

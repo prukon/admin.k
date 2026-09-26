@@ -1245,6 +1245,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Кошелек партнера
     Route::middleware('can:partnerWallet.view')->group(function () {
         Route::get('/partner-wallet', [PartnerPaymentController::class, 'showWallet'])->name('partner.wallet');
+        Route::get('/partner-wallet/checkout', [PartnerPaymentController::class, 'showWalletCheckout'])->name('partner.wallet.checkout');
         // Создать платёж на пополнение кошелька
         Route::post('/partner-wallet/topup', [PartnerPaymentController::class, 'createWalletTopup'])->name('partner.wallet.topup');
         // История транзакций кошелька (DataTables)

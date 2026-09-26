@@ -120,6 +120,7 @@ trait PlatformPaymentsMethodTestHelpers
     {
         return [
             ['method' => 'GET', 'url' => route('partner.wallet')],
+            ['method' => 'GET', 'url' => route('partner.wallet.checkout', ['amount' => 100])],
             ['method' => 'GET', 'url' => route('partner.wallet.success')],
             ['method' => 'GET', 'url' => $this->walletTransactionsUrl()],
             ['method' => 'GET', 'url' => route('partner.payment.recharge')],
