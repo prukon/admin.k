@@ -38,7 +38,7 @@ final class PlatformPaymentsMethodUxFeatureTest extends CrmTestCase
     {
         $wallet = $this->get(route('partner.wallet'))->assertOk()->getContent();
         $this->assertDoesNotMatchRegularExpression('/id="topupBtn"[^>]*disabled/', $wallet);
-        $this->assertStringContainsString('Перейти к оплате', $wallet);
+        $this->assertStringContainsString('Пополнить', $wallet);
 
         $html = $this->get(route('partner.wallet.checkout', ['amount' => 100]))->assertOk()->getContent();
         $this->assertStringContainsString('id="walletCheckoutSbp"', $html);

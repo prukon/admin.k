@@ -37,7 +37,7 @@ final class TbankAcquiringUxFeatureTest extends CrmTestCase
         $wallet = $this->get(route('partner.wallet'))->assertOk()->getContent();
         $this->assertStringContainsString('id="walletTopupAmount"', $wallet);
         $this->assertStringContainsString('id="topupBtn"', $wallet);
-        $this->assertStringContainsString('Перейти к оплате', $wallet);
+        $this->assertStringContainsString('Пополнить', $wallet);
         $this->assertStringNotContainsString('id="walletCheckoutSbp"', $wallet);
         $this->assertDoesNotMatchRegularExpression('/id="topupBtn"[^>]*disabled/', $wallet);
 

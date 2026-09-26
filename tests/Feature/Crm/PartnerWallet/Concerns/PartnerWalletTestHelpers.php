@@ -41,7 +41,22 @@ trait PartnerWalletTestHelpers
             ],
             [
                 'method' => 'GET',
+                'url' => route('partner.wallet.history'),
+            ],
+            [
+                'method' => 'GET',
                 'url' => $this->walletTransactionsUrl(),
+            ],
+            [
+                'method' => 'GET',
+                'url' => route('partner.wallet.transactions.columns-settings.get'),
+            ],
+            [
+                'method' => 'POST',
+                'url' => route('partner.wallet.transactions.columns-settings.save'),
+                'data' => [
+                    'page_length' => 20,
+                ],
             ],
             [
                 'method' => 'GET',

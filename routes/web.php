@@ -1245,11 +1245,16 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Кошелек партнера
     Route::middleware('can:partnerWallet.view')->group(function () {
         Route::get('/partner-wallet', [PartnerPaymentController::class, 'showWallet'])->name('partner.wallet');
+        Route::get('/partner-wallet/history', [PartnerPaymentController::class, 'showWalletHistory'])->name('partner.wallet.history');
         Route::get('/partner-wallet/checkout', [PartnerPaymentController::class, 'showWalletCheckout'])->name('partner.wallet.checkout');
         // Создать платёж на пополнение кошелька
         Route::post('/partner-wallet/topup', [PartnerPaymentController::class, 'createWalletTopup'])->name('partner.wallet.topup');
         // История транзакций кошелька (DataTables)
         Route::get('/partner-wallet/transactions', [PartnerPaymentController::class, 'getWalletTransactionsData'])->name('partner.wallet.transactions');
+        Route::get('/partner-wallet/transactions/columns-settings', [PartnerPaymentController::class, 'getWalletHistoryColumnsSettings'])
+            ->name('partner.wallet.transactions.columns-settings.get');
+        Route::post('/partner-wallet/transactions/columns-settings', [PartnerPaymentController::class, 'saveWalletHistoryColumnsSettings'])
+            ->name('partner.wallet.transactions.columns-settings.save');
         // Возврат после оплаты (YooKassa redirect) — просто страница "обрабатывается"
         Route::get('/partner-wallet/success', [PartnerPaymentController::class, 'ykWalletSuccess'])->name('partner.wallet.success');
     });

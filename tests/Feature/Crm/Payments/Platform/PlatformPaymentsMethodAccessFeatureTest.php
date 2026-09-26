@@ -167,7 +167,7 @@ final class PlatformPaymentsMethodAccessFeatureTest extends CrmTestCase
 
         $response = $this->get(route('partner.wallet'))->assertOk();
         $this->assertNotSame('', trim((string) $response->getContent()));
-        $this->assertStringContainsString('Перейти к оплате', $response->getContent());
+        $this->assertStringContainsString('Пополнить', $response->getContent());
         $checkout = $this->get(route('partner.wallet.checkout', ['amount' => 100]))->assertOk();
         $this->assertStringContainsString('id="walletCheckoutSbp"', $checkout->getContent());
     }

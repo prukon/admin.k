@@ -202,6 +202,18 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
                 'auth'        => 'superadmin',
                 'permission'  => 'settings.commission',
             ],
+            [
+                'label'       => 'Кошелёк партнёра',
+                'url'         => '/partner-wallet/history',
+                'index_route' => 'partner.wallet.history',
+                'save_url'    => '/partner-wallet/transactions/columns-settings',
+                'table_key'   => 'partner_wallet_transactions',
+                'view_var'    => 'walletHistoryPageLength',
+                'create'      => "KidsCrmDataTable.create('#walletTxTable'",
+                'blade'       => 'payment/partnerWallet.blade.php',
+                'auth'        => 'admin',
+                'permission'  => 'partnerWallet.view',
+            ],
         ];
     }
 
@@ -246,7 +258,7 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
         sort($expected);
 
         $this->assertSame($expected, $hits);
-        $this->assertCount(13, $hits);
+        $this->assertCount(14, $hits);
     }
 
     /**

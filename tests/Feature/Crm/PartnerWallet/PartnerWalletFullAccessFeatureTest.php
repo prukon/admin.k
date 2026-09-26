@@ -35,9 +35,13 @@ final class PartnerWalletFullAccessFeatureTest extends CrmTestCase
         $page = $this->get(route('partner.wallet'))
             ->assertOk()
             ->assertSee('id="walletTopupForm"', false)
-            ->assertSee('id="walletTxTable"', false)
+            ->assertSee('/partner-wallet/history', false)
             ->assertSee('45,00', false)
             ->getContent();
+
+        $this->get(route('partner.wallet.history'))
+            ->assertOk()
+            ->assertSee('id="walletTxTable"', false);
 
         $this->assertStringContainsString('(пополнить)', $page);
         $this->assertStringContainsString('href="/partner-wallet"', $page);

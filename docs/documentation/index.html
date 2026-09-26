@@ -4580,7 +4580,7 @@
     <code>tinkoff_sbp</code> приводится к <code>acquiring_sbp</code>.
     Только ЮKassa — карточка ЮKassa, СБП и карта не рендерятся.
     Без прав способа: alert «Нет доступного способа оплаты.»,
-    кнопка «Перейти к оплате» <code>disabled</code>,
+    кнопка «Пополнить» <code>disabled</code>,
     POST 422/302, записи нет. Витринные <code>payment.method.*</code>
     (в т.ч. роль <code>user</code> с выданным <code>partnerWallet.view</code>)
     способы платформы <b>не</b> открывают.
@@ -8765,6 +8765,7 @@
         <tr><td>Платежи T‑Bank</td><td><a href="/docs/documentation/reports-admin#reports-tbank-payments"><code>/admin/reports/tbank-payments</code></a></td><td><code>reports_tbank_payments</code></td><td><code>reports.tbank.payments.view</code></td></tr>
         <tr><td>Выплаты T‑Bank</td><td><a href="/docs/documentation/tbank-admin-payouts"><code>/admin/tinkoff/payouts</code></a></td><td><code>tinkoff_payouts_index</code></td><td><code>tbank.payouts.manage</code></td></tr>
         <tr><td>Комиссии Т‑Банк</td><td><a href="/docs/documentation/tbank#commissions-ui"><code>/admin/settings/tbank-commissions</code></a></td><td><code>tbank_commissions_index</code></td><td><code>settings.commission</code></td></tr>
+        <tr><td>Кошелёк партнёра</td><td><a href="/docs/documentation/partner-wallet"><code>/partner-wallet/history</code></a></td><td><code>partner_wallet_transactions</code></td><td><code>partnerWallet.view</code></td></tr>
       </tbody>
     </table>
     <br>
@@ -8774,7 +8775,7 @@
     <code>$paymentsPageLength</code>, <code>$paymentsMonthlyPageLength</code>,
     <code>$ltvPageLength</code>, <code>$ltvTeamsPageLength</code>, <code>$ltvLocationsPageLength</code>, <code>$paymentIntentsPageLength</code>,
     <code>$fiscalReceiptsPageLength</code>, <code>$tbankPaymentsPageLength</code>, <code>$payoutsPageLength</code>,
-    <code>$tbankCommissionsPageLength</code>).
+    <code>$tbankCommissionsPageLength</code>, <code>$walletHistoryPageLength</code>).
     Пресет получает <code>dataTable.pageLength</code> — первый AJAX сразу с нужным <code>length</code>.
     Нет записи или значение не из <code>10/20/50/100</code> → <b>10</b>
     (<code>UserTableSetting::resolvePageLength</code>).

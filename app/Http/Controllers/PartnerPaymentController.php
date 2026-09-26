@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Http\Requests\Partner\CreatePartnerServicePaymentRequest;
 use App\Http\Requests\Partner\CreatePartnerWalletTopupRequest;
 use App\Http\Requests\Partner\ShowPartnerWalletCheckoutRequest;
+use App\Http\Requests\Partner\WalletTransactionsFilterRequest;
 use App\Models\Partner;
 use App\Models\PartnerAccess;
+use App\Models\PartnerLegalEntity;
 use App\Models\PartnerPayment;
 use App\Models\PartnerWalletTransaction;
+use App\Models\UserTableSetting;
 use App\Services\Tinkoff\TbankAcquiringTerminalConfig;
 use App\Services\Tinkoff\TinkoffAcquiringPaymentsService;
 use App\Support\Money;
@@ -29,6 +33,7 @@ use Illuminate\Support\Facades\Log;
 
 class PartnerPaymentController extends AdminBaseController
 {
+    public const WALLET_HISTORY_TABLE_KEY = 'partner_wallet_transactions';
 
 //    Страница Пополнить счет
     public function showRecharge()
@@ -314,12 +319,32 @@ class PartnerPaymentController extends AdminBaseController
 
     // ---------- НОВЫЕ МЕТОДЫ ДЛЯ КОШЕЛЬКА ПАРТНЁРА (ДОБАВЛЕНО) ----------
 
-    // Страница кошелька (сумма + история)
     public function showWallet()
     {
+        return $this->walletPage('balance');
+    }
+
+    public function showWalletHistory()
+    {
+        return $this->walletPage('history');
+    }
+
+    private function walletPage(string $activeTab)
+    {
+        $userId = auth()->id();
+
+        $partner = $this->currentUserPartnerOrFail();
+
         return view('payment.partnerWallet', array_merge([
-            'activeTab' => 'wallet_recharge',
-            'partner'   => $this->currentUserPartnerOrFail(),
+            'activeTab' => $activeTab,
+            'partner'   => $partner,
+            'walletLegalEntity' => $activeTab === 'balance'
+                ? $this->soleEnabledLegalEntity($partner)
+                : null,
+            'walletHistoryPageLength' => UserTableSetting::pageLengthForUser(
+                $userId !== null ? (int) $userId : null,
+                self::WALLET_HISTORY_TABLE_KEY,
+            ),
         ], PlatformPaymentMethods::viewState(auth()->user())));
     }
 
@@ -767,37 +792,99 @@ class PartnerPaymentController extends AdminBaseController
     }
 
     // История транзакций кошелька (для DataTables)
-    public function getWalletTransactionsData(Request $request)
+    public function getWalletTransactionsData(WalletTransactionsFilterRequest $request)
     {
         $partner = $this->currentUserPartnerOrFail();
+        $filters = $request->validated();
 
-        $query = PartnerWalletTransaction::with(['partner','user'])
-            ->where('partner_id', $partner->id)
+        $query = PartnerWalletTransaction::query()
+            ->with(['user'])
+            ->where('partner_wallet_transactions.partner_id', $partner->id)
             ->select('partner_wallet_transactions.*');
 
+        if (! empty($filters['date_from'])) {
+            $query->whereDate('partner_wallet_transactions.created_at', '>=', $filters['date_from']);
+        }
+        if (! empty($filters['date_to'])) {
+            $query->whereDate('partner_wallet_transactions.created_at', '<=', $filters['date_to']);
+        }
+        if (! empty($filters['type'])) {
+            $query->where('partner_wallet_transactions.type', $filters['type']);
+        }
+        if (! empty($filters['status'])) {
+            $query->where('partner_wallet_transactions.status', $filters['status']);
+        }
+        if (! empty($filters['provider'])) {
+            $query->where('partner_wallet_transactions.provider', $filters['provider']);
+        }
+
         return DataTables::of($query)
-            ->addColumn('partner_name', fn($t) => optional($t->partner)->title ?? '—')
-            ->addColumn('user_name', fn($t) => optional($t->user)->name ?? '—')
-            ->editColumn('amount', fn($t) => round(((int) $t->amount_cents) / 100, 2))
-            ->editColumn('type', fn($t) => $t->type === 'credit' ? 'Пополнение' : 'Списание')
+            ->addColumn('user_name', fn ($t) => $t->user?->name ?: '—')
+            ->editColumn('amount', fn ($t) => round(((int) $t->amount_cents) / 100, 2))
+            ->orderColumn('amount', 'partner_wallet_transactions.amount_cents $1')
+            ->editColumn('type', fn ($t) => $t->type === 'credit' ? 'Пополнение' : 'Списание')
             ->editColumn('status', function ($t) {
-        $label = match ($t->status) {
-        'succeeded' => 'Успешно',
-                    'pending'   => 'В ожидании',
-                    'canceled'  => 'Отменено',
-                    'failed'    => 'Ошибка',
-                    default     => $t->status,
+                $label = match ($t->status) {
+                    'succeeded' => 'Успешно',
+                    'pending' => 'В ожидании',
+                    'canceled' => 'Отменено',
+                    'failed' => 'Ошибка',
+                    default => (string) $t->status,
                 };
                 $cls = match ($t->status) {
-                'succeeded' => 'badge-success',
-                    'pending'   => 'badge-warning',
-                    default     => 'badge-danger',
+                    'succeeded' => 'badge-success',
+                    'pending' => 'badge-warning',
+                    default => 'badge-danger',
                 };
-                return '<span class="badge '.$cls.'">'.$label.'</span>';
+
+                return '<span class="badge '.$cls.'">'.e($label).'</span>';
             })
-        ->editColumn('created_at', fn($t) => $t->created_at ? $t->created_at->format('d.m.y H:i') : '—')
+            ->editColumn('provider', fn ($t) => $this->walletProviderLabel((string) $t->provider))
+            ->editColumn('created_at', fn ($t) => $t->created_at ? $t->created_at->toIso8601String() : '')
+            ->editColumn('description', fn ($t) => ($t->description !== null && $t->description !== '') ? $t->description : '—')
             ->rawColumns(['status'])
-        ->make(true);
+            ->make(true);
+    }
+
+    public function getWalletHistoryColumnsSettings()
+    {
+        $settings = UserTableSetting::query()
+            ->where('user_id', (int) auth()->id())
+            ->where('table_key', self::WALLET_HISTORY_TABLE_KEY)
+            ->first();
+
+        $columns = $settings?->columns;
+
+        return response()->json(is_array($columns) ? $columns : []);
+    }
+
+    public function saveWalletHistoryColumnsSettings(ColumnsSettingsWithPageLengthSaveRequest $request)
+    {
+        $payload = $request->persistPayload();
+        if ($payload === []) {
+            return response()->json(['success' => true]);
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id' => (int) auth()->id(),
+                'table_key' => self::WALLET_HISTORY_TABLE_KEY,
+            ],
+            $payload
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    private function walletProviderLabel(string $provider): string
+    {
+        return match ($provider) {
+            'tinkoff' => 'T‑Bank',
+            'yookassa' => 'ЮKassa',
+            'manual' => 'Списание за договор',
+            'refund' => 'Возврат',
+            default => $provider !== '' ? $provider : '—',
+        };
     }
 
     // ----- Служебные методы -----
@@ -818,6 +905,19 @@ class PartnerPaymentController extends AdminBaseController
         abort_if($partner === null, 404, 'Партнёр не найден');
 
         return $partner;
+    }
+
+    /**
+     * Карточка юрлица на балансе: только если включённое и не удалённое ровно одно.
+     */
+    private function soleEnabledLegalEntity(Partner $partner): ?PartnerLegalEntity
+    {
+        $entities = $partner->legalEntities()
+            ->active()
+            ->limit(2)
+            ->get();
+
+        return $entities->count() === 1 ? $entities->first() : null;
     }
 
     private function latestActiveAccessEndDateForPartner(int $partnerId): ?string

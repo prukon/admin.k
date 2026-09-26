@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\PartnerWallet;
 
+use App\Models\PartnerLegalEntity;
 use Tests\Feature\Crm\CrmTestCase;
 use Tests\Feature\Crm\PartnerWallet\Concerns\PartnerWalletTestHelpers;
 
@@ -42,7 +43,10 @@ final class PartnerWalletUxFeatureTest extends CrmTestCase
         $this->assertNotSame('', trim($html));
         $this->assertStringContainsString('id="walletTopupForm"', $html);
         $this->assertStringContainsString('id="walletTopupAmount"', $html);
-        $this->assertStringContainsString('id="walletTxTable"', $html);
+        $this->assertStringContainsString('/partner-wallet/history', $html);
+        $this->assertStringNotContainsString('id="walletTxTable"', $html);
+        $history = $this->get(route('partner.wallet.history'))->assertOk()->getContent();
+        $this->assertStringContainsString('id="walletTxTable"', $history);
         $this->assertWalletAmountFormGoesToCheckout($html);
         $this->assertStringContainsString('123,45', $html);
         $this->assertStringNotContainsString('999,00', $html);
@@ -207,5 +211,103 @@ final class PartnerWalletUxFeatureTest extends CrmTestCase
         $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
         $this->assertStringNotContainsString('Партнёр не выбран', $html);
         $this->assertStringContainsString('(пополнить)', $html);
+    }
+
+    public function test_balance_page_shows_school_contacts_and_sole_enabled_legal_entity(): void
+    {
+        $this->asAdmin();
+        $this->partner->forceFill([
+            'title' => 'Школа Солнышко',
+            'phone' => '+7 (900) 111-22-33',
+            'email' => 'wallet-school-'.$this->partner->id.'@example.test',
+            'website' => 'school.example.test',
+        ])->save();
+        $this->foreignPartner->forceFill([
+            'title' => 'Чужая школа кошелька',
+            'phone' => '+7 (900) 000-00-00',
+        ])->save();
+
+        $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
+        $this->assertStringContainsString('id="walletSchoolCard"', $html);
+        $this->assertStringContainsString('Школа Солнышко', $html);
+        $this->assertStringContainsString('href="tel:+79001112233"', $html);
+        $this->assertStringContainsString('href="mailto:wallet-school-'.$this->partner->id.'@example.test"', $html);
+        $this->assertStringContainsString('href="https://school.example.test"', $html);
+        $this->assertStringNotContainsString('Чужая школа кошелька', $html);
+        $this->assertStringNotContainsString('id="walletLegalEntity"', $html);
+
+        $history = $this->get(route('partner.wallet.history'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="walletSchoolCard"', $history);
+
+        PartnerLegalEntity::factory()->create([
+            'partner_id' => $this->partner->id,
+            'organization_name' => 'ООО Ромашка',
+            'title' => 'ООО Ромашка',
+            'tax_id' => '7701234567',
+            'is_enabled' => false,
+            'is_default' => false,
+        ]);
+        $enabled = PartnerLegalEntity::factory()->create([
+            'partner_id' => $this->partner->id,
+            'organization_name' => 'ООО Включенное',
+            'title' => 'ООО Включенное',
+            'tax_id' => '7701234568',
+            'is_enabled' => true,
+            'is_default' => true,
+        ]);
+        $deleted = PartnerLegalEntity::factory()->create([
+            'partner_id' => $this->partner->id,
+            'organization_name' => 'ООО Удаленное',
+            'title' => 'ООО Удаленное',
+            'tax_id' => '7701234569',
+            'is_enabled' => true,
+            'is_default' => false,
+        ]);
+        $deleted->delete();
+
+        $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
+        $this->assertStringContainsString('id="walletLegalEntity"', $html);
+        $this->assertStringContainsString('ООО Включенное', $html);
+        $this->assertStringContainsString('7701234568', $html);
+        $this->assertStringNotContainsString('ООО Ромашка', $html);
+        $this->assertStringNotContainsString('7701234567', $html);
+        $this->assertStringNotContainsString('ООО Удаленное', $html);
+        $this->assertStringNotContainsString('7701234569', $html);
+
+        PartnerLegalEntity::factory()->create([
+            'partner_id' => $this->partner->id,
+            'organization_name' => 'ООО Второе',
+            'title' => 'ООО Второе',
+            'tax_id' => '7701234570',
+            'is_enabled' => true,
+            'is_default' => false,
+        ]);
+
+        $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
+        $this->assertStringContainsString('Школа Солнышко', $html);
+        $this->assertStringNotContainsString('id="walletLegalEntity"', $html);
+        $this->assertStringNotContainsString('7701234568', $html);
+        $this->assertStringNotContainsString('7701234570', $html);
+        $this->assertNotNull($enabled->id);
+    }
+
+    public function test_balance_page_hides_placeholder_dash_contacts(): void
+    {
+        $this->asAdmin();
+        $this->partner->forceFill([
+            'title' => 'Школа без контактов',
+            'phone' => '-',
+            'website' => '—',
+            'email' => 'wallet-dash-'.$this->partner->id.'@example.test',
+        ])->save();
+
+        $html = $this->get(route('partner.wallet'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Школа без контактов', $html);
+        $this->assertStringContainsString('href="mailto:wallet-dash-'.$this->partner->id.'@example.test"', $html);
+        $this->assertStringNotContainsString('href="tel:', $html);
+        $this->assertStringNotContainsString('>−<', $html);
+        $this->assertStringNotContainsString('>-</a>', $html);
+        $this->assertStringNotContainsString('>—</a>', $html);
     }
 }

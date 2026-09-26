@@ -2923,6 +2923,7 @@ JS;
             'admin/setting/tbankCommissions.blade.php',
             'admin/team.blade.php',
             'admin/user.blade.php',
+            'payment/partnerWallet.blade.php',
         ], $hits);
 
         $optIns = [
@@ -2990,6 +2991,11 @@ JS;
                 'file' => resource_path('views/admin/setting/tbankCommissions.blade.php'),
                 'pageLength' => 'pageLength: @json((int) ($tbankCommissionsPageLength ?? 10))',
                 'prefix' => 'blade-js-tbank-commissions-page-length',
+            ],
+            "KidsCrmDataTable.create('#walletTxTable'" => [
+                'file' => resource_path('views/payment/partnerWallet.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($walletHistoryPageLength ?? 10))',
+                'prefix' => 'blade-js-partner-wallet-page-length',
             ],
         ];
 
@@ -5826,7 +5832,16 @@ JS;
         $this->assertStringContainsString('data-error-for="partner_id"', $content);
         $this->assertStringContainsString('data-error-for="payment_method"', $content);
         $this->assertStringContainsString('$canPayAcquiringSbp || $canPayAcquiringCard || $canPayYookassa', $content);
-        $this->assertStringContainsString('Перейти к оплате', $content);
+        $this->assertStringContainsString('Пополнить', $content);
+        $this->assertStringContainsString('data-amount="1000"', $content);
+        $this->assertStringContainsString('data-amount="5000"', $content);
+        $this->assertStringContainsString('data-amount="10000"', $content);
+        $this->assertStringContainsString('История платежей', $content);
+        $this->assertStringContainsString('id="wallet-history-filters"', $content);
+        $this->assertStringContainsString('data-error-for="date_from"', $content);
+        $this->assertStringContainsString('data-error-for="type"', $content);
+        $this->assertStringContainsString("KidsCrmDataTable.create('#walletTxTable'", $content);
+        $this->assertStringContainsString('persistPageLength: true', $content);
         $this->assertStringNotContainsString('id="walletPayTinkoffSbp"', $content);
         $this->assertStringNotContainsString('id="walletPayYookassa"', $content);
         $this->assertStringContainsString("@error('amount')", $content);
@@ -5837,8 +5852,8 @@ JS;
         $this->assertStringNotContainsString("url: '/partner-wallet/topup'", $content);
         $this->assertStringNotContainsString("$('#walletTopupForm').on('submit'", $content);
         $this->assertStringNotContainsString('Partner::first()', $content);
-        $this->assertSame(1, substr_count($content, "$('#reloadTable').on('click'"));
-        $this->assertStringContainsString('txTable.ajax.reload', $content);
+        $this->assertStringNotContainsString('id="reloadTable"', $content);
+        $this->assertStringContainsString('dtApi.reload()', $content);
 
         $checkout = (string) file_get_contents(resource_path('views/payment/partnerWalletCheckout.blade.php'));
         $this->assertStringContainsString('id="walletCheckoutSbp"', $checkout);
@@ -5863,8 +5878,8 @@ JS;
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $path,
-            "$('#reloadTable').on('click'",
-            'blade-js-partner-wallet-reload-table'
+            "KidsCrmDataTable.create('#walletTxTable'",
+            'blade-js-partner-wallet-history-table'
         );
     }
 
