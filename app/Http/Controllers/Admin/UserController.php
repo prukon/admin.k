@@ -198,7 +198,10 @@ class UserController extends AdminBaseController
             $baseQuery->where('users.id', $validated['id']);
         }
 
-        // Фильтр по имени / email / телефону ученика / телефону родителя / дате рождения (панель фильтров или поиск DataTables)
+        // Фильтр по имени / email / телефону ученика / телефону родителя / дате рождения
+        // (панель фильтров или поиск DataTables). Отдельные поля и склейка, как в колонках:
+        // ученик — «фамилия имя» и «имя фамилия»; родитель — «фамилия имя отчество»
+        // и обратный порядок «имя фамилия» / «имя отчество фамилия».
         if ($nameSearch !== '') {
             $like = '%' . $nameSearch . '%';
 
@@ -206,6 +209,8 @@ class UserController extends AdminBaseController
                 $q->where('users.name', 'like', $like)
                     ->orWhere('users.lastname', 'like', $like)
                     ->orWhere('users.middlename', 'like', $like)
+                    ->orWhereRaw("CONCAT_WS(' ', users.lastname, users.name) LIKE ?", [$like])
+                    ->orWhereRaw("CONCAT_WS(' ', users.name, users.lastname) LIKE ?", [$like])
                     ->orWhere('users.email', 'like', $like)
                     ->orWhere('users.phone', 'like', $like)
                     ->orWhere('users.birthday', 'like', $like)
@@ -213,6 +218,9 @@ class UserController extends AdminBaseController
                         $parentQuery->where('lastname', 'like', $like)
                             ->orWhere('firstname', 'like', $like)
                             ->orWhere('middlename', 'like', $like)
+                            ->orWhereRaw("CONCAT_WS(' ', lastname, firstname, middlename) LIKE ?", [$like])
+                            ->orWhereRaw("CONCAT_WS(' ', firstname, lastname) LIKE ?", [$like])
+                            ->orWhereRaw("CONCAT_WS(' ', firstname, middlename, lastname) LIKE ?", [$like])
                             ->orWhere('phone', 'like', $like);
                     });
             });

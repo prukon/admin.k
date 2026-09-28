@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\LessonPackages\SchoolScheduleTrialLessonsCounter;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -25,6 +26,50 @@ class UserTeamScheduleSlot extends Model
         'ends_at' => 'date:Y-m-d',
         'created_by' => 'int',
     ];
+
+    protected static function booted(): void
+    {
+        static::created(function (UserTeamScheduleSlot $row): void {
+            if ($row->countsTowardSchoolTrialLessons()) {
+                app(SchoolScheduleTrialLessonsCounter::class)->increment((int) $row->user_id);
+            }
+        });
+
+        static::updated(function (UserTeamScheduleSlot $row): void {
+            $counter = app(SchoolScheduleTrialLessonsCounter::class);
+            $wasCounted = $row->countedTowardSchoolTrialLessonsOriginally();
+            $isCounted = $row->countsTowardSchoolTrialLessons();
+            $previousUserId = (int) $row->getOriginal('user_id');
+            $currentUserId = (int) $row->user_id;
+
+            if ($wasCounted && $isCounted && $previousUserId === $currentUserId) {
+                return;
+            }
+
+            if ($wasCounted) {
+                $counter->decrement($previousUserId);
+            }
+            if ($isCounted) {
+                $counter->increment($currentUserId);
+            }
+        });
+
+        static::deleted(function (UserTeamScheduleSlot $row): void {
+            if ($row->countsTowardSchoolTrialLessons()) {
+                app(SchoolScheduleTrialLessonsCounter::class)->decrement((int) $row->user_id);
+            }
+        });
+    }
+
+    public function countsTowardSchoolTrialLessons(): bool
+    {
+        return (bool) $this->is_trial_lesson && $this->user_lesson_package_id === null;
+    }
+
+    private function countedTowardSchoolTrialLessonsOriginally(): bool
+    {
+        return (bool) $this->getOriginal('is_trial_lesson') && $this->getOriginal('user_lesson_package_id') === null;
+    }
 
     public function partner(): BelongsTo
     {

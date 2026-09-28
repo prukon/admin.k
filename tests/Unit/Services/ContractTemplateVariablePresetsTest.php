@@ -76,6 +76,7 @@ class ContractTemplateVariablePresetsTest extends TestCase
         $this->assertContains('child_address', $childKeys);
         $this->assertContains('child_passport', $childKeys);
         $this->assertContains('child_passport_issued_at', $childKeys);
+        $this->assertNotContains('team_title', $childKeys);
 
         $packageKeys = array_column(
             ContractTemplateVariablePresets::recommendedForGroup(ContractTemplateVariablePresets::GROUP_PACKAGE),
@@ -94,7 +95,7 @@ class ContractTemplateVariablePresetsTest extends TestCase
             'key',
         );
         $this->assertSame(
-            ['sport_type_name', 'location_address', 'location_admin_emails', 'location_admin_phones'],
+            ['team_title', 'sport_type_name', 'location_address', 'location_admin_emails', 'location_admin_phones'],
             $placeKeys,
         );
 
@@ -140,6 +141,8 @@ class ContractTemplateVariablePresetsTest extends TestCase
         $this->assertSame(ContractTemplateVariablePresets::FILL_MODE_SYSTEM, ContractTemplateVariablePresets::fillModeForKey('contract_date'));
         $this->assertSame(ContractTemplateVariablePresets::FILL_MODE_SYSTEM, ContractTemplateVariablePresets::fillModeForKey('package_name'));
         $this->assertSame(ContractTemplateVariablePresets::FILL_MODE_SYSTEM, ContractTemplateVariablePresets::fillModeForKey('package_price'));
+        $this->assertSame(ContractTemplateVariablePresets::FILL_MODE_SYSTEM, ContractTemplateVariablePresets::fillModeForKey('team_title'));
+        $this->assertSame('Название группы', ContractTemplateVariablePresets::recommendedByKey()['team_title']['label']);
     }
 
     /** @test */
@@ -153,6 +156,7 @@ class ContractTemplateVariablePresetsTest extends TestCase
             ['key' => 'package_price', 'label' => 'Стоимость', 'required' => false],
             ['key' => 'package_lessons_count', 'label' => 'Занятия', 'required' => false],
             ['key' => 'sport_type_name', 'label' => 'Спорт', 'required' => false],
+            ['key' => 'team_title', 'label' => 'Группа', 'required' => true],
             ['key' => 'partner_email', 'label' => 'Email', 'required' => false],
             ['key' => 'partner_social_vk', 'label' => 'VK', 'required' => false],
         ]);

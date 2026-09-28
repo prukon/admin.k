@@ -166,6 +166,13 @@ final class PartnerWalletDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#platform-payments-methods-index', $html);
         $this->assertStringContainsString('POST /webhooks/tinkoff/acquiring', $html);
         $this->assertStringContainsString('channel=acquiring', $html);
+        $this->assertStringContainsString('id="history-receipt"', $html);
+        $this->assertStringContainsString('renderWalletReceiptCell', $html);
+        $this->assertStringContainsString('provider_code', $html);
+        $this->assertStringContainsString('https://receipts.ru/', $html);
+        $this->assertStringContainsString('Чек сформирован', $html);
+        $this->assertStringContainsString('Чек не сформирован', $html);
+        $this->assertStringContainsString('PartnerWalletHistoryFeatureTest', $html);
     }
 
     public function test_page_titles_include_partner_wallet(): void

@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Crm\Users;
 
+use App\Models\ParentProfile;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserField;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
@@ -204,6 +206,98 @@ final class AdminUsersPageFeatureTest extends CrmTestCase
         $ids = collect($response->json('data'))->pluck('id')->all();
         $this->assertContains($byPanel->id, $ids);
         $this->assertSame(1, $response->json('recordsFiltered'));
+    }
+
+    public function test_users_data_search_matches_lastname_and_name_together(): void
+    {
+        $this->asAdmin();
+        $this->grantUsersView($this->user);
+
+        $target = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'ФамилияСклейка',
+            'name'       => 'ИмяСклейка',
+        ]);
+
+        $sameLastname = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'ФамилияСклейка',
+            'name'       => 'ДругоеИмя',
+        ]);
+
+        $byLastnameThenName = $this->usersDataSearch('ФамилияСклейка ИмяСклейка');
+        $byLastnameThenName->assertOk();
+        $this->assertSame([$target->id], collect($byLastnameThenName->json('data'))->pluck('id')->all());
+
+        $byNameThenLastname = $this->usersDataSearch('ИмяСклейка ФамилияСклейка');
+        $byNameThenLastname->assertOk();
+        $this->assertSame([$target->id], collect($byNameThenLastname->json('data'))->pluck('id')->all());
+
+        $lastnameOnly = $this->usersDataSearch('ФамилияСклейка');
+        $lastnameOnly->assertOk();
+        $lastnameIds = collect($lastnameOnly->json('data'))->pluck('id')->all();
+        $this->assertContains($target->id, $lastnameIds);
+        $this->assertContains($sameLastname->id, $lastnameIds);
+
+        $byPanel = $this->getJson('/admin/users/data?'.http_build_query([
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 50,
+            'name'   => 'ФамилияСклейка ИмяСклейка',
+        ]));
+        $byPanel->assertOk();
+        $this->assertSame([$target->id], collect($byPanel->json('data'))->pluck('id')->all());
+    }
+
+    public function test_users_data_search_matches_parent_full_name(): void
+    {
+        $this->asAdmin();
+        $this->grantUsersView($this->user);
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'РодительСклейка',
+            'firstname'  => 'ИмяРодителя',
+            'middlename' => 'ОтчествоРодителя',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'УченикБезСклейки',
+            'name'       => 'Свой',
+            'parent_id'  => $parent->id,
+        ]);
+
+        User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'ЧужойУченик',
+            'name'       => 'Рядом',
+        ]);
+
+        foreach ([
+            'РодительСклейка ИмяРодителя',
+            'РодительСклейка ИмяРодителя ОтчествоРодителя',
+            'ИмяРодителя РодительСклейка',
+            'ИмяРодителя ОтчествоРодителя РодительСклейка',
+        ] as $query) {
+            $response = $this->usersDataSearch($query);
+            $response->assertOk();
+            $this->assertSame(
+                [$student->id],
+                collect($response->json('data'))->pluck('id')->all(),
+                $query
+            );
+        }
+    }
+
+    private function usersDataSearch(string $value): TestResponse
+    {
+        return $this->getJson('/admin/users/data?'.http_build_query([
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 50,
+            'search' => ['value' => $value],
+        ]));
     }
 
     public function test_users_data_filter_combinations_return_ok(): void

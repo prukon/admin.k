@@ -345,7 +345,6 @@ final class CustomPaymentsEditPermissionFeatureTest extends CrmTestCase
 
         $this->withHeaders($this->ajaxHeaders())
             ->putJson(route('admin.settingPrices.customPayments.update', ['id' => $payment->id]), [
-                'note' => 'Снять оплату',
                 'is_paid' => false,
                 'status_comment' => 'Ошибочно отметили',
             ])
@@ -380,7 +379,6 @@ final class CustomPaymentsEditPermissionFeatureTest extends CrmTestCase
 
         $this->withHeaders($this->ajaxHeaders())
             ->putJson(route('admin.settingPrices.customPayments.update', ['id' => $payment->id]), [
-                'note' => 'Оплачен вручную',
                 'is_paid' => false,
                 'status_comment' => 'Вернули в неоплаченные',
             ])
@@ -391,6 +389,7 @@ final class CustomPaymentsEditPermissionFeatureTest extends CrmTestCase
         $this->assertFalse($payment->effective_is_paid);
         $this->assertFalse((bool) $payment->is_manual_paid);
         $this->assertSame('Вернули в неоплаченные', $payment->manual_paid_note);
+        $this->assertSame('Оплачен вручную', $payment->note);
     }
 
     public function test_update_validation_puts_errors_under_amount_and_status_comment(): void

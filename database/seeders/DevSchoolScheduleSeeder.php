@@ -160,8 +160,6 @@ class DevSchoolScheduleSeeder extends Seeder
                     'trial_lessons_total' => 1,
                     'created_by' => $createdBy,
                 ]);
-
-                $student->forceFill(['has_used_school_schedule_trial' => true])->save();
             } catch (\Throwable $e) {
                 Log::debug('DevSchoolScheduleSeeder: trial skip', [
                     'partner_id' => $partnerId,

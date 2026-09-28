@@ -793,14 +793,26 @@
   <h2>Пробные занятия: добавление, баланс и ограничения</h2>
   <p>Пробное — запись без абонемента: <code>user_team_schedule_slots</code> с <code>is_trial_lesson = true</code>, <code>user_lesson_package_id = NULL</code>. Пробное действует <strong>только в выбранную дату</strong>: <code>ends_at</code> равно <code>starts_at</code>. При создании через API задаются <code>trial_lessons_remaining = 1</code>, <code>trial_lessons_total = 1</code>. Списание единицы пробного «урока» происходит при выборе статуса с <code>consumes_lesson = true</code> (аналогично абонементу, но поля другие).</p>
   <p class="small">Из журнала <code>/schedule</code> пробное также ставится на полностью пустую ячейку
-    (<a href="/docs/documentation/schedule-journal#place-empty-cell">§7.4</a>): те же флаги
-    <code>has_used_school_schedule_trial</code> / «уже есть пробная запись»; статус задаётся сразу при установке.</p>
-  <p>У пользователя в таблице <code>users</code> хранится флаг <code>has_used_school_schedule_trial</code>: после успешного создания пробной записи он выставляется в <code>true</code>. Пока существует строка пробного у ученика (<code>is_trial_lesson = true</code> и <code>user_lesson_package_id IS NULL</code>), вторую создать нельзя; те же условия проверяются в <code>SchoolCalendarTrialEligibilityService</code> и при создании (блокировка строки в транзакции). Ячейка слота/даты не должна быть занята абонементом или посторонней записью.</p>
-  <p><strong>GET</strong> <code>…/trial-registration-eligibility</code> — заранее проверяет возможность добавления (ответ <code>allowed</code>, <code>reason</code>).
-    Текст «уже есть пробное» формирует <code>SchoolCalendarTrialEligibilityService::alreadyScheduledReason</code>:
-    «Уже есть пробное занятие {д.м.г}.» (или без даты). Тот же текст в журнале
-    (<code>empty-cell-context.trial.reason</code>) —
-    <a href="/docs/documentation/schedule-journal#place-empty-cell">schedule-journal §7.4</a>.</p>
+    (<a href="/docs/documentation/schedule-journal#place-empty-cell">§7.4</a>).
+    Лимита «одно пробное на ученика» нет и там; статус задаётся сразу при установке.</p>
+  <p>У ученика в <code>users.school_schedule_trial_lessons_count</code> хранится число текущих пробных строк
+    (<code>is_trial_lesson = true</code> и <code>user_lesson_package_id IS NULL</code>).
+    Счётчик увеличивается при создании и уменьшается при отмене или удалении строки
+    (<code>SchoolScheduleTrialLessonsCounter</code>). Посещение со списанием
+    <code>trial_lessons_remaining</code> счётчик не уменьшает.
+    Прежний признак «пробное уже использовано» снят
+    (миграция <code>2026_09_27_150000_replace_school_schedule_trial_flag_with_count</code>).
+    Второе и следующие пробные на другие слоты и даты разрешены.
+    Та же ячейка (тот же слот и дата) не должна быть занята абонементом, пробным или другой записью —
+    кнопка «Добавить пробное занятие» остаётся <code>disabled</code>, подсказка — <code>trial.reason</code>
+    из <code>slot-user-bind-actions</code>. Уже стоящее пробное на другом занятии кнопку не выключает.</p>
+  <p><strong>GET</strong> <code>…/trial-registration-eligibility</code> и
+    <code>…/slot-user-bind-actions</code> (<code>trial.allowed</code>, <code>trial.reason</code>)
+    проверяют ученика, слот и эту ячейку, а не «было ли пробное раньше».
+    Тот же <code>evaluateUserLevel</code> в журнале
+    (<code>empty-cell-context.trial</code>) —
+    <a href="/docs/documentation/schedule-journal#place-empty-cell">schedule-journal §7.4</a>.
+    Анонс: <a href="/doc#unlimited-school-schedule-trials-index">/doc</a>.</p>
 
   <h2>UI: «(Отменить)» в списке записей</h2>
   <p>В модалке слота в блоке <strong>«Записаны на занятие»</strong> ссылка <code>(Отменить)</code> выводится для:</p>
@@ -822,6 +834,7 @@
   <h3>Пробное (<code>DELETE …/trial-registration/{id}</code>)</h3>
   <ul>
     <li><strong>Очистка статусов</strong>: удаляются записи в <code>user_lesson_occurrence_status_events</code> для этой даты/слота/ученика с <code>user_lesson_package_id IS NULL</code>.</li>
+    <li><strong>Счётчик</strong>: <code>school_schedule_trial_lessons_count</code> уменьшается на 1. Остальные пробные этого ученика сохраняются.</li>
     <li><strong>Аудит</strong>: <code>my_logs</code>, <code>event = schedule.trial_cancelled</code> (см. <a href="/docs/documentation/audit-my-logs">аудит my_logs</a>).</li>
   </ul>
 
@@ -856,6 +869,7 @@
   <p>Разметка модалки просмотра слота, <code>team_title</code> в JSON недели, загрузка страницы с группами <code>location_id</code>, read-API — <code>LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleAccessAndMutationsFeatureTest.php</code>, <code>LessonPackagesSectionAccessSmokeFeatureTest.php</code>.
     Фильтр групп и валидация пары группа+объект — <code>TeamLocationFeatureTest.php</code>, <code>TeamLocationBindingFeatureTest.php</code>, <code>TeamLocationFullAccessFeatureTest.php</code>, <code>tests/Feature/Crm/LocationTeam/</code>.
     Доступ к поверхности календаря — <code>SchoolScheduleCalendarAccessFeatureTest.php</code>.
+    Несколько пробных, счётчик и кнопка модалки слота — <code>SchoolScheduleUnlimitedTrialsFeatureTest.php</code>.
     Интеграция привязок и пробных — <code>LessonPackageSchoolScheduleIntegrationFeatureTest.php</code>;
     статусы и баланс — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>;
     <strong>автосписание «Посетил»</strong> — <code>AutoMarkYesterdayLessonOccurrencesFeatureTest.php</code>, <code>LessonPackageAutoAttendanceCrudFeatureTest.php</code>, <code>LessonPackageAutoAttendanceAccessFeatureTest.php</code>, <code>LessonPackageAutoAttendanceAjaxContractFeatureTest.php</code>, <code>LessonPackageAutoAttendanceNonAjaxSafetyNetFeatureTest.php</code>, <code>LessonPackageAutoAttendanceMarkupFeatureTest.php</code>, <code>LessonPackageAutoAttendanceWorkflowFeatureTest.php</code>, <code>LessonPackagesNonAjaxSafetyNetFeatureTest.php</code>, <code>AutoMarkYesterdayLessonOccurrencesJobQueueTest.php</code>, <code>KernelAutoAttendanceScheduleTest.php</code> (см. <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>, <a href="/doc#lesson-package-auto-attendance-index">анонс</a>);

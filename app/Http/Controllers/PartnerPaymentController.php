@@ -7,6 +7,7 @@ use App\Http\Requests\Partner\CreatePartnerServicePaymentRequest;
 use App\Http\Requests\Partner\CreatePartnerWalletTopupRequest;
 use App\Http\Requests\Partner\ShowPartnerWalletCheckoutRequest;
 use App\Http\Requests\Partner\WalletTransactionsFilterRequest;
+use App\Models\FiscalReceipt;
 use App\Models\Partner;
 use App\Models\PartnerAccess;
 use App\Models\PartnerLegalEntity;
@@ -15,6 +16,7 @@ use App\Models\PartnerWalletTransaction;
 use App\Models\UserTableSetting;
 use App\Services\Tinkoff\TbankAcquiringTerminalConfig;
 use App\Services\Tinkoff\TinkoffAcquiringPaymentsService;
+use App\Support\FiscalReceipts\FiscalReceiptUrl;
 use App\Support\Money;
 use App\Support\PlatformPaymentMethods;
 
@@ -797,10 +799,24 @@ class PartnerPaymentController extends AdminBaseController
         $partner = $this->currentUserPartnerOrFail();
         $filters = $request->validated();
 
+        $latestIncomeReceiptSub = FiscalReceipt::query()
+            ->select('wallet_transaction_id', DB::raw('MAX(id) as latest_id'))
+            ->where('partner_id', $partner->id)
+            ->whereNotNull('wallet_transaction_id')
+            ->where('type', FiscalReceipt::TYPE_INCOME)
+            ->groupBy('wallet_transaction_id');
+
         $query = PartnerWalletTransaction::query()
             ->with(['user'])
             ->where('partner_wallet_transactions.partner_id', $partner->id)
-            ->select('partner_wallet_transactions.*');
+            ->leftJoinSub($latestIncomeReceiptSub, 'latest_wallet_fiscal_receipts', function ($join) {
+                $join->on('latest_wallet_fiscal_receipts.wallet_transaction_id', '=', 'partner_wallet_transactions.id');
+            })
+            ->leftJoin('fiscal_receipts as wallet_income_receipt', 'wallet_income_receipt.id', '=', 'latest_wallet_fiscal_receipts.latest_id')
+            ->select(
+                'partner_wallet_transactions.*',
+                'wallet_income_receipt.receipt_url as fiscal_income_receipt_url',
+            );
 
         if (! empty($filters['date_from'])) {
             $query->whereDate('partner_wallet_transactions.created_at', '>=', $filters['date_from']);
@@ -839,9 +855,19 @@ class PartnerPaymentController extends AdminBaseController
 
                 return '<span class="badge '.$cls.'">'.e($label).'</span>';
             })
+            ->addColumn('provider_code', fn ($t) => (string) $t->provider)
             ->editColumn('provider', fn ($t) => $this->walletProviderLabel((string) $t->provider))
+            ->addColumn('receipt_url', function ($t) {
+                $receiptUrl = trim((string) ($t->fiscal_income_receipt_url ?? ''));
+
+                return FiscalReceiptUrl::isPublicDisplayUrl($receiptUrl) ? $receiptUrl : null;
+            })
+            ->addColumn('has_receipt', function ($t) {
+                return FiscalReceiptUrl::isPublicDisplayUrl($t->fiscal_income_receipt_url ?? null);
+            })
             ->editColumn('created_at', fn ($t) => $t->created_at ? $t->created_at->toIso8601String() : '')
             ->editColumn('description', fn ($t) => ($t->description !== null && $t->description !== '') ? $t->description : '—')
+            ->removeColumn('fiscal_income_receipt_url')
             ->rawColumns(['status'])
             ->make(true);
     }

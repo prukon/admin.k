@@ -5,6 +5,7 @@ namespace Tests\Feature\Crm\Payments;
 use App\Models\FiscalReceipt;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
+use App\Models\UserCustomPayment;
 use App\Services\CloudKassir\CloudKassirReceiptBuilder;
 use Illuminate\Support\Facades\Config;
 use Tests\Feature\Crm\CrmTestCase;
@@ -162,5 +163,89 @@ class CloudKassirReceiptBuilderAgentTest extends CrmTestCase
         $payload = app(CloudKassirReceiptBuilder::class)->build($receipt);
 
         $this->assertNull($payload['CustomerReceipt']['Items'][0]['Vat']);
+    }
+
+    public function test_custom_payment_receipt_label_uses_admin_note(): void
+    {
+        Config::set('services.cloudkassir.inn', '7708806062');
+        Config::set('services.cloudkassir.taxation_system', 1);
+        Config::set('services.cloudkassir.default_method', 4);
+        Config::set('services.cloudkassir.default_object', 4);
+        Config::set('services.cloudkassir.russia_time_zone', 2);
+        Config::set('services.cloudkassir.agent.enabled', false);
+
+        $chain = $this->seedFiscalTeamChainForStudent(entityOverrides: [
+            'tax_id' => '7700000000',
+        ]);
+
+        $payment = UserCustomPayment::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'team_id' => $chain['team']->id,
+            'amount_cents' => 150000,
+            'note' => 'Интенсив по выходным',
+            'is_paid' => true,
+        ]);
+
+        $payload = app(CloudKassirReceiptBuilder::class)->build(
+            $this->makeCustomPaymentReceipt($payment->id, $chain['team']->id)
+        );
+        $this->assertSame('Интенсив по выходным', $payload['CustomerReceipt']['Items'][0]['Label']);
+
+        $payment->update(['note' => str_repeat('Я', 140)]);
+        $longPayload = app(CloudKassirReceiptBuilder::class)->build(
+            $this->makeCustomPaymentReceipt($payment->id, $chain['team']->id, 'income:custom:long')
+        );
+        $longLabel = $longPayload['CustomerReceipt']['Items'][0]['Label'];
+        $this->assertSame(128, mb_strlen($longLabel));
+        $this->assertSame(str_repeat('Я', 128), $longLabel);
+
+        $payment->update(['note' => '   ']);
+        $emptyPayload = app(CloudKassirReceiptBuilder::class)->build(
+            $this->makeCustomPaymentReceipt($payment->id, $chain['team']->id, 'income:custom:empty')
+        );
+        $this->assertSame('Дополнительный платеж', $emptyPayload['CustomerReceipt']['Items'][0]['Label']);
+    }
+
+    private function makeCustomPaymentReceipt(int $customPaymentId, int $teamId, string $idempotencyKey = 'income:custom:note'): FiscalReceipt
+    {
+        $payable = Payable::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'custom_payment_fee',
+            'amount_cents' => 150000,
+            'currency' => 'RUB',
+            'status' => 'paid',
+            'meta' => [
+                'user_period_price_id' => $customPaymentId,
+                'team_id' => $teamId,
+            ],
+            'paid_at' => now(),
+        ]);
+
+        $intent = PaymentIntent::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'status' => 'paid',
+            'out_sum_cents' => 150000,
+            'payment_date' => 'Дополнительный платеж',
+            'paid_at' => now(),
+            'meta' => json_encode([], JSON_UNESCAPED_UNICODE),
+        ]);
+
+        return FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_intent_id' => $intent->id,
+            'payable_id' => $payable->id,
+            'provider' => FiscalReceipt::PROVIDER_CLOUDKASSIR,
+            'type' => FiscalReceipt::TYPE_INCOME,
+            'status' => FiscalReceipt::STATUS_PENDING,
+            'amount_cents' => 150000,
+            'invoice_id' => 'pi_'.$intent->id,
+            'account_id' => (string) $this->user->id,
+            'idempotency_key' => $idempotencyKey,
+        ]);
     }
 }

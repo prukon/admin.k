@@ -693,13 +693,17 @@ class SettingPricesController extends AdminBaseController
         $amountChanged = false;
 
         DB::transaction(function () use ($row, $data, $wantPaid, $wasPaid, $authorId, $previousAmountCents, &$amountChanged) {
-            $fill = [
-                'note' => $data['note'] ?? null,
-            ];
+            $fill = [];
 
-            if (! $wasPaid && array_key_exists('amount', $data)) {
-                $fill['amount_cents'] = Money::toCentsOrFail($data['amount']);
-                $amountChanged = (int) $fill['amount_cents'] !== $previousAmountCents;
+            if (! $wasPaid) {
+                if (array_key_exists('note', $data)) {
+                    $fill['note'] = $data['note'] ?? null;
+                }
+
+                if (array_key_exists('amount', $data)) {
+                    $fill['amount_cents'] = Money::toCentsOrFail($data['amount']);
+                    $amountChanged = (int) $fill['amount_cents'] !== $previousAmountCents;
+                }
             }
 
             if ($wantPaid !== $wasPaid) {

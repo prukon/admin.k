@@ -29,6 +29,7 @@ class ContractContextPlaceholderFeatureTest extends CrmTestCase
             'address' => 'ул. Лесная, 1',
         ]);
         $team = Team::factory()->for($this->partner)->create([
+            'title'         => 'Группа дельфины',
             'sport_type_id' => $sport->id,
             'location_id'   => $location->id,
         ]);
@@ -80,6 +81,7 @@ class ContractContextPlaceholderFeatureTest extends CrmTestCase
 
         $values = app(ContractContextPlaceholderService::class)->valuesForContract($contract);
 
+        $this->assertSame('Группа дельфины', $values[ContractContextPlaceholderService::TEAM_TITLE]);
         $this->assertSame('Плавание', $values[ContractContextPlaceholderService::SPORT_TYPE_NAME]);
         $this->assertSame('ул. Лесная, 1', $values[ContractContextPlaceholderService::LOCATION_ADDRESS]);
         $this->assertSame(
@@ -108,6 +110,7 @@ class ContractContextPlaceholderFeatureTest extends CrmTestCase
 
         $values = app(ContractContextPlaceholderService::class)->valuesForContract($contract);
 
+        $this->assertSame('', $values[ContractContextPlaceholderService::TEAM_TITLE]);
         $this->assertSame('', $values[ContractContextPlaceholderService::SPORT_TYPE_NAME]);
         $this->assertSame('', $values[ContractContextPlaceholderService::LOCATION_ADDRESS]);
         $this->assertSame('', $values[ContractContextPlaceholderService::LOCATION_ADMIN_EMAILS]);

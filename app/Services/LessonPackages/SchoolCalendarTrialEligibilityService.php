@@ -43,30 +43,6 @@ final class SchoolCalendarTrialEligibilityService
             ];
         }
 
-        /** @var UserTeamScheduleSlot|null $existingTrial */
-        $existingTrial = UserTeamScheduleSlot::query()
-            ->where('partner_id', $partnerId)
-            ->where('user_id', $userId)
-            ->where('is_trial_lesson', true)
-            ->whereNull('user_lesson_package_id')
-            ->orderByDesc('id')
-            ->first();
-
-        if ($existingTrial !== null) {
-            return [
-                'allowed' => false,
-                'reason' => $this->alreadyScheduledReason($existingTrial->starts_at),
-            ];
-        }
-
-        $trialUsedFlag = (bool) User::query()->whereKey($userId)->value('has_used_school_schedule_trial');
-        if ($trialUsedFlag) {
-            return [
-                'allowed' => false,
-                'reason' => 'Пробное занятие для этого ученика уже было использовано.',
-            ];
-        }
-
         $autoProlongReason = app(UserLessonPackageAutoProlongGuard::class)->blockReasonForUser($userId);
         if ($autoProlongReason !== null) {
             return [
@@ -148,19 +124,5 @@ final class SchoolCalendarTrialEligibilityService
             'allowed' => false,
             'reason' => 'На это занятие уже есть запись в календаре.',
         ];
-    }
-
-    /**
-     * Текст причины «уже есть пробное» с датой записи (d.m.Y).
-     */
-    public function alreadyScheduledReason(mixed $startsAt): string
-    {
-        if ($startsAt === null || $startsAt === '') {
-            return 'Уже есть пробное занятие.';
-        }
-
-        $date = CarbonImmutable::parse($startsAt)->format('d.m.Y');
-
-        return 'Уже есть пробное занятие '.$date.'.';
     }
 }

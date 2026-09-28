@@ -159,7 +159,7 @@
 
   <h3>3.3) Модалка редактирования</h3>
   <ul>
-    <li>Поля: сумма (readonly/disabled, если уже оплачен), описание (<code>note</code>), селект «Статус оплаты» — только при <code>manualPaid.manage</code> (блок <code>#custom-payment-edit-is-paid-wrap</code>; без права скрыт, в PUT уходит текущий статус). При смене статуса — обязательное «Комментарий к изменению статуса оплаты» (<code>status_comment</code>, min 3).</li>
+    <li>Поля: сумма и описание (<code>note</code>) — <code>disabled</code>, если платёж уже оплачен (в PUT эти поля не уходят). Селект «Статус оплаты» — только при <code>manualPaid.manage</code> (блок <code>#custom-payment-edit-is-paid-wrap</code>; без права скрыт, в PUT уходит текущий статус). При смене статуса — обязательное «Комментарий к изменению статуса оплаты» (<code>status_comment</code>, min 3). Описание попадает в чек CloudKassir (до 128 символов; пустое — «Дополнительный платеж»).</li>
     <li>Ученика и группу менять нельзя.</li>
     <li>Кнопка <b>«Удалить»</b> (слева в footer) видна только если <code>effective_is_paid === false</code>; подтверждение через <code>showConfirmDeleteModal</code>.</li>
     <li>Успех PUT: без reload, закрытие модалки, <code>dtApi.reload({ keepPage: true })</code>, toast <code>window.showToast('Изменения сохранены.', 'success')</code> (<code>#kidsMainToast</code>, не <code>#priceToast</code>, не <code>showSuccessModal</code>, не <code>alert</code>).</li>
@@ -171,11 +171,10 @@
   <ul>
     <li><code>UserCustomPaymentUpdateRequest</code>:
       <ul>
-        <li>если платёж <b>не</b> оплачен — <code>amount</code> required, numeric, min 0.01;</li>
-        <li>если оплачен — <code>amount</code> <code>prohibited</code> (сумму менять нельзя);</li>
+        <li>если платёж <b>не</b> оплачен — <code>amount</code> required, numeric, min 0.01; <code>note</code> nullable, max 255;</li>
+        <li>если оплачен — <code>amount</code> и <code>note</code> <code>prohibited</code> (сумму и описание менять нельзя; сообщение <code>note</code>: «Описание оплаченного платежа менять нельзя.»);</li>
         <li><code>is_paid</code> required boolean;</li>
-        <li><code>status_comment</code> required, если новый статус ≠ текущему <code>effective_is_paid</code>;</li>
-        <li><code>note</code> nullable, max 255.</li>
+        <li><code>status_comment</code> required, если новый статус ≠ текущему <code>effective_is_paid</code>.</li>
       </ul>
     </li>
     <li>При смене статуса пишутся <code>is_manual_paid</code>, <code>manual_paid_by</code>, <code>manual_paid_at</code>, <code>manual_paid_note</code>. Без <code>manualPaid.manage</code> смена статуса — <b>403</b> <code>errors.is_paid</code>.</li>

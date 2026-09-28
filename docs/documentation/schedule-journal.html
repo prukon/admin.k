@@ -1123,11 +1123,16 @@
       <code>#flexiblePlaceModal</code>).
       Недоступные пункты выбора подсвечены серым фоном
       (<code>cell-status-option--disabled</code>).
-      Пробное недоступно → пункт <b>disabled</b> + текст причины
-      (<code>SchoolCalendarTrialEligibilityService</code> /
-      <code>alreadyScheduledReason</code>):
-      «Уже есть пробное занятие {д.м.г}.» или «Уже есть пробное занятие.»;
-      также флаг <code>has_used_school_schedule_trial</code> и прочие правила user-level.</li>
+      Пробное <b>не</b> выключается из‑за уже стоящих пробных у ученика:
+      сколько угодно записей на разные даты и повтор на ту же дату
+      (следующий свободный слот группы). Пункт <b>disabled</b> только если
+      <code>trial.allowed = false</code> (ученик недоступен, автопролонгация и т.п.) —
+      тогда под пунктом текст <code>trial.reason</code>.
+      Число текущих пробных — <code>users.school_schedule_trial_lessons_count</code>;
+      само по себе оно пункт не блокирует.
+      Повторное открытие модалки заново запрашивает context и собирает радио с нуля
+      (<code>openEmptyCellPlaceModal</code> очищает <code>#empty-cell-choice-options</code>
+      до ответа), статус снова «Запись». Смена типа занятия комментарий не сбрасывает.</li>
     <li><b>Разовое:</b> в списке одновременно свободные назначения (<code>bind_existing</code>)
       <em>и</em> активные шаблоны <code>no_schedule</code> (<code>create_new</code>) —
       не взаимоисключающие режимы как в календаре школы (<code>slot-user-bind-actions</code>).</li>
@@ -1160,10 +1165,11 @@
       <code>team_id</code>, <code>occurrence_date</code>, <code>lesson_occurrence_status_id</code>,
       опц. <code>trainer_profile_id</code>, <code>comment</code>.
       Сервис: <code>JournalTrialLessonPlacementService</code> —
-      lock ученика, UTSS <code>is_trial_lesson</code> (1/1),
-      <code>has_used_school_schedule_trial = true</code>,
-      статус через <code>UserLessonOccurrenceStatusService</code>
-      (списание <code>trial_lessons_remaining</code> при <code>consumes_lesson</code>).
+      отдельная строка UTSS <code>is_trial_lesson</code> (1/1) на каждую постановку,
+      <code>users.school_schedule_trial_lessons_count</code> +1
+      (при удалении строки −1; «Посетил» уменьшает только <code>trial_lessons_remaining</code> этой строки).
+      Лимита «одно пробное на ученика» нет.
+      Статус через <code>UserLessonOccurrenceStatusService</code>.
       Аудит: <code>schedule.trial_registered</code>.</li>
     <li><code>POST …/place-single-lesson</code> —
       <code>PlaceScheduleJournalSingleLessonRequest</code>:
@@ -1185,15 +1191,21 @@
   <div class="warn">
     Календарь школы по-прежнему пишет пробное/разовое на <em>конкретный</em> timed-слот
     (<code>team_schedule_slot_id</code> из сетки). Журнал — дневная модель (дата × группа).
-    Оба пути пишут в один контур <code>user_team_schedule_slots</code> + status events;
-    правила «одно пробное на ученика» общие (<code>has_used_school_schedule_trial</code> / существующая trial-строка).
+    Оба пути пишут в один контур <code>user_team_schedule_slots</code> + status events.
+    Лимита «одно пробное на ученика» нет: <code>school_schedule_trial_lessons_count</code>
+    считает текущие пробные строки (миграция
+    <code>2026_09_27_150000_replace_school_schedule_trial_flag_with_count</code>).
+    В календаре школы на ту же ячейку (тот же слот и дата) вторую запись поставить нельзя.
     <code>user_lesson_packages.team_id</code> при разовом пишет <b>только журнал</b>
     (<a href="/doc#cabinet-ulp-team-filter">/doc</a>); календарь школы при create группу на ULP не ставит.
   </div>
-  <p class="small">Тесты: <code>ScheduleJournalEmptyCellPlacementFeatureTest</code>,
+  <p class="small">Анонс: <a href="/doc#unlimited-school-schedule-trials-index">/doc</a>.
+    Тесты: <code>ScheduleJournalEmptyCellPlacementFeatureTest</code>,
     <code>ScheduleJournalEmptyCellContractsFeatureTest</code> (доступ AND-прав / AJAX / non-AJAX / <code>team_id</code> / P2 smoke /
     персональная скидка на <code>create_new</code>),
-    UI — <code>BladeInlineJsSyntaxTest</code> (<code>emptyCellPlaceForm</code> + place-trial/single без reload + <code>syncEmptyCellFeeBadge</code>).</p>
+    <code>ScheduleJournalUnlimitedTrialsFeatureTest</code> (несколько пробных, счётчик, пустая ячейка другого дня остаётся кликабельной),
+    UI — <code>BladeInlineJsSyntaxTest</code> (<code>emptyCellPlaceForm</code> + place-trial/single без reload + <code>syncEmptyCellFeeBadge</code>
+    + пробное не гасится клиентом, если <code>trial.allowed</code>).</p>
 
   <h3>7.5) Контракт ответов (fixed / flexible / empty-cell place)</h3>
   <table>
@@ -1431,7 +1443,8 @@
       <code>TrainerWorkloadReportService.php</code></li>
     <li><code>app/Services/LessonPackages/UserLessonOccurrenceStatusService.php</code>,
       <code>SchoolCalendarTrialEligibilityService</code>
-      (<code>evaluateUserLevel</code> / <code>alreadyScheduledReason</code> для журнала и календаря)</li>
+      (<code>evaluateUserLevel</code> без лимита «одно пробное»),
+      <code>SchoolScheduleTrialLessonsCounter</code></li>
     <li><code>app/Support/ScheduleOccurrenceTrainerIds.php</code>,
       <code>app/Http/Requests/Concerns/NormalizesTrainerProfileIds.php</code> —
       нормализация <code>trainer_profile_ids[]</code> / BC <code>trainer_profile_id</code></li>

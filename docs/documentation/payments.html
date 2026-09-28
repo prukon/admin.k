@@ -609,6 +609,7 @@
     <br><b>Даты:</b> <code>date_start</code>/<code>date_end</code> в БД nullable; в UI создания полей дат нет. На консоли период не показывается — подпись берётся из <code>note</code> («Описание»).
     <br><b>Связка:</b> в <code>payables.meta</code> хранится <code>user_period_price_id</code> и <code>team_id</code>.
     <br><b>Состояние оплаты:</b> при успешном webhook выставляем <code>user_custom_payment.is_paid=1</code>. Ручная смена статуса в админке — через PUT update / <code>is_manual_paid</code> (право <code>setPrices.manualPaid.manage</code>).
+    <br><b>Чеки CloudKassir:</b> наименование позиции — <code>user_custom_payment.note</code> (описание из админки). Строка длиннее 128 символов обрезается. Пустое описание или нет записи — «Дополнительный платеж». Чек возврата берёт то же наименование. После оплаты сумму и описание в админке менять нельзя.
   </div>
   <ol>
     <li>Админ создаёт запись в <code>user_custom_payment</code> с учеником (системная роль <code>user</code>), группой, суммой и опциональным описанием.</li>

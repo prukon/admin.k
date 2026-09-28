@@ -226,7 +226,7 @@ final class ScheduleJournalHoverAndUiContractsFeatureTest extends ScheduleJourna
         ]);
     }
 
-    public function test_empty_cell_context_trial_reason_short_with_date(): void
+    public function test_empty_cell_context_trial_allowed_when_another_trial_exists(): void
     {
         [$student, $team] = $this->makeStudentWithTeam();
         $this->createTrialUtss($student, $team, '2026-08-01');
@@ -237,8 +237,8 @@ final class ScheduleJournalHoverAndUiContractsFeatureTest extends ScheduleJourna
                 'context_team_id' => $team->id,
             ]))
             ->assertOk()
-            ->assertJsonPath('trial.allowed', false)
-            ->assertJsonPath('trial.reason', 'Уже есть пробное занятие 01.08.2026.');
+            ->assertJsonPath('trial.allowed', true)
+            ->assertJsonPath('trial.reason', null);
     }
 
     public function test_month_service_single_lesson_hover_includes_fee(): void

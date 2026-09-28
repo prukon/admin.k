@@ -2160,6 +2160,110 @@ JS;
     }
 
     /**
+     * Пробное не гасится на клиенте из‑за уже стоящих пробных: disabled только при trial.allowed = false.
+     * Повторное открытие модалки собирает радио заново и возвращает статус «Запись», комментарий при смене типа не сбрасывается.
+     */
+    public function test_unlimited_trials_stay_enabled_unless_server_marks_trial_unavailable(): void
+    {
+        foreach ([
+            resource_path('js/schedule.js'),
+            public_path('js/schedule-journal.js'),
+        ] as $path) {
+            $content = (string) file_get_contents($path);
+            $this->assertStringNotContainsString('has_used_school_schedule_trial', $content);
+            $this->assertStringNotContainsString('Уже есть пробное занятие', $content);
+            $this->assertStringNotContainsString('school_schedule_trial_lessons_count', $content);
+
+            $renderPos = strpos($content, 'function renderEmptyCellChoiceOptions');
+            $this->assertNotFalse($renderPos);
+            $renderChunk = substr($content, (int) $renderPos, 1600);
+            $this->assertStringContainsString('if (!trial.allowed)', $renderChunk);
+            $this->assertStringContainsString("prop('disabled', true)", $renderChunk);
+            $this->assertStringContainsString('cell-status-option--disabled', $renderChunk);
+            $this->assertStringContainsString('trial.reason', $renderChunk);
+            $this->assertSame(2, substr_count($renderChunk, 'if (!trial.allowed)'));
+
+            $openPos = strpos($content, 'function openEmptyCellPlaceModal');
+            $this->assertNotFalse($openPos);
+            $openChunk = substr($content, (int) $openPos, 4500);
+            $emptyPos = strpos($openChunk, "$('#empty-cell-choice-options').empty()");
+            $ajaxPos = strpos($openChunk, "url: '/schedule/user/' + userId + '/empty-cell-context'");
+            $this->assertNotFalse($emptyPos);
+            $this->assertNotFalse($ajaxPos);
+            $this->assertLessThan($ajaxPos, $emptyPos);
+            $this->assertStringContainsString("$('#empty-cell-comment').val('')", $openChunk);
+            $this->assertStringContainsString("$('#btnEmptyCellPlace').prop('disabled', true)", $openChunk);
+            $this->assertStringContainsString('renderEmptyCellChoiceOptions(ctx)', $openChunk);
+            $this->assertStringContainsString('resetEmptyCellStatusDefault()', $openChunk);
+
+            $choicePos = strpos($content, 'function applyEmptyCellChoiceSelection');
+            $this->assertNotFalse($choicePos);
+            $choiceChunk = substr($content, (int) $choicePos, 1600);
+            $this->assertStringContainsString("if (value === 'trial')", $choiceChunk);
+            $this->assertStringContainsString("$('#empty-cell-kind').val('trial')", $choiceChunk);
+            $this->assertStringNotContainsString('empty-cell-comment', $choiceChunk);
+            $this->assertStringNotContainsString('resetEmptyCellStatusDefault', $choiceChunk);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+            $this->assertSame(0, $exitCode, "JS syntax error in {$path}:\n".implode("\n", $output));
+        }
+
+        $bladePath = resource_path('views/admin/lessonPackages/tabs/schoolSchedule.blade.php');
+        $blade = (string) file_get_contents($bladePath);
+        $this->assertStringContainsString('id="schoolCalOpenTrial" disabled', $blade);
+        $this->assertStringContainsString('id="schoolCalSlotTrialErr"', $blade);
+        $this->assertStringContainsString(
+            "setSlotBindActionButtonState('schoolCalOpenTrial', !!trial.allowed, trial.reason || '')",
+            $blade
+        );
+        $this->assertStringNotContainsString('has_used_school_schedule_trial', $blade);
+        $this->assertStringNotContainsString('Уже есть пробное занятие', $blade);
+
+        $clickPos = strpos($blade, "document.getElementById('schoolCalOpenTrial')?.addEventListener('click'");
+        $this->assertNotFalse($clickPos);
+        $clickChunk = substr($blade, (int) $clickPos, 1800);
+        $this->assertStringContainsString('if (btn && btn.disabled)', $clickChunk);
+        $this->assertStringContainsString('routes.trialRegistrationStore', $clickChunk);
+        $this->assertStringContainsString('showSchoolCalSlotTrialFieldErr(err.user_id[0])', $clickChunk);
+        $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $clickChunk);
+        $this->assertStringContainsString("Accept': 'application/json'", $clickChunk);
+
+        $resetPos = strpos($blade, 'function resetSlotModalUserPicker');
+        $this->assertNotFalse($resetPos);
+        $resetChunk = substr($blade, (int) $resetPos, 2800);
+        $this->assertStringContainsString('schoolCalOpenTrial', $resetChunk);
+        $this->assertStringContainsString('setSlotBindActionButtonState(bid, false', $resetChunk);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $blade, $matches);
+        $this->assertNotEmpty($matches[1]);
+        $checked = 0;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'schoolCalOpenTrial')) {
+                continue;
+            }
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $tempFile = sys_get_temp_dir().'/blade-js-unlimited-trials-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    "JS syntax error in schoolSchedule.blade.php, script #{$index}:\n".implode("\n", $output)
+                );
+                $checked++;
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+        $this->assertGreaterThan(0, $checked);
+    }
+
+    /**
      * P1: Vite-модуль вкладки «по месяцам» — бывшие участники (read-only) + AJAX apply.
      */
     public function test_setting_prices_monthly_vite_module_former_members_ajax_handlers_have_valid_javascript_syntax(): void

@@ -82,6 +82,7 @@
         amountEl.disabled = paid;
         if (noteEl) {
             noteEl.value = row.note != null ? String(row.note) : '';
+            noteEl.disabled = paid;
         }
         paidEl.value = paid ? '1' : '0';
         initialPaidEl.value = paid ? '1' : '0';
@@ -331,12 +332,14 @@
                     : initialPaid;
 
                 var payload = {
-                    note: document.getElementById('custom-payment-edit-note')?.value || '',
                     is_paid: isPaid,
                 };
 
-                if (!initialPaid && amountEl && !amountEl.disabled) {
-                    payload.amount = amountEl.value;
+                if (!initialPaid) {
+                    payload.note = document.getElementById('custom-payment-edit-note')?.value || '';
+                    if (amountEl && !amountEl.disabled) {
+                        payload.amount = amountEl.value;
+                    }
                 }
 
                 if (canManual && isPaid !== initialPaid) {

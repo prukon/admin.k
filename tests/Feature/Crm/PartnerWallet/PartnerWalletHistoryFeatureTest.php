@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\PartnerWallet;
 
+use App\Models\FiscalReceipt;
 use App\Models\UserTableSetting;
 use Tests\Feature\Crm\CrmTestCase;
 use Tests\Feature\Crm\PartnerWallet\Concerns\PartnerWalletTestHelpers;
@@ -55,6 +56,12 @@ final class PartnerWalletHistoryFeatureTest extends CrmTestCase
 
         $this->assertStringContainsString('id="wallet-history-filters"', $history);
         $this->assertStringContainsString('id="walletHistoryColumnsDropdown"', $history);
+        $this->assertStringContainsString('id="walletColReceipt"', $history);
+        $this->assertStringContainsString('data-column-key="receipt"', $history);
+        $this->assertStringContainsString('renderWalletReceiptCell', $history);
+        $this->assertStringContainsString('Чек сформирован', $history);
+        $this->assertStringContainsString('Чек не сформирован', $history);
+        $this->assertStringContainsString("provider_code !== 'tinkoff'", $history);
         $this->assertStringContainsString('persistPageLength: true', $history);
         $this->assertStringContainsString('payments-report-surface', $history);
         $this->assertStringNotContainsString('id="reloadTable"', $history);
@@ -155,5 +162,101 @@ final class PartnerWalletHistoryFeatureTest extends CrmTestCase
             ])
             ->assertRedirect(route('partner.wallet'))
             ->assertSessionHasErrors(['columns']);
+    }
+
+    public function test_receipt_column_uses_latest_income_url_only_for_display_rules(): void
+    {
+        $tinkoff = $this->makeWalletTx($this->partner->id, $this->user->id, 'topup-tinkoff', [
+            'provider' => 'tinkoff',
+            'status' => 'succeeded',
+            'amount_cents' => 10000,
+        ]);
+        $this->makeWalletReceipt($tinkoff->id, 'https://receipts.ru/old');
+        $this->makeWalletReceipt($tinkoff->id, 'https://receipts.ru/latest');
+        $this->makeWalletReceipt($tinkoff->id, 'https://receipts.ru/return', FiscalReceipt::TYPE_INCOME_RETURN);
+
+        $pending = $this->makeWalletTx($this->partner->id, $this->user->id, 'topup-pending', [
+            'provider' => 'tinkoff',
+            'status' => 'pending',
+        ]);
+
+        $badUrl = $this->makeWalletTx($this->partner->id, $this->user->id, 'topup-bad-url', [
+            'provider' => 'tinkoff',
+            'status' => 'succeeded',
+        ]);
+        $this->makeWalletReceipt($badUrl->id, 'https://example.test/not-ofd');
+
+        $yookassa = $this->makeWalletTx($this->partner->id, $this->user->id, 'topup-yk', [
+            'provider' => 'yookassa',
+            'status' => 'succeeded',
+        ]);
+
+        $manual = $this->makeWalletTx($this->partner->id, $this->user->id, 'contract-fee', [
+            'type' => 'debit',
+            'provider' => 'manual',
+            'status' => 'succeeded',
+        ]);
+
+        $foreignReceiptTx = $this->makeWalletTx($this->partner->id, $this->user->id, 'foreign-receipt', [
+            'provider' => 'tinkoff',
+            'status' => 'succeeded',
+        ]);
+        $this->makeWalletReceipt($foreignReceiptTx->id, 'https://receipts.ru/foreign', partnerId: (int) $this->foreignPartner->id);
+
+        $json = $this->getJson($this->walletTransactionsUrl(), $this->walletAjaxHeaders())
+            ->assertOk()
+            ->json();
+
+        $rows = collect($json['data'])->keyBy('id');
+
+        $shown = $rows[$tinkoff->id];
+        $this->assertSame('tinkoff', $shown['provider_code']);
+        $this->assertSame('T‑Bank', $shown['provider']);
+        $this->assertTrue((bool) $shown['has_receipt']);
+        $this->assertSame('https://receipts.ru/latest', $shown['receipt_url']);
+        $this->assertArrayNotHasKey('fiscal_income_receipt_url', $shown);
+
+        $waiting = $rows[$pending->id];
+        $this->assertSame('tinkoff', $waiting['provider_code']);
+        $this->assertFalse((bool) $waiting['has_receipt']);
+        $this->assertNull($waiting['receipt_url']);
+
+        $invalid = $rows[$badUrl->id];
+        $this->assertFalse((bool) $invalid['has_receipt']);
+        $this->assertNull($invalid['receipt_url']);
+
+        $yk = $rows[$yookassa->id];
+        $this->assertSame('yookassa', $yk['provider_code']);
+        $this->assertFalse((bool) $yk['has_receipt']);
+        $this->assertNull($yk['receipt_url']);
+
+        $debit = $rows[$manual->id];
+        $this->assertSame('manual', $debit['provider_code']);
+        $this->assertFalse((bool) $debit['has_receipt']);
+
+        $foreign = $rows[$foreignReceiptTx->id];
+        $this->assertFalse((bool) $foreign['has_receipt']);
+        $this->assertNull($foreign['receipt_url']);
+    }
+
+    private function makeWalletReceipt(
+        int $walletTransactionId,
+        string $url,
+        string $type = FiscalReceipt::TYPE_INCOME,
+        ?int $partnerId = null,
+    ): FiscalReceipt {
+        return FiscalReceipt::query()->create([
+            'partner_id' => $partnerId ?? (int) $this->partner->id,
+            'provider' => FiscalReceipt::PROVIDER_CLOUDKASSIR,
+            'source' => FiscalReceipt::SOURCE_PLATFORM,
+            'type' => $type,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount_cents' => 10000,
+            'invoice_id' => 'wallet_tx_'.$walletTransactionId.'_'.$type.'_'.uniqid('', true),
+            'account_id' => (string) ($partnerId ?? $this->partner->id),
+            'idempotency_key' => 'test-wallet-receipt-'.uniqid('', true),
+            'wallet_transaction_id' => $walletTransactionId,
+            'receipt_url' => $url,
+        ]);
     }
 }

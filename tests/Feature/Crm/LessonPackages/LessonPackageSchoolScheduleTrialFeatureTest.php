@@ -308,7 +308,7 @@ final class LessonPackageSchoolScheduleTrialFeatureTest extends CrmTestCase
         $this->assertSame(1, (int) ($trialReg['lessons_total'] ?? 0));
 
         $student->refresh();
-        $this->assertTrue($student->has_used_school_schedule_trial);
+        $this->assertSame(1, (int) $student->school_schedule_trial_lessons_count);
     }
 
     public function test_trial_eligibility_blocked_when_legacy_calendar_row_without_package_and_not_trial_flag(): void
@@ -460,7 +460,7 @@ final class LessonPackageSchoolScheduleTrialFeatureTest extends CrmTestCase
         $this->assertStringContainsString(self::WEEK_MONDAY, (string) $log->target_label);
 
         $student->refresh();
-        $this->assertFalse($student->has_used_school_schedule_trial);
+        $this->assertSame(0, (int) $student->school_schedule_trial_lessons_count);
 
         $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
             'user_id' => $student->id,
@@ -469,10 +469,10 @@ final class LessonPackageSchoolScheduleTrialFeatureTest extends CrmTestCase
         ])->assertOk();
 
         $student->refresh();
-        $this->assertTrue($student->has_used_school_schedule_trial);
+        $this->assertSame(1, (int) $student->school_schedule_trial_lessons_count);
     }
 
-    public function test_trial_store_second_registration_other_slot_same_user_returns_422(): void
+    public function test_trial_store_second_registration_other_slot_same_user_is_allowed(): void
     {
         $this->grantPermission('lessonPackages.view');
 
@@ -502,6 +502,17 @@ final class LessonPackageSchoolScheduleTrialFeatureTest extends CrmTestCase
             'user_id' => $student->id,
             'team_schedule_slot_id' => $slotTue->id,
             'occurrence_date' => '2026-05-05',
-        ])->assertStatus(422);
+        ])->assertOk();
+
+        $student->refresh();
+        $this->assertSame(2, (int) $student->school_schedule_trial_lessons_count);
+        $this->assertSame(
+            2,
+            UserTeamScheduleSlot::query()
+                ->where('user_id', $student->id)
+                ->where('is_trial_lesson', true)
+                ->whereNull('user_lesson_package_id')
+                ->count()
+        );
     }
 }

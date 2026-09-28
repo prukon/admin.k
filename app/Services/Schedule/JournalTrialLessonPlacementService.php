@@ -14,7 +14,6 @@ use App\Support\UserPriceTeamMembership;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
-use RuntimeException;
 
 /**
  * Пробное занятие из пустой ячейки журнала /schedule (со статусом и тренером).
@@ -67,97 +66,56 @@ final class JournalTrialLessonPlacementService
             $trainerProfileId !== null && $trainerProfileId > 0 ? [$trainerProfileId] : []
         );
 
-        try {
-            DB::transaction(function () use (
+        DB::transaction(function () use (
+            $partnerId,
+            $user,
+            $team,
+            $occurrenceDate,
+            $occurrenceYmd,
+            $createdByUserId,
+            $status,
+            $resolvedTrainerIds,
+            $commentValue,
+            &$utssId,
+        ): void {
+            $weekday = (int) $occurrenceDate->format('N');
+            $slot = $this->slotEnsure->resolveOrCreateNextFreeForUserDate(
                 $partnerId,
-                $user,
-                $team,
-                $occurrenceDate,
+                (int) $team->id,
+                $weekday,
+                (int) $user->id,
                 $occurrenceYmd,
-                $createdByUserId,
+            );
+            $slotId = (int) $slot->id;
+
+            $utss = UserTeamScheduleSlot::query()->create([
+                'partner_id' => $partnerId,
+                'user_id' => (int) $user->id,
+                'user_lesson_package_id' => null,
+                'is_trial_lesson' => true,
+                'trial_lessons_remaining' => 1,
+                'trial_lessons_total' => 1,
+                'team_schedule_slot_id' => $slotId,
+                'starts_at' => $occurrenceYmd,
+                'ends_at' => $occurrenceYmd,
+                'created_by' => $createdByUserId,
+            ]);
+
+            $this->occurrenceStatusService->apply(
+                $partnerId,
+                (int) $user->id,
+                $slotId,
+                $occurrenceYmd,
+                null,
                 $status,
-                $resolvedTrainerIds,
+                $createdByUserId,
+                $resolvedTrainerIds[0] ?? null,
                 $commentValue,
-                &$utssId,
-            ): void {
-                /** @var User $lockedUser */
-                $lockedUser = User::query()->whereKey((int) $user->id)->lockForUpdate()->firstOrFail();
+                $resolvedTrainerIds,
+            );
 
-                if ($lockedUser->has_used_school_schedule_trial) {
-                    throw new RuntimeException('trial_already_used');
-                }
-
-                $trialDup = UserTeamScheduleSlot::query()
-                    ->where('partner_id', $partnerId)
-                    ->where('user_id', (int) $lockedUser->id)
-                    ->where('is_trial_lesson', true)
-                    ->whereNull('user_lesson_package_id')
-                    ->lockForUpdate()
-                    ->exists();
-
-                if ($trialDup) {
-                    throw new RuntimeException('trial_already_scheduled');
-                }
-
-                $weekday = (int) $occurrenceDate->format('N');
-                $slot = $this->slotEnsure->resolveOrCreateNextFreeForUserDate(
-                    $partnerId,
-                    (int) $team->id,
-                    $weekday,
-                    (int) $lockedUser->id,
-                    $occurrenceYmd,
-                );
-                $slotId = (int) $slot->id;
-
-                $utss = UserTeamScheduleSlot::query()->create([
-                    'partner_id' => $partnerId,
-                    'user_id' => (int) $lockedUser->id,
-                    'user_lesson_package_id' => null,
-                    'is_trial_lesson' => true,
-                    'trial_lessons_remaining' => 1,
-                    'trial_lessons_total' => 1,
-                    'team_schedule_slot_id' => $slotId,
-                    'starts_at' => $occurrenceYmd,
-                    'ends_at' => $occurrenceYmd,
-                    'created_by' => $createdByUserId,
-                ]);
-
-                $lockedUser->forceFill(['has_used_school_schedule_trial' => true])->save();
-
-                $this->occurrenceStatusService->apply(
-                    $partnerId,
-                    (int) $lockedUser->id,
-                    $slotId,
-                    $occurrenceYmd,
-                    null,
-                    $status,
-                    $createdByUserId,
-                    $resolvedTrainerIds[0] ?? null,
-                    $commentValue,
-                    $resolvedTrainerIds,
-                );
-
-                $utssId = (int) $utss->id;
-            });
-        } catch (RuntimeException $e) {
-            if ($e->getMessage() === 'trial_already_used') {
-                throw new InvalidArgumentException('Пробное занятие для этого ученика уже было использовано.');
-            }
-            if ($e->getMessage() === 'trial_already_scheduled') {
-                $existingTrial = UserTeamScheduleSlot::query()
-                    ->where('partner_id', $partnerId)
-                    ->where('user_id', (int) $user->id)
-                    ->where('is_trial_lesson', true)
-                    ->whereNull('user_lesson_package_id')
-                    ->orderByDesc('id')
-                    ->first();
-                throw new InvalidArgumentException(
-                    $this->trialEligibility->alreadyScheduledReason($existingTrial?->starts_at)
-                );
-            }
-
-            throw $e;
-        }
+            $utssId = (int) $utss->id;
+        });
 
         return [
             'utss_id' => $utssId,

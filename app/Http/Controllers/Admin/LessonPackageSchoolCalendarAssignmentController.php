@@ -912,7 +912,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
     }
 
     /**
-     * Пробное занятие: одна активная запись на ученика; флаг has_used_school_schedule_trial при создании и сброс при отмене, если других пробных строк нет.
+     * Пробное занятие. Число текущих пробных на ученике — users.school_schedule_trial_lessons_count.
      */
     public function storeTrialRegistration(AssignSchoolCalendarTrialRequest $request): JsonResponse
     {
@@ -985,28 +985,9 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
 
         try {
             DB::transaction(function () use ($partnerId, $user, $slot, $occurrence): void {
-                /** @var User $lockedUser */
-                $lockedUser = User::query()->whereKey((int) $user->id)->lockForUpdate()->firstOrFail();
-
-                if ($lockedUser->has_used_school_schedule_trial) {
-                    throw new \RuntimeException('trial_already_used');
-                }
-
-                $trialDup = UserTeamScheduleSlot::query()
-                    ->where('partner_id', $partnerId)
-                    ->where('user_id', (int) $lockedUser->id)
-                    ->where('is_trial_lesson', true)
-                    ->whereNull('user_lesson_package_id')
-                    ->lockForUpdate()
-                    ->exists();
-
-                if ($trialDup) {
-                    throw new \RuntimeException('trial_already_scheduled');
-                }
-
                 UserTeamScheduleSlot::query()->create([
                     'partner_id' => $partnerId,
-                    'user_id' => (int) $lockedUser->id,
+                    'user_id' => (int) $user->id,
                     'user_lesson_package_id' => null,
                     'is_trial_lesson' => true,
                     'trial_lessons_remaining' => 1,
@@ -1016,33 +997,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                     'ends_at' => $occurrence->toDateString(),
                     'created_by' => auth()->id(),
                 ]);
-
-                $lockedUser->forceFill(['has_used_school_schedule_trial' => true])->save();
             });
-        } catch (\RuntimeException $e) {
-            if ($e->getMessage() === 'trial_already_used') {
-                return response()->json([
-                    'message' => 'Пробное занятие для этого ученика уже было использовано.',
-                    'errors' => ['user_id' => ['Пробное занятие для этого ученика уже было использовано.']],
-                ], 422);
-            }
-            if ($e->getMessage() === 'trial_already_scheduled') {
-                $existingTrial = UserTeamScheduleSlot::query()
-                    ->where('partner_id', $partnerId)
-                    ->where('user_id', (int) $user->id)
-                    ->where('is_trial_lesson', true)
-                    ->whereNull('user_lesson_package_id')
-                    ->orderByDesc('id')
-                    ->first();
-                $reason = $this->trialEligibilityService->alreadyScheduledReason($existingTrial?->starts_at);
-
-                return response()->json([
-                    'message' => $reason,
-                    'errors' => ['user_id' => [$reason]],
-                ], 422);
-            }
-
-            throw $e;
         } catch (\Throwable $e) {
             report($e);
 
@@ -1137,18 +1092,6 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                     ->delete();
 
                 $userTeamScheduleSlot->delete();
-
-                $lockedUser = User::query()->whereKey($userId)->lockForUpdate()->first();
-                if ($lockedUser !== null) {
-                    $stillHasTrialSlot = UserTeamScheduleSlot::query()
-                        ->where('user_id', $userId)
-                        ->where('is_trial_lesson', true)
-                        ->whereNull('user_lesson_package_id')
-                        ->exists();
-                    if (! $stillHasTrialSlot) {
-                        $lockedUser->forceFill(['has_used_school_schedule_trial' => false])->save();
-                    }
-                }
 
                 $slotPart = $teamTitle !== '' ? ('; группа: '.$teamTitle) : '';
                 $whenPart = $occurrenceDate !== '' ? ('; дата: '.$occurrenceDate) : '';

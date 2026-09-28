@@ -143,7 +143,6 @@ final class SchoolScheduleAuditLogsFeatureTest extends CrmTestCase
         $this->grantPermission('lessonPackages.view');
 
         $student = $this->studentUser();
-        $student->forceFill(['has_used_school_schedule_trial' => false])->save();
         $slot = $this->mondaySlot();
 
         $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
@@ -430,7 +429,6 @@ final class SchoolScheduleAuditLogsFeatureTest extends CrmTestCase
         $this->grantPermission('lessonPackages.view');
 
         $student = $this->studentUser();
-        $student->forceFill(['has_used_school_schedule_trial' => false])->save();
         $slot = $this->mondaySlot('18:00', '19:00');
 
         $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [

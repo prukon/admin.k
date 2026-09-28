@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Schema;
  */
 class ContractContextPlaceholderService
 {
+    public const TEAM_TITLE = 'team_title';
+
     public const SPORT_TYPE_NAME = 'sport_type_name';
 
     public const LOCATION_ADDRESS = 'location_address';
@@ -38,6 +40,7 @@ class ContractContextPlaceholderService
     public static function staticKeys(): array
     {
         return [
+            self::TEAM_TITLE,
             self::SPORT_TYPE_NAME,
             self::LOCATION_ADDRESS,
             self::LOCATION_ADMIN_EMAILS,
@@ -129,6 +132,7 @@ class ContractContextPlaceholderService
             return $values;
         }
 
+        $values[self::TEAM_TITLE] = trim((string) ($team->title ?? ''));
         $values[self::SPORT_TYPE_NAME] = trim((string) ($team->sportType?->name ?? ''));
         $values[self::LOCATION_ADDRESS] = trim((string) ($team->location?->address ?? ''));
         $this->fillLocationAdmins($values, $team, $partnerId);

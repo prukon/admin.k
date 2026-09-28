@@ -121,7 +121,7 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
             ->assertJsonPath('team_id', (int) $team->id);
     }
 
-    public function test_place_trial_creates_utss_status_and_marks_trial_used(): void
+    public function test_place_trial_creates_utss_status_and_increments_trial_count(): void
     {
         [$student, $team] = $this->makeStudentWithTeam();
         $scheduledId = LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id);
@@ -147,7 +147,7 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
         $this->assertSame(1, (int) $utss->trial_lessons_remaining);
 
         $student->refresh();
-        $this->assertTrue((bool) $student->has_used_school_schedule_trial);
+        $this->assertSame(1, (int) $student->school_schedule_trial_lessons_count);
 
         $this->assertDatabaseHas('user_lesson_occurrence_status_events', [
             'user_id' => $student->id,
@@ -195,32 +195,39 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
             ->first();
         $this->assertNotNull($utss);
         $this->assertSame(0, (int) $utss->trial_lessons_remaining);
+
+        $student->refresh();
+        $this->assertSame(1, (int) $student->school_schedule_trial_lessons_count);
     }
 
-    public function test_place_trial_blocked_when_already_used(): void
+    public function test_place_trial_allows_another_when_student_already_has_trial(): void
     {
         [$student, $team] = $this->makeStudentWithTeam();
-        $student->forceFill(['has_used_school_schedule_trial' => true])->save();
+        $this->createTrialUtss($student, $team, '2026-08-01');
+        $student->refresh();
+        $this->assertSame(1, (int) $student->school_schedule_trial_lessons_count);
 
-        $ctx = $this->withHeaders($this->ajaxHeaders())
-            ->getJson(route('schedule.empty-cell.context', $student).'?occurrence_date=2026-09-10&context_team_id='.$team->id);
-        $ctx->assertOk()
-            ->assertJsonPath('trial.allowed', false);
-        $this->assertNotEmpty((string) $ctx->json('trial.reason'));
+        $this->withHeaders($this->ajaxHeaders())
+            ->getJson(route('schedule.empty-cell.context', $student).'?occurrence_date=2026-09-10&context_team_id='.$team->id)
+            ->assertOk()
+            ->assertJsonPath('trial.allowed', true)
+            ->assertJsonPath('trial.reason', null);
 
         $this->postJson(
             route('schedule.empty-cell.place-trial', $student),
             $this->placeTrialPayload((int) $team->id, '2026-09-10'),
             $this->ajaxHeaders()
         )
-            ->assertStatus(422)
-            ->assertJsonPath('success', false)
-            ->assertJsonStructure(['message', 'errors']);
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('result.is_trial_lesson', true);
 
         $this->assertSame(
-            0,
+            2,
             UserTeamScheduleSlot::query()->where('user_id', $student->id)->where('is_trial_lesson', true)->count()
         );
+        $student->refresh();
+        $this->assertSame(2, (int) $student->school_schedule_trial_lessons_count);
     }
 
     public function test_place_single_create_new_creates_ulp_and_utss_with_status(): void
@@ -352,7 +359,7 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
         $this->assertSame(1, $ulp->userTeamScheduleSlots()->count());
     }
 
-    public function test_empty_cell_context_trial_disabled_reason_when_trial_row_exists(): void
+    public function test_empty_cell_context_trial_stays_allowed_when_trial_row_exists(): void
     {
         [$student, $team] = $this->makeStudentWithTeam();
         $this->createTrialUtss($student, $team, '2026-08-01');
@@ -360,11 +367,8 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
         $this->withHeaders($this->ajaxHeaders())
             ->getJson(route('schedule.empty-cell.context', $student).'?occurrence_date=2026-09-10&context_team_id='.$team->id)
             ->assertOk()
-            ->assertJsonPath('trial.allowed', false)
-            ->assertJsonPath(
-                'trial.reason',
-                'Уже есть пробное занятие 01.08.2026.'
-            );
+            ->assertJsonPath('trial.allowed', true)
+            ->assertJsonPath('trial.reason', null);
     }
 
     public function test_place_rejects_wrong_team_membership(): void

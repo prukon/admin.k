@@ -7,6 +7,7 @@ use App\Models\Partner;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\User;
+use App\Models\UserCustomPayment;
 use App\Services\PartnerLegalEntities\LegalEntityResolver;
 use App\Support\Money;
 use RuntimeException;
@@ -296,7 +297,7 @@ class CloudKassirReceiptBuilder
         }
 
         if ((string) $payable->type === 'custom_payment_fee') {
-            return 'Дополнительный платеж';
+            return $this->customPaymentReceiptLabel($payable);
         }
 
         if ((string) $payable->type === 'lesson_package_fee') {
@@ -308,6 +309,30 @@ class CloudKassirReceiptBuilder
         }
 
         return 'Оплата услуг';
+    }
+
+    /**
+     * Наименование в чеке — описание из админки. CloudKassir обрезает строку длиннее 128 символов.
+     */
+    protected function customPaymentReceiptLabel(Payable $payable): string
+    {
+        $fallback = 'Дополнительный платеж';
+        $customPaymentId = (int) ($payable->meta['user_period_price_id'] ?? 0);
+        if ($customPaymentId <= 0) {
+            return $fallback;
+        }
+
+        $note = UserCustomPayment::query()->whereKey($customPaymentId)->value('note');
+        $note = trim((string) $note);
+        if ($note === '') {
+            return $fallback;
+        }
+
+        if (mb_strlen($note) > 128) {
+            return rtrim(mb_substr($note, 0, 128));
+        }
+
+        return $note;
     }
 
     protected function resolveCalculationPlace(Partner $partner): string

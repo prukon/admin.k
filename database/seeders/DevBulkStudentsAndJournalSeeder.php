@@ -152,7 +152,7 @@ class DevBulkStudentsAndJournalSeeder extends Seeder
                 'two_factor_enabled' => 0,
                 'offer_accepted' => 1,
                 'offer_accepted_at' => $nowStr,
-                'has_used_school_schedule_trial' => 0,
+                'school_schedule_trial_lessons_count' => 0,
                 'remember_token' => Str::random(10),
                 'created_at' => $nowStr,
                 'updated_at' => $nowStr,

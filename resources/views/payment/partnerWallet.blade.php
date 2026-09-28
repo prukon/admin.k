@@ -324,6 +324,10 @@
                                             <label class="form-check-label" for="walletColDescription">Описание</label>
                                         </div>
                                         <div class="form-check">
+                                            <input class="form-check-input wallet-history-column-toggle" type="checkbox" data-column-key="receipt" id="walletColReceipt" checked>
+                                            <label class="form-check-label" for="walletColReceipt">Чек</label>
+                                        </div>
+                                        <div class="form-check">
                                             <input class="form-check-input wallet-history-column-toggle" type="checkbox" data-column-key="provider" id="walletColProvider">
                                             <label class="form-check-label" for="walletColProvider">Провайдер</label>
                                         </div>
@@ -399,6 +403,7 @@
                         <th>Сумма</th>
                         <th>Статус</th>
                         <th>Описание</th>
+                        <th>Чек</th>
                         <th>Провайдер</th>
                         <th>Кто провёл</th>
                     </tr>
@@ -457,6 +462,34 @@
                 };
             }
 
+            function renderWalletReceiptCell(data, type, row) {
+                if (type !== 'display') {
+                    return row.has_receipt ? 1 : 0;
+                }
+
+                if (row.provider_code !== 'tinkoff') {
+                    return '';
+                }
+
+                var icons = [];
+                if (row.has_receipt && row.receipt_url) {
+                    icons.push({
+                        href: row.receipt_url,
+                        iconClass: 'fas fa-receipt text-primary',
+                        title: 'Чек сформирован',
+                        ariaLabel: 'Чек сформирован',
+                    });
+                } else {
+                    icons.push({
+                        iconClass: 'fas fa-receipt text-secondary',
+                        title: 'Чек не сформирован',
+                        ariaLabel: 'Чек не сформирован',
+                    });
+                }
+
+                return window.KidsCrmDataTable.renderIcon(icons, type, { sortKey: 'has_receipt' }, row);
+            }
+
             var dtApi = KidsCrmDataTable.create('#walletTxTable', {
                 columnsSettings: {
                     persistPageLength: true,
@@ -467,6 +500,7 @@
                         amount: true,
                         status: true,
                         description: true,
+                        receipt: true,
                         provider: false,
                         user_name: false
                     },
@@ -520,6 +554,15 @@
                         }
                     },
                     { key: 'description', type: 'text', data: 'description', name: 'partner_wallet_transactions.description' },
+                    {
+                        key: 'receipt',
+                        type: 'icon',
+                        data: 'receipt_url',
+                        name: 'receipt',
+                        orderable: false,
+                        searchable: false,
+                        render: renderWalletReceiptCell,
+                    },
                     { key: 'provider', type: 'text', data: 'provider', name: 'partner_wallet_transactions.provider' },
                     { key: 'user_name', type: 'text', data: 'user_name', name: 'user_name', orderable: false, searchable: false }
                 ]

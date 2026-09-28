@@ -426,12 +426,15 @@ final class CustomPaymentsCrudAccessFeatureTest extends CrmTestCase
                 'is_paid' => true,
             ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['amount']);
+            ->assertJsonValidationErrors(['amount', 'note'])
+            ->assertJsonPath('errors.note.0', 'Описание оплаченного платежа менять нельзя.');
 
-        $this->assertSame(50000, (int) $payment->fresh()->amount_cents);
+        $payment->refresh();
+        $this->assertSame(50000, (int) $payment->amount_cents);
+        $this->assertSame('Исходное описание', $payment->note);
     }
 
-    public function test_update_ajax_allows_note_when_paid_without_sending_amount(): void
+    public function test_update_ajax_prohibits_note_when_paid_without_sending_amount(): void
     {
         $this->grantFullCustomPaymentsAccess($this->user);
         $this->actingAs($this->user);
@@ -450,12 +453,13 @@ final class CustomPaymentsCrudAccessFeatureTest extends CrmTestCase
                 'note' => 'Новое описание',
                 'is_paid' => true,
             ])
-            ->assertOk()
-            ->assertJsonPath('success', true);
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['note'])
+            ->assertJsonPath('errors.note.0', 'Описание оплаченного платежа менять нельзя.');
 
         $payment->refresh();
         $this->assertSame(50000, (int) $payment->amount_cents);
-        $this->assertSame('Новое описание', $payment->note);
+        $this->assertSame('Старое', $payment->note);
     }
 
     public function test_update_non_ajax_returns_json_contract_and_persists_not_empty_200(): void

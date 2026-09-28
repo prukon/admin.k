@@ -364,7 +364,7 @@ final class ScheduleJournalEmptyCellContractsFeatureTest extends ScheduleJournal
                 ->count()
         );
         $student->refresh();
-        $this->assertTrue((bool) $student->has_used_school_schedule_trial);
+        $this->assertSame(1, (int) $student->school_schedule_trial_lessons_count);
     }
 
     public function test_place_single_non_ajax_redirects_and_creates_assignment_not_empty_200(): void
@@ -486,13 +486,13 @@ final class ScheduleJournalEmptyCellContractsFeatureTest extends ScheduleJournal
 
     public function test_place_trial_non_ajax_business_error_redirects_with_session_errors(): void
     {
-        [$student, $team] = $this->makeStudentWithTeam();
-        $student->forceFill(['has_used_school_schedule_trial' => true])->save();
+        [$student] = $this->makeStudentWithTeam();
+        $otherTeam = Team::factory()->create(['partner_id' => $this->partner->id]);
 
         $response = $this->from(route('schedule.index'))
             ->post(
                 route('schedule.empty-cell.place-trial', $student),
-                array_merge($this->placeTrialPayload((int) $team->id, '2026-09-10'), ['_token' => csrf_token()])
+                array_merge($this->placeTrialPayload((int) $otherTeam->id, '2026-09-10'), ['_token' => csrf_token()])
             );
 
         $response->assertStatus(302)

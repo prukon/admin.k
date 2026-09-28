@@ -147,12 +147,28 @@
     <li>Первое открытие и повторный GET: поле суммы пустое, чужая сумма не подставляется.</li>
     <li>Вкладка «Баланс»: кнопки 1 000 / 5 000 / 10 000 ₽ только подставляют сумму в <code>#walletTopupAmount</code>. Кнопка «Пополнить» (<code>id="topupBtn"</code>) — <code>GET /partner-wallet/checkout</code>.</li>
     <li>На «Балансе» блок <code>#walletSchoolCard</code>: название школы (<code>partners.title</code>), телефон, почта и сайт — только если заполнены. Одиночный прочерк вместо контакта не показывается. Юрлицо (<code>#walletLegalEntity</code>, наименование и ИНН) — только если включённое и не удалённое ровно одно. Ноль или несколько — блок не показывается.</li>
-    <li>Вкладка «История платежей»: <code>KidsCrmDataTable.create('#walletTxTable')</code>, серверная пагинация. Фильтры (период, тип, статус, провайдер), меню «Колонки», «Показать N» (<code>persistPageLength: true</code>, <code>$walletHistoryPageLength</code>). По умолчанию видны дата, тип, сумма, статус, описание; ID, провайдер и «Кто провёл» скрыты.</li>
+    <li>Вкладка «История платежей»: <code>KidsCrmDataTable.create('#walletTxTable')</code>, серверная пагинация. Фильтры (период, тип, статус, провайдер), меню «Колонки», «Показать N» (<code>persistPageLength: true</code>, <code>$walletHistoryPageLength</code>). По умолчанию видны дата, тип, сумма, статус, описание и «Чек»; ID, провайдер и «Кто провёл» скрыты. Колонка «Чек» — <a href="#history-receipt">§5.1</a>.</li>
     <li>Сайдбар <code>@can('partnerWallet.view')</code>: ссылка «(пополнить)» только с правом;
       без партнёра — «Партнёр не выбран».</li>
     <li>Форма <code>#walletTopupForm</code> — <code>method="get"</code>, без
       <code>$('#walletTopupForm').on('submit')</code>, без <code>preventDefault</code> и без <code>$.ajax</code>.
       Hidden <code>partner_id</code> и CSRF — на POST-формах checkout.</li>
+  </ul>
+
+  <h2 id="history-receipt">5.1) Колонка «Чек»</h2>
+  <div class="note">
+    На <code>/partner-wallet/history</code> колонка <code>receipt</code> (чекбокс <code>#walletColReceipt</code>, по умолчанию включена).
+    Сортировки и поиска нет. Иконку собирает <code>renderWalletReceiptCell()</code> через <code>KidsCrmDataTable.renderIcon</code>,
+    как колонка «Чек» в <a href="/docs/documentation/reports-payments#receipt-column">отчёте «Платежи»</a>.
+  </div>
+  <ul>
+    <li>JSON <code>GET /partner-wallet/transactions</code>: <code>provider_code</code> (сырой <code>provider</code>), <code>receipt_url</code>, <code>has_receipt</code>.
+      Берётся последний <code>fiscal_receipts.type=income</code> этой школы с <code>wallet_transaction_id</code> строки (<code>MAX(id)</code>).
+      Чек возврата не используется. Ссылка только если URL начинается с <code>https://receipts.ru/</code> (<code>FiscalReceiptUrl</code>).
+      Служебное поле join <code>fiscal_income_receipt_url</code> в JSON не отдаётся.</li>
+    <li><b>T‑Bank</b> (<code>provider_code=tinkoff</code>): синяя иконка «Чек сформирован» открывает <code>receipt_url</code> в новой вкладке.
+      Нет валидной ссылки — серая иконка «Чек не сформирован». Второй иконки возврата нет.</li>
+    <li><b>ЮKassa, списание за договор, возврат</b> и любой другой провайдер: ячейка пустая, даже если у строки есть чек. Чек CloudKassir для них не создаётся.</li>
   </ul>
 
   <h2 id="webhook">6) После оплаты и вебхуки</h2>
@@ -189,6 +205,7 @@
       <code>PartnerWalletAjaxContractFeatureTest</code>,
       <code>PartnerWalletNonAjaxSafetyNetFeatureTest</code>,
       <code>PartnerWalletUxFeatureTest</code>,
+      <code>PartnerWalletHistoryFeatureTest</code>,
       <code>PartnerWalletFullAccessFeatureTest</code>,
       <code>PartnerWalletWebhookFeatureTest</code>,
       <code>TbankAcquiringPlatformPaymentsFeatureTest</code>,
@@ -238,7 +255,7 @@
     Минимум СБП 10 ₽, максимум 1 000 000 ₽. После <code>CONFIRMED</code> — зачисление на
     <code>tx.partner_id</code> и чек CloudKassir «Пополнение баланса KidsCRM», НДС не облагается,
     email школы (<code>partners.email</code>), без агента, <code>fiscal_receipts.source=platform</code>
-    (в отчёте «Чеки» не показывается). Success кошелька —
+    (в отчёте «Чеки» не показывается; в истории кошелька — колонка «Чек», <a href="#history-receipt">§5.1</a>). Success кошелька —
     «Вернуться в кошелёк» → <code>/partner-wallet</code>.
     Ошибки СБП под <code>data-error-for="payment_method"</code> / <code>amount</code>.
     Без права на способ: радио скрыто, кнопка disabled, POST 422

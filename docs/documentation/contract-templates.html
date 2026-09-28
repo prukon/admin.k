@@ -235,7 +235,7 @@
   <ul>
     <li>Поля <code>legal_entity_*</code> — <code>fill_mode=system</code>: не показываются родителю, <code>required=false</code>, <code>prefill_source=null</code> в схеме.</li>
     <li><code>child_address</code> — обычное CRM-поле ребёнка: есть в форме родителя, предзаполняется из карточки, после generate пишется обратно через <code>ContractStudentProfileSyncService</code>.</li>
-    <li><code>child_passport</code> и <code>child_passport_issued_at</code> — тоже CRM-поля ребёнка (необязательные, <code>fill_sort_order</code> 53 и 54, после адреса и названия группы). В справочнике модалки «Новый шаблон договора» — группа «Ребёнок (ученик)». Подписи в форме родителя: «Паспорт/св-во о рождении», «Дата выдачи паспорта/св-ва». Дата выдачи — <code>&lt;input type="date"&gt;</code>, правило <code>before_or_equal:today</code> (сегодня допустимо). Пустые значения после generate очищают <code>users.passport</code> и <code>users.passport_issued_at</code>. Карточка ученика: <a href="/docs/documentation/admin-users#user-student-passport">admin-users §2.7</a>.</li>
+    <li><code>child_passport</code> и <code>child_passport_issued_at</code> — тоже CRM-поля ребёнка (необязательные, <code>fill_sort_order</code> 53 и 54, после адреса). В справочнике модалки «Новый шаблон договора» — группа «Ребёнок (ученик)». Подписи в форме родителя: «Паспорт/св-во о рождении», «Дата выдачи паспорта/св-ва». Дата выдачи — <code>&lt;input type="date"&gt;</code>, правило <code>before_or_equal:today</code> (сегодня допустимо). Пустые значения после generate очищают <code>users.passport</code> и <code>users.passport_issued_at</code>. Карточка ученика: <a href="/docs/documentation/admin-users#user-student-passport">admin-users §2.7</a>.</li>
     <li>Блок срабатывает <b>только если</b> в <code>fields_schema</code> версии есть хотя бы один ключ из группы «Юр. лицо».</li>
   </ul>
   <div class="warn">
@@ -299,6 +299,7 @@
   <table>
     <thead><tr><th>Плейсхолдер Word</th><th>Подпись в CRM</th><th>Источник</th></tr></thead>
     <tbody>
+      <tr><td><code>{{team_title}}</code></td><td>Название группы</td><td><code>teams.title</code> группы договора (<code>contracts.group_id</code>). Раньше ключ был CRM-полем в группе «Ребёнок»; теперь системный, в форме родителя его нет</td></tr>
       <tr><td><code>{{sport_type_name}}</code></td><td>Вид спорта</td><td><code>teams.sport_type_id</code> → <code>sport_types.name</code></td></tr>
       <tr><td><code>{{location_address}}</code></td><td>Адрес объекта</td><td><code>teams.location_id</code> → <code>locations.address</code></td></tr>
       <tr><td><code>{{location_admin_emails}}</code></td><td>Email администраторов объекта</td><td><code>location_admin_user</code> → <code>users.email</code>, через запятую, без пустых и дублей</td></tr>
@@ -319,7 +320,7 @@
     <code>documents_url</code>, <code>contract_id</code>, <code>contract_date</code> (текущая дата сервера, <code>d.m.Y</code>),
     <code>legal_entity_*</code>, <code>package_*</code> из снимка абонемента
     (включая <code>package_lessons_count</code>) и блок группы/объекта/партнёра
-    (<code>sport_type_name</code>, <code>location_*</code>, <code>partner_email</code>,
+    (<code>team_title</code>, <code>sport_type_name</code>, <code>location_*</code>, <code>partner_email</code>,
     <code>partner_phone</code>, <code>partner_social_*</code>).
     плюс блок <code>legal_entity_*</code> при наличии в схеме.<br><br>
     Телефонные ключи (<code>phone</code> / <code>tel</code> / <code>mobile</code>, в т.ч. <code>spouse_phones</code> и кастомные)

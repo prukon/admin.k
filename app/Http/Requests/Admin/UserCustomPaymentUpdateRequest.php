@@ -46,11 +46,9 @@ final class UserCustomPaymentUpdateRequest extends FormRequest
             'amount' => $isPaid
                 ? ['prohibited']
                 : ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
-            'note' => [
-                'nullable',
-                'string',
-                'max:255',
-            ],
+            'note' => $isPaid
+                ? ['prohibited']
+                : ['nullable', 'string', 'max:255'],
             'is_paid' => [
                 'required',
                 'boolean',
@@ -90,6 +88,7 @@ final class UserCustomPaymentUpdateRequest extends FormRequest
             'amount.min' => 'Сумма должна быть больше нуля.',
             'amount.max' => 'Сумма слишком большая.',
 
+            'note.prohibited' => 'Описание оплаченного платежа менять нельзя.',
             'note.string' => 'Описание должно быть строкой.',
             'note.max' => 'Описание слишком длинное (максимум 255 символов).',
 

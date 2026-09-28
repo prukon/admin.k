@@ -27,6 +27,8 @@ class ContractTemplatesModalsUiFeatureTest extends ContractsFeatureTestCase
             ->assertSee('Ребёнок: паспорт/св-во о рождении', false)
             ->assertSee('Ребёнок: дата выдачи паспорта/св-ва', false)
             ->assertSee('Группа и объект', false)
+            ->assertSee('{{team_title}}', false)
+            ->assertSee('Название группы', false)
             ->assertSee('package_lessons_count', false)
             ->assertSee('sport_type_name', false)
             ->assertSee('location_address', false)

@@ -52,7 +52,8 @@ class PartnerFactory extends Factory
                 ? ('+7 (' . $this->faker->numerify('###') . ') ' . $this->faker->numerify('###-##-##'))
                 : null,
 
-            'email' => $this->faker->unique()->safeEmail(),
+            // Faker unique() сбрасывается на каждое тестовое приложение, safeEmail() вида «имя+цифры» повторяется.
+            'email' => 'p-'.Str::lower((string) Str::uuid()).'@example.com',
 
             'city' => $this->faker->boolean(60)
                 ? $this->faker->city()
