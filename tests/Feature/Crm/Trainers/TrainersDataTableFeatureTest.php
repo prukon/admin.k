@@ -109,6 +109,7 @@ final class TrainersDataTableFeatureTest extends CrmTestCase
 
         $row = collect($json['data'])->firstWhere('id', $profile->id);
         $this->assertNotNull($row);
+        $this->assertSame($profile->user_id, $row['user_id']);
         $this->assertSame('Структура Строки', $row['full_name']);
         $this->assertSame('row-structure@example.test', $row['email']);
         $this->assertSame(7, $row['sort_order']);

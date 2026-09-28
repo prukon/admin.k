@@ -76,6 +76,8 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(AuditLogger::class);
 
+        $this->app->singleton(\App\Services\Geo\IpCountryResolver::class, \App\Services\Geo\IpWhoIsCountryResolver::class);
+
         $this->app->singleton(\App\Services\Audit\ContractAudit::class);
 
         // Чтобы не ломать существующий app('current_partner')->id

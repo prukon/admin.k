@@ -10436,6 +10436,147 @@ JS;
     /**
      * @param  non-empty-string  $needle
      */
+    /**
+     * UX-баг карточки ученика: подтверждение пароля прячет модалку через showModalQueued
+     * (namespace bs.modal.openNext, не ровно openNext). Если на hidden уничтожить Select2,
+     * после «Отмена» группы рисуются сломанным native select. Повторный показ вкладки
+     * «Семья» не должен заново вызывать setStudentParentForm и стирать уже введённые поля.
+     */
+    public function test_admin_user_card_keeps_group_select_and_parent_fields_after_a_queued_hide(): void
+    {
+        $path = resource_path('views/admin/users/_user_card_shell.blade.php');
+        $blade = (string) file_get_contents($path);
+        $parentForm = (string) file_get_contents(resource_path('views/admin/users/_parent_form.blade.php'));
+
+        $this->assertStringContainsString("if (prefix === 'lead' || prefix === 'card')", $parentForm);
+
+        $hide = $this->userCardFunctionSource($blade, 'function userCardHideIsTemporary()');
+        $this->assertStringContainsString("split('.').indexOf('openNext') !== -1", $hide);
+        $this->assertStringNotContainsString("=== 'openNext'", $hide);
+
+        $hiddenPos = strpos($blade, "addEventListener('hidden.bs.modal'");
+        $this->assertNotFalse($hiddenPos);
+        $hidden = substr($blade, (int) $hiddenPos, 700);
+        $returnPos = strpos($hidden, 'return;');
+        $destroyPos = strpos($hidden, 'destroyUserCardTeamsSelect()');
+        $this->assertNotFalse($returnPos);
+        $this->assertNotFalse($destroyPos);
+        $this->assertLessThan($destroyPos, $returnPos, 'queued hide должен выйти до уничтожения Select2 групп');
+        $this->assertStringContainsString('userCardParentReady = false', $hidden);
+        $this->assertLessThan(
+            strpos($hidden, 'userCardParentReady = false'),
+            $destroyPos === false ? PHP_INT_MAX : $destroyPos
+        );
+        $parentResetPos = strpos($hidden, 'userCardParentReady = false');
+        $this->assertGreaterThan($returnPos, $parentResetPos, 'временное скрытие не сбрасывает уже открытую вкладку «Семья»');
+
+        $shownPos = strpos($blade, "addEventListener('shown.bs.modal'");
+        $this->assertNotFalse($shownPos);
+        $shown = substr($blade, (int) $shownPos, 500);
+        $this->assertStringContainsString('restoreUserCardTeamsSelect()', $shown);
+        $restore = $this->userCardFunctionSource($blade, 'function restoreUserCardTeamsSelect()');
+        $this->assertStringContainsString("css('width', '100%')", $restore);
+        $this->assertLessThan(
+            strpos($restore, 'initUserCardTeamsSelect()'),
+            strpos($restore, "hasClass('select2-hidden-accessible')")
+        );
+
+        $open = $this->userCardFunctionSource($blade, 'function openUserCard(url)');
+        $this->assertStringContainsString('cache: false', $open);
+        $this->assertStringContainsString('userCardEmailsUrl = \'\'', $open);
+        $this->assertLessThan(strpos($open, 'cache: false'), strpos($open, 'userCardEmailsUrl = \'\''));
+
+        $familyPos = strpos($blade, "target === '#user-card-pane-family'");
+        $this->assertNotFalse($familyPos);
+        $family = substr($blade, (int) $familyPos, 900);
+        $this->assertStringContainsString('PhoneInputMask.init(input, {force: true})', $family);
+        $this->assertLessThan(
+            strpos($family, 'initUserCardParentSelect()'),
+            strpos($family, 'PhoneInputMask.init(input, {force: true})')
+        );
+
+        $parentInit = $this->userCardFunctionSource($blade, 'function initUserCardParentSelect()');
+        $readyBlock = strpos($parentInit, 'if (userCardParentReady)');
+        $setForm = strpos($parentInit, "setStudentParentForm('card'");
+        $this->assertNotFalse($readyBlock);
+        $this->assertNotFalse($setForm);
+        $readyReturn = strpos($parentInit, 'return;', $readyBlock);
+        $this->assertNotFalse($readyReturn);
+        $this->assertLessThan($setForm, $readyReturn, 'повторный показ «Семьи» не перезаписывает поля родителя');
+
+        $emailsInit = $this->userCardFunctionSource($blade, 'function initUserCardEmails()');
+        $this->assertStringContainsString("!$('#user-card-emails-table').length", $emailsInit);
+        $this->assertLessThan(
+            strpos($emailsInit, 'DataTable('),
+            strpos($emailsInit, "!$('#user-card-emails-table').length")
+        );
+
+        $tableClick = strpos($blade, "$(document).on('click', '#users-table a.js-open-user-card, #trainers-table a.js-open-user-card, #role-staff-table a.js-open-user-card'");
+        $cardClick = strpos($blade, "$(document).on('click', '#userCardModal a.js-open-user-card'");
+        $this->assertNotFalse($tableClick);
+        $this->assertNotFalse($cardClick);
+        foreach ([$tableClick, $cardClick] as $clickPos) {
+            $handler = substr($blade, (int) $clickPos, 420);
+            $this->assertLessThan(strpos($handler, 'preventDefault()'), strpos($handler, 'event.metaKey'));
+            $this->assertStringContainsString('openUserCard(this.getAttribute(\'href\'))', $handler);
+        }
+
+        $submitPos = strpos($blade, "$(document).on('submit', '#user-card-form'");
+        $this->assertNotFalse($submitPos);
+        $submit = substr($blade, (int) $submitPos, 2800);
+        $this->assertStringContainsString('event.preventDefault()', $submit);
+        $this->assertStringContainsString("'Accept': 'application/json'", $submit);
+        $this->assertStringContainsString('showUserCardFieldErrors(form, xhr.responseJSON.errors)', $submit);
+        $this->assertLessThan(
+            strpos($submit, '$.ajax('),
+            strpos($submit, 'selectedOptions.length === 0')
+        );
+
+        $errorsFn = $this->userCardFunctionSource($blade, 'function showUserCardFieldErrors(');
+        $this->assertStringContainsString('errors[field][0]', $errorsFn);
+        $this->assertStringContainsString('data-error-for', $errorsFn);
+
+        $passwordClick = strpos($blade, "$(document).on('click', '#user-card-apply-password'");
+        $this->assertNotFalse($passwordClick);
+        $password = substr($blade, (int) $passwordClick, 1200);
+        $this->assertLessThan(strpos($password, '$.ajax('), strpos($password, 'newPassword.length < 8'));
+        $this->assertLessThan(strpos($password, '$.ajax('), strpos($password, 'userCardLastPassword[userId] === newPassword'));
+
+        $sendPos = strpos($blade, "$(document).on('click', '#user-card-send-password'");
+        $this->assertNotFalse($sendPos);
+        $sendEnd = strpos($blade, "$(document).on('click', '#user-card-delete'", $sendPos);
+        $this->assertNotFalse($sendEnd);
+        $send = substr($blade, (int) $sendPos, (int) $sendEnd - (int) $sendPos);
+        $confirmPos = strpos($send, 'showConfirmDeleteModal(');
+        $fallbackSend = strpos($send, 'send();');
+        $this->assertNotFalse($confirmPos);
+        $this->assertNotFalse($fallbackSend);
+        $this->assertLessThan($fallbackSend, $confirmPos, 'письмо с паролем уходит только после подтверждения');
+        $this->assertStringContainsString('return;', substr($send, $confirmPos, 160));
+        $this->assertStringContainsString("button.classList.toggle('d-none', userCardEmail() === '')", $blade);
+
+        $queryPos = strpos($blade, "new URLSearchParams(window.location.search).get('card')");
+        $this->assertNotFalse($queryPos);
+        $query = substr($blade, (int) $queryPos, 450);
+        $this->assertLessThan(strpos($query, "searchParams.delete('card')"), strpos($query, 'openUserCard('));
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'function openUserCard(url)',
+            'blade-js-admin-user-card'
+        );
+    }
+
+    private function userCardFunctionSource(string $blade, string $signature): string
+    {
+        $start = strpos($blade, $signature);
+        $this->assertNotFalse($start, 'Не найдена '.$signature);
+        $next = strpos($blade, "\n            function ", $start + strlen($signature));
+        $this->assertNotFalse($next, 'Не найден конец '.$signature);
+
+        return substr($blade, (int) $start, (int) $next - (int) $start);
+    }
+
     private function assertInlineScriptsContainingHaveValidJavascript(string $path, string $needle, string $tempPrefix): void
     {
         $content = (string) file_get_contents($path);

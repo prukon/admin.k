@@ -472,6 +472,7 @@
     </div>
 
     @include('includes.modal.editAvatar')
+    @include('admin.users._user_card_shell')
     @if($showTrainerTypes ?? false)
         @include('admin.trainers._trainer_types_modal')
     @endif
@@ -608,10 +609,10 @@
                         data: 'full_name',
                         name: 'full_name',
                         className: 'dt-col-text',
-                        linkClass: 'js-trainer-edit',
-                        linkAttrs: function (row) {
-                            return 'data-id="' + row.id + '"';
+                        href: function (row) {
+                            return @json(url('/admin/users')) + '/' + row.user_id;
                         },
+                        linkClass: 'js-open-user-card',
                     },
                     {
                         key: 'teams_label',

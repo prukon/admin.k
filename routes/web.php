@@ -32,6 +32,7 @@ use App\Http\Controllers\Admin\TeamColumnsSettingsController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\TinkoffPayoutTableSettingsController;
 use App\Http\Controllers\Admin\UserAvatarController;
+use App\Http\Controllers\Admin\UserCardController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserFieldController;
 use App\Http\Controllers\Admin\UserImportController;
@@ -732,6 +733,30 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
         //Доп. поля
         Route::post('/admin/users/fields', [UserFieldController::class, 'storeFields'])->name('admin.field.store');
+
+        Route::get('admin/users/{user}', [UserCardController::class, 'show'])
+            ->whereNumber('user')
+            ->name('admin.user.show');
+        Route::get('admin/users/{user}/logs-data', [UserCardController::class, 'logsData'])
+            ->whereNumber('user')
+            ->name('admin.user.logs-data');
+        Route::middleware('can:reports.view')->group(function () {
+            Route::get('admin/users/{user}/payments-data', [UserCardController::class, 'paymentsData'])
+                ->whereNumber('user')
+                ->name('admin.user.payments-data');
+        });
+        Route::middleware('can:contracts.view')->group(function () {
+            Route::get('admin/users/{user}/contracts-data', [UserCardController::class, 'contractsData'])
+                ->whereNumber('user')
+                ->name('admin.user.contracts-data');
+        });
+        Route::get('admin/users/{user}/emails-data', [UserCardController::class, 'emailsData'])
+            ->whereNumber('user')
+            ->name('admin.user.emails-data');
+        Route::get('admin/users/{user}/emails/{log}', [UserCardController::class, 'emailShow'])
+            ->whereNumber('user')
+            ->whereNumber('log')
+            ->name('admin.user.email-show');
     });
 
     //Группы  (feature test +)

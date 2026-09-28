@@ -198,6 +198,7 @@ class TrainerController extends AdminBaseController
 
             return [
                 'id'                          => $profile->id,
+                'user_id'                     => $user?->id,
                 'avatar_url'                  => $this->avatarUrl($user),
                 'full_name'                   => $user?->full_name ?? '',
                 'teams_label'                 => $teamsLabels['teams_label'],

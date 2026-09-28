@@ -10,6 +10,7 @@
 @push('styles')
     @vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css', 'resources/css/admin-users-table.css'])
     <link rel="stylesheet" href="{{ asset('plugins/datatables-fixedheader/css/fixedHeader.bootstrap4.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('plugins/flag-icon-css/css/flag-icon.css') }}">
 @endpush
 
 @section('content')
@@ -328,6 +329,8 @@
                 ])
                 @include('includes.modal.fieldModal')
                 @include('admin.users._import_modal')
+
+                @include('admin.users._user_card_shell')
             </div>
         </div>
 
@@ -649,10 +652,10 @@
                         data: 'name',
                         name: 'name',
                         className: 'dt-col-text',
-                        linkClass: 'edit-user-link',
-                        linkAttrs: function (row) {
-                            return 'data-id="' + row.id + '" data-bs-toggle="modal" data-bs-target="#editUserModal"';
+                        href: function (row) {
+                            return @json(url('/admin/users')) + '/' + row.id;
                         },
+                        linkClass: 'js-open-user-card',
                     },
                     { key: 'parent', type: 'text', data: 'parent' },
                     { key: 'parent_phone', type: 'text', data: 'parent_phone', className: 'dt-col-text text-nowrap' },
@@ -1138,6 +1141,7 @@
                 });
             })();
             @endcan
+
         });
     </script>
 @endpush

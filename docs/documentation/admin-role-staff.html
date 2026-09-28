@@ -67,7 +67,7 @@
 
   <h3>3.2) UI и колонки</h3>
   <ul>
-    <li>Колонки: аватар, ФИО, email, телефон, активен, действия.</li>
+    <li>Колонки: аватар, ФИО, email, телефон, активен, действия. ФИО открывает карточку пользователя (<a href="/docs/documentation/admin-users#user-card">admin-users §2.4</a>) без вкладок «Семья», «Платежи», «Договоры». «Редактировать» остаётся прежней модалкой.</li>
     <li>Фильтры: имя (ФИО / email / телефон), статус (<code>active</code> / <code>inactive</code>).</li>
     <li><b>Создание</b> — модалка: имя*, фамилия*, email, телефон, чекбокс «Отправить письмо» (§<a href="#staff-welcome-credentials">3.3</a>), пароль (опционально; скрыт при включённом чекбоксе), активен. Успех: toast с <code>message</code> сервера (обычно «Пользователь создан»), не <code>showSuccessModal</code>.</li>
     <li><b>Редактирование</b> — аватар (<code>editAvatar</code>), смена пароля → <code>POST /admin/user/{id}/update-password</code> при <code>users.password.update</code> (§<a href="#staff-password-change">3.4</a>). Повторной отправки пароля по email на этих страницах <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>).</li>

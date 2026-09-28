@@ -306,6 +306,7 @@
     </div>
 
     @include('includes.modal.editAvatar')
+    @include('admin.users._user_card_shell')
 @endsection
 
 @push('scripts')
@@ -404,10 +405,10 @@
                         data: 'full_name',
                         name: 'full_name',
                         className: 'dt-col-text',
-                        linkClass: 'js-role-staff-edit',
-                        linkAttrs: function (row) {
-                            return 'data-id="' + row.id + '"';
+                        href: function (row) {
+                            return @json(url('/admin/users')) + '/' + row.id;
                         },
+                        linkClass: 'js-open-user-card',
                     },
                     { key: 'email', type: 'text', data: 'email', name: 'email' },
                     { key: 'phone', type: 'text', data: 'phone', name: 'phone' },

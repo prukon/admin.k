@@ -483,7 +483,7 @@
 
                 window.syncStudentParentFieldsVisibility = function (prefix) {
                     const $wrap = parentFieldsWrap(prefix);
-                    if (prefix === 'lead') {
+                    if (prefix === 'lead' || prefix === 'card') {
                         $wrap.removeClass('d-none');
                         $wrap.find('input, select, textarea').prop('disabled', false);
                         $wrap.find('.js-parent-mode-btn').prop('disabled', false);
@@ -561,7 +561,7 @@
                         $select.select2('destroy');
                     }
 
-                    $select.select2({
+                    const select2Options = {
                         theme: 'bootstrap-5',
                         width: '100%',
                         allowClear: true,
@@ -598,7 +598,12 @@
                                 };
                             },
                         },
-                    });
+                    };
+                    const $cardModal = $select.closest('#userCardModal');
+                    if ($cardModal.length) {
+                        select2Options.dropdownParent = $cardModal;
+                    }
+                    $select.select2(select2Options);
 
                     $select.off('select2:open.studentParent select2:select.studentParent select2:clear.studentParent');
                     $select.on('select2:open.studentParent', function () {
@@ -681,6 +686,12 @@
                         initParentSelect($(this));
                     });
                 }
+
+                window.initStudentParentSelects = function ($root) {
+                    ($root || $(document)).find('.js-parent-profile-select').each(function () {
+                        initParentSelect($(this));
+                    });
+                };
 
                 $(document).on('click', '.js-parent-mode-btn', function () {
                     const prefix = $(this).data('parent-prefix');

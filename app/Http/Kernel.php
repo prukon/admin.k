@@ -45,6 +45,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\SetMenuItems::class,
             \App\Http\Middleware\SetSocialItems::class,
             \App\Http\Middleware\ShareGlobalStats::class,
+            \App\Http\Middleware\RememberClientActivity::class,
 
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
 
