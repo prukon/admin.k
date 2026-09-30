@@ -9,6 +9,7 @@ use App\Models\FiscalReceipt;
 use App\Models\Partner;
 use App\Models\UserTableSetting;
 use App\Services\PartnerContext;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Yajra\DataTables\DataTables;
@@ -28,7 +29,7 @@ class FiscalReceiptReportController extends AdminBaseController
         $totalQuery = FiscalReceipt::query();
         $this->applyFiscalReceiptReportFilters($totalQuery, $request);
         $totalRawCents = (int) $totalQuery->sum('amount_cents');
-        $totalPaidPrice = number_format($totalRawCents / 100, 0, '', ' ');
+        $totalPaidPrice = Money::formatRub($totalRawCents);
 
         $frFilterPartner = $canFilterPartner ? $this->resolvePartnerLabel($filters) : null;
 
@@ -57,7 +58,7 @@ class FiscalReceiptReportController extends AdminBaseController
         $raw = $rawCents / 100;
 
         return response()->json([
-            'total_formatted' => number_format($raw, 0, '', ' '),
+            'total_formatted' => Money::formatRub($rawCents),
             'total_raw' => $raw,
         ]);
     }

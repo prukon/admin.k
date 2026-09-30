@@ -50,6 +50,15 @@ final class MoneyTest extends TestCase
         $this->assertSame('8 000 ₽', Money::formatRub(800000, ' ₽'));
     }
 
+    public function test_format_rub_amount_from_rubles(): void
+    {
+        $this->assertSame('2 500', Money::formatRubAmount(2500));
+        $this->assertSame('2 500,50', Money::formatRubAmount(2500.5));
+        $this->assertSame('2 500,50', Money::formatRubAmount('2500,50'));
+        $this->assertSame('-10,50', Money::formatRubAmount(-10.5));
+        $this->assertSame('0', Money::formatRubAmount(''));
+    }
+
     public function test_format_rub_fixed_always_kopecks(): void
     {
         $this->assertSame('8 000,00', Money::formatRubFixed(800000));

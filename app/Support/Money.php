@@ -128,6 +128,41 @@ final class Money
     }
 
     /**
+     * Сумма уже в рублях (форма, JSON, агрегат отчёта) → строка UI без знака валюты.
+     * Целые без «,00». Отрицательные допустимы.
+     */
+    public static function formatRubAmount(int|float|string $rubles): string
+    {
+        $negative = false;
+
+        if (is_string($rubles)) {
+            $v = trim(str_replace(["\xc2\xa0", ' '], '', $rubles));
+            if (str_starts_with($v, '-')) {
+                $negative = true;
+                $v = ltrim(substr($v, 1));
+            }
+            $cents = self::toCents($v);
+            if ($cents === null) {
+                return '0';
+            }
+        } else {
+            $n = (float) $rubles;
+            if (! is_finite($n)) {
+                return '0';
+            }
+            if ($n < 0) {
+                $negative = true;
+                $n = -$n;
+            }
+            $cents = (int) round($n * 100);
+        }
+
+        $body = self::formatRub($cents);
+
+        return $negative ? '-'.$body : $body;
+    }
+
+    /**
      * Вариант А: скидка = round(price × percent / 100) до копейки.
      *
      * @return int сумма скидки в копейках (0…priceCents)

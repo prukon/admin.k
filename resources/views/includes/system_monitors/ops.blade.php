@@ -116,7 +116,7 @@
             ])
             <span class="ops-monitors__sep">·</span>
             @include('partials.ui.tooltip-hint', [
-                'title' => 'Неуспешные Init оплаты (payment_intents.status = failed) за последние 24 часа',
+                'title' => 'Банк отклонил оплату (REJECTED) за последние 24 часа. Закрытие без списания не считается',
                 'placement' => 'left',
                 'wrapperClass' => '',
                 'innerHtml' => '<span data-role="till-intents">…</span>',

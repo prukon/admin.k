@@ -852,7 +852,7 @@
       <ul>
         <li>при <code>Status=CONFIRMED</code> в транзакции: <code>payment_intents.status=paid</code>, <code>payables.status=paid</code>, создаём <code>payments</code> (снимок группы для всех типов с <code>meta.team_id</code>, §<a href="#payments-team-snapshot">2.2</a>)</li>
         <li>если <code>payables.type=monthly_fee</code> → <code>UserPrice::markMonthlyPaid</code> для <code>(user_id, payables.meta.team_id, payables.month)</code> (§<a href="#users-prices-by-team">2.1</a>)</li>
-        <li>при финальном неуспехе (<code>CANCELED</code>/<code>REJECTED</code>/...) → <code>payment_intents.status=failed</code></li>
+        <li>при финальном неуспехе (<code>CANCELED</code>/<code>REJECTED</code>/<code>DEADLINE_EXPIRED</code>) → <code>payment_intents.status=failed</code>. Пульт «Касса» из этого красным считает только <code>REJECTED</code> за 24 ч (<a href="/doc#ops-till-rejected-intent-index">анонс</a>)</li>
       </ul>
     </li>
   </ol>

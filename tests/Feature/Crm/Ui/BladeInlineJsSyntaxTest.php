@@ -2893,7 +2893,7 @@ JS;
         $this->assertStringContainsString('dt-col-money-value', $content);
         $this->assertStringContainsString('Math.round(num * 100)', $content);
         $this->assertStringContainsString("padStart(2, '0')", $content);
-        $this->assertStringContainsString('toLocaleString(\'ru-RU\')', $content);
+        $this->assertStringContainsString("replace(/\\B(?=(\\d{3})+(?!\\d))/g, ' ')", $content);
         // Не truncate через parseInt — копейки должны сохраняться в display.
         $moneyCasePos = strpos($content, "case 'money':");
         $this->assertNotFalse($moneyCasePos);

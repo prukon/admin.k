@@ -162,6 +162,7 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
         ]);
         PaymentIntent::factory()->failed()->create([
             'partner_id' => $this->partner->id,
+            'meta' => json_encode(['tbank' => ['last_status' => 'REJECTED']], JSON_UNESCAPED_UNICODE),
             'created_at' => $now->copy()->subHours(2),
             'updated_at' => $now->copy()->subHours(2),
         ]);
@@ -182,6 +183,41 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
             ->assertOk()
             ->assertJsonPath('till.failed_intents', 1)
             ->assertJsonPath('till.fiscal_errors', 1);
+    }
+
+    public function test_failed_intents_count_only_bank_rejected_inside_24h(): void
+    {
+        $this->asSuperadmin();
+        $now = now();
+        $this->travelTo($now);
+
+        foreach (['CANCELED', 'DEADLINE_EXPIRED'] as $status) {
+            PaymentIntent::factory()->failed()->create([
+                'partner_id' => $this->partner->id,
+                'meta' => json_encode(['tbank' => ['last_status' => $status]], JSON_UNESCAPED_UNICODE),
+                'updated_at' => $now->copy()->subHour(),
+            ]);
+        }
+        PaymentIntent::factory()->failed()->create([
+            'partner_id' => $this->partner->id,
+            'meta' => null,
+            'updated_at' => $now->copy()->subHour(),
+        ]);
+        PaymentIntent::factory()->failed()->create([
+            'partner_id' => $this->partner->id,
+            'meta' => json_encode(['tbank' => ['last_status' => 'REJECTED']], JSON_UNESCAPED_UNICODE),
+            'updated_at' => $now->copy()->subHours(25),
+        ]);
+        PaymentIntent::factory()->failed()->create([
+            'partner_id' => $this->partner->id,
+            'meta' => json_encode(['tbank' => ['last_status' => 'REJECTED']], JSON_UNESCAPED_UNICODE),
+            'updated_at' => $now->copy()->subHours(3),
+        ]);
+
+        $this->actingAs($this->user)
+            ->getJson($this->opsUrl(), $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('till.failed_intents', 1);
     }
 
     public function test_overdue_payouts_include_other_partners_ignoring_session(): void
@@ -852,6 +888,7 @@ final class SystemMonitorsOpsAjaxContractFeatureTest extends SystemMonitorsTestC
 
         PaymentIntent::factory()->failed()->create([
             'partner_id' => $other->id,
+            'meta' => json_encode(['tbank' => ['last_status' => 'REJECTED']], JSON_UNESCAPED_UNICODE),
             'updated_at' => now()->subHour(),
         ]);
         FiscalReceipt::factory()->forPartner((int) $other->id)->errored()->create([

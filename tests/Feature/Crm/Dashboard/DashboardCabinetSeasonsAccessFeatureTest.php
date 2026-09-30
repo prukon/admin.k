@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserLessonPackage;
+use App\Support\Money;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\StudentTeams\StudentTeamPivotTestCase;
@@ -210,7 +211,10 @@ final class DashboardCabinetSeasonsAccessFeatureTest extends StudentTeamPivotTes
         $this->assertStringNotContainsString('class="row seasons"', $html);
         $this->assertStringContainsString('Назначенные абонементы', $html);
         $this->assertStringContainsString('Пакет без сезонов', $html);
-        $this->assertStringContainsString('<span class="price-value">4200<span', $html);
+        $this->assertStringContainsString(
+            '<span class="price-value">'.Money::formatRubAmount(4_200).'<span',
+            $html
+        );
     }
 
     public function test_cabinet_seasons_permission_exists_in_set_prices_group(): void

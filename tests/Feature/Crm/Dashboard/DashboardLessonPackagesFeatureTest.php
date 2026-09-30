@@ -6,6 +6,7 @@ use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserLessonPackage;
+use App\Support\Money;
 use Illuminate\Support\Facades\Auth;
 use Tests\Feature\Crm\StudentTeams\StudentTeamPivotTestCase;
 
@@ -49,7 +50,10 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
             $html
         );
         $this->assertStringContainsString('name="payment_kind" value="lesson_package"', $html);
-        $this->assertStringContainsString('<span class="price-value">12501<span', $html);
+        $this->assertStringContainsString(
+            '<span class="price-value">'.Money::formatRubAmount(12_500.50).'<span',
+            $html
+        );
         $this->assertStringContainsString('name="outSum" value="12500.50"', $html);
         $this->assertStringContainsString('>Оплатить<', $html);
     }
@@ -77,7 +81,10 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
         $html = $this->cabinetHtmlFor($student);
 
         $this->assertStringContainsString('Назначенные абонементы', $html);
-        $this->assertStringContainsString('<span class="price-value">3000<span', $html);
+        $this->assertStringContainsString(
+            '<span class="price-value">'.Money::formatRubAmount(3_000).'<span',
+            $html
+        );
         $this->assertStringContainsString('buttonPaided', $html);
         $this->assertStringContainsString('Оплачено', $html);
     }
@@ -118,7 +125,10 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
 
         $html = $this->cabinetHtmlFor($student);
 
-        $this->assertStringContainsString('<span class="price-value">15000<span', $html);
+        $this->assertStringContainsString(
+            '<span class="price-value">'.Money::formatRubAmount(15_000).'<span',
+            $html
+        );
         $this->assertStringContainsString('Мультигрупповой пакет', $html);
         $this->assertStringContainsString('id="dashboard-lesson-packages"', $html);
         $this->assertStringContainsString('id="dashboard-active-team"', $html);
@@ -225,7 +235,10 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
 
         $this->assertStringContainsString('Свой абонемент', $html);
         $this->assertStringNotContainsString('Чужой абонемент', $html);
-        $this->assertStringNotContainsString('<span class="price-value">9999<span', $html);
+        $this->assertStringNotContainsString(
+            '<span class="price-value">'.Money::formatRubAmount(9_999).'<span',
+            $html
+        );
     }
 
     public function test_lesson_package_payment_page_uses_db_fee_not_cabinet_out_sum_override(): void

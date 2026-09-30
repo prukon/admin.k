@@ -37,6 +37,34 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="ops-till-rejected-intent-index">Пульт «Касса»: только отказ банка REJECTED (2026‑09)</h2>
+  <div class="note">
+    Второе число строки <b>Касса</b> в оверлее <b>Пульт</b>
+    (<code>#js-ops-monitors</code>, <code>data-role="till-intents"</code>, JSON
+    <code>till.failed_intents</code>) — отказ банка по уже созданной оплате.
+    Ховер: «Банк отклонил оплату (REJECTED) за последние 24 часа. Закрытие без списания не считается».
+    Снимок <code>OpsMonitor::snapshot()</code>.
+    Родительский оверлей —
+    <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a>.
+    <br><br>
+    1) <b>Что входит.</b> <code>payment_intents.status=failed</code>,
+    <code>updated_at</code> за 24 часа, в <code>meta</code>
+    <code>tbank.last_status=REJECTED</code>. Сессия <code>current_partner</code>
+    не режет (все школы). Красный тон — <code>countTone</code>, как у остальных
+    ненулевых счётчиков «Кассы».
+    <br>
+    2) <b>Что не входит.</b> <code>CANCELED</code> и <code>DEADLINE_EXPIRED</code>:
+    Init прошёл, списания нет, выплаты нет. Намерение без
+    <code>tbank.last_status</code> тоже не входит. Статус намерения в карточке
+    оплаты по-прежнему становится <code>failed</code> и на отмену без списания —
+    меняется только счётчик пульта.
+    <br><br>
+    Тесты: <code>SystemMonitorsOpsAjaxContractFeatureTest</code>
+    (<code>test_failed_intents_count_only_bank_rejected_inside_24h</code>),
+    <code>SystemMonitorsOpsUxFeatureTest</code>,
+    <code>OpsTillRejectedIntentDocumentationContractTest</code>.
+  </div>
+
   <h2 id="users-datatable-name-search-index">Клиенты: поиск DataTables по «фамилия имя» (2026‑09)</h2>
   <div class="note">
     На <code>/admin/users</code> стандартный поиск DataTables (<code>search.value</code>)
@@ -6309,6 +6337,8 @@
     <a href="/doc#ops-day-kpi-index">/doc#ops-day-kpi-index</a>.
     Инкремент «Касса» без выплаты после задержки —
     <a href="/doc#ops-till-missing-payout-index">/doc#ops-till-missing-payout-index</a>.
+    Инкремент «Касса» только на отказ банка —
+    <a href="/doc#ops-till-rejected-intent-index">/doc#ops-till-rejected-intent-index</a>.
     Инкремент «Договоры» (заполнение / SMS Подпислона) —
     <a href="/doc#ops-contracts-expired-index">/doc#ops-contracts-expired-index</a>.
     Инкремент копирования строки —
@@ -6317,7 +6347,8 @@
     снимок <b>не</b> режет (все школы). JSON-оверлея диагностики на
     <code>/cabinet</code> нет. Не парсим <code>laravel.log</code>.
     <br><br>
-    1) <b>Окно.</b> 24 часа для Init <code>failed</code>, чеков
+    1) <b>Окно.</b> 24 часа для отказа банка <code>REJECTED</code>
+    (<code>till.failed_intents</code>), чеков
     <code>error</code>, 500, лида без welcome.
     Строка «Вход» (неверный пароль / неизвестный email / неверный 2FA) — 72 часа.
     Строка «Очередь»: просроченные отложенные выплаты T‑Bank
@@ -6352,8 +6383,11 @@
     (<code>QueueStatusSnapshot::compact()</code>, без LIKE по payload).
     Касса: первое число — <code>CONFIRMED</code> без выплаты после задержки партнёра
     (<a href="/doc#ops-till-missing-payout-index">анонс</a>),
-    <code>payment_intents.status=failed</code>
-    за 24 ч, <code>fiscal_receipts.status=error</code> за 24 ч.
+    отказ банка <code>REJECTED</code> за 24 ч
+    (<code>meta.tbank.last_status</code>; <code>CANCELED</code> и
+    <code>DEADLINE_EXPIRED</code> не входят —
+    <a href="/doc#ops-till-rejected-intent-index">анонс</a>),
+    <code>fiscal_receipts.status=error</code> за 24 ч.
     500: reportable-исключения в cache из <code>Handler::report</code>
     (не <code>my_logs</code>): count, last_class, top_class;
     <code>last_message</code> обрезка 80 символов, без email/телефона/PAN.

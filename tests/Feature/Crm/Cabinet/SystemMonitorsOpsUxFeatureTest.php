@@ -33,7 +33,8 @@ final class SystemMonitorsOpsUxFeatureTest extends SystemMonitorsTestCase
             );
         }
         $this->assertStringContainsString('data-kids-tooltip-hint', $html);
-        $this->assertStringContainsString('Неуспешные Init оплаты', $html);
+        $this->assertStringContainsString('Банк отклонил оплату (REJECTED) за последние 24 часа', $html);
+        $this->assertStringContainsString('Закрытие без списания не считается', $html);
         $this->assertStringContainsString('>Сегодня</span>', $html);
         $this->assertStringContainsString('>Вчера</span>', $html);
         $this->assertStringContainsString('>Очередь</span>', $html);

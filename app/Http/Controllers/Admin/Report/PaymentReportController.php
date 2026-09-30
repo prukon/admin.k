@@ -25,6 +25,7 @@ use Yajra\DataTables\DataTables;
 use App\Services\PartnerContext;
 use App\Services\TeamUserSyncService;
 use App\Services\TrainerOwnTeamsScope;
+use App\Support\Money;
 use App\Support\UserTeamQuery;
 use App\Support\Payments\EmailNewsletterPaymentSource;
 use App\Support\Payments\PaymentTeamTitleDisplay;
@@ -134,20 +135,20 @@ class PaymentReportController extends AdminBaseController
         $user = Auth::user();
 
         $payload = [
-            'sum_payments_formatted' => number_format(round($aggregates['sum_payments']), 0, '', ' '),
+            'sum_payments_formatted' => Money::formatRubAmount($aggregates['sum_payments']),
             'sum_payments_raw' => (float) round($aggregates['sum_payments'], 2),
         ];
 
         if ($user?->can('reports.payments.totals.net_to_partner.view')) {
-            $payload['net_to_partner_formatted'] = number_format(round($aggregates['net_to_partner']), 0, '', ' ');
+            $payload['net_to_partner_formatted'] = Money::formatRubAmount($aggregates['net_to_partner']);
             $payload['net_to_partner_raw'] = (float) round($aggregates['net_to_partner'], 2);
         }
         if ($user?->can('reports.payments.totals.payout_amount.view')) {
-            $payload['payout_amount_formatted'] = number_format(round($aggregates['payout_amount']), 0, '', ' ');
+            $payload['payout_amount_formatted'] = Money::formatRubAmount($aggregates['payout_amount']);
             $payload['payout_amount_raw'] = (float) round($aggregates['payout_amount'], 2);
         }
         if ($user?->can('reports.payments.totals.platform_commission.view')) {
-            $payload['platform_commission_formatted'] = number_format(round($aggregates['platform_commission']), 0, '', ' ');
+            $payload['platform_commission_formatted'] = Money::formatRubAmount($aggregates['platform_commission']);
             $payload['platform_commission_raw'] = (float) round($aggregates['platform_commission'], 2);
         }
 
@@ -1639,20 +1640,20 @@ SQL;
     private function formatPaymentsToolbarPayload(array $aggregates, bool $canNet, bool $canPayout, bool $canPlatform): array
     {
         $out = [
-            'sum_payments_formatted' => number_format(round($aggregates['sum_payments']), 0, '', ' '),
+            'sum_payments_formatted' => Money::formatRubAmount($aggregates['sum_payments']),
             'sum_payments_raw' => (float) round($aggregates['sum_payments'], 2),
         ];
 
         if ($canNet) {
-            $out['net_to_partner_formatted'] = number_format(round($aggregates['net_to_partner']), 0, '', ' ');
+            $out['net_to_partner_formatted'] = Money::formatRubAmount($aggregates['net_to_partner']);
             $out['net_to_partner_raw'] = (float) round($aggregates['net_to_partner'], 2);
         }
         if ($canPayout) {
-            $out['payout_amount_formatted'] = number_format(round($aggregates['payout_amount']), 0, '', ' ');
+            $out['payout_amount_formatted'] = Money::formatRubAmount($aggregates['payout_amount']);
             $out['payout_amount_raw'] = (float) round($aggregates['payout_amount'], 2);
         }
         if ($canPlatform) {
-            $out['platform_commission_formatted'] = number_format(round($aggregates['platform_commission']), 0, '', ' ');
+            $out['platform_commission_formatted'] = Money::formatRubAmount($aggregates['platform_commission']);
             $out['platform_commission_raw'] = (float) round($aggregates['platform_commission'], 2);
         }
 

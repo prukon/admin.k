@@ -528,6 +528,28 @@
 
     @include('includes.scripts.phone-inputmask')
 
+    <script>
+        window.KidsCrmMoney = window.KidsCrmMoney || {};
+        window.KidsCrmMoney.formatAmount = function (rubles) {
+            var raw = rubles == null ? '' : String(rubles);
+            var num = typeof rubles === 'number'
+                ? rubles
+                : parseFloat(raw.replace(/\s/g, '').replace(',', '.'));
+            if (!isFinite(num)) {
+                return '0';
+            }
+            var neg = num < 0;
+            var cents = Math.round(Math.abs(num) * 100);
+            var rub = Math.floor(cents / 100);
+            var kop = cents % 100;
+            var body = String(rub).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+            if (kop !== 0) {
+                body += ',' + (kop < 10 ? '0' : '') + String(kop);
+            }
+            return neg ? '-' + body : body;
+        };
+    </script>
+
     @yield('scripts')
 
     @include('includes.in_app_notifications.echo')

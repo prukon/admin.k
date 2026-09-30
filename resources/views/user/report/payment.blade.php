@@ -8,7 +8,7 @@
                 <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mb-3 rounded">
                     <span class="fw-bold">Общая сумма платежей:</span>
 
-                    <span class="fw-bold"> {{$totalPaidPrice}} руб</span>
+                    <span class="fw-bold"> {{$totalPaidPrice}} ₽</span>
                 </div>
 
                 <table class="table table-bordered" id="payments-table">

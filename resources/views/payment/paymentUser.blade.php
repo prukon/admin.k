@@ -243,7 +243,7 @@
                 </div>
                 @endif
             </div>
-            <div class="summary-total">Итого к оплате: <span class="value">{{ number_format((int) round((float) str_replace(',', '.', (string) $outSum)), 0, ',', ' ') }} руб.</span></div>
+            <div class="summary-total">Итого к оплате: <span class="value">{{ \App\Support\Money::formatRubAmount((string) $outSum) }} ₽</span></div>
             @include('payment.partials.service-provider')
             <div class="payment-trust">Оплата защищена банковскими протоколами безопасности.</div>
         </div>

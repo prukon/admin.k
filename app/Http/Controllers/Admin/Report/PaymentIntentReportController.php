@@ -13,6 +13,7 @@ use App\Models\UserTableSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Support\Money;
 use App\Support\Payments\EmailNewsletterPaymentSource;
 use Yajra\DataTables\DataTables;
 use App\Services\PartnerContext;
@@ -35,7 +36,7 @@ class PaymentIntentReportController extends AdminBaseController
 
         $totalRawCents = (int) $totalQuery->sum('out_sum_cents');
         $totalRaw = $totalRawCents / 100;
-        $totalPaidPrice = number_format($totalRaw, 0, '', ' ');
+        $totalPaidPrice = Money::formatRub($totalRawCents);
 
         $filters = $request->query();
         $piFilterPartner = $canFilterPartner ? $this->resolvePartnerLabel($filters) : null;
@@ -69,7 +70,7 @@ class PaymentIntentReportController extends AdminBaseController
         $raw = $rawCents / 100;
 
         return response()->json([
-            'total_formatted' => number_format($raw, 0, '', ' '),
+            'total_formatted' => Money::formatRub($rawCents),
             'total_raw'       => $raw,
         ]);
     }

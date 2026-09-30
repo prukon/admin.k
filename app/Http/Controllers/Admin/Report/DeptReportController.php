@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use App\Services\PartnerContext;
 use App\Services\TeamLocationAvailabilityService;
 use App\Models\UserCustomPayment;
+use App\Support\Money;
 use App\Support\Reports\ReportFilterCatalog;
 use App\Support\UserTeamQuery;
 use App\Models\UserTableSetting;
@@ -61,7 +62,7 @@ class DeptReportController extends AdminBaseController
         $this->applyDebtReportFiltersForPeriodPrices($totalPeriods, $request, $partnerId);
 
         $totalRawCents = (int) $totalMonthly->sum('users_prices.price_cents') + (int) $totalPeriods->sum('user_custom_payment.amount_cents');
-        $totalUnpaidPrice = number_format($totalRawCents / 100, 0, '', ' ');
+        $totalUnpaidPrice = Money::formatRub($totalRawCents);
 
         $paymentsFilterUser = $this->resolveDebtFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolveDebtFilterTeamLabel($partnerId, $filters);
@@ -129,7 +130,7 @@ class DeptReportController extends AdminBaseController
         $raw = $rawCents / 100;
 
         return response()->json([
-            'total_formatted' => number_format($raw, 0, '', ' '),
+            'total_formatted' => Money::formatRub($rawCents),
             'total_raw'       => $raw,
         ]);
     }

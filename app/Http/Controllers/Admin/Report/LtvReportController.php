@@ -9,6 +9,7 @@ use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\PartnerContext;
+use App\Support\Money;
 use App\Support\Reports\ReportFilterCatalog;
 use App\Support\UserTeamQuery;
 use Illuminate\Http\Request;
@@ -42,7 +43,7 @@ class LtvReportController extends AdminBaseController
         $this->applyLtvReportFilters($totalQuery, $request, $partnerId, false);
 
         $totalRawCents = (int) $totalQuery->sum('payments.summ_cents');
-        $totalPaidPrice = number_format($totalRawCents / 100, 0, '', ' ');
+        $totalPaidPrice = Money::formatRub($totalRawCents);
 
         $paymentsFilterUser = $this->resolveLtvFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolveLtvFilterTeamLabel($partnerId, $filters);
@@ -99,7 +100,7 @@ class LtvReportController extends AdminBaseController
         $raw = $rawCents / 100;
 
         return response()->json([
-            'total_formatted' => number_format($raw, 0, '', ' '),
+            'total_formatted' => Money::formatRub($rawCents),
             'total_raw'       => $raw,
         ]);
     }

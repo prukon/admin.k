@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\Money;
 use App\Support\Payments\PaymentTeamTitleDisplay;
 use App\Services\TeamUserSyncService;
 use App\Services\Users\FamilyStudentContextService;
@@ -76,7 +77,7 @@ class ReportController extends Controller
 
             
 //        dd($totalPaidPriceCents);
-        $totalPaidPrice = number_format($totalPaidPriceCents / 100, 0, '', ' ');
+        $totalPaidPrice = Money::formatRub($totalPaidPriceCents);
 
 
         return view('user.report.payment', ['activeTab' => 'payments'],
@@ -155,7 +156,7 @@ class ReportController extends Controller
                     return PaymentTeamTitleDisplay::forRow($row, $teamUserSync);
                 })
                 ->addColumn('summ', function ($row) {
-                    return number_format(((int) $row->summ_cents) / 100, 0) . ' руб'; // Формат суммы
+                    return Money::formatRub((int) $row->summ_cents).' ₽';
                 })
                 ->addColumn('operation_date', function ($row) {
                     return $row->operation_date; // Дата операции

@@ -36,7 +36,7 @@
                     <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
                     <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
                         <span class="payments-report-total-value-inner">
-                            <span class="payments-report-total-amount">{{ $totalPaidPrice ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                            <span class="payments-report-total-amount">{{ $totalPaidPrice ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">₽</span>
                         </span>
                     </div>
                 </div>
@@ -550,16 +550,17 @@
                             className: 'dt-col-text'
                         },
                         { key: 'order_id', type: 'text', data: 'order_id', name: 'order_id' },
-                        { key: 'amount', type: 'money', data: 'amount', name: 'amount', searchable: false },
+                        { key: 'amount', type: 'money', data: 'amount', name: 'amount', searchable: false, suffix: ' ₽' },
                         {
                             key: 'platform_commission',
                             type: 'money',
                             data: 'platform_commission',
                             name: 'platform_commission',
+                            suffix: ' ₽',
                             orderable: false,
                             searchable: false
                         },
-                        { key: 'payout_amount', type: 'money', data: 'payout_amount', name: 'payout_amount', searchable: false },
+                        { key: 'payout_amount', type: 'money', data: 'payout_amount', name: 'payout_amount', searchable: false, suffix: ' ₽' },
                         {
                             key: 'payout_status',
                             type: 'badge',
@@ -622,16 +623,17 @@
                 return [
                     { key: 'period', type: 'text', data: 'period_title', name: 'period_title', className: 'dt-col-text' },
                     { key: 'payments_count', type: 'count', data: 'payments_count', name: 'payments_count', searchable: false },
-                    { key: 'amount', type: 'money', data: 'amount', name: 'amount', searchable: false },
+                    { key: 'amount', type: 'money', data: 'amount', name: 'amount', searchable: false, suffix: ' ₽' },
                     {
                         key: 'platform_commission',
                         type: 'money',
                         data: 'platform_commission',
                         name: 'platform_commission',
+                        suffix: ' ₽',
                         orderable: false,
                         searchable: false
                     },
-                    { key: 'payout_amount', type: 'money', data: 'payout_amount', name: 'payout_amount', searchable: false }
+                    { key: 'payout_amount', type: 'money', data: 'payout_amount', name: 'payout_amount', searchable: false, suffix: ' ₽' }
                 ];
             }
 

@@ -9,6 +9,7 @@ use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\PartnerContext;
+use App\Support\Money;
 use App\Support\UserTeamQuery;
 use App\Models\UserTableSetting;
 use Carbon\Carbon;
@@ -41,7 +42,7 @@ class PaymentMonthlyReportController extends AdminBaseController
         $this->applyMonthlyReportFilters($totalQuery, $request, $partnerId);
 
         $totalRawCents = (int) $totalQuery->sum('payments.summ_cents');
-        $totalPaidPrice = number_format($totalRawCents / 100, 0, '', ' ');
+        $totalPaidPrice = Money::formatRub($totalRawCents);
 
         $partner = \App\Models\Partner::query()->find($partnerId);
         $tbankEnabled = $partner !== null
@@ -100,7 +101,7 @@ class PaymentMonthlyReportController extends AdminBaseController
         $raw = $rawCents / 100;
 
         return response()->json([
-            'total_formatted' => number_format($raw, 0, '', ' '),
+            'total_formatted' => Money::formatRub($rawCents),
             'total_raw'       => $raw,
         ]);
     }

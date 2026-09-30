@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Services\Users\FamilyStudentContextService;
 use App\Support\CabinetLessonPackagePermission;
+use App\Support\Money;
 use Tests\Feature\Crm\StudentTeams\StudentTeamPivotTestCase;
 
 /**
@@ -304,7 +305,7 @@ final class DashboardCabinetPackagesTypeAccessFeatureTest extends StudentTeamPiv
         $this->assertStringContainsString('data-ulp-team-id="'.$this->team->id.'"', $html);
         $this->assertStringContainsString('action="'.route('payment').'"', $html);
 
-        $amountPos = strpos($html, '6600');
+        $amountPos = strpos($html, '<span class="price-value">'.Money::formatRubAmount(6_600).'<span');
         $namePos = strpos($html, 'Поля оплаты');
         $formPos = strpos($html, 'name="payment_kind" value="lesson_package"');
         $this->assertNotFalse($amountPos);

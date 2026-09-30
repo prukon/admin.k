@@ -36,7 +36,7 @@
                     <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
                     <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
                         <span class="payments-report-total-value-inner">
-                            <span class="payments-report-total-amount">{{ $totalPaidPrice }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                            <span class="payments-report-total-amount">{{ $totalPaidPrice }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">₽</span>
                         </span>
                     </div>
                 </div>
@@ -444,8 +444,8 @@
                     return;
                 }
                 var count = meta.payments_count || 0;
-                var sum = (meta.sum_total || 0).toLocaleString('ru-RU');
-                $summary.html('Всего платежей: <b>' + count + '</b>, на сумму <b>' + sum + ' руб</b>');
+                var sum = window.KidsCrmMoney.formatAmount(meta.sum_total || 0);
+                $summary.html('Всего платежей: <b>' + count + '</b>, на сумму <b>' + sum + ' ₽</b>');
             }
 
             function initLtvUserPaymentsDetailTable(userId) {
@@ -495,7 +495,7 @@
                                 if (type !== 'display') {
                                     return data;
                                 }
-                                return (parseFloat(data || 0)).toLocaleString('ru-RU') + ' руб';
+                                return window.KidsCrmMoney.formatAmount(parseFloat(data || 0)) + ' ₽';
                             }
                         },
                         {
@@ -615,7 +615,7 @@
                         }
                     },
                     { key: 'team_title', type: 'text', data: 'team_title', name: 'team_title' },
-                    { key: 'total_price', type: 'money', data: 'total_price', name: 'total_price', searchable: false },
+                    { key: 'total_price', type: 'money', data: 'total_price', name: 'total_price', searchable: false, suffix: ' ₽' },
                     { key: 'payment_count', type: 'count', data: 'payment_count', name: 'payment_count', searchable: false },
                     {
                         key: 'first_payment_date',

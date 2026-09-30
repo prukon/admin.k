@@ -15,7 +15,7 @@
                     <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
                     <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
                         <span class="payments-report-total-value-inner">
-                            <span class="payments-report-total-amount">{{ $totalPaidPrice ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                            <span class="payments-report-total-amount">{{ $totalPaidPrice ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">₽</span>
                         </span>
                     </div>
                 </div>
@@ -589,7 +589,7 @@
                             return renderStatusBadge(data);
                         }
                     },
-                    { key: 'amount', type: 'money', data: 'amount', name: 'amount' },
+                    { key: 'amount', type: 'money', data: 'amount', name: 'amount', suffix: ' ₽' },
                     { key: 'external_id', type: 'text', data: 'external_id', name: 'external_id' },
                     {
                         key: 'error',

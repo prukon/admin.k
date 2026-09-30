@@ -13,6 +13,7 @@ use App\Models\UserTableSetting;
 use App\Services\PartnerContext;
 use App\Services\Reports\TeamAverageAttendanceAggregator;
 use App\Services\TrainerOwnTeamsScope;
+use App\Support\Money;
 use App\Support\Reports\ReportFilterCatalog;
 use App\Support\UserTeamQuery;
 use Illuminate\Http\Request;
@@ -46,7 +47,7 @@ class LtvTeamsReportController extends AdminBaseController
         $this->applyLtvTeamsReportFilters($totalQuery, $request, $partnerId, null);
 
         $totalRawCents = (int) $totalQuery->sum('payments.summ_cents');
-        $totalPaidPrice = number_format($totalRawCents / 100, 0, '', ' ');
+        $totalPaidPrice = Money::formatRub($totalRawCents);
 
         $paymentsFilterUser = $this->resolveLtvTeamsFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolveLtvTeamsFilterTeamLabel($partnerId, $filters);
@@ -106,7 +107,7 @@ class LtvTeamsReportController extends AdminBaseController
         $raw = $rawCents / 100;
 
         return response()->json([
-            'total_formatted' => number_format($raw, 0, '', ' '),
+            'total_formatted' => Money::formatRub($rawCents),
             'total_raw'       => $raw,
         ]);
     }

@@ -62,7 +62,7 @@
                         <div class="payments-report-total-label text-muted small mb-0">Сумма платежей</div>
                         <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
                             <span class="payments-report-total-value-inner">
-                                <span class="payments-report-total-amount">{{ $ptSum }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                                <span class="payments-report-total-amount">{{ $ptSum }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">₽</span>
                             </span>
                         </div>
                     </div>
@@ -71,7 +71,7 @@
                             <div class="payments-report-total-label text-muted small mb-0">К выплате</div>
                             <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
                                 <span class="payments-report-total-value-inner">
-                                    <span class="payments-report-total-amount">{{ $pt['net_to_partner_formatted'] ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                                    <span class="payments-report-total-amount">{{ $pt['net_to_partner_formatted'] ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">₽</span>
                                 </span>
                             </div>
                         </div>
@@ -81,7 +81,7 @@
                             <div class="payments-report-total-label text-muted small mb-0">Выплата</div>
                             <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
                                 <span class="payments-report-total-value-inner">
-                                    <span class="payments-report-total-amount">{{ $pt['payout_amount_formatted'] ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                                    <span class="payments-report-total-amount">{{ $pt['payout_amount_formatted'] ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">₽</span>
                                 </span>
                             </div>
                         </div>
@@ -91,7 +91,7 @@
                             <div class="payments-report-total-label text-muted small mb-0">Комиссия платформы</div>
                             <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
                                 <span class="payments-report-total-value-inner">
-                                    <span class="payments-report-total-amount">{{ $pt['platform_commission_formatted'] ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                                    <span class="payments-report-total-amount">{{ $pt['platform_commission_formatted'] ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">₽</span>
                                 </span>
                             </div>
                         </div>
@@ -535,7 +535,7 @@
                     <div><b>Провайдер:</b> <span id="refundProvider"></span></div>
                     <div><b>Ученик:</b> <span id="refundUser"></span></div>
                     <div><b>Период:</b> <span id="refundMonth"></span></div>
-                    <div><b>Сумма:</b> <span id="refundAmount"></span> руб</div>
+                    <div><b>Сумма:</b> <span id="refundAmount"></span> ₽</div>
                 </div>
 
                 <div class="mb-3">
@@ -823,6 +823,20 @@
 
             initPaymentsReportFilterSelect2($payFilterUser);
 
+            function formatReportMoneyCell(data, type) {
+                if (data === null || data === undefined || data === '') {
+                    return '';
+                }
+                var num = parseFloat(data);
+                if (type !== 'display') {
+                    return num;
+                }
+                if (!isFinite(num)) {
+                    return '';
+                }
+                return window.KidsCrmMoney.formatAmount(num) + ' ₽';
+            }
+
             const defaultColumnsVisibility = {
                 user_name: true,
                 team_title: true,
@@ -890,14 +904,7 @@ columns.push(
         name: 'summ',
         searchable: false,
         render: function (data, type, row) {
-            if (type === 'display') {
-                function formatNumber(number) {
-                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                }
-                const formattedPrice = formatNumber(row.summ);
-                return `${formattedPrice} руб`;
-            }
-            return parseFloat(row.summ);
+            return formatReportMoneyCell(row.summ, type);
         }
     }
 );
@@ -1008,16 +1015,7 @@ columns.push(
 
 if (canAdditional) {
     function formatMoneyRubCell(data, type) {
-        if (data === null || data === undefined || data === '') {
-            return '';
-        }
-        if (type !== 'display') {
-            return parseFloat(data);
-        }
-        function formatNumber(number) {
-            return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-        }
-        return formatNumber(Math.round(parseFloat(data))) + ' руб';
+        return formatReportMoneyCell(data, type);
     }
     columns.push(
         {
@@ -1040,13 +1038,8 @@ if (canAdditional) {
             data: 'platform_commission',
             name: 'platform_commission',
             searchable: false,
-            render: function (data, type, row) {
-                if (data === null || data === undefined || data === '') return '';
-                if (type !== 'display') return parseFloat(data);
-                function formatNumber(number) {
-                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                }
-                return `${formatNumber(Math.round(parseFloat(data)))} руб`;
+            render: function (data, type) {
+                return formatReportMoneyCell(data, type);
             }
         }
     );
@@ -1058,15 +1051,15 @@ if (!canAdditional && canCommissionTotal) {
             data: 'commission_total',
             name: 'commission_total',
             searchable: false,
-            render: function (data, type, row) {
-                if (data === null || data === undefined || data === '') return '';
-                if (type !== 'display') return parseFloat(data);
-                function formatNumber(number) {
-                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            render: function (data, type) {
+                if (type !== 'display') {
+                    return formatReportMoneyCell(data, type);
                 }
-                const title = 'Суммарные удержания по тарифу и комиссии банка';
-                const total = formatNumber(Math.round(parseFloat(data)));
-                return `<span title="${title}">${total} руб</span>`;
+                var label = formatReportMoneyCell(data, type);
+                if (label === '') {
+                    return '';
+                }
+                return '<span title="Суммарные удержания по тарифу и комиссии банка">' + label + '</span>';
             }
         }
     );
@@ -1078,13 +1071,8 @@ if (canAdditional) {
             data: 'net_to_partner',
             name: 'net_to_partner',
             searchable: false,
-            render: function (data, type, row) {
-                if (data === null || data === undefined || data === '') return '';
-                if (type !== 'display') return parseFloat(data);
-                function formatNumber(number) {
-                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                }
-                return `${formatNumber(Math.round(parseFloat(data)))} руб`;
+            render: function (data, type) {
+                return formatReportMoneyCell(data, type);
             }
         }
     );
@@ -1096,13 +1084,8 @@ if (canPayoutColumn) {
             data: 'payout_amount',
             name: 'payout_amount',
             searchable: false,
-            render: function (data, type, row) {
-                if (data === null || data === undefined || data === '') return '';
-                if (type !== 'display') return parseFloat(data);
-                function formatNumber(number) {
-                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                }
-                return `${formatNumber(Math.round(parseFloat(data)))} руб`;
+            render: function (data, type) {
+                return formatReportMoneyCell(data, type);
             }
         }
     );
@@ -1508,7 +1491,7 @@ columns.push(
                 var provider = $(this).data('provider') || '';
 
                 $('#refundPaymentId').val(paymentId);
-                $('#refundAmount').text(amount);
+                $('#refundAmount').text(window.KidsCrmMoney.formatAmount(amount));
                 $('#refundUser').text(user || '');
                 $('#refundMonth').text(month || '');
                 $('#refundComment').val('');

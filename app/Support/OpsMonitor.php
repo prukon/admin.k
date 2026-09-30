@@ -91,6 +91,7 @@ final class OpsMonitor
                 'failed_intents' => (int) PaymentIntent::query()
                     ->where('status', 'failed')
                     ->where('updated_at', '>=', $since)
+                    ->where('meta->tbank->last_status', 'REJECTED')
                     ->count(),
                 'fiscal_errors' => (int) FiscalReceipt::query()
                     ->where('status', FiscalReceipt::STATUS_ERROR)

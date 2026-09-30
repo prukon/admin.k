@@ -114,9 +114,14 @@
 
   <h2 id="display">6) Отображение</h2>
   <ul>
-    <li><code>Money::formatRub</code> — целые без копеек; <code>,xx</code> только если копейки ≠ 0
-      (публичная оплата ULP, DataTables preset <code>money</code> в <code>kids-datatable.js</code>).</li>
-    <li><code>Money::formatRubFixed</code> — всегда два знака (сверки/выплаты; <code>TinkoffMoney::rub</code> делегирует сюда).</li>
+    <li><code>Money::formatRub</code> — целые без копеек; <code>,xx</code> только если копейки ≠ 0.
+      Экран: <code>2 500 ₽</code> / <code>2 500,50 ₽</code> (суффикс <code> ₽</code>).
+      Шапка отчёта: число без суффикса, знак <code>₽</code> отдельно.
+      Уже так: отчёты админки и кабинет родителя (включая страницу оплаты месяца).
+      DataTables preset <code>money</code>: то же правило группировки; суффикс колонки по умолчанию ещё <code> руб</code>, в отчётах передан <code> ₽</code>.</li>
+    <li><code>Money::formatRubAmount</code> — то же отображение, если на входе уже рубли (float/строка), не копейки.</li>
+    <li>Текст договора остаётся с <code>руб.</code> (<code>ContractLessonPackageBinder</code>).</li>
+    <li><code>Money::formatRubFixed</code> — всегда два знака (сверки/выплаты; <code>TinkoffMoney::rub</code> делегирует сюда). Карточка платежа T-Bank и баланс кошелька к этому виду ещё не переведены.</li>
     <li><code>Money::fromCents</code> — <code>"1234.56"</code> для провайдеров.</li>
     <li>Кошелёк партнёра не через эти хелперы: страница <code>/partner-wallet</code> —
       <code>number_format(..., 2)</code>; сайдбар — <code>number_format(..., 0)</code>.

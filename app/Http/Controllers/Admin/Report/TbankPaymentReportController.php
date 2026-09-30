@@ -13,6 +13,7 @@ use App\Models\TinkoffPayout;
 use App\Models\UserTableSetting;
 use App\Services\PartnerContext;
 use App\Services\Tinkoff\TinkoffPaymentFiscalReceiptResolver;
+use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -43,7 +44,7 @@ class TbankPaymentReportController extends AdminBaseController
         $totalQuery = TinkoffPayment::query();
         $this->applyReportFilters($totalQuery, $request);
         $totalRawCents = (int) $totalQuery->sum('amount');
-        $totalPaidPrice = number_format($totalRawCents / 100, 0, '', ' ');
+        $totalPaidPrice = Money::formatRub($totalRawCents);
 
         $tpFilterPartner = $canFilterPartner ? $this->resolvePartnerLabel($filters) : null;
 
@@ -71,7 +72,7 @@ class TbankPaymentReportController extends AdminBaseController
         $raw = $rawCents / 100;
 
         return response()->json([
-            'total_formatted' => number_format($raw, 0, '', ' '),
+            'total_formatted' => Money::formatRub($rawCents),
             'total_raw' => $raw,
         ]);
     }

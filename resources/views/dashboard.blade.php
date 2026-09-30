@@ -152,7 +152,7 @@
             @can('paying.classes')
                 <div class="col-12 col-lg-4 mt-3 mb-3 credit-notice  align-items-center justify-content-center text-center">
                     <i class="close fa-solid fa-circle-xmark"></i>
-                    У вас образовалась задолженность в размере <span class="summ"></span> руб.
+                    У вас образовалась задолженность в размере <span class="summ"></span> ₽
                 </div>
             @endcan
             @endcan
@@ -208,7 +208,7 @@
 
                                     $note = (string) ($a->note ?? '');
                                     $amountNormalized = number_format((float) $a->amount, 2, '.', '');
-                                    $amountDisplay = number_format((float) $a->amount, 0, ',', '');
+                                    $amountDisplay = \App\Support\Money::formatRubAmount((float) $a->amount);
                                     $paid = (bool) ($a->effective_is_paid ?? false);
                                     $paymentDateLabel = trim('Дополнительный платеж' . ($note !== '' ? ": {$note}" : ''));
                                 @endphp
@@ -274,7 +274,7 @@
                                 @php
                                     $pkgName = $ulp->lessonPackage->name ?? 'Абонемент';
                                     $amountNormalized = number_format((float) $ulp->fee_amount, 2, '.', '');
-                                    $amountDisplay = number_format((float) $ulp->fee_amount, 0, ',', '');
+                                    $amountDisplay = \App\Support\Money::formatRubAmount((float) $ulp->fee_amount);
                                     $paid = (bool) ($ulp->effective_is_paid ?? false);
                                     $ulpTeamId = $ulp->team_id !== null ? (int) $ulp->team_id : 0;
                                     $isSingleLesson = (string) ($ulp->lessonPackage->schedule_type ?? '') === \App\Models\LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE;
@@ -375,7 +375,7 @@
                         <div class="header-season">Сезон {{ $seasonStartYear }} - {{ $seasonEndYear }} <i class="fa fa-chevron-up"></i><span
                                     class="display-none from">{{ $seasonStartYear }}</span><span class="display-none to">{{ $seasonEndYear }}</span></div>
                         <span class="is_credit">Имеется просроченная задолженность в размере <span
-                                    class="is_credit_value">0</span> руб.</span>
+                                    class="is_credit_value">0</span> ₽</span>
                         <span class="display-none1 total-summ"></span>
                         <div class="row justify-content-center align-items-center container" data-season="{{ $seasonEndYear }}"></div>
                     </div>
@@ -440,7 +440,7 @@
                 }
                 var amountEl = borderPrice.querySelector('.price-amount');
                 if (amountEl) {
-                    amountEl.textContent = amount > 0 ? String(amount) : '0';
+                    amountEl.textContent = amount > 0 ? window.KidsCrmMoney.formatAmount(amount) : '0';
                 }
             }
 
@@ -677,7 +677,7 @@
                     const creditValueField = season.querySelector('.is_credit_value');
                     const creditValueWrap = season.querySelector('.is_credit')
 
-                    creditValueField.textContent = totalSum;
+                    creditValueField.textContent = window.KidsCrmMoney.formatAmount(totalSum);
 
                     if (totalSum == 0) {
                         creditValueWrap.classList.add('visibility-hidden');
@@ -693,7 +693,7 @@
                 // if (totalSumAllSeasons) {
                 if (creditNoticeSumm && totalSumAllSeasons) {
 
-                    creditNoticeSumm.textContent = totalSumAllSeasons;
+                    creditNoticeSumm.textContent = window.KidsCrmMoney.formatAmount(totalSumAllSeasons);
                 }
 
             }
@@ -1574,7 +1574,7 @@
                     const creditValueField = season.querySelector('.is_credit_value');
                     const creditValueWrap = season.querySelector('.is_credit')
 
-                    creditValueField.textContent = totalSum;
+                    creditValueField.textContent = window.KidsCrmMoney.formatAmount(totalSum);
 
                     if (totalSum == 0) {
                         creditValueWrap.classList.add('visibility-hidden');

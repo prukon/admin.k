@@ -471,11 +471,16 @@
                         }
 
                         const cents = Math.round(num * 100);
-                        const rub = Math.trunc(cents / 100);
-                        const kop = Math.abs(cents % 100);
-                        let body = rub.toLocaleString('ru-RU');
+                        const negative = cents < 0;
+                        const absCents = Math.abs(cents);
+                        const rub = Math.trunc(absCents / 100);
+                        const kop = absCents % 100;
+                        let body = String(rub).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
                         if (kop !== 0) {
                             body += ',' + String(kop).padStart(2, '0');
+                        }
+                        if (negative) {
+                            body = '-' + body;
                         }
                         const formatted = body + (col.suffix || ' руб');
                         return '<span class="dt-col-money-value">' + formatted + '</span>';
