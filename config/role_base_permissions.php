@@ -7,8 +7,8 @@ return [
             'myPayments.view',
             'myGroup.view',
             'account.user.view',
-            'account.partner.view',
-            'account.partner.update',
+            // 'account.partner.view', // ЛК «Организация» — по умолчанию выкл. у user
+            // 'account.partner.update',
             'account.documents.view',
             'account.user.birthdate.update',
             'account.user.email.update',
@@ -40,7 +40,8 @@ return [
             'account.user.phone.update',
             // 'account.user.phone.verify', // ЛК подтверждение телефона SMS — скрытое, по умолчанию выкл.
             // 'account.user.two_factor.update', // ЛК SMS-2FA — скрытое, по умолчанию выкл.
-            'account.partner.view',
+            // 'account.partner.view', // ЛК «Организация» — по умолчанию выкл. у trainer
+            // 'account.partner.update',
             'inAppNotifications.view',
             'messages.view',
             'reports.ltv.teams.view',

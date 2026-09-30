@@ -115,6 +115,7 @@
   <h3>5.2) Редактирование (<code>#editContractTemplateModal</code>)</h3>
   <ul>
     <li>Название, опционально новый DOCX (создаёт новую версию, старые договоры остаются на своей версии).</li>
+    <li>В блоке «Изменение файла DOCX» под текущей версией — список всех версий, от новой к старой: <code>v3 · Иванов Иван · 30.09.2026 15:18</code>. Автор — фамилия и имя из <code>created_by</code>; если автор не записан, на его месте «—». Дата — <code>created_at</code> в формате <code>d.m.Y H:i</code>.</li>
     <li>Редактор полей тот же; системные поля (<code>contract_date</code>, <code>contract_id</code>, <code>legal_entity_*</code>…) помечены и не удаляются.</li>
     <li>PUT <code>contract-templates.update</code> <b>не меняет</b> email — только subject/body через отдельный endpoint.</li>
     <li>Валидация: <code>ContractTemplateUpdateRequest</code>.</li>

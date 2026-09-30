@@ -60,6 +60,12 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('schedule.view', $trainerPerms);
         $this->assertNotContains('users.discount.manage', $userPerms);
         $this->assertNotContains('users.discount.manage', $trainerPerms);
+
+        foreach (['account.partner.view', 'account.partner.update'] as $permissionName) {
+            $this->assertNotContains($permissionName, $userPerms, "Permission {$permissionName} must not be auto-assigned to user");
+            $this->assertNotContains($permissionName, $trainerPerms, "Permission {$permissionName} must not be auto-assigned to trainer");
+            $this->assertContains($permissionName, $adminPerms, "Permission {$permissionName} must be auto-assigned to admin");
+        }
     }
 
     public function test_new_partner_does_not_assign_custom_payments_view_to_base_roles(): void

@@ -51,7 +51,7 @@ class ContractTemplateController extends Controller
         if ($request->filled('edit')) {
             $editTemplate = ContractTemplate::query()
                 ->forPartner($partnerId)
-                ->with('currentVersion')
+                ->with(['currentVersion', 'versions.author'])
                 ->whereKey($request->integer('edit'))
                 ->firstOrFail();
 
@@ -235,7 +235,7 @@ class ContractTemplateController extends Controller
             return redirect()->route('contract-templates.index', ['edit' => $template->id]);
         }
 
-        $template->load('currentVersion');
+        $template->load(['currentVersion', 'versions.author']);
 
         $editFields = ContractTemplateVariablePresets::enrichSchema(
             $template->currentVersion?->fields_schema ?? [],

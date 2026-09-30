@@ -29,6 +29,17 @@
         </div>
     </div>
 
+    @if($template->versions->isNotEmpty())
+        <div class="small mt-3 mb-0" id="template-edit-docx-versions">
+            @foreach($template->versions as $version)
+                @php
+                    $versionAuthor = trim((string) ($version->author?->full_name ?? ''));
+                @endphp
+                <div>v{{ $version->version }} · {{ $versionAuthor !== '' ? $versionAuthor : '—' }} · {{ $version->created_at?->format('d.m.Y H:i') ?? '—' }}</div>
+            @endforeach
+        </div>
+    @endif
+
     <div id="template-edit-docx-upload"
          class="mt-3 {{ $showDocxUpload ? '' : 'd-none' }}">
         <label class="form-label" for="template-edit-docx">Загрузить новую версию DOCX</label>
