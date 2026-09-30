@@ -126,10 +126,10 @@ final class AdminUserCardFeatureTest extends CrmTestCase
             ->assertSee('Скидка', false)
             ->assertSeeInOrder([
                 'Адрес проживания',
-                'Комментарий',
                 'Любимый спорт',
                 'Данные о здоровье',
                 'Скидка',
+                'Комментарий',
                 'Активность',
             ])
             ->assertSee('js-phone-mask', false)
@@ -292,6 +292,7 @@ final class AdminUserCardFeatureTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grant('users.view');
+        $this->grant('users.comment');
         $this->grant('reports.view');
         $this->grant('contracts.view');
 
@@ -319,8 +320,18 @@ final class AdminUserCardFeatureTest extends CrmTestCase
                 ->assertDontSee('id="user-card-tab-payments"', false)
                 ->assertDontSee('id="user-card-tab-contracts"', false)
                 ->assertDontSee('id="user-card-send-password"', false)
+                ->assertSee('id="user-card-comment"', false)
+                ->assertSeeInOrder(['Комментарий', 'Активность'], false)
                 ->assertDontSee('Данные о здоровье', false)
                 ->assertDontSee('name="team_ids[]"', false);
+
+            $this->patchJson(route('admin.user.update', $person), [
+                'lastname' => $person->lastname,
+                'name' => $person->name,
+                'comment' => 'Комментарий сотрудника',
+            ])->assertOk();
+            $person->refresh();
+            $this->assertSame('Комментарий сотрудника', $person->comment);
 
             $this->getJson(route('admin.user.payments-data', $person).'?draw=1')->assertNotFound();
             $this->getJson(route('admin.user.contracts-data', $person).'?draw=1')->assertNotFound();

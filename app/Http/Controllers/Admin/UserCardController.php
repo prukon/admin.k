@@ -88,7 +88,7 @@ class UserCardController extends AdminBaseController
                 'email' => $actor->can('users.email.update'),
                 'activity' => $actor->can('users.activity.update'),
                 'sex' => $isStudent && $actor->can('users.sex'),
-                'comment' => $isStudent && $actor->can('users.comment'),
+                'comment' => $actor->can('users.comment'),
                 'health' => $isStudent && $actor->can('users.other.update'),
                 'discount' => $isStudent && $actor->can('users.discount.manage'),
                 'groups' => $isStudent && $actor->can('users.group.update'),

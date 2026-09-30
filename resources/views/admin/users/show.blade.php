@@ -162,13 +162,6 @@
                     <textarea class="form-control" id="user-card-address" name="address" rows="2" maxlength="1000">{{ $student->address }}</textarea>
                     <div class="invalid-feedback" data-error-for="address"></div>
                 </div>
-                @if ($can['comment'])
-                    <div class="col-md-4">
-                        <label class="form-label" for="user-card-comment">Комментарий</label>
-                        <textarea class="form-control" id="user-card-comment" name="comment" rows="2" maxlength="5000">{{ $student->comment }}</textarea>
-                        <div class="invalid-feedback" data-error-for="comment"></div>
-                    </div>
-                @endif
                 @if ($isStudent)
                 <div class="col-12">
                     @if ($can['groups'])
@@ -282,6 +275,14 @@
                         <div class="invalid-feedback" data-error-for="discount_comment"></div>
                     </div>
                     </div>
+                </section>
+                @endif
+
+                @if ($can['comment'])
+                <section class="user-card-block">
+                    <label class="form-label" for="user-card-comment">Комментарий</label>
+                    <textarea class="form-control" id="user-card-comment" name="comment" rows="2" maxlength="5000">{{ $student->comment }}</textarea>
+                    <div class="invalid-feedback" data-error-for="comment"></div>
                 </section>
                 @endif
 

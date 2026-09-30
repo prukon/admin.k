@@ -323,7 +323,7 @@ final class UserCommentAndSexFeatureTest extends CrmTestCase
         $this->assertNull($student->comment);
     }
 
-    public function test_update_ignores_comment_and_sex_for_trainer_role(): void
+    public function test_update_ignores_sex_for_trainer_role_and_saves_comment(): void
     {
         $trainer = User::factory()->create([
             'partner_id' => $this->partner->id,
@@ -345,10 +345,10 @@ final class UserCommentAndSexFeatureTest extends CrmTestCase
         $trainer->refresh();
 
         $this->assertNull($trainer->sex);
-        $this->assertNull($trainer->comment);
+        $this->assertSame('Не для тренера', $trainer->comment);
     }
 
-    public function test_update_strips_fields_when_role_changed_to_trainer(): void
+    public function test_update_keeps_sex_and_saves_comment_when_role_changed_to_trainer(): void
     {
         $student = $this->createStudent([
             'sex'     => UserSex::Female->value,
@@ -366,7 +366,7 @@ final class UserCommentAndSexFeatureTest extends CrmTestCase
 
         $this->assertSame('trainer', $student->role?->name);
         $this->assertSame(UserSex::Female->value, $student->sex);
-        $this->assertSame('Остаётся в БД', $student->comment);
+        $this->assertSame('Не применится', $student->comment);
     }
 
     public function test_store_rejects_invalid_sex_value(): void

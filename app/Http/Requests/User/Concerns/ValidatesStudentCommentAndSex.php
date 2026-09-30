@@ -10,7 +10,7 @@ trait ValidatesStudentCommentAndSex
 {
     protected function studentCommentRules(): array
     {
-        if (!$this->user()?->can('users.comment') || !$this->isStudentRoleForCommentSex()) {
+        if (!$this->user()?->can('users.comment')) {
             return [];
         }
 
@@ -85,7 +85,7 @@ trait ValidatesStudentCommentAndSex
 
     protected function prepareStudentCommentAndSexForValidation(): void
     {
-        if ($this->user()?->can('users.comment') && $this->isStudentRoleForCommentSex()) {
+        if ($this->user()?->can('users.comment')) {
             if ($this->has('comment')) {
                 $comment = trim((string) $this->input('comment'));
                 $this->merge(['comment' => $comment !== '' ? $comment : null]);
