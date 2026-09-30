@@ -188,7 +188,7 @@
   <table>
     <thead><tr><th>Permission</th><th>Назначение</th></tr></thead>
     <tbody>
-      <tr><td><code>setPrices.view</code></td><td>Доступ к разделу «Установка цен» (middleware на все URL вкладок monthly/users)</td></tr>
+      <tr><td><code>setPrices.view</code></td><td>Доступ к разделу «Установка цен» (middleware на все URL вкладок monthly/users) и к карточке ученика <code>GET /admin/setting-prices/user-cards/{user}</code> (<a href="#monthly-user-card">§2.2</a>)</td></tr>
       <tr><td><code>lessonPackages.type.fixed</code> / <code>.flexible</code> / <code>.no_schedule</code> / <code>.postpay</code></td><td>Новый выбор абонемента этого типа в select (скрытые; не в базовых ролях). Уже назначенный id можно сохранить повторно. Каталог скрывает неназначенные шаблоны типа.
         422 на <code>lesson_package_id</code> / <code>usersPrice.{i}.lesson_package_id</code> /
         <code>teamsData.{i}.lesson_package_id</code> / <code>prices.{i}.lesson_package_id</code>.
@@ -232,6 +232,10 @@
     значение в колонке <code>text</code> (не <code>key</code>/<code>value</code> — таких колонок нет).
     POST <code>update-date</code> по-прежнему принимает строку месяца
     (в т.ч. 2024) — урезан только UI-селект.
+    Свой месяц админа в <code>user_table_settings</code>
+    (<code>table_key=setting_prices_monthly</code>) важнее session и
+    <code>prices_last_month</code>; окно селекта то же
+    (<a href="#monthly-view-state">§2.1</a>).
     Тесты: <code>SettingPricesMonthlySelectWindowFeatureTest</code>,
     <code>SettingPricesMonthlySelectWindowJsContractTest</code>,
     <code>SettingPricesMonthlySelectWindowDocumentationContractTest</code>.
@@ -241,6 +245,72 @@
     только с 1 сентября 2026.
     Анонс: <a href="/doc#cabinet-season-years-index">/doc#cabinet-season-years-index</a>,
     подробно — <a href="/docs/documentation/dashboard-cabinet#cabinet-season-years">dashboard-cabinet §6.1</a>.
+  </div>
+
+  <h2 id="monthly-view-state">2.1) Шапка и вид на пользователя</h2>
+  <div class="note">
+    <b>Шапка вкладки</b> «По месяцам» — карточка как у групп и абонементов
+    (<code>payments-report-toolbar</code>): заголовок «По месяцам»,
+    кнопки <b>История</b> (<code>#logs</code> → <code>#historyModal</code>),
+    <b>Пролонгировать на следующий месяц</b> (<code>#setting-prices-prolong-btn</code>),
+    <b>Фильтры</b> (collapse <code>#settingPricesMonthlyFiltersCollapse</code>).
+    Селект месяца <code>#single-select-date</code> стоит под панелью фильтров.
+    <br><br>
+    <b>Состояние на пользователя.</b> Месяц и фильтры лежат в
+    <code>user_table_settings.columns</code> при
+    <code>table_key = setting_prices_monthly</code> и не смешиваются между админами
+    одного партнёра. <code>POST update-date</code> по-прежнему пишет
+    <code>settings.prices_last_month</code> и session — это запасной месяц для того,
+    кто ещё не выбирал свой. Страница сначала берёт месяц пользователя, затем
+    session / <code>prices_last_month</code> / текущий месяц, и обрезает окно
+    с сентября 2025. Фильтры при смене месяца не сбрасываются. Сброс фильтров месяц не трогает.
+    <br><br>
+    <b>Поля.</b> Группы: название, объект (все / конкретный / без привязки к объектам),
+    администратор объекта (все / конкретный / без администратора — нет объекта или у объекта нет админов),
+    абонемент (все / конкретный / без абонемента),
+    цена (любая / задана / не задана). Объект и администратор видны при праве
+    <code>locations.view</code>. Ученики выбранной группы в
+    <code>POST get-team-price</code>: фамилия и имя, оплата
+    (<code>effective_is_paid</code>), состав (в группе / не в группе), абонемент.
+    Отбор на сервере. «Применить» слева собирает только группы, которые остались в списке.
+    Пролонгация по-прежнему по всем группам партнёра, фильтр её не сужает.
+    Чужой id абонемента — <b>422</b> на <code>errors.team_package</code> /
+    <code>errors.user_package</code>, текст под полем.
+    Сохранение: <code>POST /admin/setting-prices/monthly-filters</code>
+    (<code>setting-prices.monthly-filters</code>). Без AJAX — редирект на вкладку.
+    Право то же <code>setPrices.view</code>.
+    Тесты: <code>SettingPricesMonthlyViewStateFeatureTest</code>,
+    <code>SettingPricesMonthlyViewStateDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="monthly-user-card">2.2) Карточка ученика по клику на имя</h2>
+  <div class="note">
+    На вкладке «По месяцам» клик по имени в правой колонке открывает ту же модалку,
+    что журнал <code>/schedule</code>: <code>#paymentUserCardModal</code>
+    (<code>partials/ui/user-card-modal</code>), стандартная ширина Bootstrap.
+    Сверху два столбца: слева аватар и под ним иконки, справа ФИО, группы, телефон, email и дата рождения.
+    Ниже — родитель, семейный аккаунт, скидка.
+    Справа в шапке — бейдж «Онлайн» / «Офлайн», время офлайна, флаг и устройство
+    (<code>#paymentUserCardPresence</code>), как в модалке <code>/admin/users</code>.
+    Строки «Последний онлайн» нет.
+    Если есть право <code>users.comment</code>, внизу карточки поле «Комментарий»
+    и кнопка «Сохранить» (<code>PATCH /admin/user-cards/{user}/comment</code>).
+    Ошибка валидации — под полем.
+    Селект абонемента, цена и статус строку не открывают.
+    <br><br>
+    Данные: <code>GET /admin/setting-prices/user-cards/{user}</code>
+    (<code>setting-prices.users.card</code>) → <code>PaymentReportController::userCard</code>.
+    База URL в <code>data-user-card-url</code>, скрипт дописывает <code>/{id}</code>.
+    Право <code>setPrices.view</code>. Чужой партнёр — <b>403</b>
+    <code>errors.user</code> «Нет доступа к карточке этого пользователя.».
+    Нет ученика — <b>404</b> «Пользователь не найден.». Ошибка рисуется в
+    <code>#paymentUserCardError</code>.
+    Имя в списке — <code>KidsCrmUserCard.renderName</code> в
+    <code>resources/js/settings-prices.js</code> (после сборки Vite).
+    До сборки клик по <code>#right_bar .user-name</code> открывает ту же модалку;
+    если имя уже ссылка <code>.js-user-card</code>, второй запрос не уходит.
+    Тесты: <code>SettingPricesMonthlyUserCardFeatureTest</code>,
+    <code>SettingPricesMonthlyUserCardDocumentationContractTest</code>.
   </div>
 
   <h2 id="former-members">3) Бывшие участники группы (новый функционал)</h2>
@@ -411,6 +481,14 @@
         <td><code>/admin/setting-prices/users</code></td>
         <td><code>admin.settingPrices.users</code></td>
         <td>HTML; <code>activeTab=users</code>; inline JS в <code>users.blade.php</code></td>
+      </tr>
+      <tr>
+        <td>GET</td>
+        <td><code>/admin/setting-prices/user-cards/{user}</code></td>
+        <td><code>setting-prices.users.card</code></td>
+        <td>JSON карточки ученика, та же, что <code>/schedule/users/{user}</code>.
+          Право <code>setPrices.view</code>. Чужой партнёр — <b>403</b> <code>errors.user</code>.
+          Нет ученика — <b>404</b>. См. <a href="#monthly-user-card">§2.2</a></td>
       </tr>
       <tr>
         <td>POST</td>
@@ -663,6 +741,8 @@
     <li><code>app/Http/Requests/Admin/GetTeamPriceRequest.php</code> — 422 на <code>teamId</code> / <code>selectedDate</code> (JSON даже без AJAX)</li>
     <li><code>app/Http/Requests/Admin/SetPriceAllUsersRequest.php</code> / <code>SaveUserYearPricesRequest.php</code> — цена &gt; 0 требует абонемент (<code>SettingPricesRequirePackageForPositivePrice</code>)</li>
     <li><code>resources/views/admin/SettingPrices/monthly.blade.php</code>, <code>users.blade.php</code></li>
+    <li><code>resources/views/partials/ui/user-card-modal.blade.php</code> — модалка по клику на имя (<a href="#monthly-user-card">§2.2</a>)</li>
+    <li><code>app/Http/Requests/Admin/Report/PaymentReportUserCardRequest.php</code> — <code>setPrices.view</code> наравне с <code>reports.view</code> и <code>schedule.view</code></li>
   </ul>
 
   <h2 id="tests">6) Feature-тесты</h2>
@@ -817,6 +897,8 @@
       <code>node --check</code> Vite: пустое поле → <code>payload.price = 0</code>, 422 под строкой карточки без rebuild</li>
     <li><code>BladeInlineJsSyntaxTest::test_setting_prices_users_tab_manual_paid_zero_price_error_under_price_field_ux_contract</code> —
       вкладка «По ученикам»: <code>errors.price</code> под строкой месяца (<code>setting-prices-monthly-price-error</code>)</li>
+    <li><code>SettingPricesMonthlyUserCardFeatureTest</code> — модалка на «По месяцам», JSON карточки по <code>setPrices.view</code>, чужой партнёр 403, нет ученика 404, гость и без права 403</li>
+    <li><code>SettingPricesMonthlyUserCardDocumentationContractTest</code> — §monthly-user-card и анонс <code>/doc#setting-prices-monthly-user-card-index</code></li>
     <li><code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_prolong_vite_module_ux_contract</code> —
       <code>node --check</code> + UX: <code>getSelectedMonthLabel</code> в теле POST, превью на
       <code>show.bs.modal</code>, confirm disabled пока нет <code>can_apply</code>, после успеха
@@ -871,7 +953,9 @@
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyTeamSelectNonAjaxSafetyNetFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyTeamSelectMarkupFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyTeamSelectJsContractTest.php \
-  tests/Unit/Documentation/SettingPricesMonthlyTeamSelectDocumentationContractTest.php
+  tests/Unit/Documentation/SettingPricesMonthlyTeamSelectDocumentationContractTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyUserCardFeatureTest.php \
+  tests/Unit/Documentation/SettingPricesMonthlyUserCardDocumentationContractTest.php
 php artisan test --env=testing \
   tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php \
   --filter='test_setting_prices_require_package_for_price_ux_contract|test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract|test_setting_prices_monthly_manual_paid_zero_price_error_under_price_field_ux_contract|test_setting_prices_users_tab_manual_paid_zero_price_error_under_price_field_ux_contract|test_setting_prices_monthly_prolong_vite_module_ux_contract|test_setting_prices_monthly_team_select_loading_ux_contract'</code></pre>

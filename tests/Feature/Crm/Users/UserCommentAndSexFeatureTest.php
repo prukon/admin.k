@@ -247,7 +247,13 @@ final class UserCommentAndSexFeatureTest extends CrmTestCase
 
     public function test_store_persists_comment_and_sex_for_student(): void
     {
-        $this->postJson(route('admin.user.store'), [
+        // Актор из фабрики тоже может называться «Пётр»: поиск только по name берёт его строку с пустым полом.
+        $this->user->forceFill([
+            'name' => 'Пётр',
+            'lastname' => 'Петров',
+        ])->save();
+
+        $response = $this->postJson(route('admin.user.store'), [
             'name'       => 'Пётр',
             'lastname'   => 'Петров',
             'role_id'    => $this->studentRoleId(),
@@ -257,11 +263,10 @@ final class UserCommentAndSexFeatureTest extends CrmTestCase
         ], ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk();
 
-        $student = User::query()
-            ->where('partner_id', $this->partner->id)
-            ->where('name', 'Пётр')
-            ->firstOrFail();
+        $student = User::query()->findOrFail($response->json('user.id'));
 
+        $this->assertNotSame($this->user->id, $student->id);
+        $this->assertSame($this->studentRoleId(), (int) $student->role_id);
         $this->assertSame(UserSex::Male->value, $student->sex);
         $this->assertSame('Новый ученик', $student->comment);
     }

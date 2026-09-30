@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Account;
 
-use App\Models\Partner;
-use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -19,13 +16,12 @@ final class PartnerOrganizationNonAjaxSafetyNetFeatureTest extends CrmTestCase
     {
         parent::setUp();
 
+        $this->asAdmin();
+
         $this->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
-
-        $this->grantPartnerView($this->user);
-        $this->grantPartnerUpdate($this->user);
     }
 
     public function test_update_non_ajax_redirects_and_updates_partner(): void
@@ -90,31 +86,5 @@ final class PartnerOrganizationNonAjaxSafetyNetFeatureTest extends CrmTestCase
                 'email' => 'hack@example.test',
             ])
             ->assertForbidden();
-    }
-
-    private function grantPartnerView(User $user, ?Partner $partner = null): void
-    {
-        $partner ??= $this->partner;
-
-        DB::table('permission_role')->insertOrIgnore([
-            'partner_id' => $partner->id,
-            'role_id' => $user->role_id,
-            'permission_id' => $this->permissionId('account.partner.view'),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-    }
-
-    private function grantPartnerUpdate(User $user, ?Partner $partner = null): void
-    {
-        $partner ??= $this->partner;
-
-        DB::table('permission_role')->insertOrIgnore([
-            'partner_id' => $partner->id,
-            'role_id' => $user->role_id,
-            'permission_id' => $this->permissionId('account.partner.update'),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
     }
 }

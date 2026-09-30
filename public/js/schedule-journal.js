@@ -601,6 +601,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 'data-bs-toggle': 'tooltip',
                 'data-bs-placement': 'top',
                 'data-bs-custom-class': 'ulp-assignment-paid-tooltip',
+                'data-bs-container': 'body',
                 title: hover,
                 'aria-label': hover
             });
@@ -716,6 +717,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 .attr('data-bs-toggle', 'tooltip')
                 .attr('data-bs-placement', 'top')
                 .attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip')
+                .attr('data-bs-container', 'body')
                 .attr('title', hint)
                 .attr('tabindex', '0');
         } else {
@@ -725,6 +727,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 .attr('data-bs-toggle', 'tooltip')
                 .attr('data-bs-placement', 'top')
                 .attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip')
+                .attr('data-bs-container', 'body')
                 .attr('title', hint);
             $wrap.removeAttr('tabindex');
         }
@@ -1394,6 +1397,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 .attr('data-bs-toggle', 'tooltip')
                 .attr('data-bs-placement', 'top')
                 .attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip')
+                .attr('data-bs-container', 'body')
                 .attr('title', 'Изменить данные нельзя, поскольку уже была произведена оплата');
             if (window.KidsCrmTooltip && el) {
                 KidsCrmTooltip.init(el, {scopes: ['hint']});
@@ -1421,6 +1425,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .attr('data-bs-toggle', 'tooltip')
             .attr('data-bs-placement', 'top')
             .attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip')
+            .attr('data-bs-container', 'body')
             .attr('title', text)
             .attr('aria-label', text);
         if (window.KidsCrmTooltip && el) {
@@ -1588,6 +1593,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .attr('data-bs-toggle', 'tooltip')
             .attr('data-bs-placement', 'top')
             .attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip')
+            .attr('data-bs-container', 'body')
             .attr('data-flexible-ulp-id', String(result.user_lesson_package_id))
             .attr('data-slots-remaining', String(remaining))
             .attr('data-lessons-total', String(total))

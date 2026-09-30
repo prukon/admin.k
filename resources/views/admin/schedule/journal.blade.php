@@ -109,6 +109,7 @@
                             'placement' => 'top',
                             'innerHtml' => '<i class="nav-icon fa-solid fa-ruble-sign"></i>',
                             'wrapperClass' => 'journal-col-header-hint',
+                            'container' => 'body',
                         ])
                     </th>
                     <th class="schedule-consuming-count sticky-col-2 text-center">
@@ -117,6 +118,7 @@
                             'placement' => 'top',
                             'innerHtml' => '<i class="nav-icon fa-solid fa-person-circle-check"></i>',
                             'wrapperClass' => 'journal-col-header-hint',
+                            'container' => 'body',
                         ])
                     </th>
                     <th class="schedule-col-setup sticky-col-3 text-center">
@@ -125,6 +127,7 @@
                             'placement' => 'top',
                             'innerHtml' => '<i class="fa-solid fa-ticket"></i>',
                             'wrapperClass' => 'journal-col-header-hint',
+                            'container' => 'body',
                         ])
                     </th>
 
@@ -240,6 +243,7 @@
                                             'placement' => 'top',
                                             'iconClass' => $payIcon,
                                             'wrapperClass' => 'journal-monthly-payment-hint',
+                                            'container' => 'body',
                                         ])
                                     @else
                                         <i class="{{ $payIcon }}" aria-hidden="true"></i>
@@ -253,6 +257,7 @@
                                             'placement' => 'top',
                                             'innerHtml' => e($payAmountLabel),
                                             'wrapperClass' => 'journal-monthly-payment-hint journal-monthly-payment-due',
+                                            'container' => 'body',
                                         ])
                                     @else
                                         <span class="journal-monthly-payment-due">{{ $payAmountLabel }}</span>
@@ -277,6 +282,7 @@
                                             data-bs-toggle="tooltip"
                                             data-bs-placement="top"
                                             data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                            data-bs-container="body"
                                             title="{{ $placeableHoverText }}"
                                             aria-label="{{ $placeableHoverText }}">
                                         <i class="fa-solid fa-plus"></i>
@@ -293,6 +299,7 @@
                                               data-bs-toggle="tooltip"
                                               data-bs-placement="top"
                                               data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                              data-bs-container="body"
                                               data-flexible-ulp-id="{{ (int) ($fa['id'] ?? 0) }}"
                                               data-slots-remaining="{{ (int) ($fa['slots_remaining'] ?? 0) }}"
                                               data-lessons-total="{{ (int) ($fa['lessons_total'] ?? 0) }}"
@@ -308,6 +315,7 @@
                                            data-bs-toggle="tooltip"
                                            data-bs-placement="top"
                                            data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                           data-bs-container="body"
                                            data-flexible-items="{{ e(json_encode(array_map(static fn ($fa) => [
                                                'id' => (int) ($fa['id'] ?? 0),
                                                'name' => (string) ($fa['name'] ?? 'Абонемент предоплаты'),
@@ -327,6 +335,7 @@
                                           data-bs-toggle="tooltip"
                                           data-bs-placement="top"
                                           data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                          data-bs-container="body"
                                           title="{{ $postpayHintHover !== '' ? $postpayHintHover : $postpayHintText }}">{{ $postpayHintText }}</span>
                                 @endif
                             </div>
@@ -398,12 +407,14 @@
                                     data-bs-toggle="tooltip"
                                     data-bs-placement="top"
                                     data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                    data-bs-container="body"
                                     title="{{ $cellPackageHover }}"
                                 @elseif($isPostpayLocked)
                                     data-kids-tooltip-hint="1"
                                     data-bs-toggle="tooltip"
                                     data-bs-placement="top"
                                     data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                    data-bs-container="body"
                                     title="Изменить данные нельзя, поскольку уже была произведена оплата"
                                 @endif
                                 @if($primary)
@@ -538,6 +549,7 @@
                                                data-bs-toggle="tooltip"
                                                data-bs-placement="top"
                                                data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                               data-bs-container="body"
                                                title="Идёт в расчёт постоплаты. Влияет на сумму за месяц."></i>
                                         @endif
                                     </div>
@@ -574,6 +586,7 @@
                                 data-bs-toggle="tooltip"
                                 data-bs-placement="top"
                                 data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                data-bs-container="body"
                                 title="">
                             Удалить
                         </button>

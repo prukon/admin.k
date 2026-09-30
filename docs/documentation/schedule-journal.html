@@ -607,7 +607,9 @@
     <li><b>Шапки колонок:</b> иконки рубля / посещений / билета обёрнуты в
       <code>@include('partials.ui.tooltip-hint')</code> (класс <code>journal-col-header-hint</code>):
       «Статус оплаты», «Кол-во посещений», «Название абонемента».
-      Native <code>title</code> на <code>th</code> нет.</li>
+      Native <code>title</code> на <code>th</code> нет.
+      Тултип вешается в <code>body</code> (<code>data-bs-container="body"</code>), чтобы его не обрезал скролл таблицы.
+      Курсор на иконках журнала обычный, не системный <code>help</code>.</li>
     <li><b>Колонка абонементов (postpay):</b>
       <code>postpayAbonementColumnLabel(price_cents)</code> =
       <code>{цена}₽\nв&nbsp;день</code>, класс <code>journal-postpay-hint</code>;
@@ -650,7 +652,7 @@
     (<a href="/doc#setting-prices-manual-paid-zero-price-index">анонс</a>);
     уже существующие нулевые строки с <code>is_manual_paid</code> журнал не считает начислением.
     Ховер галочки — <code>@include('partials.ui.tooltip-hint')</code>
-    (KidsCrmTooltip, scope <code>hint</code>, уже на <code>#schedule-table</code>).
+    (KidsCrmTooltip, scope <code>hint</code>, контейнер <code>body</code>, уже на <code>#schedule-table</code>).
     Маркер в DOM: <code>data-journal-payment-status="paid|partial|due"</code>.
     Иконки: <code>fas fa-circle-check text-success</code> / <code>text-warning</code>.
     Сумма: класс <code>journal-monthly-payment-due</code>.

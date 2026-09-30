@@ -6,10 +6,11 @@ namespace App\Http\Requests\Admin\Report;
 
 use App\Models\User;
 use App\Services\PartnerContext;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class PaymentReportUserCardRequest extends FormRequest
+class UpdatePaymentUserCardCommentRequest extends FormRequest
 {
     private ?User $student = null;
 
@@ -18,7 +19,7 @@ class PaymentReportUserCardRequest extends FormRequest
     public function authorize(): bool
     {
         $actor = $this->user();
-        if ($actor === null || (! $actor->can('reports.view') && ! $actor->can('schedule.view') && ! $actor->can('setPrices.view'))) {
+        if ($actor === null || ! $actor->can('users.comment')) {
             return false;
         }
 
@@ -49,20 +50,37 @@ class PaymentReportUserCardRequest extends FormRequest
     public function student(): User
     {
         if (! $this->student instanceof User) {
-            throw new \RuntimeException('Карточка пользователя не разрешена.');
+            throw new \RuntimeException('Комментарий пользователя не разрешён.');
         }
 
         return $this->student;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (! $this->user()?->can('users.comment')) {
+            $this->offsetUnset('comment');
+
+            return;
+        }
+
+        $comment = trim((string) $this->input('comment', ''));
+        $this->merge([
+            'comment' => $comment !== '' ? $comment : null,
+        ]);
+    }
+
     public function rules(): array
     {
-        return [];
+        return [
+            'comment' => ['present', 'nullable', 'string', 'max:5000'],
+        ];
     }
 
     public function attributes(): array
     {
         return [
+            'comment' => 'Комментарий',
             'user' => 'пользователь',
         ];
     }
@@ -70,9 +88,20 @@ class PaymentReportUserCardRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'user.unauthorized' => 'Нет доступа к карточке этого пользователя.',
+            'comment.present' => 'Укажите комментарий.',
+            'comment.string' => 'Поле «Комментарий» должно быть строкой.',
+            'comment.max' => 'Поле «Комментарий» не должно превышать :max символов.',
+            'user.unauthorized' => 'Нет доступа к комментарию этого пользователя.',
             'user.missing' => 'Пользователь не найден.',
         ];
+    }
+
+    protected function failedValidation(Validator $validator): void
+    {
+        throw new HttpResponseException(response()->json([
+            'message' => $validator->errors()->first() ?: 'Проверьте данные.',
+            'errors' => $validator->errors()->toArray(),
+        ], 422));
     }
 
     protected function failedAuthorization(): void

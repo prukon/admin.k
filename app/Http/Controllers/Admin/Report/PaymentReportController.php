@@ -30,8 +30,12 @@ use App\Support\UserTeamQuery;
 use App\Support\Payments\EmailNewsletterPaymentSource;
 use App\Support\Payments\PaymentTeamTitleDisplay;
 use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
+use App\Enums\AuditEvent;
 use App\Http\Requests\Admin\Report\PaymentReportUserCardRequest;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
+use App\Http\Requests\Admin\Report\UpdatePaymentUserCardCommentRequest;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\Reports\PaymentReportUserCard;
 use Illuminate\Http\JsonResponse;
 
@@ -164,7 +168,51 @@ class PaymentReportController extends AdminBaseController
      */
     public function userCard(PaymentReportUserCardRequest $request, PaymentReportUserCard $cards): JsonResponse
     {
-        return response()->json($cards->payload($request->student()));
+        $student = $request->student();
+        $payload = $cards->payload($student);
+        $canEditComment = $request->user()?->can('users.comment') ?? false;
+        $payload['can_edit_comment'] = $canEditComment;
+        $payload['comment'] = $canEditComment ? (string) ($student->comment ?? '') : '';
+
+        return response()->json($payload);
+    }
+
+    public function updateUserCardComment(UpdatePaymentUserCardCommentRequest $request, AuditLogger $audit): JsonResponse
+    {
+        $student = $request->student();
+        $newComment = $request->validated('comment');
+        $oldComment = $student->comment;
+
+        if ((string) ($oldComment ?? '') !== (string) ($newComment ?? '')) {
+            DB::transaction(function () use ($student, $newComment, $oldComment, $audit): void {
+                $student->comment = $newComment;
+                $student->save();
+
+                $oldText = trim((string) ($oldComment ?? ''));
+                $newText = trim((string) ($newComment ?? ''));
+                $targetLabel = trim((string) $student->full_name);
+                $audit->record(
+                    AuditEvent::UserUpdated,
+                    AuditContext::make(
+                        'Комментарий: '
+                        .($oldText !== '' ? $oldText : '-')
+                        .' → '
+                        .($newText !== '' ? $newText : '-')
+                    )
+                        ->withUser($student)
+                        ->withTarget(
+                            $student,
+                            $targetLabel !== '' ? $targetLabel : (string) ($student->name ?? 'user#'.$student->id)
+                        )
+                );
+            });
+            $student->refresh();
+        }
+
+        return response()->json([
+            'message' => 'Комментарий сохранён.',
+            'comment' => (string) ($student->comment ?? ''),
+        ]);
     }
 
     /**

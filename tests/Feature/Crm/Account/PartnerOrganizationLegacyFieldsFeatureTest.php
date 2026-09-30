@@ -29,7 +29,7 @@ final class PartnerOrganizationLegacyFieldsFeatureTest extends CrmTestCase
 
     public function test_organization_page_shows_allowed_fields_without_legacy_fields(): void
     {
-        $this->grantPartnerView($this->user);
+        $this->asAdmin();
 
         $this->get(route('admin.cur.company.edit'))
             ->assertOk()

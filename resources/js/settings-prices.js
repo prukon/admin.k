@@ -986,10 +986,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            const nameHtml = (window.KidsCrmTooltip && typeof window.KidsCrmTooltip.renderText === 'function')
-                ? window.KidsCrmTooltip.renderText(userNameFormatted)
-                : '<span class="setting-prices-monthly-name-text text-truncate" title="' + escapeAttr(userNameFormatted) + '">'
-                    + escapeHtml(userNameFormatted) + '</span>';
+            const nameHtml = (window.KidsCrmUserCard && typeof window.KidsCrmUserCard.renderName === 'function')
+                ? window.KidsCrmUserCard.renderName(userNameFormatted, uid)
+                : ((window.KidsCrmTooltip && typeof window.KidsCrmTooltip.renderText === 'function')
+                    ? window.KidsCrmTooltip.renderText(userNameFormatted)
+                    : '<span class="setting-prices-monthly-name-text text-truncate" title="' + escapeAttr(userNameFormatted) + '">'
+                        + escapeHtml(userNameFormatted) + '</span>');
 
             const formerBadgeHtml = isFormer
                 ? '<span class="setting-prices-former-badge text-muted" title="Ученик больше не состоит в этой группе">не в группе</span>'

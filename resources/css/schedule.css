@@ -295,6 +295,12 @@ table.dataTable tbody th, table.dataTable tbody td {
     cursor: default;
 }
 
+/* cursor:help у .kids-tooltip-hint — системный знак вопроса. В журнале остаётся тёмный tooltip. */
+#schedule-table .kids-tooltip-hint,
+.cell-status-postpay-billing-hint {
+    cursor: default;
+}
+
 
 .schedule-user-name {
     padding-top: 10px !important;
@@ -467,7 +473,7 @@ table.dataTable tbody th, table.dataTable tbody td {
     flex-shrink: 0;
     margin-right: 0.65rem;
     font-size: 0.85rem;
-    cursor: help;
+    cursor: default;
     opacity: 0.75;
 }
 

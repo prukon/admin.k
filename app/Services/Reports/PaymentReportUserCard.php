@@ -7,6 +7,7 @@ namespace App\Services\Reports;
 use App\Models\User;
 use App\Services\Chat\ChatService;
 use App\Services\Pricing\UserPercentDiscount;
+use App\Services\Users\StudentCardLoginHints;
 use Illuminate\Support\Collection;
 
 /**
@@ -17,6 +18,7 @@ final class PaymentReportUserCard
 {
     public function __construct(
         private readonly ChatService $chat,
+        private readonly StudentCardLoginHints $loginHints,
     ) {
     }
 
@@ -39,6 +41,11 @@ final class PaymentReportUserCard
      *     is_online: bool,
      *     last_seen_at: string|null,
      *     last_seen_label: string,
+     *     presence_label: string,
+     *     presence_seen: string,
+     *     login_device: ?string,
+     *     login_device_label: string,
+     *     login_flags: list<array{code: string, label: string}>,
      *     team_title: string,
      *     partner_name: string
      * }
@@ -62,7 +69,27 @@ final class PaymentReportUserCard
         $card['has_family_account'] = $siblings !== [];
         $card['has_multiple_teams'] = $this->teamCount($user) > 1;
 
+        $hints = $this->loginHints->forStudent($user);
+        $isOnline = $user->isOnline();
+        $card['is_online'] = $isOnline;
+        $card['presence_label'] = $isOnline ? 'Онлайн' : 'Офлайн';
+        $card['presence_seen'] = $this->presenceSeen($user);
+        $card['login_device'] = $hints['device'];
+        $card['login_device_label'] = $hints['device_label'];
+        $card['login_flags'] = $hints['flags'];
+
         return $card;
+    }
+
+    private function presenceSeen(User $user): string
+    {
+        if ($user->isOnline() || $user->last_seen_at === null) {
+            return '';
+        }
+
+        return $user->last_seen_at
+            ->timezone((string) config('app.timezone'))
+            ->format('d.m.Y H:i');
     }
 
     /**

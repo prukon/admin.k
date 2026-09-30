@@ -3,6 +3,7 @@
 
     @push('styles')
         @vite(['resources/css/schedule.css'])
+        @vite(['resources/css/admin-list-toolbar.css'])
         <style>
             /* Длинные названия абонемента: «...» в закрытом select */
             #left_bar .setting-prices-team-package-select,
@@ -10,6 +11,22 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+            }
+
+            #right_bar .wrap-users .setting-prices-monthly-name-host {
+                cursor: pointer;
+            }
+
+            #right_bar .wrap-users .setting-prices-monthly-name-host .dt-cell-ellipsis,
+            #right_bar .wrap-users .setting-prices-monthly-name-host .setting-prices-monthly-name-text,
+            #right_bar .wrap-users .setting-prices-monthly-name-host .js-user-card {
+                color: var(--bs-link-color, #0d6efd);
+                cursor: pointer;
+            }
+
+            #right_bar .wrap-users .setting-prices-monthly-name-host .dt-cell-ellipsis,
+            #right_bar .wrap-users .setting-prices-monthly-name-host .setting-prices-monthly-name-text {
+                text-decoration: underline;
             }
 
             #setting-prices-prolong-modal .setting-prices-prolong-stat {
@@ -69,23 +86,202 @@
     @endpush
 
 
+    @php
+        $monthlyFilters = $monthlyFilters ?? [
+            'team_title' => '',
+            'team_package' => '',
+            'team_price' => '',
+            'user_name' => '',
+            'user_paid' => '',
+            'user_membership' => '',
+            'user_package' => '',
+            'location_id' => '',
+            'admin_user_id' => '',
+        ];
+        $monthlyFiltersActive = $monthlyFiltersActive ?? false;
+        $monthlyPackageOptions = $lessonPackages ?? [];
+    @endphp
+
     <div class="container setting-price-wrap">
         @include('includes.modal.manualUserPricePaidModal')
-        <hr>
-        <div class="buttons text-start">
-            <button type="button" class="btn btn-primary" id="logs" data-bs-toggle="modal"
-                    data-bs-target="#historyModal">История изменений
-            </button>
-            <button type="button"
-                    class="btn btn-outline-primary"
-                    id="setting-prices-prolong-btn"
-                    data-bs-toggle="modal"
-                    data-bs-target="#setting-prices-prolong-modal"
-                    data-preview-url="{{ route('setting-prices.prolong-month.preview') }}"
-                    data-apply-url="{{ route('setting-prices.prolong-month.apply') }}">
-                Пролонгировать на следующий месяц
-            </button>
-            <hr>
+
+        <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-3">
+            <div class="card-body px-3 py-3">
+                <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+                    <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">По месяцам</h1>
+                    <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                id="logs"
+                                data-bs-toggle="modal"
+                                data-bs-target="#historyModal"
+                                title="История изменений">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-clock-rotate-left payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
+                        </button>
+
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                id="setting-prices-prolong-btn"
+                                data-bs-toggle="modal"
+                                data-bs-target="#setting-prices-prolong-modal"
+                                data-preview-url="{{ route('setting-prices.prolong-month.preview') }}"
+                                data-apply-url="{{ route('setting-prices.prolong-month.apply') }}"
+                                title="Пролонгировать на следующий месяц">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-calendar-plus payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Пролонгировать на следующий месяц</span>
+                        </button>
+
+                        <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#settingPricesMonthlyFiltersCollapse"
+                                aria-expanded="{{ $monthlyFiltersActive ? 'true' : 'false' }}"
+                                aria-controls="settingPricesMonthlyFiltersCollapse"
+                                id="settingPricesMonthlyFiltersToggle">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                            <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="collapse {{ $monthlyFiltersActive ? 'show' : '' }} mb-2 mb-md-3" id="settingPricesMonthlyFiltersCollapse">
+            <form id="setting-prices-monthly-filters"
+                  class="border rounded p-2 p-md-3 bg-light"
+                  method="POST"
+                  action="{{ route('setting-prices.monthly-filters') }}"
+                  novalidate>
+                @csrf
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-monthly-team-title">Название группы</label>
+                        <input id="filter-monthly-team-title"
+                               name="team_title"
+                               class="form-control"
+                               type="text"
+                               maxlength="255"
+                               value="{{ $monthlyFilters['team_title'] ?? '' }}"
+                               placeholder="Название группы"
+                               autocomplete="off">
+                        <div class="small text-danger mt-1 setting-prices-monthly-filter-error" data-error-for="team_title" style="display:none;"></div>
+                    </div>
+
+                    @can('locations.view')
+                        <div class="col-12 col-md-3">
+                            <label class="form-label" for="filter-monthly-location">Объект</label>
+                            <select id="filter-monthly-location" name="location_id" class="form-select">
+                                <option value="">Все объекты</option>
+                                <option value="none" @selected(($monthlyFilters['location_id'] ?? '') === 'none')>Без привязки к объектам</option>
+                                @foreach(($monthlyLocationOptions ?? collect()) as $location)
+                                    <option value="{{ (int) $location->id }}" @selected((string) ($monthlyFilters['location_id'] ?? '') === (string) $location->id)>
+                                        {{ $location->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="small text-danger mt-1 setting-prices-monthly-filter-error" data-error-for="location_id" style="display:none;"></div>
+                        </div>
+
+                        <div class="col-12 col-md-3">
+                            <label class="form-label" for="filter-monthly-admin">Администратор объекта</label>
+                            <select id="filter-monthly-admin" name="admin_user_id" class="form-select">
+                                <option value="">Все администраторы</option>
+                                <option value="none" @selected(($monthlyFilters['admin_user_id'] ?? '') === 'none')>Без администратора</option>
+                                @foreach(($monthlyAdminOptions ?? collect()) as $admin)
+                                    <option value="{{ (int) $admin->id }}" @selected((string) ($monthlyFilters['admin_user_id'] ?? '') === (string) $admin->id)>
+                                        {{ $admin->full_name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="small text-danger mt-1 setting-prices-monthly-filter-error" data-error-for="admin_user_id" style="display:none;"></div>
+                        </div>
+                    @endcan
+
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-monthly-team-package">Абонемент группы</label>
+                        <select id="filter-monthly-team-package" name="team_package" class="form-select">
+                            <option value="">Все абонементы</option>
+                            <option value="none" @selected(($monthlyFilters['team_package'] ?? '') === 'none')>Без абонемента</option>
+                            @foreach($monthlyPackageOptions as $pkg)
+                                <option value="{{ (int) $pkg['id'] }}" @selected((string) ($monthlyFilters['team_package'] ?? '') === (string) $pkg['id'])>
+                                    {{ $pkg['name'] }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="small text-danger mt-1 setting-prices-monthly-filter-error" data-error-for="team_package" style="display:none;"></div>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-monthly-team-price">Цена группы</label>
+                        <select id="filter-monthly-team-price" name="team_price" class="form-select">
+                            <option value="">Любая</option>
+                            <option value="set" @selected(($monthlyFilters['team_price'] ?? '') === 'set')>Задана</option>
+                            <option value="unset" @selected(($monthlyFilters['team_price'] ?? '') === 'unset')>Не задана</option>
+                        </select>
+                        <div class="small text-danger mt-1 setting-prices-monthly-filter-error" data-error-for="team_price" style="display:none;"></div>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-monthly-user-name">Ученик</label>
+                        <input id="filter-monthly-user-name"
+                               name="user_name"
+                               class="form-control"
+                               type="text"
+                               maxlength="255"
+                               value="{{ $monthlyFilters['user_name'] ?? '' }}"
+                               placeholder="Фамилия или имя"
+                               autocomplete="off">
+                        <div class="small text-danger mt-1 setting-prices-monthly-filter-error" data-error-for="user_name" style="display:none;"></div>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-monthly-user-paid">Оплата</label>
+                        <select id="filter-monthly-user-paid" name="user_paid" class="form-select">
+                            <option value="">Все</option>
+                            <option value="paid" @selected(($monthlyFilters['user_paid'] ?? '') === 'paid')>Оплачено</option>
+                            <option value="unpaid" @selected(($monthlyFilters['user_paid'] ?? '') === 'unpaid')>Не оплачено</option>
+                        </select>
+                        <div class="small text-danger mt-1 setting-prices-monthly-filter-error" data-error-for="user_paid" style="display:none;"></div>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-monthly-user-membership">Состав</label>
+                        <select id="filter-monthly-user-membership" name="user_membership" class="form-select">
+                            <option value="">Все</option>
+                            <option value="current" @selected(($monthlyFilters['user_membership'] ?? '') === 'current')>В группе</option>
+                            <option value="former" @selected(($monthlyFilters['user_membership'] ?? '') === 'former')>Не в группе</option>
+                        </select>
+                        <div class="small text-danger mt-1 setting-prices-monthly-filter-error" data-error-for="user_membership" style="display:none;"></div>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-monthly-user-package">Абонемент ученика</label>
+                        <select id="filter-monthly-user-package" name="user_package" class="form-select">
+                            <option value="">Все абонементы</option>
+                            <option value="none" @selected(($monthlyFilters['user_package'] ?? '') === 'none')>Без абонемента</option>
+                            @foreach($monthlyPackageOptions as $pkg)
+                                <option value="{{ (int) $pkg['id'] }}" @selected((string) ($monthlyFilters['user_package'] ?? '') === (string) $pkg['id'])>
+                                    {{ $pkg['name'] }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="small text-danger mt-1 setting-prices-monthly-filter-error" data-error-for="user_package" style="display:none;"></div>
+                    </div>
+
+                    <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                        <button id="setting-prices-monthly-filters-apply" class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
+                        <button id="setting-prices-monthly-filters-reset" class="btn btn-outline-secondary payments-report-filters-reset" type="submit" name="reset" value="1">Сброс</button>
+                    </div>
+                </div>
+            </form>
         </div>
 
         <div class="modal fade" id="setting-prices-prolong-modal" tabindex="-1"
@@ -224,6 +420,8 @@
                             </div>
                         </div>
                     @endforeach
+                @else
+                    <p class="text-muted mb-0">Группы не найдены.</p>
                 @endif
             </div>
 
@@ -239,10 +437,78 @@
         </div>
     </div>
 
+@include('partials.ui.user-card-modal', [
+    'userCardUrl' => url('/admin/setting-prices/user-cards'),
+])
+
 @section('scripts')
     @include('partials.ui.discount-percent-js')
     @vite(['resources/js/settings-prices.js'])
     <script>
+        const monthlyFiltersForm = document.getElementById('setting-prices-monthly-filters');
+        if (monthlyFiltersForm) {
+            monthlyFiltersForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const submitter = event.submitter;
+                const body = new FormData(monthlyFiltersForm);
+                if (submitter && submitter.name === 'reset') {
+                    body.set('reset', '1');
+                } else {
+                    body.delete('reset');
+                }
+
+                const token = document.querySelector('meta[name="csrf-token"]');
+                fetch(monthlyFiltersForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': token ? token.getAttribute('content') : ''
+                    },
+                    body: body
+                }).then(function (response) {
+                    return response.json().then(function (payload) {
+                        return { ok: response.ok, status: response.status, payload: payload };
+                    }).catch(function () {
+                        return { ok: response.ok, status: response.status, payload: null };
+                    });
+                }).then(function (result) {
+                    monthlyFiltersForm.querySelectorAll('.is-invalid').forEach(function (el) {
+                        el.classList.remove('is-invalid');
+                    });
+                    monthlyFiltersForm.querySelectorAll('[data-error-for]').forEach(function (el) {
+                        el.textContent = '';
+                        el.style.display = 'none';
+                    });
+
+                    if (result.ok) {
+                        window.location.reload();
+                        return;
+                    }
+
+                    const errors = result.payload && result.payload.errors ? result.payload.errors : null;
+                    if (!errors) {
+                        return;
+                    }
+
+                    Object.keys(errors).forEach(function (field) {
+                        const message = errors[field] && errors[field][0] ? errors[field][0] : '';
+                        const input = monthlyFiltersForm.querySelector('[name="' + field + '"]');
+                        if (input) {
+                            input.classList.add('is-invalid');
+                        }
+                        const errorEl = monthlyFiltersForm.querySelector('[data-error-for="' + field + '"]');
+                        if (errorEl) {
+                            errorEl.textContent = message;
+                            errorEl.style.display = message ? 'block' : 'none';
+                        }
+                    });
+                }).catch(function () {
+                    monthlyFiltersForm.submit();
+                });
+            });
+        }
+
         $('#single-select-date').on('change', function () {
             const selectedMonth = $(this).val();
 
@@ -269,6 +535,28 @@
     <script> 
         document.addEventListener('DOMContentLoaded', function () {
             showLogModal("{{ route('logs.data.settingPrice') }}"); // Здесь можно динамически передать route
+        });
+    </script>
+
+    <script>
+        $(document).on('click', '#right_bar .user-name', function (e) {
+            if (e.target.closest('.js-user-card, .js-payment-user-card')) {
+                return;
+            }
+            var card = this.closest('.setting-prices-user-card');
+            var id = card ? String(card.getAttribute('data-user-id') || '').replace(/[^0-9]/g, '') : '';
+            if (!id) {
+                return;
+            }
+            e.preventDefault();
+            var link = document.createElement('a');
+            link.className = 'js-user-card js-payment-user-card';
+            link.setAttribute('data-user-id', id);
+            link.href = 'javascript:void(0);';
+            link.hidden = true;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
         });
     </script>
 

@@ -10,6 +10,8 @@ class AccountPartnerOrganizationTest extends CrmTestCase
 {
     public function test_partner_edit_page_ok_when_has_view_permission(): void
     {
+        $this->asAdmin();
+
         $resp = $this->withSession(['current_partner' => $this->partner->id])
             ->get(route('admin.cur.company.edit'));
 
@@ -31,6 +33,8 @@ class AccountPartnerOrganizationTest extends CrmTestCase
 
     public function test_partner_edit_shows_update_form_when_has_update_permission(): void
     {
+        $this->asAdmin();
+
         $resp = $this->withSession(['current_partner' => $this->partner->id])
             ->get(route('admin.cur.company.edit'));
 
@@ -62,6 +66,8 @@ class AccountPartnerOrganizationTest extends CrmTestCase
 
     public function test_partner_update_ok_when_has_update_permission_and_valid_payload(): void
     {
+        $this->asAdmin();
+
         $payload = [
             'title' => 'Test Org ' . Str::random(8),
             'email' => 'org_' . Str::lower(Str::random(10)) . '@example.com',
@@ -141,6 +147,8 @@ class AccountPartnerOrganizationTest extends CrmTestCase
 
     public function test_partner_update_returns_422_on_validation_error(): void
     {
+        $this->asAdmin();
+
         $payload = [
             // title is required
             'email' => 'bad_' . Str::lower(Str::random(10)) . '@example.com',

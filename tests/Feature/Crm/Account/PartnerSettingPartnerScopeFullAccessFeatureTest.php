@@ -114,7 +114,7 @@ final class PartnerSettingPartnerScopeFullAccessFeatureTest extends CrmTestCase
 
     public function test_partner_edit_page_shows_current_partner_not_foreign(): void
     {
-        $this->grantPartnerView($this->user);
+        $this->asAdmin();
 
         $foreignTitle = 'ForeignOrgTitle_' . Str::random(8);
         $this->foreignPartner->update(['title' => $foreignTitle]);

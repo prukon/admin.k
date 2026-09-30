@@ -43,6 +43,9 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
         $this->assertStringContainsString('title="Статус оплаты"', $html);
         $this->assertStringContainsString('title="Кол-во посещений"', $html);
         $this->assertStringContainsString('title="Название абонемента"', $html);
+        $this->assertStringContainsString('data-bs-container="body"', $html);
+        $this->assertStringContainsString('#schedule-table .kids-tooltip-hint', (string) file_get_contents(public_path('css/schedule-journal-cells.css')));
+        $this->assertStringContainsString('cursor: default', (string) file_get_contents(public_path('css/schedule-journal-cells.css')));
         $this->assertStringContainsString('fa-ruble-sign', $html);
         $this->assertStringContainsString('fa-person-circle-check', $html);
         $this->assertStringContainsString('fa-ticket', $html);

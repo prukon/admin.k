@@ -347,6 +347,65 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
     }
 
+    public function test_account_organization_form_ajax_keeps_fields_and_uses_first_field_error(): void
+    {
+        $path = resource_path('views/account/organizations.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="partnerUpdateForm"', $content);
+        $this->assertStringContainsString("@can('account.partner.update')", $content);
+        $this->assertStringContainsString('name="title"', $content);
+        $this->assertStringContainsString('name="sms_name"', $content);
+        $this->assertStringContainsString('У вас нет прав на изменение данных организации.', $content);
+
+        $formPos = strpos($content, 'id="partnerUpdateForm"');
+        $warningPos = strpos($content, 'У вас нет прав на изменение данных организации.');
+        $this->assertNotFalse($formPos);
+        $this->assertNotFalse($warningPos);
+        $this->assertTrue($formPos < $warningPos);
+
+        $submitPos = strpos($content, "$('#partnerUpdateForm').on('submit'");
+        $this->assertNotFalse($submitPos);
+        $submitChunk = substr($content, (int) $submitPos, 1800);
+        $this->assertStringContainsString('e.preventDefault()', $submitChunk);
+        $this->assertStringContainsString('$.ajax', $submitChunk);
+        $this->assertStringContainsString("type: 'PATCH'", $submitChunk);
+        $this->assertStringContainsString('response.status === 422', $submitChunk);
+        $this->assertStringContainsString('response.responseJSON.errors', $submitChunk);
+        $this->assertStringContainsString('errors[firstKey][0]', $submitChunk);
+        $this->assertStringContainsString("$('#error-modal-message').text(errorMessage)", $submitChunk);
+        $this->assertStringContainsString('showSuccessModal("Редактирование организации", "Данные организации успешно обновлены.", 1)', $submitChunk);
+        $this->assertStringNotContainsString('form.reset()', $submitChunk);
+        $this->assertStringNotContainsString(".val('')", $submitChunk);
+        $this->assertStringNotContainsString('name="title"', $submitChunk);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'Во вкладке организации нет inline script');
+
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'partnerUpdateForm')) {
+                continue;
+            }
+
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $tempFile = sys_get_temp_dir().'/blade-js-account-organization-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    "JS syntax error in account/organizations.blade.php, script #{$index}:\n".implode("\n", $output)
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+    }
+
     public function test_create_team_modal_ajax_prevents_native_submit_and_shows_title_errors(): void
     {
         $path = resource_path('views/includes/modal/createTeam.blade.php');

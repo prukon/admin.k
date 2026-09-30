@@ -326,6 +326,7 @@
     <ul>
       <li><code>tests/Feature/Crm/Account/PartnerOrganizationLegacyFieldsFeatureTest.php</code> — UI, strip legacy, AJAX, доступ</li>
       <li><code>tests/Feature/Crm/Account/PartnerOrganizationNonAjaxSafetyNetFeatureTest.php</code> — PATCH без AJAX → 302</li>
+      <li><code>tests/Feature/Crm/Account/AccountPartnerOrganizationDefaultRolesFeatureTest.php</code> — ученик и тренер без доп. прав: 403 и нет вкладки; администратор видит форму в порядке полей, AJAX 200/422 <code>errors[title|email|sms_name]</code>, non-AJAX 302, повторное открытие сохраняет название</li>
       <li><code>tests/Feature/Crm/Account/AccountPartnerOrganizationTest.php</code>, <code>PartnerSettingPartnerScopeFullAccessFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Partners/PartnerAdminOperationalFieldsFeatureTest.php</code> — UI подписи, edit JSON, strip city/zip/ceo, сохранение полей</li>
       <li><code>tests/Feature/Crm/Partners/PartnerAdminSectionAccessFeatureTest.php</code> — guest/403/200/201/302/422 по всем endpoint'ам раздела</li>
@@ -339,10 +340,11 @@
       <li><code>tests/Feature/Crm/PartnerLegalEntities/MultiEntityTbankGuardAccessFeatureTest.php</code> — multi-entity guard, Init, клубный взнос, CRM групп</li>
       <li><code>tests/Feature/Crm/Payments/PaymentServiceTbankAvailabilityFeatureTest.php</code> — доступность T‑Bank только при ShopCode в юр. лице</li>
       <li><code>tests/Feature/Crm/Payments/CloudKassirReceiptBuilderAgentTest.php</code>, <code>SendCloudKassirReceiptJobTest.php</code> — чеки через юр. лицо и группу (<a href="/docs/documentation/tests-standards#legal-entity-test-fixtures">tests-standards §5</a>)</li>
-      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>organizations.blade.php</code>, <code>editPartner.blade.php</code>, <code>admin/partners/tabs/partners.blade.php</code> (контракт метрик + валидный JS)</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>organizations.blade.php</code> (AJAX PATCH, первая ошибка 422 в модалке, поля не сбрасываются, <code>node --check</code>), <code>editPartner.blade.php</code>, <code>admin/partners/tabs/partners.blade.php</code></li>
     </ul>
   </div>
   <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/Account/AccountPartnerOrganizationDefaultRolesFeatureTest.php \
   tests/Feature/Crm/Account/PartnerOrganizationLegacyFieldsFeatureTest.php \
   tests/Feature/Crm/Account/PartnerOrganizationNonAjaxSafetyNetFeatureTest.php \
   tests/Feature/Crm/Partners/PartnerAdminOperationalFieldsFeatureTest.php \

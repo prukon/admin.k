@@ -10,9 +10,11 @@ use App\Http\Requests\Admin\SetPriceAllTeamsRequest;
 use App\Http\Requests\Admin\SetPriceAllUsersRequest;
 use App\Http\Requests\Admin\SetTeamPriceRequest;
 use App\Http\Requests\Admin\ProlongMonthlyPricesRequest;
+use App\Http\Requests\Admin\SaveSettingPricesMonthlyFiltersRequest;
 use App\Http\Requests\Team\FilterRequest;
 use App\Enums\AuditEvent;
 use App\Models\LessonPackage;
+use App\Models\Location;
 use App\Models\Partner;
 use App\Models\Setting;
 use App\Models\Team;
@@ -31,6 +33,7 @@ use Yajra\DataTables\DataTables;
 use Illuminate\Support\Str;
 use App\Support\BuildsLogTable;
 use App\Support\LessonPackageTypePermission;
+use App\Support\PartnerAdminUserOptions;
 use App\Services\PartnerContext;
 use App\Http\Requests\Admin\SaveUserYearPricesRequest;
 use App\Http\Requests\Admin\UserYearPricesRequest;
@@ -46,6 +49,7 @@ use App\Services\SettingPrices\UsersPriceLessonPackageSync;
 use App\Services\SettingPrices\UsersPriceLessonPackageSyncException;
 use App\Services\Payments\UserCustomPaymentPublicPayService;
 use App\Services\SettingPrices\MonthlyPricesProlongService;
+use App\Services\SettingPrices\SettingPricesMonthlyViewStateService;
 use App\Support\Money;
 use Illuminate\Support\Carbon as SupportCarbon;
 use Illuminate\Validation\ValidationException;
@@ -71,6 +75,7 @@ class SettingPricesController extends AdminBaseController
         private readonly UsersPriceLessonPackageSync $usersPriceLessonPackageSync,
         private readonly MonthlyPricesProlongService $monthlyPricesProlongService,
         private readonly FormerMemberMonthChargeService $formerMemberMonthChargeService,
+        private readonly SettingPricesMonthlyViewStateService $monthlyViewState,
     ) {
         parent::__construct($partnerContext);
     }
@@ -261,26 +266,61 @@ class SettingPricesController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
 
         $allTeams = $this->getPartnerTeamsOrdered();
+        $allTeams->load(['location.adminUsers']);
 
         $selectWindow = $this->monthlySelectWindow();
-        $monthString = $this->clampMonthStringToMonthlySelect(
-            $partnerId,
-            $this->getCurrentMonthString($partnerId)
-        );
+        $lessonPackages = $this->lessonPackagesForPartnerSelect($partnerId);
+        $canViewLocations = (bool) (auth()->user()?->can('locations.view'));
+        $locationOptions = $canViewLocations
+            ? Location::query()
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', true)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+        $adminOptions = $canViewLocations
+            ? PartnerAdminUserOptions::forPartner($partnerId)
+            : collect();
+        $viewState = $this->monthlyViewStateForActor($lessonPackages);
+        if ($canViewLocations && auth()->id()) {
+            $viewState = $this->monthlyViewState->alignDirectoryFilters(
+                (int) auth()->id(),
+                $viewState,
+                $locationOptions->pluck('id')->map(static fn ($id) => (int) $id)->all(),
+                $adminOptions->pluck('id')->map(static fn ($id) => (int) $id)->all()
+            );
+        } else {
+            $viewState['location_id'] = '';
+            $viewState['admin_user_id'] = '';
+        }
+        $savedMonth = $viewState['month'];
+        $monthSource = is_string($savedMonth) && $savedMonth !== ''
+            ? $savedMonth
+            : $this->getCurrentMonthString($partnerId);
+        $monthString = $this->clampMonthStringToMonthlySelect($partnerId, $monthSource);
+        if (is_string($savedMonth) && $savedMonth !== '' && $monthString !== $savedMonth && auth()->id()) {
+            $this->monthlyViewState->saveMonth((int) auth()->id(), $monthString);
+            $viewState['month'] = $monthString;
+        }
         $monthDate   = $this->formatedDate($monthString);
 
         $this->ensureTeamPricesForMonth($allTeams, $monthDate);
 
         $teamPrices = $this->getTeamPricesForMonth($partnerId, $monthDate);
+        $visibleTeams = $this->monthlyViewState->filterTeams($allTeams, $teamPrices, $viewState);
 
         return view(
             'admin.SettingPrices.index',
             [
                 'activeTab'       => 'monthly',
                 'teamPrices'      => $teamPrices,
-                'allTeams'        => $allTeams,
+                'allTeams'        => $visibleTeams,
                 'monthString'     => $monthString,
-                'lessonPackages'  => $this->lessonPackagesForPartnerSelect($partnerId),
+                'lessonPackages'  => $lessonPackages,
+                'monthlyFilters'  => $viewState,
+                'monthlyFiltersActive' => $this->monthlyViewState->hasActiveFilters($viewState),
+                'monthlyLocationOptions' => $locationOptions,
+                'monthlyAdminOptions' => $adminOptions,
                 'monthlySelectStartYear' => $selectWindow['startYear'],
                 'monthlySelectStartMonthIndex' => $selectWindow['startMonthIndex'],
                 'monthlySelectMonthCount' => $selectWindow['monthCount'],
@@ -960,6 +1000,12 @@ class SettingPricesController extends AdminBaseController
         $usersPrice = $this->decorateUsersPricesForMonthlyUi($usersPrice);
 
         $lessonPackages = $this->lessonPackagesForPartnerSelect($partnerId);
+        $viewState = $this->monthlyViewStateForActor($lessonPackages);
+        [$usersTeam, $usersPrice] = $this->monthlyViewState->filterMonthlyUsers(
+            $usersTeam,
+            $usersPrice,
+            $viewState
+        );
 
         if (count($usersTeam) > 0) {
             return response()->json([
@@ -1450,6 +1496,59 @@ class SettingPricesController extends AdminBaseController
         ]);
     }
 
+    /**
+     * Сохранить или сбросить фильтры вкладки «По месяцам» для текущего пользователя.
+     * Месяц при сбросе не меняется.
+     */
+    public function saveMonthlyFilters(SaveSettingPricesMonthlyFiltersRequest $request)
+    {
+        $userId = (int) $request->user()->id;
+
+        if ($request->boolean('reset')) {
+            $this->monthlyViewState->clearFilters($userId);
+        } else {
+            $this->monthlyViewState->saveFilters($userId, $request->filters());
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return redirect()->route('admin.settingPrices.indexMenu');
+    }
+
+    /**
+     * Вид «По месяцам» текущего пользователя. Чужой id абонемента вычищается.
+     *
+     * @param  list<array{id: int, name: string, price: float, schedule_type: string, is_postpay: bool}>  $lessonPackages
+     * @return array{
+     *     month: ?string,
+     *     team_title: string,
+     *     team_package: string,
+     *     team_price: string,
+     *     user_name: string,
+     *     user_paid: string,
+     *     user_membership: string,
+     *     user_package: string,
+     *     location_id: string,
+     *     admin_user_id: string
+     * }
+     */
+    protected function monthlyViewStateForActor(array $lessonPackages): array
+    {
+        $userId = (int) (auth()->id() ?? 0);
+        if ($userId < 1) {
+            return $this->monthlyViewState->defaults();
+        }
+
+        $packageIds = array_map(
+            static fn (array $package): int => (int) $package['id'],
+            $lessonPackages
+        );
+
+        return $this->monthlyViewState->resolvedForUser($userId, $packageIds);
+    }
+
     // AJAX SELECT DATE. Обработчик изменения месяца (общий селект наверху)
     public function updateDate(Request $request)
     {
@@ -1462,6 +1561,9 @@ class SettingPricesController extends AdminBaseController
         $month = ucfirst($request->input('month'));
 
         $this->rememberCurrentMonthString($partnerId, $month);
+        if (auth()->id()) {
+            $this->monthlyViewState->saveMonth((int) auth()->id(), $month);
+        }
 
         $formatedMonth = $this->formatedDate($month);
 

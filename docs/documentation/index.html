@@ -222,9 +222,11 @@
     (<code>reports.payments.users.show</code>, право <code>reports.view</code>, ученик текущего партнёра,
     в том числе soft-deleted). Без <code>user_id</code> имя остаётся текстом.<br>
     Поля как у карточки «Контакт» в <code>/chat</code> (аватар, ФИО, школа, телефон, родитель,
-    телефон родителя, последний онлайн, группы) плюс email ученика, email родителя, дата рождения,
+    телефон родителя, группы) плюс email ученика, email родителя, дата рождения,
     скидка (строка «Скидка» только если процент 1–100) и семейный аккаунт
-    (братья и сёстры или «Нет»). Под ФИО — иконки Font Awesome:
+    (братья и сёстры или «Нет»). Справа в шапке — «Онлайн» / «Офлайн», время, флаг и устройство
+    (<code>#paymentUserCardPresence</code>), строки «Последний онлайн» нет.
+    Под ФИО — иконки Font Awesome:
     <code>fa-users</code> при семейном аккаунте, <code>fa-layer-group</code> при нескольких группах.
     Та же модалка открывается в журнале <code>/schedule</code> по клику на ФИО слева
     (<code>js-user-card</code>, <code>GET /schedule/users/{user}</code>, право <code>schedule.view</code>).
@@ -4621,6 +4623,33 @@
     <br><br>
     Подробно —
     <a href="/docs/documentation/setting-prices-monthly-users#month-prolong">setting-prices-monthly-users §4.2</a>.
+  </div>
+
+  <h2 id="setting-prices-monthly-view-state-index">Установка цен: шапка «По месяцам» и вид на пользователя (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/setting-prices/monthly</code> шапка как у остальных списков:
+    «По месяцам», <b>История</b>, <b>Пролонгировать на следующий месяц</b>, <b>Фильтры</b>.
+    Селект месяца остаётся под фильтрами.
+    Месяц и фильтры хранятся в <code>user_table_settings</code>
+    (<code>table_key=setting_prices_monthly</code>) отдельно у каждого админа:
+    один раз отфильтровал свои группы — при следующем заходе то же состояние.
+    Среди фильтров групп есть объект и администратор объекта
+    (как в справочнике групп, право <code>locations.view</code>).
+    Запасной месяц партнёра <code>prices_last_month</code> используется, только если
+    у пользователя своего месяца ещё нет. Смена месяца фильтры не сбрасывает.
+    Пролонгация по-прежнему копирует все группы партнёра, не только отфильтрованные.
+    Подробно —
+    <a href="/docs/documentation/setting-prices-monthly-users#monthly-view-state">setting-prices-monthly-users §2.1</a>.
+  </div>
+
+  <h2 id="setting-prices-monthly-user-card-index">Установка цен: карточка ученика на «По месяцам» (2026‑09)</h2>
+  <div class="note">
+    На <code>/admin/setting-prices/monthly</code> клик по имени ученика справа открывает
+    ту же модалку, что в журнале <code>/schedule</code> (<code>#paymentUserCardModal</code>).
+    Данные отдаёт <code>GET /admin/setting-prices/user-cards/{user}</code>
+    при праве <code>setPrices.view</code>.
+    Подробно —
+    <a href="/docs/documentation/setting-prices-monthly-users#monthly-user-card">setting-prices-monthly-users §2.2</a>.
   </div>
 
   <h2 id="platform-payments-methods-index">Оплата платформы: права T‑Bank СБП и ЮKassa (2026‑09)</h2>

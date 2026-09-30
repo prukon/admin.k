@@ -411,6 +411,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/my-group/data', [MyGroupController::class, 'data'])->name('my-group.data');
     });
 
+    Route::patch('/admin/user-cards/{user}/comment', [PaymentReportController::class, 'updateUserCardComment'])
+        ->middleware('can:users.comment')
+        ->whereNumber('user')
+        ->name('user-cards.comment.update');
+
     //Установка цен (feature test +)
     Route::middleware('can:setPrices.view')->group(function () {
         // Route::get('admin/setting-prices', [SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');
@@ -422,8 +427,13 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/setting-prices/prolong-month', [SettingPricesController::class, 'applyMonthProlong'])->name('setting-prices.prolong-month.apply');
         Route::get('admin/setting-prices/logs-data', [SettingPricesController::class, 'getLogsData'])->name('logs.data.settingPrice');
         Route::post('admin/setting-prices/update-date', [SettingPricesController::class, 'updateDate'])->name('updateDate');
+        Route::post('admin/setting-prices/monthly-filters', [SettingPricesController::class, 'saveMonthlyFilters'])
+            ->name('setting-prices.monthly-filters');
 
         Route::get('admin/setting-prices/monthly', [SettingPricesController::class, 'monthly'])->name('admin.settingPrices.indexMenu');
+        Route::get('admin/setting-prices/user-cards/{user}', [PaymentReportController::class, 'userCard'])
+            ->whereNumber('user')
+            ->name('setting-prices.users.card');
         Route::get('admin/setting-prices/users', [SettingPricesController::class, 'users'])->name('admin.settingPrices.users');
         Route::middleware('can:setPrices.customPayments.view')->group(function () {
             Route::get('admin/setting-prices/custom-payments', [SettingPricesController::class, 'customPayments'])->name('admin.settingPrices.customPayments');

@@ -24,6 +24,12 @@
     cursor: default;
 }
 
+/* cursor:help у .kids-tooltip-hint — системный знак вопроса. В журнале остаётся тёмный tooltip. */
+#schedule-table .kids-tooltip-hint,
+.cell-status-postpay-billing-hint {
+    cursor: default;
+}
+
 #schedule-table td.schedule-payment-status {
     width: auto;
     min-width: 30px;
