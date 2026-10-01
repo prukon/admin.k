@@ -35,6 +35,9 @@ class PaymentReportUserCardFeatureTest extends CrmTestCase
         $this->assertStringContainsString('peer-card-head-aside', $html);
         $this->assertStringContainsString('peer-card-name-row', $html);
         $this->assertStringContainsString('id="paymentUserCardPresence"', $html);
+        $this->assertStringContainsString('Был в сети ', $html);
+        $this->assertStringContainsString('payment-user-card-device', $html);
+        $this->assertStringContainsString('height: 1rem', $html);
         $this->assertStringContainsString('id="paymentUserCardComment"', $html);
         $this->assertStringContainsString('paymentUserCardCommentSave', $html);
         $this->assertStringContainsString('/admin/user-cards', $html);

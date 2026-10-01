@@ -75,15 +75,32 @@
         }
         #paymentUserCardModal .payment-user-card-presence-seen {
             font-size: 0.75rem;
-            line-height: 1.2;
+            line-height: 1;
             white-space: nowrap;
+            color: #64748b;
+        }
+        #paymentUserCardModal .payment-user-card-login-flag,
+        #paymentUserCardModal .payment-user-card-device {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 1rem;
+            line-height: 1;
+            flex: 0 0 auto;
         }
         #paymentUserCardModal .payment-user-card-login-flag {
-            width: 1.25rem;
-            height: 0.95rem;
+            width: 1.35rem;
             border-radius: 2px;
             box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
             background-size: cover;
+            background-position: center;
+        }
+        #paymentUserCardModal .payment-user-card-login-flag::before {
+            content: none;
+        }
+        #paymentUserCardModal .payment-user-card-device {
+            width: 1rem;
+            font-size: 1rem;
         }
         #paymentUserCardModal .modal-header .btn-close {
             margin-top: 0;
@@ -462,13 +479,12 @@
                     return;
                 }
                 var online = !!u.is_online;
-                var label = String(u.presence_label || (online ? 'Онлайн' : 'Офлайн'));
-                var seen = String(u.presence_seen || '').trim();
-                var badge = '<span class="badge ' + (online ? 'bg-success' : 'bg-secondary') + '">'
-                    + paymentUserCardEscape(label) + '</span>';
-                var seenHtml = (!online && seen !== '')
-                    ? '<span class="text-muted payment-user-card-presence-seen">' + paymentUserCardEscape(seen) + '</span>'
-                    : '';
+                var seenPhrase = online ? '' : paymentUserCardSeenPhrase(u.presence_seen);
+                var statusHtml = online
+                    ? '<span class="badge bg-success">Онлайн</span>'
+                    : (seenPhrase !== ''
+                        ? '<span class="payment-user-card-presence-seen">' + paymentUserCardEscape(seenPhrase) + '</span>'
+                        : '');
                 var flags = Array.isArray(u.login_flags) ? u.login_flags : [];
                 var flagHtml = flags.map(function (flag) {
                     var code = String(flag && flag.code || '').toLowerCase().replace(/[^a-z]/g, '');
@@ -484,14 +500,33 @@
                 var deviceLabel = paymentUserCardEscape(String(u.login_device_label || ''));
                 var deviceIcon = '';
                 if (device === 'desktop') {
-                    deviceIcon = '<i class="fa-solid fa-desktop text-muted" title="' + deviceLabel + '" aria-label="' + deviceLabel + '"></i>';
+                    deviceIcon = '<i class="fa-solid fa-desktop text-muted payment-user-card-device" title="' + deviceLabel + '" aria-label="' + deviceLabel + '"></i>';
                 } else if (device === 'mobile') {
-                    deviceIcon = '<i class="fa-solid fa-mobile-screen text-muted" title="' + deviceLabel + '" aria-label="' + deviceLabel + '"></i>';
+                    deviceIcon = '<i class="fa-solid fa-mobile-screen text-muted payment-user-card-device" title="' + deviceLabel + '" aria-label="' + deviceLabel + '"></i>';
                 } else if (device === 'tablet') {
-                    deviceIcon = '<i class="fa-solid fa-tablet-screen-button text-muted" title="' + deviceLabel + '" aria-label="' + deviceLabel + '"></i>';
+                    deviceIcon = '<i class="fa-solid fa-tablet-screen-button text-muted payment-user-card-device" title="' + deviceLabel + '" aria-label="' + deviceLabel + '"></i>';
+                }
+                if (statusHtml === '' && deviceIcon === '' && flagHtml === '') {
+                    el.innerHTML = '';
+                    el.hidden = true;
+                    return;
                 }
                 el.hidden = false;
-                el.innerHTML = badge + seenHtml + deviceIcon + flagHtml;
+                el.innerHTML = statusHtml + deviceIcon + flagHtml;
+            }
+
+            function paymentUserCardSeenPhrase(seen) {
+                var match = String(seen || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.\d{4}/);
+                if (!match) {
+                    return '';
+                }
+                var day = parseInt(match[1], 10);
+                var months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+                var month = months[parseInt(match[2], 10) - 1];
+                if (!month || day < 1 || day > 31) {
+                    return '';
+                }
+                return 'Был в сети ' + day + ' ' + month;
             }
 
             function openPaymentUserCard(userId) {
