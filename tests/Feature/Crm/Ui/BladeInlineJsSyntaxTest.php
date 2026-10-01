@@ -1716,6 +1716,7 @@ JS;
         $this->assertNotFalse($scriptsPos);
         $stylesChunk = substr($indexContent, $stylesPos, $scriptsPos - $stylesPos);
         $this->assertStringContainsString("@vite(['resources/css/schedule.css'])", $stylesChunk);
+        $this->assertStringContainsString("asset('css/user-card-modal.css')", $stylesChunk);
         $this->assertStringContainsString("asset('css/schedule-journal-cells.css')", $stylesChunk);
         $this->assertStringContainsString('#schedule-journal-stage:not(.is-ready)', $stylesChunk);
         $this->assertStringContainsString('.schedule-journal-preloader', $stylesChunk);

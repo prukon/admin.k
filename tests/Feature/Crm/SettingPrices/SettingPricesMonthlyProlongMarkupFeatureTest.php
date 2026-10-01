@@ -72,6 +72,7 @@ final class SettingPricesMonthlyProlongMarkupFeatureTest extends CrmTestCase
 
         $blade = (string) file_get_contents(resource_path('views/admin/SettingPrices/monthly.blade.php'));
         $this->assertStringContainsString("@vite(['resources/css/schedule.css'])", $blade);
+        $this->assertStringContainsString("asset('css/user-card-modal.css')", $blade);
         $this->assertStringContainsString("@include('partials.ui.tooltip-hint'", $blade);
         $this->assertStringNotContainsString('initMonthProlong', $blade);
     }

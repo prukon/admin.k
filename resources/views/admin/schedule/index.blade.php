@@ -45,6 +45,7 @@
 
 @push('styles')
     @vite(['resources/css/schedule.css'])
+    <link rel="stylesheet" href="{{ asset('css/user-card-modal.css') }}?v={{ @filemtime(public_path('css/user-card-modal.css')) ?: time() }}">
     {{-- Hotfix до следующей Vite-сборки: см. public/css/schedule-journal-cells.css --}}
     <link rel="stylesheet" href="{{ asset('css/schedule-journal-cells.css') }}?v={{ @filemtime(public_path('css/schedule-journal-cells.css')) ?: time() }}">
     @if(($activeTab ?? 'journal') === 'journal')

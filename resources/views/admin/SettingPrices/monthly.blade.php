@@ -3,6 +3,7 @@
 
     @push('styles')
         @vite(['resources/css/schedule.css'])
+        <link rel="stylesheet" href="{{ asset('css/user-card-modal.css') }}?v={{ @filemtime(public_path('css/user-card-modal.css')) ?: time() }}">
         @vite(['resources/css/admin-list-toolbar.css'])
         <style>
             /* Длинные названия абонемента: «...» в закрытом select */

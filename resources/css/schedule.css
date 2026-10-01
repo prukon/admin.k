@@ -1,3 +1,5 @@
+@import "./user-card-modal.css";
+
 /* Убираем скролл страницы при полноэкранном режиме */
 body.no-scroll {
     overflow: hidden !important;

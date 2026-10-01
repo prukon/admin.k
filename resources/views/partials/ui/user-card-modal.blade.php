@@ -39,198 +39,7 @@
 
 @push('styles')
     <link rel="stylesheet" href="{{ asset('plugins/flag-icon-css/css/flag-icon.css') }}">
-    <style>
-        #paymentUserCardModal .modal-header {
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.65rem 0.9rem;
-            border-bottom-color: #eef1f4;
-        }
-        #paymentUserCardModal .modal-title {
-            font-size: 0.95rem;
-            font-weight: 600;
-        }
-        #paymentUserCardModal .modal-body {
-            padding: 0.85rem 0.9rem 1rem;
-        }
-        #paymentUserCardModal .peer-card-name-row {
-            display: flex;
-            align-items: center;
-            gap: .75rem;
-            margin-bottom: .45rem;
-            min-width: 0;
-        }
-        #paymentUserCardModal .peer-card-name-presence {
-            margin-left: auto;
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: flex-end;
-            gap: .45rem;
-            flex: 0 0 auto;
-            text-align: right;
-        }
-        #paymentUserCardModal .peer-card-name-presence[hidden] {
-            display: none;
-        }
-        #paymentUserCardModal .payment-user-card-presence-seen {
-            font-size: 0.75rem;
-            line-height: 1;
-            white-space: nowrap;
-            color: #64748b;
-        }
-        #paymentUserCardModal .payment-user-card-presence-seen.kids-tooltip-hint {
-            cursor: default;
-        }
-        #paymentUserCardModal .payment-user-card-login-flag,
-        #paymentUserCardModal .payment-user-card-device {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            height: 1rem;
-            line-height: 1;
-            flex: 0 0 auto;
-        }
-        #paymentUserCardModal .payment-user-card-login-flag {
-            width: 1.35rem;
-            border-radius: 2px;
-            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
-            background-size: cover;
-            background-position: center;
-        }
-        #paymentUserCardModal .payment-user-card-login-flag::before {
-            content: none;
-        }
-        #paymentUserCardModal .payment-user-card-device {
-            width: 1rem;
-            font-size: 1rem;
-        }
-        #paymentUserCardModal .modal-header .btn-close {
-            margin-top: 0;
-        }
-        #paymentUserCardModal .peer-card { text-align: left; }
-        #paymentUserCardModal .peer-card-head {
-            display: flex;
-            align-items: center;
-            gap: 1.35rem;
-            margin-bottom: .8rem;
-            padding: .9rem .9rem;
-            background: #f8fafc;
-            border: 1px solid #e8edf2;
-            border-radius: .85rem;
-        }
-        #paymentUserCardModal .peer-card-head-aside {
-            flex: 0 0 108px;
-            width: 108px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        #paymentUserCardModal .peer-card-avatar {
-            display: block;
-            width: 92px;
-            height: 92px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin: 0;
-            background: #fff;
-            box-shadow: 0 0 0 3px #fff, 0 0 0 4px #e2e8f0;
-        }
-        #paymentUserCardModal .peer-card-head-main { min-width: 0; flex: 1 1 auto; }
-        #paymentUserCardModal .peer-card-name {
-            text-align: left;
-            font-weight: 600;
-            font-size: 1rem;
-            line-height: 1.25;
-            margin-bottom: 0;
-            flex: 1 1 auto;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #paymentUserCardModal .peer-card-icons {
-            display: flex;
-            justify-content: center;
-            gap: .55rem;
-            margin: .4rem 0 0;
-            color: #64748b;
-            font-size: .95rem;
-        }
-        /* .kids-tooltip-hint ставит cursor:help — это системный знак вопроса. Здесь остаётся тёмный tooltip. */
-        #paymentUserCardModal .peer-card-icons .kids-tooltip-hint {
-            cursor: default;
-        }
-        #paymentUserCardModal .peer-card-partner {
-            text-align: left;
-            color: #64748b;
-            font-size: .78rem;
-            line-height: 1.2;
-            margin: 0 0 .5rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #paymentUserCardModal .peer-card-head-line,
-        #paymentUserCardModal .peer-card-row {
-            display: flex;
-            align-items: center;
-            gap: .6rem;
-            min-width: 0;
-            padding: .28rem 0;
-            line-height: 1.35;
-        }
-        #paymentUserCardModal .peer-card-row {
-            padding: .42rem 0;
-            border-top: 1px solid #f1f5f9;
-        }
-        #paymentUserCardModal .peer-card-head-label,
-        #paymentUserCardModal .peer-card-label {
-            flex: 0 0 8.5rem;
-            color: #94a3b8;
-            font-size: .75rem;
-            line-height: 1.2;
-            white-space: nowrap;
-        }
-        #paymentUserCardModal .peer-card-value {
-            min-width: 0;
-            flex: 1 1 auto;
-            font-size: .84rem;
-            color: #1e293b;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #paymentUserCardModal .peer-card-value a {
-            color: inherit;
-            text-decoration: none;
-        }
-        #paymentUserCardModal .peer-card-value a:hover {
-            text-decoration: underline;
-        }
-        #paymentUserCardModal .payment-user-card-comment {
-            margin-top: .75rem;
-            text-align: left;
-        }
-        #paymentUserCardModal .payment-user-card-comment .form-label {
-            margin-bottom: .25rem;
-            font-size: .75rem;
-            color: #94a3b8;
-        }
-        #paymentUserCardModal .payment-user-card-comment textarea {
-            min-height: 4.2rem;
-            font-size: .84rem;
-        }
-        button.schedule-user-card-name {
-            border: 0;
-            background: transparent;
-            padding: 0;
-            color: var(--bs-link-color, #0d6efd);
-            text-decoration: underline;
-            font: inherit;
-            text-align: left;
-            white-space: normal;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ asset('css/user-card-modal.css') }}?v={{ @filemtime(public_path('css/user-card-modal.css')) ?: time() }}">
 @endpush
 
 @push('scripts')
@@ -382,6 +191,22 @@
                     return;
                 }
                 window.KidsCrmTooltip.init(root, { scopes: ['hint'] });
+                if (!window.bootstrap || !window.bootstrap.Tooltip) {
+                    return;
+                }
+                root.querySelectorAll('.peer-card-icons [data-kids-tooltip-hint]').forEach(function (el) {
+                    var existing = window.bootstrap.Tooltip.getInstance(el);
+                    if (existing) {
+                        existing.dispose();
+                    }
+                    new window.bootstrap.Tooltip(el, {
+                        placement: el.getAttribute('data-bs-placement') || 'top',
+                        customClass: el.getAttribute('data-bs-custom-class') || 'ulp-assignment-paid-tooltip',
+                        trigger: 'hover focus',
+                        container: 'body',
+                        popperConfig: { strategy: 'fixed' }
+                    });
+                });
             }
 
             function renderPaymentUserCard(u) {
@@ -431,16 +256,18 @@
                 body.innerHTML =
                     '<div class="peer-card">' +
                     '<div class="peer-card-head">' +
+                    '<div class="peer-card-name-row">' +
+                    '<div class="peer-card-name-stack">' +
+                    '<div class="peer-card-name" title="' + paymentUserCardEscape(studentName) + '">' + paymentUserCardEscape(studentName) + '</div>' +
+                    partnerHtml +
+                    '</div>' +
+                    '<div class="peer-card-name-presence" id="paymentUserCardPresence" hidden></div>' +
+                    '</div>' +
                     '<div class="peer-card-head-aside">' +
                     '<img class="peer-card-avatar" src="' + paymentUserCardEscape(u.avatar || '/img/default-avatar.png') + '" alt="">' +
                     iconsHtml +
                     '</div>' +
                     '<div class="peer-card-head-main">' +
-                    '<div class="peer-card-name-row">' +
-                    '<div class="peer-card-name" title="' + paymentUserCardEscape(studentName) + '">' + paymentUserCardEscape(studentName) + '</div>' +
-                    '<div class="peer-card-name-presence" id="paymentUserCardPresence" hidden></div>' +
-                    '</div>' +
-                    partnerHtml +
                     paymentUserCardHeadLine('Группы', paymentUserCardEscape(paymentUserCardDash(u.team_title)), paymentUserCardDash(u.team_title)) +
                     paymentUserCardHeadLine('Телефон', paymentUserCardPhone(u.phone), paymentUserCardDash(u.phone)) +
                     paymentUserCardHeadLine('Email', paymentUserCardMail(u.email), paymentUserCardDash(u.email)) +
@@ -527,7 +354,7 @@
                     return;
                 }
                 el.hidden = false;
-                el.innerHTML = statusHtml + marksHtml;
+                el.innerHTML = marksHtml + statusHtml;
             }
 
             function paymentUserCardOfflineHover(u) {
