@@ -45,6 +45,8 @@ final class PaymentReportUserCard
      *     presence_seen: string,
      *     login_device: ?string,
      *     login_device_label: string,
+     *     activity_device_label: string,
+     *     activity_country: string,
      *     login_flags: list<array{code: string, label: string}>,
      *     team_title: string,
      *     partner_name: string
@@ -76,6 +78,8 @@ final class PaymentReportUserCard
         $card['presence_seen'] = $this->presenceSeen($user);
         $card['login_device'] = $hints['device'];
         $card['login_device_label'] = $hints['device_label'];
+        $card['activity_device_label'] = $hints['activity_device_label'];
+        $card['activity_country'] = $hints['activity_country'];
         $card['login_flags'] = $hints['flags'];
 
         return $card;

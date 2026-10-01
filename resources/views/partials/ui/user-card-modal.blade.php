@@ -79,6 +79,9 @@
             white-space: nowrap;
             color: #64748b;
         }
+        #paymentUserCardModal .payment-user-card-presence-seen.kids-tooltip-hint {
+            cursor: default;
+        }
         #paymentUserCardModal .payment-user-card-login-flag,
         #paymentUserCardModal .payment-user-card-device {
             display: inline-flex;
@@ -463,8 +466,8 @@
                 if (commentInput) {
                     commentInput.value = String(u.comment == null ? '' : u.comment);
                 }
-                paymentUserCardBindHints(body);
                 renderPaymentUserCardPresence(u);
+                paymentUserCardBindHints(body);
             }
 
             function renderPaymentUserCardPresence(u) {
@@ -480,11 +483,22 @@
                 }
                 var online = !!u.is_online;
                 var seenPhrase = online ? '' : paymentUserCardSeenPhrase(u.presence_seen);
-                var statusHtml = online
-                    ? '<span class="badge bg-success">Онлайн</span>'
-                    : (seenPhrase !== ''
-                        ? '<span class="payment-user-card-presence-seen">' + paymentUserCardEscape(seenPhrase) + '</span>'
-                        : '');
+                var offlineHover = online ? '' : paymentUserCardOfflineHover(u);
+                var statusHtml = '';
+                if (online) {
+                    statusHtml = '<span class="badge bg-success">Онлайн</span>';
+                } else if (seenPhrase !== '') {
+                    if (offlineHover !== '') {
+                        statusHtml = '<span class="kids-tooltip-hint payment-user-card-presence-seen" tabindex="0"'
+                            + ' data-kids-tooltip-hint="1" data-bs-toggle="tooltip" data-bs-placement="top"'
+                            + ' data-bs-custom-class="ulp-assignment-paid-tooltip" data-bs-container="body"'
+                            + ' title="' + paymentUserCardEscape(offlineHover) + '"'
+                            + ' aria-label="' + paymentUserCardEscape(offlineHover) + '">'
+                            + paymentUserCardEscape(seenPhrase) + '</span>';
+                    } else {
+                        statusHtml = '<span class="payment-user-card-presence-seen">' + paymentUserCardEscape(seenPhrase) + '</span>';
+                    }
+                }
                 var flags = Array.isArray(u.login_flags) ? u.login_flags : [];
                 var flagHtml = flags.map(function (flag) {
                     var code = String(flag && flag.code || '').toLowerCase().replace(/[^a-z]/g, '');
@@ -506,17 +520,27 @@
                 } else if (device === 'tablet') {
                     deviceIcon = '<i class="fa-solid fa-tablet-screen-button text-muted payment-user-card-device" title="' + deviceLabel + '" aria-label="' + deviceLabel + '"></i>';
                 }
-                if (statusHtml === '' && deviceIcon === '' && flagHtml === '') {
+                var marksHtml = online ? (deviceIcon + flagHtml) : '';
+                if (statusHtml === '' && marksHtml === '') {
                     el.innerHTML = '';
                     el.hidden = true;
                     return;
                 }
                 el.hidden = false;
-                el.innerHTML = statusHtml + deviceIcon + flagHtml;
+                el.innerHTML = statusHtml + marksHtml;
+            }
+
+            function paymentUserCardOfflineHover(u) {
+                var device = String(u && u.activity_device_label || '').trim();
+                var country = String(u && u.activity_country || '').trim();
+                if (device !== '' && country !== '') {
+                    return device + ', ' + country;
+                }
+                return device !== '' ? device : country;
             }
 
             function paymentUserCardSeenPhrase(seen) {
-                var match = String(seen || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.\d{4}/);
+                var match = String(seen || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.\d{4}(?:\s+(\d{2}:\d{2}))?/);
                 if (!match) {
                     return '';
                 }
@@ -526,7 +550,11 @@
                 if (!month || day < 1 || day > 31) {
                     return '';
                 }
-                return 'Был в сети ' + day + ' ' + month;
+                var phrase = 'Был в сети ' + day + ' ' + month;
+                if (match[3]) {
+                    phrase += ' ' + match[3];
+                }
+                return phrase;
             }
 
             function openPaymentUserCard(userId) {

@@ -36,6 +36,8 @@ class PaymentReportUserCardFeatureTest extends CrmTestCase
         $this->assertStringContainsString('peer-card-name-row', $html);
         $this->assertStringContainsString('id="paymentUserCardPresence"', $html);
         $this->assertStringContainsString('Был в сети ', $html);
+        $this->assertStringContainsString('paymentUserCardOfflineHover', $html);
+        $this->assertStringContainsString('var marksHtml = online ? (deviceIcon + flagHtml) : \'\'', $html);
         $this->assertStringContainsString('payment-user-card-device', $html);
         $this->assertStringContainsString('height: 1rem', $html);
         $this->assertStringContainsString('id="paymentUserCardComment"', $html);
@@ -143,6 +145,8 @@ class PaymentReportUserCardFeatureTest extends CrmTestCase
             ->assertJsonPath('presence_seen', $seen->timezone((string) config('app.timezone'))->format('d.m.Y H:i'))
             ->assertJsonPath('login_device', 'desktop')
             ->assertJsonPath('login_device_label', 'Компьютер')
+            ->assertJsonPath('activity_device_label', 'Компьютер')
+            ->assertJsonPath('activity_country', 'Германия')
             ->assertJsonPath('login_flags.0.code', 'de')
             ->assertJsonPath('login_flags.0.label', 'Германия, Chrome 120');
     }

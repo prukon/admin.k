@@ -24,6 +24,8 @@ final class StudentCardLoginHints
      * @return array{
      *     device: ?string,
      *     device_label: string,
+     *     activity_device_label: string,
+     *     activity_country: string,
      *     flags: list<array{code: string, label: string}>
      * }
      */
@@ -39,6 +41,11 @@ final class StudentCardLoginHints
         $activityCountry = $activityIp !== '' && $activityIp !== $loginIp
             ? $this->countries->resolve($activityIp)
             : null;
+        $activityCountryName = $activityCountry?->name ?? '';
+        if ($activityCountryName === '') {
+            $activityCountryName = $loginCountry?->name ?? '';
+        }
+        $activityDevice = $activity['device'] ?? ($loginParsed['device'] ?? null);
 
         $flags = [];
         if ($loginCountry !== null) {
@@ -54,6 +61,8 @@ final class StudentCardLoginHints
         return [
             'device' => $device,
             'device_label' => $this->deviceLabel($device),
+            'activity_device_label' => $this->deviceLabel($activityDevice),
+            'activity_country' => $activityCountryName,
             'flags' => $flags,
         ];
     }
