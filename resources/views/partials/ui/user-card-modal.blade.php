@@ -9,7 +9,6 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="paymentUserCardModalLabel">Ученик</h5>
-                <div class="payment-user-card-presence" id="paymentUserCardPresence" hidden></div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body">
@@ -54,15 +53,25 @@
         #paymentUserCardModal .modal-body {
             padding: 0.85rem 0.9rem 1rem;
         }
-        #paymentUserCardModal .payment-user-card-presence {
+        #paymentUserCardModal .peer-card-name-row {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            margin-bottom: .45rem;
+            min-width: 0;
+        }
+        #paymentUserCardModal .peer-card-name-presence {
             margin-left: auto;
             display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            justify-content: center;
-            gap: 0.2rem;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-end;
+            gap: .45rem;
+            flex: 0 0 auto;
             text-align: right;
-            min-width: 0;
+        }
+        #paymentUserCardModal .peer-card-name-presence[hidden] {
+            display: none;
         }
         #paymentUserCardModal .payment-user-card-presence-seen {
             font-size: 0.75rem;
@@ -84,8 +93,8 @@
             display: flex;
             align-items: center;
             gap: 1.35rem;
-            margin-bottom: .65rem;
-            padding: .7rem .8rem;
+            margin-bottom: .8rem;
+            padding: .9rem .9rem;
             background: #f8fafc;
             border: 1px solid #e8edf2;
             border-radius: .85rem;
@@ -113,12 +122,12 @@
             font-weight: 600;
             font-size: 1rem;
             line-height: 1.25;
-            margin-bottom: .35rem;
+            margin-bottom: 0;
+            flex: 1 1 auto;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        #paymentUserCardModal .peer-card-name:has(+ .peer-card-partner) { margin-bottom: 0; }
         #paymentUserCardModal .peer-card-icons {
             display: flex;
             justify-content: center;
@@ -136,7 +145,7 @@
             color: #64748b;
             font-size: .78rem;
             line-height: 1.2;
-            margin: 0 0 .35rem;
+            margin: 0 0 .5rem;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -147,11 +156,11 @@
             align-items: center;
             gap: .6rem;
             min-width: 0;
-            padding: .12rem 0;
-            line-height: 1.3;
+            padding: .28rem 0;
+            line-height: 1.35;
         }
         #paymentUserCardModal .peer-card-row {
-            padding: .28rem 0;
+            padding: .42rem 0;
             border-top: 1px solid #f1f5f9;
         }
         #paymentUserCardModal .peer-card-head-label,
@@ -407,7 +416,10 @@
                     iconsHtml +
                     '</div>' +
                     '<div class="peer-card-head-main">' +
+                    '<div class="peer-card-name-row">' +
                     '<div class="peer-card-name" title="' + paymentUserCardEscape(studentName) + '">' + paymentUserCardEscape(studentName) + '</div>' +
+                    '<div class="peer-card-name-presence" id="paymentUserCardPresence" hidden></div>' +
+                    '</div>' +
                     partnerHtml +
                     paymentUserCardHeadLine('Группы', paymentUserCardEscape(paymentUserCardDash(u.team_title)), paymentUserCardDash(u.team_title)) +
                     paymentUserCardHeadLine('Телефон', paymentUserCardPhone(u.phone), paymentUserCardDash(u.phone)) +
@@ -478,13 +490,8 @@
                 } else if (device === 'tablet') {
                     deviceIcon = '<i class="fa-solid fa-tablet-screen-button text-muted" title="' + deviceLabel + '" aria-label="' + deviceLabel + '"></i>';
                 }
-                var hintsHtml = (flagHtml || deviceIcon)
-                    ? '<div class="d-flex align-items-center justify-content-end gap-2">' + flagHtml + deviceIcon + '</div>'
-                    : '';
                 el.hidden = false;
-                el.innerHTML =
-                    '<div class="d-flex align-items-center justify-content-end gap-2">' + badge + seenHtml + '</div>' +
-                    hintsHtml;
+                el.innerHTML = badge + seenHtml + deviceIcon + flagHtml;
             }
 
             function openPaymentUserCard(userId) {

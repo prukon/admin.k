@@ -33,6 +33,7 @@ class PaymentReportUserCardFeatureTest extends CrmTestCase
         $this->assertStringContainsString("paymentUserCardHeadLine('Email'", $html);
         $this->assertStringContainsString("paymentUserCardHeadLine('Дата рождения'", $html);
         $this->assertStringContainsString('peer-card-head-aside', $html);
+        $this->assertStringContainsString('peer-card-name-row', $html);
         $this->assertStringContainsString('id="paymentUserCardPresence"', $html);
         $this->assertStringContainsString('id="paymentUserCardComment"', $html);
         $this->assertStringContainsString('paymentUserCardCommentSave', $html);
