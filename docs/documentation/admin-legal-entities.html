@@ -316,7 +316,8 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
     <li><b>Ставка НДС</b> (<code>partner_legal_entities.vat</code>) — поле «Ставка НДС (онлайн-чек)» в модалке CRM; <code>CloudKassirReceiptBuilder::resolveVat()</code>. Если <code>vat</code> не задан — в позиции чека <code>null</code>.</li>
     <li><b>Система налогообложения (СНО)</b> в чеке — только из env платформы <code>CLOUDKASSIR_TAXATION_SYSTEM</code> (<code>CloudKassirReceiptBuilder::resolvePlatformTaxationSystem()</code>). Поля <code>taxation_system</code> у партнёра и юр. лица удалены (миграция 2026-06-29).</li>
     <li><b>ИНН платформы</b> в корне запроса (<code>Inn</code>) — <code>config('services.cloudkassir.inn')</code> (касса зарегистрирована на платформу).</li>
-    <li><b>Операционные поля партнёра</b> (не legacy-реквизиты): <code>partners.email</code> (обязателен для <code>IsInternetPayment</code>), <code>partners.phone</code> и <code>partners.website</code> — в <code>PurveyorData.Phone</code> и <code>CalculationPlace</code> соответственно.</li>
+    <li><b>Email чека оплаты ученика</b> (<code>CustomerReceipt.Email</code>): почта родителя, иначе ученика, иначе <code>partners.email</code>. Без адреса интернет-чек не принимается. Подробно — <a href="/docs/documentation/payments#cloudkassir-receipt-email">payments §7.1</a>. Чеки платформы (кошелёк, доступ CRM) по-прежнему на <code>partners.email</code>.</li>
+    <li><b>Операционные поля партнёра</b> (не legacy-реквизиты): <code>partners.phone</code> и <code>partners.website</code> — в <code>PurveyorData.Phone</code> и <code>CalculationPlace</code> соответственно.</li>
   </ul>
   <p class="small">Тесты: <code>CloudKassirReceiptBuilderAgentTest</code>, <code>SendCloudKassirReceiptJobTest</code> — фикстура <code>CrmTestCase::seedFiscalTeamChainForStudent()</code> + <code>meta.team_id</code> на payable (<a href="/docs/documentation/tests-standards#legal-entity-test-fixtures">tests-standards §5</a>).</p>
 

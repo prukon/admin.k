@@ -4,9 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\SettingPrices;
 
+use App\Enums\AuditEvent;
+use App\Models\Team;
+use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\Postpay\PostpayAmountCalculator;
+use App\Support\Money;
+use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -27,6 +34,7 @@ final class FormerMemberMonthChargeService
     public function __construct(
         private readonly UsersPriceLessonPackageSync $ulpSync,
         private readonly PostpayAmountCalculator $postpayCalculator,
+        private readonly AuditLogger $auditLogger,
     ) {
     }
 
@@ -105,6 +113,98 @@ final class FormerMemberMonthChargeService
     }
 
     /**
+     * Снимает неоплаченные начисления ученика по группам, из которых его убрали.
+     * Оплаченные и те, что нельзя снять (занятия уже были, раскладка, постоплата с посещениями), остаются.
+     * Смена группы при этом не блокируется.
+     *
+     * @param  list<int>  $teamIds
+     */
+    public function clearUnpaidOnTeamLeave(User $user, array $teamIds, ?int $actorId = null): void
+    {
+        $teamIds = array_values(array_unique(array_filter(
+            array_map(static fn ($id) => (int) $id, $teamIds),
+            static fn (int $id) => $id > 0
+        )));
+        if ($teamIds === []) {
+            return;
+        }
+
+        $titles = Team::query()
+            ->whereIn('id', $teamIds)
+            ->pluck('title', 'id');
+
+        $studentLabel = trim((string) $user->lastname.' '.(string) $user->name);
+        if ($studentLabel === '') {
+            $studentLabel = trim((string) $user->name);
+        }
+        if ($studentLabel === '') {
+            $studentLabel = 'ученик';
+        }
+
+        $rows = UserPrice::query()
+            ->where('user_id', (int) $user->id)
+            ->whereIn('team_id', $teamIds)
+            ->where('price_cents', '>', 0)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($rows as $row) {
+            if (! $this->assess($row)['can_clear']) {
+                continue;
+            }
+
+            $oldCents = (int) $row->price_cents;
+            $oldPackageId = $row->lesson_package_id !== null ? (int) $row->lesson_package_id : null;
+            $teamId = (int) $row->team_id;
+            $teamTitle = trim((string) ($titles->get($teamId) ?? ''));
+            if ($teamTitle === '') {
+                $teamTitle = 'Группа';
+            }
+
+            $this->clear($row, $actorId);
+
+            $this->auditLogger->record(
+                AuditEvent::PricingFormerChargeCleared,
+                AuditContext::make($this->clearedAuditDescription(
+                    $oldCents,
+                    $oldPackageId,
+                    $this->periodLabel($row->new_month),
+                    $teamTitle,
+                    $studentLabel,
+                    (int) $user->id,
+                ))
+                    ->withUser($user)
+                    ->withPartnerId((int) $user->partner_id > 0 ? (int) $user->partner_id : null)
+                    ->withTargetReference(UserPrice::class, (int) $row->id, $studentLabel)
+                    ->withCreatedAt(now())
+            );
+        }
+    }
+
+    public function clearedAuditDescription(
+        int $cents,
+        ?int $packageId,
+        string $periodLabel,
+        string $teamTitle,
+        string $studentLabel,
+        int $userId,
+    ): string {
+        $amount = str_replace(' ', '', Money::formatRub($cents));
+        $packageBit = $packageId !== null && $packageId > 0 ? ' Абонемент #'.$packageId.'.' : '';
+        $student = trim($studentLabel) !== '' ? trim($studentLabel) : 'ученик';
+
+        return sprintf(
+            'Снято начисление бывшего участника: %s руб.%s Период: %s. Группа: %s. Ученик: %s (#%d).',
+            $amount,
+            $packageBit,
+            $periodLabel,
+            $teamTitle,
+            $student,
+            $userId,
+        );
+    }
+
+    /**
      * @return array{can_clear: bool, block_reason: string}
      */
     private function blocked(string $reason): array
@@ -113,6 +213,31 @@ final class FormerMemberMonthChargeService
             'can_clear' => false,
             'block_reason' => $reason,
         ];
+    }
+
+    private function periodLabel(mixed $newMonth): string
+    {
+        if ($newMonth === null || $newMonth === '') {
+            return '—';
+        }
+
+        $date = Carbon::parse((string) $newMonth);
+        $names = [
+            1 => 'Январь',
+            2 => 'Февраль',
+            3 => 'Март',
+            4 => 'Апрель',
+            5 => 'Май',
+            6 => 'Июнь',
+            7 => 'Июль',
+            8 => 'Август',
+            9 => 'Сентябрь',
+            10 => 'Октябрь',
+            11 => 'Ноябрь',
+            12 => 'Декабрь',
+        ];
+
+        return ($names[(int) $date->month] ?? '').' '.$date->year;
     }
 
     private function linkedUlp(UserPrice $row): ?UserLessonPackage

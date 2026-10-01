@@ -7,6 +7,8 @@ namespace App\Services\Contracts;
  */
 final class ContractTemplateEmailDefaults
 {
+    public const PLACEHOLDER_ADDRESSEE_NAME = '{{addressee_name}}';
+
     public const PLACEHOLDER_CHILD_FULL_NAME = '{{child_full_name}}';
 
     public const PLACEHOLDER_PARTNER_NAME = '{{partner_name}}';
@@ -19,12 +21,12 @@ final class ContractTemplateEmailDefaults
 
     public static function subject(): string
     {
-        return 'Договор для ' . self::PLACEHOLDER_CHILD_FULL_NAME . ' — в личном кабинете | KidsCRM.online';
+        return 'Договор для ' . self::PLACEHOLDER_ADDRESSEE_NAME . ' — в личном кабинете | KidsCRM.online';
     }
 
     public static function bodyHtml(): string
     {
-        return '<p>Здравствуйте!</p>'
+        return '<p>Здравствуйте, ' . self::PLACEHOLDER_ADDRESSEE_NAME . '!</p>'
             . '<p>В личном кабинете <strong>' . self::PLACEHOLDER_PARTNER_NAME . '</strong> для <strong>'
             . self::PLACEHOLDER_CHILD_FULL_NAME . '</strong> подготовлен договор.</p>'
             . '<ol>'
@@ -44,6 +46,7 @@ final class ContractTemplateEmailDefaults
     public static function placeholderTokens(): array
     {
         return [
+            self::PLACEHOLDER_ADDRESSEE_NAME,
             self::PLACEHOLDER_CHILD_FULL_NAME,
             self::PLACEHOLDER_PARTNER_NAME,
             self::PLACEHOLDER_DOCUMENTS_URL,

@@ -92,6 +92,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'setPrices.cabinetSeasons.view',  'description' => 'Оплата сезонов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 19],
             ['name' => 'setPrices.customPayments.view',  'description' => 'Дополнительные платежи', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 20],
             ['name' => 'setPrices.manualPaid.manage',    'description' => 'Установка цен: ручная отметка оплаты месяца',    'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 21],
+            ['name' => 'setPrices.applyAllTeams.manage', 'description' => 'Установка цен: применить тарифы всем группам', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 22],
             ['name' => 'payment.clubfee',                'description' => 'Оплата клубного взноса',                         'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 23],
             ['name' => 'setPrices.paymentNotifications.manage', 'description' => 'Уведомления об оплате абонементов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 24],
             ['name' => 'setPrices.cabinetPackages.fixed.view', 'description' => 'Консоль: фиксированный абонемент', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 25],

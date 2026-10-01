@@ -12,7 +12,8 @@ class ContractTemplateEmailDefaultsTest extends TestCase
     {
         $subject = ContractTemplateEmailDefaults::subject();
 
-        $this->assertStringContainsString(ContractTemplateEmailDefaults::PLACEHOLDER_CHILD_FULL_NAME, $subject);
+        $this->assertStringContainsString(ContractTemplateEmailDefaults::PLACEHOLDER_ADDRESSEE_NAME, $subject);
+        $this->assertStringNotContainsString(ContractTemplateEmailDefaults::PLACEHOLDER_CHILD_FULL_NAME, $subject);
         $this->assertStringContainsString('KidsCRM.online', $subject);
         $this->assertStringContainsString('личном кабинете', $subject);
     }

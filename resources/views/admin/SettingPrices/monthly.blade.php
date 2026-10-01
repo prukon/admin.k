@@ -365,9 +365,11 @@
         <div class="row justify-content-center  mt-3 " id='wrap-bars'>
 {{--            Применить слева--}}
             <div id='left_bar' class="col-12 col-lg-6 mb-3 ">
-                <button id="set-price-all-teams"
-                        class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-teams">Применить
-                </button>
+                @can('setPrices.applyAllTeams.manage')
+                    <button id="set-price-all-teams"
+                            class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-teams">Применить
+                    </button>
+                @endcan
                 @if(isset($allTeams) && $allTeams->count() > 0)
                     @foreach($allTeams as $idx => $team)
                         @php

@@ -74,6 +74,24 @@
     border-bottom: 1px dotted rgba(33, 37, 41, 0.45);
 }
 
+/* Несколько ФИО в одной ячейке (Платежи по группам / объектам).
+   .dt-cell-ellipsis сам по себе display:block — без этого имена встают столбиком. */
+table.dataTable.dt-columns-managed td.dt-col-list > .kids-hover-list-dropdown__trigger {
+    display: block;
+    max-width: var(--dt-col-ellipsis-max, 18rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+table.dataTable.dt-columns-managed td.dt-col-list .kids-hover-list-dropdown__trigger .dt-cell-ellipsis {
+    display: inline;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    vertical-align: baseline;
+}
+
 /* Иконка-подсказка в формах */
 .kids-tooltip-hint {
     cursor: help;

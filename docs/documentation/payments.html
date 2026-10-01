@@ -609,7 +609,7 @@
     <br><b>Даты:</b> <code>date_start</code>/<code>date_end</code> в БД nullable; в UI создания полей дат нет. На консоли период не показывается — подпись берётся из <code>note</code> («Описание»).
     <br><b>Связка:</b> в <code>payables.meta</code> хранится <code>user_period_price_id</code> и <code>team_id</code>.
     <br><b>Состояние оплаты:</b> при успешном webhook выставляем <code>user_custom_payment.is_paid=1</code>. Ручная смена статуса в админке — через PUT update / <code>is_manual_paid</code> (право <code>setPrices.manualPaid.manage</code>).
-    <br><b>Чеки CloudKassir:</b> наименование позиции — <code>user_custom_payment.note</code> (описание из админки). Строка длиннее 128 символов обрезается. Пустое описание или нет записи — «Дополнительный платеж». Чек возврата берёт то же наименование. После оплаты сумму и описание в админке менять нельзя.
+    <br><b>Чеки CloudKassir:</b> наименование позиции — <code>user_custom_payment.note</code> (описание из админки). Строка длиннее 128 символов обрезается. Пустое описание или нет записи — «Дополнительный платеж». Чек возврата берёт то же наименование. После оплаты сумму и описание в админке менять нельзя. Адрес письма с чеком — <a href="#cloudkassir-receipt-email">§7.1</a>.
   </div>
   <ol>
     <li>Админ создаёт запись в <code>user_custom_payment</code> с учеником (системная роль <code>user</code>), группой, суммой и опциональным описанием.</li>
@@ -942,6 +942,23 @@
     <li><b>Чек возврата (T‑Bank cancel → CloudKassir):</b> в админ-отчёте рядом с income‑чеком может появляться вторая иконка “Чек возврата”, которая основана на <code>FiscalReceipt.type=income_return</code> и поле <code>return_receipt_url</code>. Иконка отображается только когда return‑чек реально сформирован (есть валидный URL).</li>
     <li><b>Логика для Robokassa:</b> иконка чека не показывается, т.к. фискализация и доступ к чекам находятся на стороне партнёра.</li>
   </ul>
+
+  <h3 id="cloudkassir-receipt-email">7.1) Кому CloudKassir отправляет чек</h3>
+  <div class="note">
+    После успешной онлайн-оплаты T‑Bank <code>SendCloudKassirReceiptJob</code> собирает чек в
+    <code>CloudKassirReceiptBuilder</code>. Поле <code>CustomerReceipt.Email</code> — единственный адрес, на который касса отправит чек.
+    Правило одно для прихода и возврата по любой услуге ученика (месяц, клубный взнос, доп. платёж, абонемент, форма, лагерь)
+    (<code>resolveCustomerReceiptEmail</code>). Ученик — <code>payment_intents.user_id</code> (в семейном кабинете это выбранный ребёнок).
+    Родитель — <code>users.parent_id</code> → <code>parents.email</code>. Анонс — <a href="/doc#cloudkassir-receipt-email-index">/doc#cloudkassir-receipt-email-index</a>.
+  </div>
+  <ol>
+    <li>Почта родителя <code>parents.email</code>. Пробелы по краям снимаются, регистр не меняется. Пустая строка, нет родителя или мягко удалённый профиль родителя — шаг пропускается.</li>
+    <li>Иначе почта ученика <code>users.email</code> (тоже без пробелов по краям).</li>
+    <li>В чеке один адрес. Пока почта родителя заполнена, почта ученика не добавляется — и если адреса разные, и если совпадают. CloudKassir шлёт одно письмо.</li>
+    <li>Если обеих нет — <code>partners.email</code>. Чек формируется. Если пуста и почта школы, задание падает: без email CloudKassir не принимает интернет-платёж (<code>IsInternetPayment</code>).</li>
+  </ol>
+  <p>Ручная отметка «оплачено» в админке и оплата через Робокассу этот чек не создают. Чеки платформы (пополнение кошелька и доступ CRM, <code>fiscal_receipts.source=platform</code>) по-прежнему уходят на <code>partners.email</code> и этот порядок не используют. Письма <code>PaymentNotificationMail</code> — отдельный канал, не фискальный чек.</p>
+  <p class="small">Тесты: <code>CloudKassirReceiptEmailFeatureTest</code> — гостевой webhook T‑Bank <code>POST /webhooks/tinkoff/payments</code> (200 <code>OK</code>) и тело запроса в CloudKassir: доп. платёж на почту родителя (пробелы по краям снимаются, почта ученика и школы не подставляются), одно письмо при совпадении почт без учёта регистра, пустая почта родителя → ученик, нет обеих → школа, абонемент → родитель, чек возврата <code>IncomeReturn</code> → родитель. <code>REJECTED</code> и неверная подпись — 200 <code>OK</code>, чека нет. Робокасса <code>GET /payment/result</code> помечает доп. платёж оплаченным и чек не создаёт. Ручная отметка <code>POST …/custom-payments/{id}/manual-paid</code>: гость 302/401, без <code>setPrices.manualPaid.manage</code> — 403, без комментария — 422 <code>errors.comment</code> (AJAX) и 302 с ошибкой поля (без <code>X-Requested-With</code>), успешные AJAX и non-AJAX — JSON <code>success</code>, <code>is_manual_paid</code>, чека нет. Сборка адреса без HTTP — <code>CloudKassirReceiptBuilderAgentTest::test_receipt_email_prefers_parent_then_student_then_school</code>.</p>
 
 </div>
 </body>

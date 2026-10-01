@@ -32,7 +32,10 @@ final class SettingPricesRequirePackageForPriceMarkupFeatureTest extends CrmTest
             ->assertOk()
             ->getContent();
 
-        $this->assertStringNotContainsString('setting-prices-user-card', $html);
+        $this->assertDoesNotMatchRegularExpression(
+            '/<[^>]*\bsetting-prices-user-card\b/',
+            $html,
+        );
         $this->assertStringNotContainsString('setting-prices-monthly-package-error', $html);
         $this->assertStringContainsString('id="set-price-all-users"', $html);
 

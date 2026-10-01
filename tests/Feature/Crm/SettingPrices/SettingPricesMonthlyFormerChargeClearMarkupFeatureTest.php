@@ -44,7 +44,7 @@ final class SettingPricesMonthlyFormerChargeClearMarkupFeatureTest extends CrmTe
             'lastname' => 'Бывший',
             'name' => 'Markup',
         ]);
-        $teamSync->syncTeamsForStudent($this->formerStudent, [(int) $this->team->id]);
+        $teamSync->syncTeamsForStudent($this->formerStudent, []);
         UserPrice::forceCreate([
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
@@ -52,7 +52,6 @@ final class SettingPricesMonthlyFormerChargeClearMarkupFeatureTest extends CrmTe
             'price_cents' => 326700,
             'is_paid' => 0,
         ]);
-        $teamSync->syncTeamsForStudent($this->formerStudent, []);
     }
 
     public function test_monthly_first_open_does_not_render_trash_in_html(): void

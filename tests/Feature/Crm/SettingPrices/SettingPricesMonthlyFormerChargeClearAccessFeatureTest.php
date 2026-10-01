@@ -48,7 +48,7 @@ final class SettingPricesMonthlyFormerChargeClearAccessFeatureTest extends CrmTe
             'lastname' => 'Бывший',
             'name' => 'Access',
         ]);
-        $teamSync->syncTeamsForStudent($this->formerStudent, [(int) $this->team->id]);
+        $teamSync->syncTeamsForStudent($this->formerStudent, []);
 
         $this->row = UserPrice::forceCreate([
             'user_id' => $this->formerStudent->id,
@@ -58,7 +58,6 @@ final class SettingPricesMonthlyFormerChargeClearAccessFeatureTest extends CrmTe
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
-        $teamSync->syncTeamsForStudent($this->formerStudent, []);
     }
 
     /**

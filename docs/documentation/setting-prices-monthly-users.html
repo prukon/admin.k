@@ -184,11 +184,34 @@
     занятия из абонемента предоплаты — <a href="/docs/documentation/schedule-journal#place-flexible">§7.3</a>.
     Модель периода — <a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a>.</p>
 
+  <h2 id="apply-all-teams">Массовое «Применить» слева</h2>
+  <p>
+    Кнопка <code>id="set-price-all-teams"</code> в левом столбце вкладки «По месяцам»
+    записывает тариф всем группам за выбранный месяц
+    (<code>POST /admin/setting-prices/set-price-all-teams</code>).
+    Её закрывает скрытое право <code>setPrices.applyAllTeams.manage</code>
+    (<code>is_visible = 0</code>, группа <code>setPrices</code>, <code>sort_order = 22</code>).
+    При создании партнёра право не выдаётся ролям <code>user</code>, <code>admin</code>, <code>trainer</code>.
+    В матрице его видит только superadmin.
+  </p>
+  <ul>
+    <li>Без права разметки кнопки нет: <code>@can('setPrices.applyAllTeams.manage')</code>.</li>
+    <li>Точечная кнопка строки группы (<code>setting-prices-team-ok</code>, <code>POST …/set-team-price</code>) остаётся на <code>setPrices.view</code>.</li>
+    <li>POST без права — <b>403</b> (AJAX и обычный POST). С правом: AJAX JSON <b>200</b>, обычный POST <b>302</b> на вкладку. Гость — 302/401/403. GET/PATCH/DELETE — 404/405.</li>
+  </ul>
+  <p class="small">
+    Тесты: <code>SettingPricesApplyAllTeamsMarkupFeatureTest</code>,
+    <code>SettingPricesApplyAllTeamsAccessFeatureTest</code>,
+    <code>SettingPricesApplyAllTeamsDocumentationContractTest</code>.
+    Анонс: <a href="/doc#setting-prices-apply-all-teams-index">/doc#setting-prices-apply-all-teams-index</a>.
+  </p>
+
   <h2 id="permissions">1) Права</h2>
   <table>
     <thead><tr><th>Permission</th><th>Назначение</th></tr></thead>
     <tbody>
       <tr><td><code>setPrices.view</code></td><td>Доступ к разделу «Установка цен» (middleware на все URL вкладок monthly/users) и к карточке ученика <code>GET /admin/setting-prices/user-cards/{user}</code> (<a href="#monthly-user-card">§2.2</a>)</td></tr>
+      <tr><td><code>setPrices.applyAllTeams.manage</code></td><td>Скрытое (<code>is_visible = 0</code>), не в базовых ролях. Массовая кнопка <code>#set-price-all-teams</code> слева на «По месяцам» и <code>POST …/set-price-all-teams</code>. Без права кнопки нет, POST — <b>403</b>. Точечное «Применить» строки группы не закрывает. <a href="#apply-all-teams">§apply-all-teams</a>, <a href="/doc#setting-prices-apply-all-teams-index">анонс</a></td></tr>
       <tr><td><code>lessonPackages.type.fixed</code> / <code>.flexible</code> / <code>.no_schedule</code> / <code>.postpay</code></td><td>Новый выбор абонемента этого типа в select (скрытые; не в базовых ролях). Уже назначенный id можно сохранить повторно. Каталог скрывает неназначенные шаблоны типа.
         422 на <code>lesson_package_id</code> / <code>usersPrice.{i}.lesson_package_id</code> /
         <code>teamsData.{i}.lesson_package_id</code> / <code>prices.{i}.lesson_package_id</code>.
@@ -360,8 +383,12 @@
     <code>setTeamPrice</code> / <code>setPriceAllTeams</code> (снимок только по <code>$team-&gt;students()</code>),
     <code>setPriceAllUsers</code> (skip без членства),
     <code>setManualPaid</code> (<b>422</b> без членства).
-    Снять неоплаченное начисление бывшего можно только корзиной §<a href="#former-charge-clear">3.2.1</a>
-    (не Apply). Non-AJAX варианты apply → <b>302</b> на monthly, запись бывшего в БД не меняется.
+    Apply строку бывшего не меняет. Снять неоплаченное начисление можно корзиной §<a href="#former-charge-clear">3.2.1</a>
+    и автоматически при уходе ученика из группы
+    (<a href="/docs/documentation/student-team-membership#detach-unpaid-charge">student-team-membership §1.3</a>,
+    <a href="/doc#student-team-detach-unpaid-charge-index">анонс</a>):
+    те же условия, что у корзины, за все месяцы старой группы.
+    Non-AJAX варианты apply → <b>302</b> на monthly, запись бывшего в БД не меняется.
   </div>
 
   <h3 id="former-charge-clear">3.2.1) Корзина неоплаченного начисления бывшего</h3>
@@ -514,7 +541,10 @@
         <td>POST</td>
         <td><code>/admin/setting-prices/set-price-all-teams</code></td>
         <td><code>setPriceAllTeams</code></td>
-        <td>То же: массовый снимок по текущему составу групп (+ sync ULP при assignable)</td>
+        <td>То же: массовый снимок по текущему составу групп (+ sync ULP при assignable).
+          Дополнительно <code>setPrices.applyAllTeams.manage</code>: без права кнопка
+          <code>#set-price-all-teams</code> не рисуется, POST — <b>403</b>
+          (<a href="#apply-all-teams">§apply-all-teams</a>)</td>
       </tr>
       <tr>
         <td>POST</td>

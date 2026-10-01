@@ -548,6 +548,30 @@ document.addEventListener('DOMContentLoaded', function () {
         $cell.attr('data-order', String(n));
     }
 
+    function applyJournalAttendance(result) {
+        if (!result || !result.attendance) {
+            return;
+        }
+        var att = result.attendance;
+        var label = att.average_label != null && String(att.average_label) !== ''
+            ? String(att.average_label)
+            : '—';
+        var $avg = $('#schedule-attendance-average-value');
+        if ($avg.length) {
+            $avg.text(label);
+        }
+        var byDate = att.by_date || {};
+        $('#schedule-table tfoot .schedule-attendance-day').each(function () {
+            var date = $(this).attr('data-date');
+            var n = Object.prototype.hasOwnProperty.call(byDate, date) ? parseInt(byDate[date], 10) : 0;
+            if (isNaN(n) || n < 1) {
+                $(this).text('');
+                return;
+            }
+            $(this).text(String(n));
+        });
+    }
+
     function applyJournalPaymentStatus($from, result) {
         if (!result || !Object.prototype.hasOwnProperty.call(result, 'payment_status')) {
             return;
@@ -1300,6 +1324,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (options.deleted === true || result.deleted === true) {
             renderScheduleCellAfterDelete($cell, result);
             applyJournalConsumingCount($cell, result);
+            applyJournalAttendance(result);
             applyJournalPaymentStatus($cell, result);
             return;
         }
@@ -1307,6 +1332,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var prevCount = parseInt($cell.attr('data-occurrence-count') || '0', 10);
         if (!increment && prevCount > 1) {
             applyJournalConsumingCount($cell, result);
+            applyJournalAttendance(result);
             applyJournalPaymentStatus($cell, result);
             return;
         }
@@ -1327,6 +1353,7 @@ document.addEventListener('DOMContentLoaded', function () {
             package_hover: packageHover
         });
         applyJournalConsumingCount($cell, result);
+        applyJournalAttendance(result);
         applyJournalPaymentStatus($cell, result);
     }
 

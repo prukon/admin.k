@@ -5,6 +5,7 @@ namespace Tests\Unit\Services\Contracts;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\ContractTemplateVersion;
+use App\Models\ParentProfile;
 use App\Models\User;
 use App\Services\Contracts\ContractInvitationEmailRenderer;
 use App\Services\Contracts\ContractTemplateEmailDefaults;
@@ -39,7 +40,9 @@ class ContractInvitationEmailRendererTest extends ContractsFeatureTestCase
         $this->assertStringContainsString('KidsCRM.online', $subject);
         $this->assertStringNotContainsString('{{child_full_name}}', $subject);
 
+        $this->assertStringContainsString('Здравствуйте, Иванов Пётр!', $body);
         $this->assertStringContainsString('подготовлен договор', $body);
+        $this->assertStringNotContainsString('{{addressee_name}}', $body);
         $this->assertStringContainsString('Пожалуйста, заполните до', $body);
         $expectedDocumentsUrl = $this->renderer->documentsUrl($contract, $student);
         $this->assertStringContainsString('student=' . $student->id, $expectedDocumentsUrl);
@@ -63,7 +66,64 @@ class ContractInvitationEmailRendererTest extends ContractsFeatureTestCase
         $body = $this->renderer->renderBodyHtml($contract, $student);
 
         $this->assertStringContainsString('Договор для Иванов Пётр Петрович — в личном кабинете', $subject);
+        $this->assertStringContainsString('Здравствуйте, Иванов Пётр Петрович!', $body);
         $this->assertStringContainsString('Иванов Пётр Петрович', $body);
+    }
+
+    /** @test */
+    public function it_addresses_parent_full_name_and_keeps_child_name_in_the_body(): void
+    {
+        [$contract, $student] = $this->makeContractWithVersion(emailSubject: null, emailBody: null);
+
+        $student->name = 'Пётр';
+        $student->lastname = 'Иванов';
+        $student->middlename = 'Петрович';
+        $student->save();
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Иванова',
+            'firstname'  => 'Мария',
+            'middlename' => 'Сергеевна',
+        ]);
+        $student->forceFill(['parent_id' => $parent->id])->save();
+        $student->unsetRelation('parentProfile');
+
+        $subject = $this->renderer->renderSubject($contract, $student->fresh());
+        $body = $this->renderer->renderBodyHtml($contract, $student->fresh());
+
+        $this->assertStringContainsString('Договор для Иванова Мария Сергеевна — в личном кабинете', $subject);
+        $this->assertStringNotContainsString('Пётр', $subject);
+        $this->assertStringContainsString('Здравствуйте, Иванова Мария Сергеевна!', $body);
+        $this->assertStringContainsString('Иванов Пётр Петрович', $body);
+    }
+
+    /** @test */
+    public function it_addresses_the_client_when_parent_full_name_is_empty(): void
+    {
+        [$contract, $student] = $this->makeContractWithVersion(
+            emailSubject: 'Здравствуйте, {{addressee_name}}',
+            emailBody: '<p>{{addressee_name}}</p>',
+        );
+
+        $student->name = 'Пётр';
+        $student->lastname = 'Иванов';
+        $student->save();
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => ' ',
+            'firstname'  => '',
+            'middlename' => null,
+        ]);
+        $student->forceFill(['parent_id' => $parent->id])->save();
+
+        $subject = $this->renderer->renderSubject($contract, $student->fresh());
+        $body = $this->renderer->renderBodyHtml($contract, $student->fresh());
+
+        $this->assertSame('Здравствуйте, Иванов Пётр', $subject);
+        $this->assertStringContainsString('Иванов Пётр', $body);
+        $this->assertStringNotContainsString('{{addressee_name}}', $body);
     }
 
     /** @test */

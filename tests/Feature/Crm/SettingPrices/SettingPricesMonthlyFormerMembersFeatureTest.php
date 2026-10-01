@@ -31,6 +31,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
 
         $this->asAdmin();
         $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
+        $this->grantPartnerRolePermission($this->user, 'setPrices.applyAllTeams.manage');
 
         $this->teamSync = app(TeamUserSyncService::class);
 
@@ -209,6 +210,8 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
 
     public function test_set_team_price_does_not_change_former_member_row(): void
     {
+        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+
         UserPrice::forceCreate([
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
@@ -217,8 +220,6 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
-
-        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
 
         UserPrice::forceCreate([
             'user_id' => $this->currentStudent->id,
@@ -255,6 +256,8 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
 
     public function test_set_price_all_users_skips_former_member_even_if_sent_in_payload(): void
     {
+        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+
         UserPrice::forceCreate([
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
@@ -262,8 +265,6 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'price_cents' => 326700,
             'is_paid' => 0,
         ]);
-
-        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
 
         UserPrice::forceCreate([
             'user_id' => $this->currentStudent->id,
@@ -374,6 +375,8 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
 
     public function test_set_price_all_teams_does_not_change_former_member_row(): void
     {
+        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+
         UserPrice::forceCreate([
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
@@ -382,7 +385,6 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
-        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
 
         UserPrice::forceCreate([
             'user_id' => $this->currentStudent->id,
@@ -487,6 +489,8 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
                 'is_active' => true,
             ]);
 
+        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+
         UserPrice::forceCreate([
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
@@ -495,7 +499,6 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'is_paid' => 0,
             'lesson_package_id' => $postpay->id,
         ]);
-        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
 
         UserPrice::forceCreate([
             'user_id' => $this->currentStudent->id,
@@ -526,6 +529,8 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
 
     public function test_set_price_all_users_response_marks_former_when_sent_in_payload(): void
     {
+        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+
         UserPrice::forceCreate([
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
@@ -533,7 +538,6 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'price_cents' => 326700,
             'is_paid' => 0,
         ]);
-        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
 
         UserPrice::forceCreate([
             'user_id' => $this->currentStudent->id,

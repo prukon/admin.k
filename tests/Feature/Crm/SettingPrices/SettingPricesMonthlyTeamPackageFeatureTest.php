@@ -30,6 +30,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
 
         $this->asAdmin();
         $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
+        $this->grantPartnerRolePermission($this->user, 'setPrices.applyAllTeams.manage');
 
         $this->team = Team::factory()->create([
             'partner_id' => $this->partner->id,

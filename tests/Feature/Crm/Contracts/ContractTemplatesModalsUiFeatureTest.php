@@ -88,6 +88,8 @@ class ContractTemplatesModalsUiFeatureTest extends ContractsFeatureTestCase
             ->assertSee('data-email-show-url-template', false)
             ->assertSee('preservePlaceholderLinkUrl', false)
             ->assertSee('{{documents_url}}', false)
+            ->assertSee('{{addressee_name}}', false)
+            ->assertSee('полное ФИО родителя', false)
             ->assertSee('/account-settings/documents?student=', false);
     }
 

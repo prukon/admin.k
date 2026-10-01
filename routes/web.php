@@ -421,7 +421,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // Route::get('admin/setting-prices', [SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');
         Route::post('admin/setting-prices/get-team-price', [SettingPricesController::class, 'getTeamPrice'])->name('getTeamPrice');
         Route::post('admin/setting-prices/set-team-price', [SettingPricesController::class, 'setTeamPrice'])->name('setTeamPrice');
-        Route::post('admin/setting-prices/set-price-all-teams', [SettingPricesController::class, 'setPriceAllTeams'])->name('setPriceAllTeams');
+        Route::post('admin/setting-prices/set-price-all-teams', [SettingPricesController::class, 'setPriceAllTeams'])
+            ->middleware('can:setPrices.applyAllTeams.manage')
+            ->name('setPriceAllTeams');
         Route::post('admin/setting-prices/set-price-all-users', [SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers');
         Route::post('admin/setting-prices/prolong-month/preview', [SettingPricesController::class, 'previewMonthProlong'])->name('setting-prices.prolong-month.preview');
         Route::post('admin/setting-prices/prolong-month', [SettingPricesController::class, 'applyMonthProlong'])->name('setting-prices.prolong-month.apply');

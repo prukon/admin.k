@@ -1958,6 +1958,11 @@ JS;
             $js = (string) file_get_contents($jsPath);
             $this->assertStringContainsString('{orderable: false}', $js);
             $this->assertStringContainsString('function applyJournalConsumingCount', $js);
+            $this->assertStringContainsString('function applyJournalAttendance', $js);
+            $this->assertStringContainsString('applyJournalAttendance(result);', $js);
+            $this->assertGreaterThanOrEqual(3, substr_count($js, 'applyJournalAttendance(result);'));
+            $this->assertStringContainsString('#schedule-attendance-average-value', $js);
+            $this->assertStringContainsString('tfoot .schedule-attendance-day', $js);
             $this->assertStringContainsString('function withJournalTeamFilter', $js);
             $this->assertStringContainsString('journal_team_filter', $js);
             $this->assertStringContainsString('consuming_count', $js);
@@ -1983,6 +1988,170 @@ JS;
                 "JS syntax error in {$jsPath}:\n".implode("\n", $output)
             );
         }
+    }
+
+    /**
+     * Средняя посещаемость: обе копии JS не затирают подпись и «Итого»,
+     * если в ответе нет attendance; пустая подпись → «—»; ноль, нечисло и отрицательное — пустая ячейка.
+     * Все пути пересборки ячейки (правка, ×N, удаление, предоплата, пустая ячейка)
+     * вызывают applyJournalAttendance и шлют фильтр групп.
+     */
+    public function test_schedule_journal_attendance_average_keeps_totals_unless_response_has_attendance(): void
+    {
+        $blade = resource_path('views/admin/schedule/journal.blade.php');
+        $this->assertFileExists($blade);
+        $journal = (string) file_get_contents($blade);
+        $this->assertStringNotContainsString('<script', $journal);
+        $this->assertStringContainsString('id="schedule-attendance-average"', $journal);
+        $this->assertStringContainsString('id="schedule-attendance-average-value"', $journal);
+        $this->assertStringContainsString('Средняя посещаемость:', $journal);
+        $this->assertStringContainsString("{{ \$journalAttendance['average_label'] ?? '—' }}", $journal);
+        $this->assertStringContainsString('tr class="schedule-attendance-total"', $journal);
+        $this->assertStringContainsString('td class="sticky-col-2 schedule-attendance-total-label">Итого', $journal);
+        $this->assertStringContainsString('class="text-center schedule-attendance-day', $journal);
+        $this->assertStringContainsString('data-date="{{ $attendanceDate }}"', $journal);
+        $this->assertStringContainsString('@if($attendanceCount > 0){{ $attendanceCount }}@endif</td>', $journal);
+
+        foreach ([
+            resource_path('css/schedule.css'),
+            public_path('css/schedule-journal-cells.css'),
+        ] as $cssPath) {
+            $this->assertFileExists($cssPath);
+            $css = (string) file_get_contents($cssPath);
+            $this->assertStringContainsString('#schedule-table tfoot .schedule-attendance-total-label', $css);
+            $this->assertStringContainsString('#schedule-table tfoot .schedule-attendance-day', $css);
+            $labelPos = strpos($css, '#schedule-table tfoot .schedule-attendance-total-label');
+            $dayPos = strpos($css, '#schedule-table tfoot .schedule-attendance-day');
+            $this->assertNotFalse($labelPos);
+            $this->assertNotFalse($dayPos);
+            $labelChunk = substr($css, $labelPos, 160);
+            $dayChunk = substr($css, $dayPos, 220);
+            $this->assertStringContainsString('font-size: 12px', $labelChunk);
+            $this->assertStringContainsString('color: #868e96', $labelChunk);
+            $this->assertStringContainsString('font-size: 11px', $dayChunk);
+            $this->assertStringContainsString('font-weight: 500', $dayChunk);
+            $this->assertStringContainsString('color: #868e96', $dayChunk);
+        }
+
+        $bodies = [];
+        foreach ([
+            resource_path('js/schedule.js'),
+            public_path('js/schedule-journal.js'),
+        ] as $jsPath) {
+            $this->assertFileExists($jsPath);
+            $js = (string) file_get_contents($jsPath);
+            $bodies[] = $this->scheduleAttendanceFunctionBody($js, $jsPath);
+
+            $render = $this->scheduleJsFunctionBody($js, 'renderScheduleCellFromResult', $jsPath);
+            $this->assertSame(3, substr_count($render, 'applyJournalAttendance(result);'));
+            $this->assertStringContainsString('if (options.deleted === true || result.deleted === true)', $render);
+            $this->assertStringContainsString('if (!increment && prevCount > 1)', $render);
+            $deletedPos = strpos($render, 'if (options.deleted === true || result.deleted === true)');
+            $multiPos = strpos($render, 'if (!increment && prevCount > 1)');
+            $paintPos = strpos($render, 'paintScheduleCellOccurrence($cell, count,');
+            $this->assertNotFalse($deletedPos);
+            $this->assertNotFalse($multiPos);
+            $this->assertNotFalse($paintPos);
+            $this->assertLessThan($multiPos, $deletedPos);
+            $this->assertLessThan($paintPos, $multiPos);
+            $this->assertNotFalse(strpos($render, 'applyJournalAttendance(result);', $deletedPos));
+            $this->assertNotFalse(strpos($render, 'applyJournalAttendance(result);', $multiPos));
+            $this->assertNotFalse(strpos($render, 'applyJournalAttendance(result);', $paintPos));
+
+            $flexible = $this->scheduleJsFunctionBody($js, 'renderScheduleCellAfterFlexiblePlace', $jsPath);
+            $this->assertStringContainsString('renderScheduleCellFromResult($cell, result, {increment: true});', $flexible);
+            $statusSave = $this->scheduleJsFunctionBody($js, 'renderScheduleCellAfterStatusSave', $jsPath);
+            $this->assertStringContainsString('renderScheduleCellFromResult($cell, result, {increment: created});', $statusSave);
+
+            $this->assertStringContainsString(
+                "$('#flexiblePlaceForm').on('submit', function (e) {\n        e.preventDefault();",
+                $js
+            );
+            $this->assertStringContainsString(
+                'url: \'/schedule/user/\' + userId + \'/place-flexible-abonement\'',
+                $js
+            );
+            $this->assertStringContainsString(
+                "$('#emptyCellPlaceForm').on('submit', function (e) {\n        e.preventDefault();",
+                $js
+            );
+            $this->assertStringContainsString(
+                'url = \'/schedule/user/\' + userId + \'/place-trial-lesson\';',
+                $js
+            );
+            $this->assertStringContainsString(
+                'url = \'/schedule/user/\' + userId + \'/place-single-lesson\';',
+                $js
+            );
+            $this->assertStringContainsString(
+                "$('#cellEditForm').on('submit', function (e) {\n        e.preventDefault();",
+                $js
+            );
+            $this->assertStringContainsString('url: \'/schedule/update\'', $js);
+            $this->assertStringContainsString(
+                'url: \'/schedule/occurrence/\' + utssId',
+                $js
+            );
+
+            foreach ([
+                'data: withJournalTeamFilter({',
+                'var data = withJournalTeamFilter({',
+                'var formData = withJournalTeamFilter($(this).serializeArray());',
+            ] as $filterCall) {
+                $this->assertStringContainsString($filterCall, $js, $jsPath);
+            }
+
+            $fixed = strpos($js, 'function postAbonementPlacement');
+            $this->assertNotFalse($fixed);
+            $fixedBody = substr($js, $fixed, 1600);
+            $this->assertStringContainsString('window.location.reload();', $fixedBody);
+            $this->assertStringNotContainsString('applyJournalAttendance', $fixedBody);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($jsPath).' 2>&1', $output, $exitCode);
+            $this->assertSame(
+                0,
+                $exitCode,
+                "JS syntax error in {$jsPath}:\n".implode("\n", $output)
+            );
+        }
+
+        $this->assertSame($bodies[0], $bodies[1]);
+    }
+
+    private function scheduleAttendanceFunctionBody(string $js, string $jsPath): string
+    {
+        $body = $this->scheduleJsFunctionBody($js, 'applyJournalAttendance', $jsPath);
+        $guard = strpos($body, 'if (!result || !result.attendance)');
+        $writeAverage = strpos($body, '$avg.text(label)');
+        $writeDay = strpos($body, '$(this).text(String(n))');
+        $this->assertNotFalse($guard, $jsPath);
+        $this->assertNotFalse($writeAverage, $jsPath);
+        $this->assertNotFalse($writeDay, $jsPath);
+        $this->assertLessThan($writeAverage, $guard, $jsPath);
+        $this->assertStringContainsString('return;', substr($body, $guard, $writeAverage - $guard));
+        $this->assertStringContainsString(": '—'", $body);
+        $this->assertStringContainsString("var byDate = att.by_date || {};", $body);
+        $this->assertStringContainsString('Object.prototype.hasOwnProperty.call(byDate, date)', $body);
+        $this->assertStringContainsString('if (isNaN(n) || n < 1)', $body);
+        $this->assertStringContainsString("$(this).text('');", $body);
+        $this->assertStringContainsString("#schedule-attendance-average-value", $body);
+        $this->assertStringContainsString('#schedule-table tfoot .schedule-attendance-day', $body);
+        $this->assertStringNotContainsString('.schedule-cell', $body);
+        $this->assertStringNotContainsString('schedule-consuming-count', $body);
+
+        return $body;
+    }
+
+    private function scheduleJsFunctionBody(string $js, string $functionName, string $jsPath): string
+    {
+        $start = strpos($js, 'function '.$functionName);
+        $this->assertNotFalse($start, $functionName.' missing in '.$jsPath);
+        $next = strpos($js, "\n    function ", $start + 10);
+        $this->assertNotFalse($next, $functionName.' has no following function in '.$jsPath);
+
+        return substr($js, $start, $next - $start);
     }
 
     /**

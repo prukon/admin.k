@@ -1,7 +1,8 @@
     <!-- Обёртка для фильтров и таблицы (для полноэкранного режима) -->
     <div class="schedule-fullscreen-wrapper mt-3">
-        <div class="row mb-3 align-items-center schedule-controls">
-            <div class="col-auto wrap-filter-year">
+        <div class="schedule-controls">
+            <div class="schedule-controls__filters">
+            <div class="wrap-filter-year">
                 <select id="filter-year" class="form-select schedule-filter-year">
                     @for($y = date('Y') - 5; $y <= date('Y') + 5; $y++)
                         <option value="{{ $y }}" @if($year == $y) selected @endif>{{ $y }}</option>
@@ -11,7 +12,7 @@
                     <div class="text-danger small mt-1">{{ $message }}</div>
                 @enderror
             </div>
-            <div class="col-auto wrap-filter-month">
+            <div class="wrap-filter-month">
                 <select id="filter-month" class="form-select schedule-filter-month">
                     @php
                         $months = [
@@ -32,7 +33,7 @@
                 $selectedTeamTokens = $selectedTeamTokens ?? [];
                 $journalTeamFilter = $journalTeamFilter ?? \App\Support\Schedule\ScheduleJournalTeamFilter::fromMixed($team_id ?? 'all');
             @endphp
-            <div class="col-auto wrap-filter-team generic-multiselect-field">
+            <div class="wrap-filter-team generic-multiselect-field">
                 <select id="filter-team"
                         class="form-select schedule-filter-team js-generic-multiselect-select"
                         name="team_ids[]"
@@ -57,15 +58,21 @@
                     <div class="text-danger small mt-1">{{ $teamFilterError }}</div>
                 @endforeach
             </div>
-
-            <div class="col-auto wrap-filter-fullscreen">
-                <button id="btn-fullscreen" class="btn btn-primary schedule-btn-fullscreen" type="button">
-                    <i class="fas fa-expand"></i>
-                </button>
             </div>
 
-            <div class="col wrap-filter-search">
-                <form method="get" action="{{ route('schedule.index') }}" class="d-flex gap-2">
+            @php
+                $journalAttendance = $journalAttendance ?? [
+                    'by_date' => [],
+                    'average_label' => '—',
+                ];
+            @endphp
+            <div class="schedule-attendance-average" id="schedule-attendance-average">
+                Средняя посещаемость: <span id="schedule-attendance-average-value">{{ $journalAttendance['average_label'] ?? '—' }}</span>
+            </div>
+
+            <div class="schedule-controls__actions">
+            <div class="wrap-filter-search">
+                <form method="get" action="{{ route('schedule.index') }}" class="schedule-controls__search">
                     <input type="hidden" name="year" value="{{ $year }}">
                     <input type="hidden" name="month" value="{{ $month }}">
                     @foreach($selectedTeamTokens as $teamToken)
@@ -87,8 +94,14 @@
                     <div class="text-danger small mt-1">{{ $message }}</div>
                 @enderror
             </div>
-            <div class="wrap-icon btn btn-history-modal" data-bs-toggle="modal" data-bs-target="#historyModal">
+            <div class="wrap-filter-fullscreen">
+                <button id="btn-fullscreen" class="btn btn-primary schedule-btn-fullscreen" type="button" aria-label="На весь экран">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+            <div class="wrap-icon btn btn-history-modal" data-bs-toggle="modal" data-bs-target="#historyModal" aria-label="История изменений">
                 <i class="fa-solid fa-clock-rotate-left logs "></i>
+            </div>
             </div>
         </div>
 
@@ -456,6 +469,23 @@
                     </tr>
                 @endforeach
                 </tbody>
+                <tfoot>
+                <tr class="schedule-attendance-total">
+                    <td class="sticky-col-1"></td>
+                    <td class="sticky-col-2 schedule-attendance-total-label">Итого</td>
+                    <td class="schedule-payment-status"></td>
+                    <td class="schedule-consuming-count"></td>
+                    <td class="schedule-col-setup"></td>
+                    @foreach($days as $day)
+                        @php
+                            $attendanceDate = $day->format('Y-m-d');
+                            $attendanceCount = (int) ($journalAttendance['by_date'][$attendanceDate] ?? 0);
+                        @endphp
+                        <td class="text-center schedule-attendance-day @if(isset($teamWeekdays) && count($teamWeekdays) && in_array($day->format('N'), $teamWeekdays)) highlight-column @endif"
+                            data-date="{{ $attendanceDate }}">@if($attendanceCount > 0){{ $attendanceCount }}@endif</td>
+                    @endforeach
+                </tr>
+                </tfoot>
             </table>
             </div>
             @if(isset($users) && method_exists($users, 'lastPage') && $users->lastPage() > 1)

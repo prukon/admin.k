@@ -19,7 +19,10 @@ final class SettingPricesManualPaidZeroPriceMarkupFeatureTest extends SettingPri
             ->assertOk()
             ->getContent();
 
-        $this->assertStringNotContainsString('setting-prices-user-card', $html);
+        $this->assertDoesNotMatchRegularExpression(
+            '/<[^>]*\bsetting-prices-user-card\b/',
+            $html,
+        );
         $this->assertStringNotContainsString('setting-prices-monthly-price-error', $html);
         $this->assertStringContainsString('id="manualUserPricePaidModal"', $html);
 

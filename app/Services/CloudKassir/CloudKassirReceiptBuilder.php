@@ -67,10 +67,7 @@ class CloudKassirReceiptBuilder
             throw new RuntimeException('CLOUDKASSIR_INN is not set in .env (ИНН платформы, на который зарегистрирована касса).');
         }
 
-        $partnerEmail = trim((string) ($partner->email ?? ''));
-        if ($partnerEmail === '') {
-            throw new RuntimeException("Partner #{$partner->id} has no email. Required for IsInternetPayment receipt.");
-        }
+        $receiptEmail = $this->resolveCustomerReceiptEmail($partner, $user);
 
         $label = $this->makeLabel($payable);
         $amountCents = (int) ($fiscalReceipt->amount_cents ?: $payable->amount_cents);
@@ -95,7 +92,7 @@ class CloudKassirReceiptBuilder
                 'Electronic' => $amount,
             ],
             'CalculationPlace' => $this->resolveCalculationPlace($partner),
-            'Email' => $partnerEmail,
+            'Email' => $receiptEmail,
             'IsInternetPayment' => true,
             'RussiaTimeZone' => (int) config('services.cloudkassir.russia_time_zone', 2),
         ];
@@ -167,6 +164,41 @@ class CloudKassirReceiptBuilder
             'AccountId' => $fiscalReceipt->account_id ? (string) $fiscalReceipt->account_id : (string) $partner->id,
             'CustomerReceipt' => $customerReceipt,
         ];
+    }
+
+    /**
+     * Адрес, на который CloudKassir отправит чек оплаты ученика.
+     * Сначала почта родителя, иначе почта ученика. В чек попадает один адрес,
+     * поэтому совпадающие почты родителя и ученика дают одно письмо.
+     * Если обеих нет — почта школы: без Email интернет-чек не принимается.
+     */
+    protected function resolveCustomerReceiptEmail(Partner $partner, ?User $user): string
+    {
+        if ($user) {
+            $user->loadMissing('parentProfile');
+        }
+
+        $parentEmail = $this->trimEmail($user?->parentProfile?->email);
+        if ($parentEmail !== '') {
+            return $parentEmail;
+        }
+
+        $studentEmail = $this->trimEmail($user?->email);
+        if ($studentEmail !== '') {
+            return $studentEmail;
+        }
+
+        $partnerEmail = $this->trimEmail($partner->email);
+        if ($partnerEmail === '') {
+            throw new RuntimeException("Partner #{$partner->id} has no email. Required for IsInternetPayment receipt.");
+        }
+
+        return $partnerEmail;
+    }
+
+    protected function trimEmail(mixed $email): string
+    {
+        return trim((string) $email);
     }
 
     /**

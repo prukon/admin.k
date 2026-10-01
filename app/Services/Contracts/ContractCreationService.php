@@ -326,7 +326,8 @@ class ContractCreationService
     }
 
     /**
-     * Уникальные адреса приглашения: ученик, затем родитель. Совпадение без учёта регистра — один адрес.
+     * Один адрес приглашения: почта родителя, иначе почта клиента.
+     * Одинаковые адреса — одно письмо. Оба пустые — пустой список.
      *
      * @return list<string>
      */
@@ -334,26 +335,18 @@ class ContractCreationService
     {
         $student->loadMissing('parentProfile');
 
-        $candidates = [
-            trim((string) ($student->email ?? '')),
-            trim((string) ($student->parentProfile?->email ?? '')),
-        ];
+        $parentEmail = trim((string) ($student->parentProfile?->email ?? ''));
+        $clientEmail = trim((string) ($student->email ?? ''));
 
-        $unique = [];
-        foreach ($candidates as $email) {
-            if ($email === '') {
-                continue;
-            }
-
-            $key = mb_strtolower($email, 'UTF-8');
-            if (isset($unique[$key])) {
-                continue;
-            }
-
-            $unique[$key] = $email;
+        if ($parentEmail !== '') {
+            return [$parentEmail];
         }
 
-        return array_values($unique);
+        if ($clientEmail !== '') {
+            return [$clientEmail];
+        }
+
+        return [];
     }
 
     private function sendFillInvitationEmail(Contract $contract, User $student, string $email): void

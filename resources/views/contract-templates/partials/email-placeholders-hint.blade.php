@@ -7,6 +7,7 @@
     Не собирайте URL из кусков и не подставляйте обычный
     <code>/account-settings/documents</code> без query.
     Другие плейсхолдеры (удобно править в режиме «Код» <i class="fas fa-code"></i>):
+    <code>&#123;&#123;addressee_name&#125;&#125;</code> — полное ФИО родителя, а если родителя нет — полное ФИО клиента,
     <code>&#123;&#123;child_full_name&#125;&#125;</code>,
     <code>&#123;&#123;partner_name&#125;&#125;</code>,
     <code>&#123;&#123;fill_deadline&#125;&#125;</code>,

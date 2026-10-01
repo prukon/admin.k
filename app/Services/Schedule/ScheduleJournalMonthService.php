@@ -53,31 +53,8 @@ final class ScheduleJournalMonthService
             ->whereDate('starts_at', '>=', $startOfMonth->format('Y-m-d'))
             ->whereDate('starts_at', '<=', $endOfMonth->format('Y-m-d'));
 
-        if ($filter->teamIds !== []) {
-            $ids = $filter->teamIds;
-            if (is_array($restrictToTeamIds)) {
-                $allowed = array_values(array_unique(array_filter(
-                    array_map('intval', $restrictToTeamIds),
-                    fn (int $id) => $id > 0
-                )));
-                if ($allowed === []) {
-                    return [];
-                }
-                $ids = array_values(array_intersect($ids, $allowed));
-                if ($ids === []) {
-                    return [];
-                }
-            }
-            $query->whereHas('slot', fn ($q) => $q->whereIn('team_id', $ids));
-        } elseif (is_array($restrictToTeamIds)) {
-            $restrictToTeamIds = array_values(array_unique(array_filter(
-                array_map('intval', $restrictToTeamIds),
-                fn (int $id) => $id > 0
-            )));
-            if ($restrictToTeamIds === []) {
-                return [];
-            }
-            $query->whereHas('slot', fn ($q) => $q->whereIn('team_id', $restrictToTeamIds));
+        if (! $this->restrictUtssQueryToTeams($query, $filter, $restrictToTeamIds)) {
+            return [];
         }
 
         /** @var Collection<int, UserTeamScheduleSlot> $rows */
@@ -225,6 +202,197 @@ final class ScheduleJournalMonthService
         }
 
         return $counts;
+    }
+
+    /**
+     * Сумма «Посетил» по датам и средняя посещаемость месяца.
+     * Тренировка — пара «слот + дата», на которой есть хотя бы один «Посетил».
+     * Несколько «Посетил» в один день у одного ученика считаются отдельно.
+     *
+     * @param  list<int>  $userIds
+     * @param  list<int>|null  $restrictToTeamIds
+     * @return array{
+     *     by_date: array<string, int>,
+     *     attended_total: int,
+     *     trainings_count: int,
+     *     average: float|null,
+     *     average_label: string
+     * }
+     */
+    public function attendanceSummary(
+        int $partnerId,
+        array $userIds,
+        Carbon $startOfMonth,
+        Carbon $endOfMonth,
+        mixed $teamFilter = 'all',
+        ?array $restrictToTeamIds = null,
+    ): array {
+        $byDate = [];
+        $cursor = $startOfMonth->copy()->startOfDay();
+        $endDay = $endOfMonth->copy()->startOfDay();
+        while ($cursor->lte($endDay)) {
+            $byDate[$cursor->format('Y-m-d')] = 0;
+            $cursor->addDay();
+        }
+
+        $empty = [
+            'by_date' => $byDate,
+            'attended_total' => 0,
+            'trainings_count' => 0,
+            'average' => null,
+            'average_label' => self::formatAttendanceAverageLabel(null),
+        ];
+
+        $userIds = array_values(array_unique(array_filter(
+            array_map('intval', $userIds),
+            static fn (int $id) => $id > 0
+        )));
+        if ($userIds === []) {
+            return $empty;
+        }
+
+        $filter = ScheduleJournalTeamFilter::fromMixed($teamFilter);
+        $query = UserTeamScheduleSlot::query()
+            ->where('partner_id', $partnerId)
+            ->whereIn('user_id', $userIds)
+            ->whereDate('starts_at', '>=', $startOfMonth->format('Y-m-d'))
+            ->whereDate('starts_at', '<=', $endOfMonth->format('Y-m-d'));
+
+        if (! $this->restrictUtssQueryToTeams($query, $filter, $restrictToTeamIds)) {
+            return $empty;
+        }
+
+        /** @var Collection<int, UserTeamScheduleSlot> $rows */
+        $rows = $query
+            ->orderBy('id')
+            ->get(['id', 'user_id', 'team_schedule_slot_id', 'starts_at', 'user_lesson_package_id']);
+
+        if ($rows->isEmpty()) {
+            return $empty;
+        }
+
+        $statusMap = $this->latestAttendedFlags($partnerId, $rows);
+        $attendedTotal = 0;
+        $trainingKeys = [];
+
+        foreach ($rows as $row) {
+            $date = Carbon::parse($row->starts_at)->format('Y-m-d');
+            $statusKey = $this->occurrenceKey(
+                (int) $row->user_id,
+                (int) $row->team_schedule_slot_id,
+                $date,
+                $row->user_lesson_package_id !== null ? (int) $row->user_lesson_package_id : null,
+            );
+            if (empty($statusMap[$statusKey])) {
+                continue;
+            }
+
+            $attendedTotal++;
+            if (array_key_exists($date, $byDate)) {
+                $byDate[$date]++;
+            }
+            $trainingKeys[$row->team_schedule_slot_id.'|'.$date] = true;
+        }
+
+        $trainingsCount = count($trainingKeys);
+        $average = $trainingsCount > 0 ? round($attendedTotal / $trainingsCount, 1) : null;
+
+        return [
+            'by_date' => $byDate,
+            'attended_total' => $attendedTotal,
+            'trainings_count' => $trainingsCount,
+            'average' => $average,
+            'average_label' => self::formatAttendanceAverageLabel($average),
+        ];
+    }
+
+    public static function formatAttendanceAverageLabel(?float $average): string
+    {
+        if ($average === null) {
+            return '—';
+        }
+
+        return number_format($average, 1, ',', '');
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<UserTeamScheduleSlot>  $query
+     * @param  list<int>|null  $restrictToTeamIds
+     */
+    private function restrictUtssQueryToTeams($query, ScheduleJournalTeamFilter $filter, ?array $restrictToTeamIds): bool
+    {
+        if ($filter->teamIds !== []) {
+            $ids = $filter->teamIds;
+            if (is_array($restrictToTeamIds)) {
+                $allowed = array_values(array_unique(array_filter(
+                    array_map('intval', $restrictToTeamIds),
+                    fn (int $id) => $id > 0
+                )));
+                if ($allowed === []) {
+                    return false;
+                }
+                $ids = array_values(array_intersect($ids, $allowed));
+                if ($ids === []) {
+                    return false;
+                }
+            }
+            $query->whereHas('slot', fn ($q) => $q->whereIn('team_id', $ids));
+
+            return true;
+        }
+
+        if (is_array($restrictToTeamIds)) {
+            $restrictToTeamIds = array_values(array_unique(array_filter(
+                array_map('intval', $restrictToTeamIds),
+                fn (int $id) => $id > 0
+            )));
+            if ($restrictToTeamIds === []) {
+                return false;
+            }
+            $query->whereHas('slot', fn ($q) => $q->whereIn('team_id', $restrictToTeamIds));
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  Collection<int, UserTeamScheduleSlot>  $rows
+     * @return array<string, bool> true, если актуальный статус — «Посетил»
+     */
+    private function latestAttendedFlags(int $partnerId, Collection $rows): array
+    {
+        $userIds = $rows->pluck('user_id')->unique()->values()->all();
+        $dates = $rows->map(fn (UserTeamScheduleSlot $r) => Carbon::parse($r->starts_at)->format('Y-m-d'))
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($userIds === [] || $dates === []) {
+            return [];
+        }
+
+        $events = UserLessonOccurrenceStatusEvent::query()
+            ->with('lessonOccurrenceStatus:id,code')
+            ->where('partner_id', $partnerId)
+            ->whereIn('user_id', $userIds)
+            ->whereIn('occurrence_date', $dates)
+            ->orderByDesc('id')
+            ->get(['id', 'user_id', 'team_schedule_slot_id', 'occurrence_date', 'user_lesson_package_id', 'lesson_occurrence_status_id']);
+
+        $map = [];
+        foreach ($events as $event) {
+            $key = $this->occurrenceKey(
+                (int) $event->user_id,
+                (int) $event->team_schedule_slot_id,
+                Carbon::parse($event->occurrence_date)->format('Y-m-d'),
+                $event->user_lesson_package_id !== null ? (int) $event->user_lesson_package_id : null,
+            );
+            if (! array_key_exists($key, $map)) {
+                $map[$key] = (string) ($event->lessonOccurrenceStatus?->code ?? '') === LessonOccurrenceStatus::CODE_ATTENDED;
+            }
+        }
+
+        return $map;
     }
 
     /**

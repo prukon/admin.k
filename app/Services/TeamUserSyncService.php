@@ -6,13 +6,16 @@ use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\Chat\TeamGroupChatService;
+use App\Services\SettingPrices\FormerMemberMonthChargeService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class TeamUserSyncService
 {
     public function __construct(
         private readonly TeamGroupChatService $teamGroupChat,
+        private readonly FormerMemberMonthChargeService $formerCharges,
     ) {
     }
 
@@ -29,6 +32,14 @@ class TeamUserSyncService
         }
 
         $validTeamIds = $this->resolveValidTeamIds($partnerId, $teamIds);
+
+        $existingTeamIds = DB::table('team_user')
+            ->where('user_id', $user->id)
+            ->where('partner_id', $partnerId)
+            ->pluck('team_id')
+            ->map(static fn ($id) => (int) $id)
+            ->all();
+        $removedTeamIds = array_values(array_diff($existingTeamIds, $validTeamIds));
 
         DB::table('team_user')
             ->where('user_id', $user->id)
@@ -49,6 +60,15 @@ class TeamUserSyncService
                     'created_at' => $now,
                     'updated_at' => $now,
                 ],
+            );
+        }
+
+        if ($removedTeamIds !== []) {
+            $actorId = Auth::id();
+            $this->formerCharges->clearUnpaidOnTeamLeave(
+                $user,
+                $removedTeamIds,
+                $actorId !== null ? (int) $actorId : null,
             );
         }
 

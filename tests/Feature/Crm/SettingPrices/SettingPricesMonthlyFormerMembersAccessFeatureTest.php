@@ -66,7 +66,7 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
             'lastname' => 'Бывший',
             'name' => 'Ученик',
         ]);
-        $this->teamSync->syncTeamsForStudent($this->formerStudent, [(int) $this->team->id]);
+        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
 
         UserPrice::forceCreate([
             'user_id' => $this->formerStudent->id,
@@ -76,7 +76,6 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
-        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
 
         UserPrice::forceCreate([
             'user_id' => $this->currentStudent->id,
@@ -391,6 +390,7 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
     {
         $this->asAdmin();
         $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
+        $this->grantPartnerRolePermission($this->user, 'setPrices.applyAllTeams.manage');
 
         $response = $this->post(route('setPriceAllTeams'), [
             'selectedDate' => 'Февраль 2026',

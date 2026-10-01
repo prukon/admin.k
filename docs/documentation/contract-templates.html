@@ -134,14 +134,15 @@
       <code>http://</code> к плейсхолдерам; при чтении HTML <code>restoreDocumentsUrlHrefs</code>
       возвращает чистый <code>href="{{documents_url}}"</code>, если браузер развернул токен в абсолютный URL.
       JS: <code>email-summernote-init.blade.php</code>.</li>
-    <li>Плейсхолдеры письма: <code>{{child_full_name}}</code>, <code>{{partner_name}}</code>, <code>{{documents_url}}</code>, <code>{{fill_deadline}}</code>, <code>{{contract_id}}</code> — подстановка в <code>ContractInvitationEmailRenderer</code>.
+    <li>Плейсхолдеры письма: <code>{{addressee_name}}</code> (полное ФИО родителя, иначе клиента), <code>{{child_full_name}}</code>, <code>{{partner_name}}</code>, <code>{{documents_url}}</code>, <code>{{fill_deadline}}</code>, <code>{{contract_id}}</code> — подстановка в <code>ContractInvitationEmailRenderer</code>.
+      Системные тема и приветствие обращаются к <code>{{addressee_name}}</code>.
       В письме <code>{{documents_url}}</code> = <code>/account-settings/documents?student={user_id}&amp;fill={contract_id}</code>
       (<a href="/doc#account-documents-family-link-index">анонс семейной ссылки</a>,
       <a href="/doc#contract-template-email-default-link-index">анонс «По умолчанию»</a>,
       <a href="/docs/documentation/account-contract-fill#account-documents-family-link">account-contract-fill §1.2</a>).
       <code>{{contract_id}}</code> — номер в тексте, не query.</li>
-    <li>Отправка при создании договора: <code>ContractClientFillInvitationMail</code> (<code>ContractCreationService::notifyClientAboutFill</code>)
-      на <code>users.email</code> и <code>parents.email</code>; совпавшие адреса — одно письмо, разные — два отдельных
+    <li>Отправка при создании договора: одно <code>ContractClientFillInvitationMail</code> (<code>ContractCreationService::notifyClientAboutFill</code>)
+      на <code>parents.email</code>, иначе на <code>users.email</code>; совпавшие и разные адреса — одно письмо, только родителю если его почта есть
       (<a href="/docs/documentation/account-contract-fill#invitation-email-recipients">account-contract-fill §6</a>,
       <a href="/doc#contract-invitation-parent-email-index">анонс</a>).</li>
   </ul>

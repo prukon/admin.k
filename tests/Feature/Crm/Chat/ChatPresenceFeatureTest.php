@@ -57,6 +57,8 @@ final class ChatPresenceFeatureTest extends ChatTestCase
 
     public function test_contacts_mark_online_within_two_minutes_and_offline_otherwise(): void
     {
+        $this->travelTo('2026-08-18 12:00:00');
+
         $online = $this->makePeer('OnlinePeer_');
         $stale = $this->makePeer('StalePeer_');
         $never = $this->makePeer('NeverPeer_');

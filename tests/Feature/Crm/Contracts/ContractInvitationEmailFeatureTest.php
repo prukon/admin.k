@@ -37,10 +37,12 @@ class ContractInvitationEmailFeatureTest extends ContractsFeatureTestCase
             $subject = $renderer->renderSubject($mail->contract, $mail->student);
             $body = $renderer->renderBodyHtml($mail->contract, $mail->student);
 
-            $this->assertStringContainsString('Козлова', $subject);
+            $this->assertStringContainsString('Договор для Козлова Мария', $subject);
             $this->assertStringContainsString('KidsCRM.online', $subject);
+            $this->assertStringContainsString('Здравствуйте, Козлова Мария!', $body);
             $this->assertStringContainsString('подготовлен договор', $body);
             $this->assertStringNotContainsString('{{child_full_name}}', $body);
+            $this->assertStringNotContainsString('{{addressee_name}}', $body);
             $this->assertStringNotContainsString('{{partner_name}}', $body);
 
             return $mail->student->id === $student->id;
@@ -48,30 +50,38 @@ class ContractInvitationEmailFeatureTest extends ContractsFeatureTestCase
     }
 
     /** @test */
-    public function invitation_sends_two_separate_emails_when_student_and_parent_addresses_differ(): void
+    public function invitation_sends_only_to_parent_when_student_and_parent_addresses_differ(): void
     {
         Mail::fake();
 
-        $student = $this->makeStudent(['email' => 'student-invite@example.com']);
-        $this->attachParent($student, 'parent-invite@example.com');
+        $student = $this->makeStudent([
+            'email'    => 'student-invite@example.com',
+            'name'     => 'Пётр',
+            'lastname' => 'Иванов',
+        ]);
+        $this->attachParent($student, 'parent-invite@example.com', [
+            'lastname'   => 'Иванова',
+            'firstname'  => 'Мария',
+            'middlename' => 'Сергеевна',
+        ]);
         $template = $this->makeTemplateWithNullEmailFields();
 
         $this->postContractFromTemplate($student, $template)->assertStatus(302);
 
-        Mail::assertSent(ContractClientFillInvitationMail::class, 2);
+        Mail::assertSent(ContractClientFillInvitationMail::class, 1);
         Mail::assertSent(ContractClientFillInvitationMail::class, function (ContractClientFillInvitationMail $mail) {
-            return $mail->hasTo('student-invite@example.com') && ! $mail->hasTo('parent-invite@example.com');
-        });
-        Mail::assertSent(ContractClientFillInvitationMail::class, function (ContractClientFillInvitationMail $mail) {
-            return $mail->hasTo('parent-invite@example.com') && ! $mail->hasTo('student-invite@example.com');
+            $subject = app(\App\Services\Contracts\ContractInvitationEmailRenderer::class)
+                ->renderSubject($mail->contract, $mail->student);
+
+            return $mail->hasTo('parent-invite@example.com')
+                && ! $mail->hasTo('student-invite@example.com')
+                && str_contains($subject, 'Иванова Мария Сергеевна')
+                && ! str_contains($subject, 'Пётр');
         });
 
         $payload = $this->latestInvitePayload();
-        $this->assertSame(
-            ['student-invite@example.com', 'parent-invite@example.com'],
-            $payload['emails'] ?? null
-        );
-        $this->assertSame('student-invite@example.com', $payload['email'] ?? null);
+        $this->assertSame(['parent-invite@example.com'], $payload['emails'] ?? null);
+        $this->assertSame('parent-invite@example.com', $payload['email'] ?? null);
     }
 
     /** @test */
@@ -87,11 +97,28 @@ class ContractInvitationEmailFeatureTest extends ContractsFeatureTestCase
 
         Mail::assertSent(ContractClientFillInvitationMail::class, 1);
         Mail::assertSent(ContractClientFillInvitationMail::class, function (ContractClientFillInvitationMail $mail) {
-            return $mail->hasTo('Shared@Example.com');
+            return $mail->hasTo('shared@example.com') && ! $mail->hasTo('Shared@Example.com');
         });
 
         $payload = $this->latestInvitePayload();
-        $this->assertSame(['Shared@Example.com'], $payload['emails'] ?? null);
+        $this->assertSame(['shared@example.com'], $payload['emails'] ?? null);
+    }
+
+    /** @test */
+    public function invitation_sends_to_client_when_parent_email_is_empty(): void
+    {
+        Mail::fake();
+
+        $student = $this->makeStudent(['email' => 'only-client@example.com']);
+        $this->attachParent($student, '   ');
+        $template = $this->makeTemplateWithNullEmailFields();
+
+        $this->postContractFromTemplate($student, $template)->assertStatus(302);
+
+        Mail::assertSent(ContractClientFillInvitationMail::class, 1);
+        Mail::assertSent(ContractClientFillInvitationMail::class, function (ContractClientFillInvitationMail $mail) {
+            return $mail->hasTo('only-client@example.com');
+        });
     }
 
     /** @test */
@@ -175,12 +202,15 @@ class ContractInvitationEmailFeatureTest extends ContractsFeatureTestCase
         return $student;
     }
 
-    private function attachParent(User $student, ?string $email): ParentProfile
+    /**
+     * @param  array<string, mixed>  $attrs
+     */
+    private function attachParent(User $student, ?string $email, array $attrs = []): ParentProfile
     {
-        $parent = ParentProfile::factory()->create([
+        $parent = ParentProfile::factory()->create(array_merge([
             'partner_id' => $this->partner->id,
             'email'      => $email,
-        ]);
+        ], $attrs));
         $student->forceFill(['parent_id' => $parent->id])->save();
 
         return $parent;

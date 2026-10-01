@@ -47,7 +47,7 @@
 
   <h3>1.1) Сервисы и хелперы</h3>
   <ul>
-    <li><code>App\Services\TeamUserSyncService</code> — <code>syncTeamsForStudent</code>, <code>attachTeamForStudent</code>, <code>detachAllTeamsForStudent</code>, <code>detachTeamFromAllStudents</code> (при удалении группы), <code>teamIdsForStudent</code>, <code>teamTitlesLabel</code> (строка через запятую), <code>syncLegacyTeamColumnToPivot</code> (только create). Attach/sync добавляет ученика в авто-чат группы; detach из чата не выгоняет (<a href="/doc#chat-team-groups-index">анонс</a>).</li>
+    <li><code>App\Services\TeamUserSyncService</code> — <code>syncTeamsForStudent</code>, <code>attachTeamForStudent</code>, <code>detachAllTeamsForStudent</code>, <code>detachTeamFromAllStudents</code> (при удалении группы), <code>teamIdsForStudent</code>, <code>teamTitlesLabel</code> (строка через запятую), <code>syncLegacyTeamColumnToPivot</code> (только create). Attach/sync добавляет ученика в авто-чат группы; detach из чата не выгоняет (<a href="/doc#chat-team-groups-index">анонс</a>). Уход из группы через <code>syncTeamsForStudent</code> снимает неоплаченные неиспользованные начисления старой группы — <a href="#detach-unpaid-charge">§1.3</a>.</li>
     <li><code>App\Support\UserPriceTeamMembership</code> — проверка членства ученика в группе для <code>users_prices</code> и resolver оплаты; <code>primaryTeamIdForStudent</code> — первая группа в pivot; <code>studentHasPositivePriceHistoryForTeam</code> — есть ли начисление с <code>price_cents &gt; 0</code> (история бывших в «Ценах», см. <a href="/docs/documentation/setting-prices-monthly-users">setting-prices-monthly-users</a>).</li>
     <li><code>App\Support\UserTeamQuery</code> — фильтры отчётов и подзапрос названий групп без дублей строк.</li>
     <li>Scope <code>User::filterByStudentTeam($partnerId, $teamId)</code> — ученик виден, если состоит в выбранной группе (<code>none</code> = без групп в pivot).</li>
@@ -62,6 +62,25 @@
     Подробнее — <a href="/docs/documentation/admin-teams#team-delete">admin-teams § удаление</a>.
     Групповой чат этой группы (<code>threads.team_id</code>) не удаляется, учеников из него не выгоняем
     (<a href="/docs/documentation/chat#team-groups">chat §team-groups</a>).
+  </div>
+
+  <h3 id="detach-unpaid-charge">1.3) Уход из группы снимает неоплаченный абонемент</h3>
+  <div class="note">
+    Карточка ученика (<code>UserService::update</code> → <code>team_ids</code>) и журнал
+    (<code>POST /schedule/user/{user}/sync-teams</code>) идут в
+    <code>TeamUserSyncService::syncTeamsForStudent</code>. Тот же вызов делает импорт учеников.
+    Если ученика больше нет в группе (заменили группу или сняли со всех), по каждой такой старой группе
+    <code>FormerMemberMonthChargeService::clearUnpaidOnTeamLeave</code> снимает начисления за все месяцы,
+    которые можно снять тем же правилом, что корзина на «По месяцам»:
+    сумма <code>price_cents=0</code>, абонемент и скидка строки сбрасываются, неиспользованный ULP удаляется.
+    Аудит — тот же <code>pricing.former_charge_cleared</code>
+    («Снято начисление бывшего участника: …»).
+    Оплаченное (<code>is_paid</code> или ручная отметка) остаётся.
+    Если по абонементу уже были занятия, он разложен в расписание или по постоплате есть посещения —
+    начисление остаётся, смена группы всё равно сохраняется.
+    Группы, которые ученик не покидал, не трогаются.
+    Удаление самой группы (<code>detachTeamFromAllStudents</code>) начисления не снимает.
+    Анонс — <a href="/doc#student-team-detach-unpaid-charge-index">/doc#student-team-detach-unpaid-charge-index</a>.
   </div>
 
   <h2>2) Админка учеников (<code>/admin/users</code>)</h2>

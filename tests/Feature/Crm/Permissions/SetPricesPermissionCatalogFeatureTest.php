@@ -30,6 +30,7 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
             'setPrices.cabinetSeasons.view' => 'Оплата сезонов',
             'setPrices.customPayments.view' => 'Дополнительные платежи',
             'setPrices.manualPaid.manage' => 'Установка цен: ручная отметка оплаты месяца',
+            'setPrices.applyAllTeams.manage' => 'Установка цен: применить тарифы всем группам',
             'payment.clubfee' => 'Оплата клубного взноса',
             'setPrices.paymentNotifications.manage' => 'Уведомления об оплате абонементов',
             'setPrices.cabinetPackages.fixed.view' => 'Консоль: фиксированный абонемент',
@@ -67,6 +68,7 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
             'setPrices.cabinetSeasons.view',
             'setPrices.customPayments.view',
             'setPrices.manualPaid.manage',
+            'setPrices.applyAllTeams.manage',
             'payment.clubfee',
             'setPrices.paymentNotifications.manage',
             'setPrices.cabinetPackages.fixed.view',
@@ -75,6 +77,8 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
             'setPrices.cabinetPackages.postpay.view',
         ], $rows);
 
+        $applyAllTeamsSort = (int) DB::table('permissions')->where('name', 'setPrices.applyAllTeams.manage')->value('sort_order');
+        $this->assertSame(22, $applyAllTeamsSort);
         $clubfeeSort = (int) DB::table('permissions')->where('name', 'payment.clubfee')->value('sort_order');
         $this->assertSame(23, $clubfeeSort);
         $notificationsSort = (int) DB::table('permissions')->where('name', 'setPrices.paymentNotifications.manage')->value('sort_order');

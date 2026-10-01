@@ -1469,16 +1469,13 @@ class SettingPricesController extends AdminBaseController
         ) {
             $this->formerMemberMonthChargeService->clear($row, auth()->id() !== null ? (int) auth()->id() : null);
 
-            $amount = str_replace(' ', '', Money::formatRub($oldCents));
-            $packageBit = $oldPackageId !== null ? ' Абонемент #'.$oldPackageId.'.' : '';
-            $description = sprintf(
-                'Снято начисление бывшего участника: %s руб.%s Период: %s. Группа: %s. Ученик: %s (#%d).',
-                $amount,
-                $packageBit,
-                $selectedDate,
+            $description = $this->formerMemberMonthChargeService->clearedAuditDescription(
+                $oldCents,
+                $oldPackageId,
+                (string) $selectedDate,
                 $teamTitle,
                 $studentLabel !== '' ? $studentLabel : 'ученик',
-                $userId
+                $userId,
             );
 
             $this->auditLogger->record(

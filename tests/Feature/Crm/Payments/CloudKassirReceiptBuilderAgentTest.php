@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm\Payments;
 
 use App\Models\FiscalReceipt;
+use App\Models\ParentProfile;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\UserCustomPayment;
@@ -205,6 +206,113 @@ class CloudKassirReceiptBuilderAgentTest extends CrmTestCase
             $this->makeCustomPaymentReceipt($payment->id, $chain['team']->id, 'income:custom:empty')
         );
         $this->assertSame('Дополнительный платеж', $emptyPayload['CustomerReceipt']['Items'][0]['Label']);
+    }
+
+    public function test_receipt_email_prefers_parent_then_student_then_school(): void
+    {
+        Config::set('services.cloudkassir.inn', '7708806062');
+        Config::set('services.cloudkassir.taxation_system', 1);
+        Config::set('services.cloudkassir.default_method', 4);
+        Config::set('services.cloudkassir.default_object', 4);
+        Config::set('services.cloudkassir.russia_time_zone', 2);
+        Config::set('services.cloudkassir.agent.enabled', false);
+
+        $chain = $this->seedFiscalTeamChainForStudent(entityOverrides: [
+            'tax_id' => '7700000000',
+        ]);
+        $teamId = (int) $chain['team']->id;
+        $schoolEmail = (string) $this->partner->email;
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'email' => 'Parent@Mail.ru',
+        ]);
+        $this->user->forceFill([
+            'parent_id' => $parent->id,
+            'email' => 'other@example.com',
+        ])->save();
+
+        $parentPayload = app(CloudKassirReceiptBuilder::class)->build(
+            $this->makeMonthlyFeeReceipt($teamId, 'income:email:parent')
+        );
+        $this->assertSame('Parent@Mail.ru', $parentPayload['CustomerReceipt']['Email']);
+
+        $this->user->forceFill(['email' => 'parent@mail.ru'])->save();
+        $samePayload = app(CloudKassirReceiptBuilder::class)->build(
+            $this->makeMonthlyFeeReceipt($teamId, 'income:email:same')
+        );
+        $this->assertSame('Parent@Mail.ru', $samePayload['CustomerReceipt']['Email']);
+
+        $parent->update(['email' => '   ']);
+        $this->user->forceFill(['email' => 'student@example.com'])->save();
+        $studentPayload = app(CloudKassirReceiptBuilder::class)->build(
+            $this->makeMonthlyFeeReceipt($teamId, 'income:email:student')
+        );
+        $this->assertSame('student@example.com', $studentPayload['CustomerReceipt']['Email']);
+
+        $parent->update(['email' => null]);
+        $this->user->forceFill(['email' => null])->save();
+        $schoolPayload = app(CloudKassirReceiptBuilder::class)->build(
+            $this->makeMonthlyFeeReceipt($teamId, 'income:email:school')
+        );
+        $this->assertSame($schoolEmail, $schoolPayload['CustomerReceipt']['Email']);
+
+        $parent->update(['email' => 'Parent@Mail.ru']);
+        $this->partner->forceFill(['email' => ''])->save();
+        $custom = UserCustomPayment::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'team_id' => $teamId,
+            'amount_cents' => 150000,
+            'note' => 'Форма',
+            'is_paid' => true,
+        ]);
+        $customPayload = app(CloudKassirReceiptBuilder::class)->build(
+            $this->makeCustomPaymentReceipt($custom->id, $teamId, 'income:email:custom')
+        );
+        $this->assertSame('Parent@Mail.ru', $customPayload['CustomerReceipt']['Email']);
+    }
+
+    private function makeMonthlyFeeReceipt(int $teamId, string $idempotencyKey): FiscalReceipt
+    {
+        $payable = Payable::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'monthly_fee',
+            'amount_cents' => 10000,
+            'currency' => 'RUB',
+            'status' => 'paid',
+            'month' => '2026-03-01',
+            'meta' => [
+                'month' => '2026-03-01',
+                'team_id' => $teamId,
+            ],
+            'paid_at' => now(),
+        ]);
+
+        $intent = PaymentIntent::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'status' => 'paid',
+            'out_sum_cents' => 10000,
+            'payment_date' => '2026-03-01',
+            'paid_at' => now(),
+            'meta' => json_encode([], JSON_UNESCAPED_UNICODE),
+        ]);
+
+        return FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_intent_id' => $intent->id,
+            'payable_id' => $payable->id,
+            'provider' => FiscalReceipt::PROVIDER_CLOUDKASSIR,
+            'type' => FiscalReceipt::TYPE_INCOME,
+            'status' => FiscalReceipt::STATUS_PENDING,
+            'amount_cents' => 10000,
+            'invoice_id' => 'pi_'.$intent->id,
+            'idempotency_key' => $idempotencyKey,
+        ]);
     }
 
     private function makeCustomPaymentReceipt(int $customPaymentId, int $teamId, string $idempotencyKey = 'income:custom:note'): FiscalReceipt

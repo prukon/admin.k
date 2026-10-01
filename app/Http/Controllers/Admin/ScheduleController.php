@@ -127,6 +127,15 @@ class ScheduleController extends AdminBaseController
             UserTeamQuery::applyJournalTeamFilter($usersQuery, $partnerId, $journalTeamFilter);
         }
 
+        $journalAttendance = $this->journalMonthService->attendanceSummary(
+            $partnerId,
+            $this->journalAttendanceStudentIds($actor, $partnerId, $journalTeamFilter),
+            $startOfMonth,
+            $endOfMonth,
+            $journalTeamFilter,
+            $this->ownTeams->allowedTeamIds($actor, $partnerId),
+        );
+
         if ($searchQ !== '') {
             $like = '%'.$searchQ.'%';
             $usersQuery->where(function ($q) use ($like) {
@@ -225,6 +234,7 @@ class ScheduleController extends AdminBaseController
             'journalAssignments',
             'journalPaymentStatuses',
             'journalConsumingCounts',
+            'journalAttendance',
             'postpayUsers',
             'postpayLockedUsers',
             'postpayByUser',
@@ -1643,7 +1653,43 @@ class ScheduleController extends AdminBaseController
             'amount_label' => '',
         ];
 
+        $actor = $request->user();
+        $result['attendance'] = $this->journalMonthService->attendanceSummary(
+            $partnerId,
+            $this->journalAttendanceStudentIds($actor, $partnerId, $teamFilter),
+            $start,
+            $start->copy()->endOfMonth(),
+            $teamFilter,
+            $this->ownTeams->allowedTeamIds($actor, $partnerId),
+        );
+
         return $result;
+    }
+
+    /**
+     * Ученики журнала для суммы и средней посещаемости: фильтр групп и свои группы,
+     * без поиска q и без пагинации.
+     *
+     * @return list<int>
+     */
+    private function journalAttendanceStudentIds(
+        ?User $actor,
+        int $partnerId,
+        ScheduleJournalTeamFilter $journalTeamFilter,
+    ): array {
+        $usersQuery = User::query()
+            ->select(['id'])
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', 1)
+            ->withSystemRoleUser();
+
+        if ($journalTeamFilter->isAll()) {
+            $this->ownTeams->restrictStudentsQuery($usersQuery, $actor, $partnerId);
+        } else {
+            UserTeamQuery::applyJournalTeamFilter($usersQuery, $partnerId, $journalTeamFilter);
+        }
+
+        return $usersQuery->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
     private function journalTeamFilterFromRequest(Request $request): ScheduleJournalTeamFilter

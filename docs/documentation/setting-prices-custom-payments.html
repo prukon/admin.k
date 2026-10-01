@@ -215,7 +215,7 @@
   </ul>
 
   <h2 id="payment">7) Связь с оплатой</h2>
-  <p>При Init (<code>custom_payment_fee</code>) <code>PayableTeamResolver</code> читает <code>user_custom_payment.team_id</code>. Без группы на записи — <b>422</b> при старте оплаты. Источник суммы — <code>user_custom_payment.amount_cents</code> (не POST <code>outSum</code>). Webhook выставляет <code>is_paid=1</code> по <code>payables.meta.user_period_price_id</code>.</p>
+  <p>При Init (<code>custom_payment_fee</code>) <code>PayableTeamResolver</code> читает <code>user_custom_payment.team_id</code>. Без группы на записи — <b>422</b> при старте оплаты. Источник суммы — <code>user_custom_payment.amount_cents</code> (не POST <code>outSum</code>). Webhook выставляет <code>is_paid=1</code> по <code>payables.meta.user_period_price_id</code>. Чек CloudKassir после оплаты T‑Bank (в том числе по ссылке <code>/pc/{code}</code>) уходит на почту родителя, иначе ученика, иначе школы — <a href="/docs/documentation/payments#cloudkassir-receipt-email">payments §7.1</a>. Ручная отметка «оплачено» чек не создаёт.</p>
   <h3 id="public-pay-link">7.1) Публичная ссылка на оплату (СБП, без авторизации)</h3>
   <div class="note">
     Тот же приём, что у абонемента (<code>/p/{code}</code>): админ копирует короткую ссылку, ученик открывает её без входа и платит по QR.

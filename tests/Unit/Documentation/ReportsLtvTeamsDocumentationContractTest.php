@@ -110,6 +110,12 @@ final class ReportsLtvTeamsDocumentationContractTest extends TestCase
 
         $tooltipCss = (string) file_get_contents(dirname(__DIR__, 3).'/resources/css/kids-tooltip.css');
         $this->assertStringContainsString('.tooltip.kids-hover-list-tooltip--two-col', $tooltipCss);
+        $this->assertStringContainsString('td.dt-col-list > .kids-hover-list-dropdown__trigger', $tooltipCss);
+        $this->assertStringContainsString('.kids-hover-list-dropdown__trigger .dt-cell-ellipsis', $tooltipCss);
+
+        $userCard = (string) file_get_contents(dirname(__DIR__, 3).'/resources/views/partials/ui/user-card-modal.blade.php');
+        $this->assertStringContainsString('td.dt-col-list > .kids-hover-list-dropdown__trigger', $userCard);
+        $this->assertStringContainsString('.kids-hover-list-dropdown__trigger .dt-cell-ellipsis', $userCard);
         $this->assertStringContainsString('column-count: 2', $tooltipCss);
         $this->assertStringContainsString('column-fill: auto', $tooltipCss);
         $this->assertStringContainsString('overflow: hidden', $tooltipCss);

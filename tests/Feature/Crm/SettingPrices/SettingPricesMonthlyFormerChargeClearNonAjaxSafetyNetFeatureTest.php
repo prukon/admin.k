@@ -60,7 +60,7 @@ final class SettingPricesMonthlyFormerChargeClearNonAjaxSafetyNetFeatureTest ext
             'lastname' => 'Бывший',
             'name' => 'NonAjax',
         ]);
-        $teamSync->syncTeamsForStudent($this->formerStudent, [(int) $this->team->id]);
+        $teamSync->syncTeamsForStudent($this->formerStudent, []);
 
         $this->row = UserPrice::forceCreate([
             'user_id' => $this->formerStudent->id,
@@ -70,7 +70,6 @@ final class SettingPricesMonthlyFormerChargeClearNonAjaxSafetyNetFeatureTest ext
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
-        $teamSync->syncTeamsForStudent($this->formerStudent, []);
     }
 
     /**

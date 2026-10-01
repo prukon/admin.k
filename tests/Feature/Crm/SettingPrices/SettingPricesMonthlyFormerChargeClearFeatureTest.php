@@ -182,8 +182,8 @@ final class SettingPricesMonthlyFormerChargeClearFeatureTest extends CrmTestCase
 
     public function test_get_team_price_flags_unpaid_former_can_clear(): void
     {
-        $this->makeUnpaidRow($this->formerStudent);
         $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+        $this->makeUnpaidRow($this->formerStudent);
 
         $formerPrice = $this->formerPriceFromGetTeam();
         $this->assertNotNull($formerPrice);
@@ -210,12 +210,23 @@ final class SettingPricesMonthlyFormerChargeClearFeatureTest extends CrmTestCase
 
     public function test_clear_unpaid_former_charge_zeros_row_deletes_ulp_and_writes_audit(): void
     {
-        $row = $this->assignFixedWhileMember();
-        $ulpId = (int) $row->user_lesson_package_id;
-        $this->assertGreaterThan(0, $ulpId);
-        $this->assertNotNull(UserLessonPackage::query()->find($ulpId));
-
         $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $this->formerStudent->id,
+            'team_id' => $this->team->id,
+            'lesson_package_id' => $this->fixedPackage->id,
+            'billing_month' => '2026-02-01',
+            'starts_at' => null,
+            'ends_at' => '2026-02-28',
+            'lessons_total' => 4,
+            'lessons_remaining' => 4,
+            'fee_amount_cents' => 500000,
+            'is_paid' => 0,
+        ]);
+        $row = $this->makeUnpaidRow($this->formerStudent, 500000, (int) $this->fixedPackage->id);
+        $row->forceFill(['user_lesson_package_id' => $ulp->id])->save();
+        $ulpId = (int) $ulp->id;
+        $this->assertNotNull(UserLessonPackage::query()->find($ulpId));
 
         $this->withHeaders($this->ajaxHeaders())
             ->postJson(route('setting-prices.former-month-charge.clear'), $this->clearPayload())
@@ -376,8 +387,8 @@ final class SettingPricesMonthlyFormerChargeClearFeatureTest extends CrmTestCase
     public function test_current_member_row_is_not_former_so_trash_rule_does_not_apply(): void
     {
         $this->makeUnpaidRow($this->currentStudent, 150000);
-        $this->makeUnpaidRow($this->formerStudent, 326700);
         $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+        $this->makeUnpaidRow($this->formerStudent, 326700);
 
         $json = $this->withHeaders($this->ajaxHeaders())
             ->postJson(route('getTeamPrice'), [
@@ -424,8 +435,8 @@ final class SettingPricesMonthlyFormerChargeClearFeatureTest extends CrmTestCase
 
     public function test_users_tab_year_prices_do_not_include_clear_flags(): void
     {
-        $this->makeUnpaidRow($this->formerStudent, 326700);
         $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+        $this->makeUnpaidRow($this->formerStudent, 326700);
 
         $json = $this->postJson(route('setting-prices.user-year-prices'), [
             'user_id' => $this->formerStudent->id,

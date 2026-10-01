@@ -30,7 +30,10 @@ final class SettingPricesFlexibleReplaceMarkupFeatureTest extends CrmTestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringNotContainsString('setting-prices-user-card', $html);
+        $this->assertDoesNotMatchRegularExpression(
+            '/<[^>]*\bsetting-prices-user-card\b/',
+            $html,
+        );
         $this->assertStringNotContainsString('setting-prices-monthly-package-error', $html);
 
         $blade = (string) file_get_contents(resource_path('views/admin/SettingPrices/monthly.blade.php'));

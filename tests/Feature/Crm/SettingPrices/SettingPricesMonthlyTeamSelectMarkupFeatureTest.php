@@ -49,7 +49,10 @@ final class SettingPricesMonthlyTeamSelectMarkupFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('wrap-team--loading', $html);
         $this->assertStringNotContainsString('setting-prices-team-loading', $html);
         $this->assertStringNotContainsString('setting-prices-users-placeholder', $html);
-        $this->assertStringNotContainsString('setting-prices-user-card', $html);
+        $this->assertDoesNotMatchRegularExpression(
+            '/<[^>]*\bsetting-prices-user-card\b/',
+            $html,
+        );
 
         $this->assertMatchesRegularExpression(
             '/<button[^>]*\bdisabled\b[^>]*id="set-price-all-users"/',

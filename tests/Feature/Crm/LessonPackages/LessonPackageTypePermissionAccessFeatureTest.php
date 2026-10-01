@@ -43,6 +43,7 @@ final class LessonPackageTypePermissionAccessFeatureTest extends CrmTestCase
         parent::setUp();
 
         $this->asAdmin();
+        $this->grantPartnerRolePermission($this->user, 'setPrices.applyAllTeams.manage');
         $this->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,

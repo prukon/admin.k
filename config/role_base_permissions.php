@@ -56,6 +56,7 @@ return [
             'reports.payments.payout_amount.column.view',
             'setPrices.view',
             'setPrices.cabinetSeasons.view',
+            // 'setPrices.applyAllTeams.manage',
             // 'setPrices.customPayments.view',
             // 'setPrices.packageAssignments.view',
             // 'setPrices.cabinetPackages.fixed.view',

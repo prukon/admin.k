@@ -62,10 +62,7 @@ final class SettingPricesUsersFormerMembersAccessFeatureTest extends CrmTestCase
             'lastname' => 'История',
             'name' => 'Ученик',
         ]);
-        $this->teamSync->syncTeamsForStudent($this->student, [
-            (int) $this->almaz->id,
-            (int) $this->dubl->id,
-        ]);
+        $this->teamSync->syncTeamsForStudent($this->student, [(int) $this->dubl->id]);
 
         UserPrice::forceCreate([
             'user_id' => $this->student->id,
@@ -74,7 +71,6 @@ final class SettingPricesUsersFormerMembersAccessFeatureTest extends CrmTestCase
             'price_cents' => 326700,
             'is_paid' => 0,
         ]);
-        $this->teamSync->syncTeamsForStudent($this->student, [(int) $this->dubl->id]);
 
         $this->package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
             'price_cents' => 999900,

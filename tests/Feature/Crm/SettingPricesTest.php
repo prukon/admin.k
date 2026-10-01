@@ -64,6 +64,7 @@ class SettingPricesTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantLessonPackageTypePermissions();
+        $this->grantPartnerRolePermission($this->user, 'setPrices.applyAllTeams.manage');
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -573,6 +574,7 @@ class SettingPricesTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantLessonPackageTypePermissions();
+        $this->grantPartnerRolePermission($this->user, 'setPrices.applyAllTeams.manage');
 
         $teamA = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -696,6 +698,7 @@ class SettingPricesTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantLessonPackageTypePermissions();
+        $this->grantPartnerRolePermission($this->user, 'setPrices.applyAllTeams.manage');
 
         $teamA = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -766,6 +769,7 @@ class SettingPricesTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantLessonPackageTypePermissions();
+        $this->grantPartnerRolePermission($this->user, 'setPrices.applyAllTeams.manage');
 
         // teamsData = null
         $this->postJson(route('setPriceAllTeams'), [
@@ -1045,6 +1049,7 @@ class SettingPricesTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantLessonPackageTypePermissions();
+        $this->grantPartnerRolePermission($this->user, 'setPrices.applyAllTeams.manage');
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,

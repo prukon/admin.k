@@ -159,6 +159,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('setPrices.manualPaid.manage');
         });
 
+        // Массовое «Применить» слева на «По месяцам» (тарифы всем группам)
+        Gate::define('setPrices.applyAllTeams.manage', function (User $user) {
+            return $user->hasPermission('setPrices.applyAllTeams.manage');
+        });
+
         Gate::define('setPrices.cabinetSeasons.view', function (User $user) {
             return $user->hasPermission('setPrices.cabinetSeasons.view');
         });

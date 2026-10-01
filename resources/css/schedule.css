@@ -700,7 +700,7 @@ table.dataTable tbody th, table.dataTable tbody td {
     background: #fff;
     z-index: 1050;
     overflow: hidden; /* убираем скролл всей страницы */
-    padding-top: 50px; /* Отступ для фиксированных фильтров */
+    padding-top: 62px; /* Отступ для фиксированных фильтров */
 }
 
 .schedule-fullscreen-wrapper.fullscreen .schedule-controls {
@@ -717,7 +717,7 @@ table.dataTable tbody th, table.dataTable tbody td {
 /* Скролл только для таблицы */
 .schedule-fullscreen-wrapper.fullscreen .schedule-table-container {
     overflow: auto;
-    height: calc(100% - 50px);
+    height: calc(100% - 62px);
 }
 
 /* Закрепление заголовков таблицы – top: 0, чтобы примыкал к верхней границе контейнера */
@@ -2162,4 +2162,127 @@ table.dataTable tbody th, table.dataTable tbody td {
         animation: trainer-salary-saved-flash 1.2s ease-out;
         background-color: transparent;
     }
+}
+
+.schedule-fullscreen-wrapper .schedule-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px !important;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls__filters,
+.schedule-fullscreen-wrapper .schedule-controls__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls__actions {
+    margin-left: 0;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls .wrap-filter-year,
+.schedule-fullscreen-wrapper .schedule-controls .wrap-filter-month,
+.schedule-fullscreen-wrapper .schedule-controls .wrap-filter-fullscreen,
+.schedule-fullscreen-wrapper .schedule-controls .wrap-filter-search {
+    padding: 0;
+    width: auto;
+    max-width: none;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls .schedule-filter-year {
+    width: 96px;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls .schedule-filter-month {
+    width: 132px;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls .form-select,
+.schedule-fullscreen-wrapper .schedule-controls .form-control,
+.schedule-fullscreen-wrapper .schedule-controls .btn {
+    height: 38px;
+    min-height: 38px;
+    box-sizing: border-box;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls .btn,
+.schedule-fullscreen-wrapper .schedule-controls .wrap-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls .schedule-btn-fullscreen,
+.schedule-fullscreen-wrapper .schedule-controls .btn-history-modal {
+    width: 38px;
+    min-width: 38px;
+    padding: 0;
+    margin: 0;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls .schedule-controls__search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: auto;
+    margin: 0;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls .table-search {
+    width: 200px;
+    flex: 0 0 200px;
+}
+
+.schedule-attendance-average {
+    display: inline-flex;
+    align-items: baseline;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
+    color: #6c757d;
+    cursor: default;
+}
+
+#schedule-attendance-average-value {
+    margin-left: 0.35rem;
+    font-weight: 600;
+    color: #212529;
+    font-variant-numeric: tabular-nums;
+}
+
+#schedule-table tfoot td {
+    font-weight: 500;
+    background-color: #f8f9fa;
+    vertical-align: middle;
+    color: #868e96;
+}
+
+#schedule-table tfoot .sticky-col-1,
+#schedule-table tfoot .sticky-col-2 {
+    background-color: #f8f9fa;
+}
+
+#schedule-table tfoot .schedule-attendance-total-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #868e96;
+}
+
+#schedule-table tfoot .schedule-attendance-day {
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.2;
+    color: #868e96;
+    font-variant-numeric: tabular-nums;
 }

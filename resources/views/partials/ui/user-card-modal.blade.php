@@ -40,6 +40,24 @@
 @push('styles')
     <link rel="stylesheet" href="{{ asset('plugins/flag-icon-css/css/flag-icon.css') }}">
     <link rel="stylesheet" href="{{ asset('css/user-card-modal.css') }}?v={{ @filemtime(public_path('css/user-card-modal.css')) ?: time() }}">
+    {{-- Тот же набор, что в resources/css/kids-tooltip.css: vite-файл кэшируется на год, страница должна получить правило сразу. --}}
+    <style>
+        table.dataTable.dt-columns-managed td.dt-col-list > .kids-hover-list-dropdown__trigger {
+            display: block;
+            max-width: var(--dt-col-ellipsis-max, 18rem);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        table.dataTable.dt-columns-managed td.dt-col-list .kids-hover-list-dropdown__trigger .dt-cell-ellipsis {
+            display: inline;
+            max-width: none;
+            overflow: visible;
+            text-overflow: clip;
+            vertical-align: baseline;
+        }
+    </style>
 @endpush
 
 @push('scripts')

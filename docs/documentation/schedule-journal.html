@@ -75,6 +75,18 @@
   </div>
 
   <div class="ok">
+    <strong>Посещаемость месяца (2026‑10).</strong>
+    Над таблицей — «Средняя посещаемость»: сумма статусов «Посетил» / число тренировок.
+    Тренировка — пара «слот + дата» с хотя бы одним «Посетил».
+    Внизу таблицы строка «Итого»: сумма «Посетил» по каждой дате.
+    Если посещений нет, ячейка пустая. Числа серые, 11px, начертание 500.
+    Считается по году, месяцу и фильтру групп, по всем ученикам выборки (не по странице и не по поиску <code>q</code>).
+    После AJAX журнал отдаёт <code>result.attendance</code>.
+    Подробно — <a href="#journal-attendance">§5.4</a>;
+    анонс — <a href="/doc#journal-attendance-index">/doc</a>.
+  </div>
+
+  <div class="ok">
     <strong>Фильтр групп Select2 (2026‑09).</strong>
     Несколько групп, чекбоксы и поиск — <code>KidsCrmGenericMultiselectSelect2</code>
     как «Тренеры» в редактировании группы. Пусто — все; <code>none</code> — без группы;
@@ -763,6 +775,70 @@
     <code>ScheduleJournalConsumingCountColumnNonAjaxSafetyNetFeatureTest</code>
     (<code>consuming_count</code> в JSON),
     <code>BladeInlineJsSyntaxTest::test_schedule_journal_consuming_count_column_blade_and_js_contract</code>.
+  </p>
+
+  <h3 id="journal-attendance">5.4) Средняя посещаемость и строка «Итого»</h3>
+  <div class="ok">
+    Над фильтрами журнала — блок <code>#schedule-attendance-average</code>:
+    «Средняя посещаемость: <code>#schedule-attendance-average-value</code>».
+    Это подпись, не поле и не кнопка: без рамки, фона и высоты соседних селектов.
+    Подпись серая, число тёмное.
+    Под днями таблицы — <code>tfoot tr.schedule-attendance-total</code>,
+    подпись «Итого» в колонке ФИО, в каждой дате
+    <code>td.schedule-attendance-day[data-date]</code>.
+    Если за дату посещений нет, ячейка пустая.
+    Числа в строке — 11px, начертание 500, цвет <code>#868e96</code>; подпись «Итого» — 12px, тот же цвет.
+    Фон строки <code>#f8f9fa</code>. Если тренировок нет — среднее «—».
+  </div>
+  <p>
+    Формула: <b>сумма всех «Посетил»</b> (<code>lesson_occurrence_statuses.code = attended</code>,
+    актуальный статус занятия) / <b>число тренировок</b>.
+    Тренировка — уникальная пара <code>team_schedule_slot_id</code> + дата, на которой есть
+    хотя бы один «Посетил». Занятие без «Посетил» (запись, не посетил, отмена, пустая ячейка)
+    в знаменатель не входит. Несколько «Посетил» одного ученика в один день (разные слоты или ×N)
+    входят в числитель по отдельности; один слот в одну дату — одна тренировка, даже если пришли несколько учеников.
+    Округление среднего — один знак, разделитель запятая (<code>7,4</code>).
+  </p>
+  <p>
+    Область расчёта — <code>ScheduleJournalMonthService::attendanceSummary</code>
+    и <code>ScheduleController::journalAttendanceStudentIds</code>:
+    год и месяц страницы, фильтр групп как у дней таблицы
+    (одна группа, несколько id, «Все группы», «Без группы»),
+    ограничение «свои группы». Поиск <code>q</code> и пагинация (100 учеников)
+    на сумму и среднее <b>не влияют</b>: в «Итого» входят ученики других страниц и те,
+    кого поиск скрыл. Смена статуса в ячейке без reload: ответы
+    <code>POST /schedule/update</code>, удаления занятия и постановок
+    предоплаты / пробного / разового содержат <code>result.attendance</code>
+    (<code>by_date</code>, <code>attended_total</code>, <code>trainings_count</code>,
+    <code>average</code>, <code>average_label</code>).
+    JS <code>applyJournalAttendance</code> в <code>resources/js/schedule.js</code>
+    и hotfix <code>public/js/schedule-journal.js</code> (тексты функций совпадают)
+    обновляет подпись и строку «Итого».
+    Если в ответе нет <code>result.attendance</code>, подпись и дни не затираются.
+    Пустой <code>average_label</code> показывается как «—».
+    День без ключа в <code>by_date</code>, нечисло, ноль и значение меньше единицы — пустая ячейка.
+    Положительное число пишется как есть.
+    Вызов стоит во всех трёх ветках перерисовки ячейки: удаление, ×N без смены значка, обычная покраска.
+    Правка статуса, удаление, постановка предоплаты и пустая ячейка (пробное и разовое)
+    шлют <code>journal_team_ids</code> и <code>journal_team_filter</code>.
+    Раскладка fixed по-прежнему перезагружает страницу и среднее не патчит.
+    В расчёт входят только включённые ученики системной роли <code>user</code> текущего партнёра.
+  </p>
+  <p>
+    Это не колонка «кол-во тренировок» (§5.3): там статусы с <code>consumes_lesson</code>,
+    включая «Не посетил». Ноль в обеих строках — пустая ячейка, не цифра 0.
+    Это не столбец «Ср. посещаемость» отчёта «Платежи по группам»:
+    там DISTINCT учеников на занятие, округление до целого, неактивные ученики входят
+    (<a href="/doc#reports-ltv-teams-avg-attendance-index">анонс</a>).
+    «Итого» нагрузки тренеров и <code>trainings_count</code> ЗП — зачёт тренеру, не эта строка.
+  </p>
+  <p class="small">
+    Тесты: <code>ScheduleJournalAttendanceSummaryFeatureTest</code>,
+    <code>ScheduleJournalAttendanceAccessFeatureTest</code>,
+    <code>ScheduleJournalAttendanceAjaxContractFeatureTest</code>,
+    <code>ScheduleJournalAttendanceNonAjaxSafetyNetFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_schedule_journal_attendance_average_keeps_totals_unless_response_has_attendance</code>.
+    Анонс: <a href="/doc#journal-attendance-index">/doc</a>.
   </p>
 
   <h2 id="visited-trainer">6) Статус занятия и тренер при «Посетил»</h2>

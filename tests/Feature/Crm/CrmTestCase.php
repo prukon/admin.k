@@ -228,6 +228,17 @@ abstract class CrmTestCase extends TestCase
         }
     }
 
+    protected function grantPartnerRolePermission(User $actor, string $permissionName): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id' => (int) ($actor->partner_id ?: $this->partner->id),
+            'role_id' => (int) $actor->role_id,
+            'permission_id' => $this->permissionId($permissionName),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     // Авторизация superadmin
     protected function asSuperadmin(): self
     {

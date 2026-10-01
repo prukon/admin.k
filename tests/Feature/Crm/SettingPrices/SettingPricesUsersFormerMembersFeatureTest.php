@@ -126,6 +126,8 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
 
     public function test_save_user_year_prices_rejects_former_member(): void
     {
+        $this->teamSync->syncTeamsForStudent($this->student, [(int) $this->dubl->id]);
+
         UserPrice::forceCreate([
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
@@ -133,8 +135,6 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'price_cents' => 326700,
             'is_paid' => 0,
         ]);
-
-        $this->teamSync->syncTeamsForStudent($this->student, [(int) $this->dubl->id]);
 
         $this->postJson(route('setting-prices.user-year-prices.save'), [
             'user_id' => $this->student->id,
@@ -287,6 +287,8 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
 
     public function test_save_current_team_still_works_while_former_history_exists(): void
     {
+        $this->teamSync->syncTeamsForStudent($this->student, [(int) $this->dubl->id]);
+
         UserPrice::forceCreate([
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
@@ -301,7 +303,6 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'price_cents' => 50000,
             'is_paid' => 0,
         ]);
-        $this->teamSync->syncTeamsForStudent($this->student, [(int) $this->dubl->id]);
 
         $this->postJson(route('setting-prices.user-year-prices.save'), [
             'user_id' => $this->student->id,

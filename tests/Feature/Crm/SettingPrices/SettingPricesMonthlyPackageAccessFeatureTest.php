@@ -195,6 +195,7 @@ final class SettingPricesMonthlyPackageAccessFeatureTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantLessonPackageTypePermissions($this->user, ['fixed', 'flexible', 'no_schedule']);
+        $this->grantPartnerRolePermission($this->user, 'setPrices.applyAllTeams.manage');
 
         $page = $this->get(route('admin.settingPrices.indexMenu'));
         $page->assertOk();

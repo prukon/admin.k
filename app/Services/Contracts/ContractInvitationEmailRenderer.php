@@ -58,18 +58,16 @@ final class ContractInvitationEmailRenderer
         $contract->loadMissing('templateVersion.template.partner');
 
         $documentsUrl = $this->documentsUrl($contract, $student);
-        $childFullName = trim($student->fullNameWithPatronymic());
-        if ($childFullName === '') {
-            $childFullName = trim(($student->lastname ?? '') . ' ' . ($student->name ?? ''));
-        }
+        $childFullName = $this->studentFullName($student);
 
         $partnerTitle = trim((string) ($contract->templateVersion?->template?->partner?->title ?? ''));
         $partnerName = $partnerTitle !== '' ? $partnerTitle : self::FALLBACK_PARTNER_NAME;
 
         $values = [
-            ContractTemplateEmailDefaults::PLACEHOLDER_DOCUMENTS_URL   => $documentsUrl,
-            ContractTemplateEmailDefaults::PLACEHOLDER_CHILD_FULL_NAME => $childFullName,
-            ContractTemplateEmailDefaults::PLACEHOLDER_PARTNER_NAME    => $partnerName,
+            ContractTemplateEmailDefaults::PLACEHOLDER_DOCUMENTS_URL    => $documentsUrl,
+            ContractTemplateEmailDefaults::PLACEHOLDER_ADDRESSEE_NAME   => $this->addresseeFullName($student, $childFullName),
+            ContractTemplateEmailDefaults::PLACEHOLDER_CHILD_FULL_NAME  => $childFullName,
+            ContractTemplateEmailDefaults::PLACEHOLDER_PARTNER_NAME     => $partnerName,
             ContractTemplateEmailDefaults::PLACEHOLDER_FILL_DEADLINE   => $this->formatFillDeadline($contract->fill_expires_at),
             ContractTemplateEmailDefaults::PLACEHOLDER_CONTRACT_ID     => (string) $contract->id,
         ];
@@ -84,6 +82,27 @@ final class ContractInvitationEmailRenderer
         }
 
         return $escaped;
+    }
+
+    private function studentFullName(User $student): string
+    {
+        $fullName = trim($student->fullNameWithPatronymic());
+        if ($fullName === '') {
+            $fullName = trim(($student->lastname ?? '') . ' ' . ($student->name ?? ''));
+        }
+
+        return $fullName;
+    }
+
+    /**
+     * Полное ФИО родителя. Если родителя нет или ФИО пустое — полное ФИО клиента договора.
+     */
+    private function addresseeFullName(User $student, string $studentFullName): string
+    {
+        $student->loadMissing('parentProfile');
+        $parentName = trim((string) $student->parent_full_name);
+
+        return $parentName !== '' ? $parentName : $studentFullName;
     }
 
     public function documentsUrl(Contract $contract, User $student): string
