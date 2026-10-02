@@ -189,6 +189,7 @@ final class LtvTeamsReportFeatureTest extends CrmTestCase
         $this->assertArrayHasKey('Группа-Альфа', $byTitle);
         $this->assertSame(2, (int) $byTitle['Группа-Альфа']['payment_count']);
         $this->assertEquals(1500.0, (float) $byTitle['Группа-Альфа']['total_price']);
+        $this->assertEquals(750.0, (float) $byTitle['Группа-Альфа']['avg_check']);
         $this->assertStringContainsString('Иванов', (string) $byTitle['Группа-Альфа']['user_names']);
         $this->assertSame(['Иванов Пётр'], $byTitle['Группа-Альфа']['user_names_items']);
         $this->assertSame((int) $teamA->id, (int) $byTitle['Группа-Альфа']['team_id']);
@@ -200,12 +201,14 @@ final class LtvTeamsReportFeatureTest extends CrmTestCase
         $this->assertArrayHasKey('Группа-Бета', $byTitle);
         $this->assertSame(1, (int) $byTitle['Группа-Бета']['payment_count']);
         $this->assertEquals(2000.0, (float) $byTitle['Группа-Бета']['total_price']);
+        $this->assertEquals(2000.0, (float) $byTitle['Группа-Бета']['avg_check']);
         $this->assertSame(['Сидорова Анна'], $byTitle['Группа-Бета']['user_names_items']);
 
         $this->assertArrayHasKey('Без группы', $byTitle);
         $this->assertSame(0, (int) $byTitle['Без группы']['team_id']);
         $this->assertSame(1, (int) $byTitle['Без группы']['payment_count']);
         $this->assertEquals(700.0, (float) $byTitle['Без группы']['total_price']);
+        $this->assertEquals(700.0, (float) $byTitle['Без группы']['avg_check']);
         $this->assertTrue(
             $byTitle['Без группы']['avg_attendance'] === null
             || $byTitle['Без группы']['avg_attendance'] === ''

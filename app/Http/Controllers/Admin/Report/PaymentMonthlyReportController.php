@@ -186,6 +186,9 @@ class PaymentMonthlyReportController extends AdminBaseController
             ->addColumn('total_sum', function ($row) {
                 return round(((int) $row->total_sum_cents) / 100, 2);
             })
+            ->addColumn('avg_check', function ($row) {
+                return $this->averageCheckRubles((int) $row->total_sum_cents, (int) $row->payments_count);
+            })
             ->orderColumn('month_title', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $query->orderBy('month_start', $dir);
@@ -197,6 +200,10 @@ class PaymentMonthlyReportController extends AdminBaseController
             ->orderColumn('total_sum', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $query->orderBy('total_sum_cents', $dir);
+            })
+            ->orderColumn('avg_check', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderByRaw('(SUM(payments.summ_cents) / NULLIF(COUNT(*), 0)) '.$dir);
             })
             // Без второго аргумента true: иначе Yajra autoFilter ищет payments.payments_count (42S22).
             ->filter(function ($query) use ($request, $partnerId): void {
@@ -367,6 +374,15 @@ class PaymentMonthlyReportController extends AdminBaseController
         }
 
         return $paymentsQuery->orderBy('payments.operation_date', 'desc');
+    }
+
+    private function averageCheckRubles(int $sumCents, int $count): float
+    {
+        if ($count <= 0) {
+            return 0.0;
+        }
+
+        return round($sumCents / $count / 100);
     }
 
     private function resolvePaymentProvider(object $row): string

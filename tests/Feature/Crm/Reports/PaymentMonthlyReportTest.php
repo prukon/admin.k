@@ -167,6 +167,10 @@ class PaymentMonthlyReportTest extends CrmTestCase
 
         $totalSum = collect($response['data'])->sum(fn ($row) => (float) $row['total_sum']);
         $this->assertEquals(1000.0, $totalSum);
+        $month = collect($response['data'])->first();
+        $this->assertNotNull($month);
+        $this->assertEquals(1000.0, (float) $month['avg_check']);
+        $this->assertSame(1, (int) $month['payments_count']);
     }
 
     public function test_payment_monthly_filters_by_user_status_inactive_and_all(): void

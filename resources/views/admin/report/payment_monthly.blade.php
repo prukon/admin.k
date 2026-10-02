@@ -90,6 +90,10 @@
                                 <input class="form-check-input payments-monthly-column-toggle" type="checkbox" id="monthlyColSum" data-column-key="total_sum" checked>
                                 <label class="form-check-label" for="monthlyColSum">Сумма платежей</label>
                             </div>
+                            <div class="form-check">
+                                <input class="form-check-input payments-monthly-column-toggle" type="checkbox" id="monthlyColAvgCheck" data-column-key="avg_check" checked>
+                                <label class="form-check-label" for="monthlyColAvgCheck">Ср. чек</label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -219,6 +223,7 @@
             <th>Месяц</th>
             <th>Количество платежей</th>
             <th>Сумма платежей</th>
+            <th>Ср. чек</th>
         </tr>
     </thead>
 </table>
@@ -595,7 +600,8 @@
                     defaults: {
                         month_title: true,
                         payments_count: true,
-                        total_sum: true
+                        total_sum: true,
+                        avg_check: true
                     },
                     urls: {
                         get: @json(route('reports.payments.monthly.columns-settings.get')),
@@ -641,6 +647,7 @@
                     { key: 'month_title', type: 'text', data: 'month_title', name: 'month_title' },
                     { key: 'payments_count', type: 'count', data: 'payments_count', name: 'payments_count', searchable: false },
                     { key: 'total_sum', type: 'money', data: 'total_sum', name: 'total_sum', searchable: false, suffix: ' ₽' },
+                    { key: 'avg_check', type: 'money', data: 'avg_check', name: 'avg_check', searchable: false, suffix: ' ₽' },
                     {
                         key: 'month_key',
                         type: 'text',

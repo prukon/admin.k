@@ -190,6 +190,9 @@ class LtvTeamsReportController extends AdminBaseController
             ->addColumn('total_price', function ($row) {
                 return round(((int) $row->total_price_cents) / 100, 2);
             })
+            ->addColumn('avg_check', function ($row) {
+                return $this->averageCheckRubles((int) $row->total_price_cents, (int) $row->payment_count);
+            })
             ->orderColumn('avg_attendance', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $query->orderByRaw('avg_attendance IS NULL, avg_attendance '.$dir);
@@ -201,6 +204,10 @@ class LtvTeamsReportController extends AdminBaseController
             ->orderColumn('payment_count', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $query->orderBy('payment_count', $dir);
+            })
+            ->orderColumn('avg_check', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderByRaw('(SUM(payments.summ_cents) / NULLIF(COUNT(payments.id), 0)) '.$dir);
             })
             ->filter(function ($query) use ($request, $partnerId): void {
                 $this->applyLtvTeamsDataTableSearch($query, $request, $partnerId);
@@ -329,6 +336,15 @@ class LtvTeamsReportController extends AdminBaseController
                 {$teamTitleExpr} as team_title
             ")
             ->orderBy('payments.operation_date', 'desc');
+    }
+
+    private function averageCheckRubles(int $sumCents, int $count): float
+    {
+        if ($count <= 0) {
+            return 0.0;
+        }
+
+        return round($sumCents / $count / 100);
     }
 
     private function resolvePaymentProvider(object $row): string

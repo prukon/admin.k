@@ -87,6 +87,7 @@ final class ReportsDatatableSearchFeatureTest extends CrmTestCase
             $col('team_title', 'team_title'),
             $col('total_price', 'total_price'),
             $col('payment_count', 'payment_count'),
+            $col('avg_check', 'avg_check'),
             $col('first_payment_date', 'first_payment_date'),
             $col('last_payment_date', 'last_payment_date'),
             $col('is_enabled', 'is_enabled'),
@@ -647,6 +648,7 @@ final class ReportsDatatableSearchFeatureTest extends CrmTestCase
         $this->assertMatchesRegularExpression("/name:\\s*'team_title'/", $html);
         $this->assertMatchesRegularExpression("/name:\\s*'total_price'[^\\n]*searchable:\\s*false/", $html);
         $this->assertMatchesRegularExpression("/name:\\s*'payment_count'[^\\n]*searchable:\\s*false/", $html);
+        $this->assertMatchesRegularExpression("/name:\\s*'avg_check'[^\\n]*searchable:\\s*false/", $html);
         $this->assertMatchesRegularExpression("/name:\\s*'first_payment_date'\\s*,\\s*searchable:\\s*false/", $html);
         $this->assertMatchesRegularExpression("/name:\\s*'last_payment_date'\\s*,\\s*searchable:\\s*false/", $html);
         $this->assertMatchesRegularExpression("/name:\\s*'is_enabled'\\s*,\\s*searchable:\\s*false/", $html);

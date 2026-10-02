@@ -209,6 +209,7 @@ final class LtvLocationsReportFeatureTest extends CrmTestCase
         $this->assertArrayHasKey('Объект-Альфа', $byName);
         $this->assertSame(2, (int) $byName['Объект-Альфа']['payment_count']);
         $this->assertEquals(1500.0, (float) $byName['Объект-Альфа']['total_price']);
+        $this->assertEquals(750.0, (float) $byName['Объект-Альфа']['avg_check']);
         $this->assertStringContainsString('Иванов', (string) $byName['Объект-Альфа']['user_names']);
         $this->assertSame(['Иванов Пётр'], $byName['Объект-Альфа']['user_names_items']);
         $this->assertSame((int) $locA->id, (int) $byName['Объект-Альфа']['location_id']);
@@ -220,12 +221,14 @@ final class LtvLocationsReportFeatureTest extends CrmTestCase
         $this->assertArrayHasKey('Объект-Бета', $byName);
         $this->assertSame(1, (int) $byName['Объект-Бета']['payment_count']);
         $this->assertEquals(2000.0, (float) $byName['Объект-Бета']['total_price']);
+        $this->assertEquals(2000.0, (float) $byName['Объект-Бета']['avg_check']);
         $this->assertSame(['Сидорова Анна'], $byName['Объект-Бета']['user_names_items']);
 
         $this->assertArrayHasKey('Без объекта', $byName);
         $this->assertSame(0, (int) $byName['Без объекта']['location_id']);
         $this->assertSame(1, (int) $byName['Без объекта']['payment_count']);
         $this->assertEquals(700.0, (float) $byName['Без объекта']['total_price']);
+        $this->assertEquals(700.0, (float) $byName['Без объекта']['avg_check']);
         $this->assertTrue(
             $byName['Без объекта']['avg_attendance'] === null
             || $byName['Без объекта']['avg_attendance'] === ''

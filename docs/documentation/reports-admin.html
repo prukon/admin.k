@@ -87,8 +87,8 @@
   <ul>
     <li><b>Платежи</b> — только ФИО и группа. Подробно: <a href="/docs/documentation/reports-payments#datatable-search">reports-payments §1.2</a>.</li>
     <li><b>LTV</b> — только ФИО и группа (снимок <code>payments.team_title</code>, <code>teams.title</code> по <code>payments.team_id</code>, pivot). Агрегаты в SQL не попадают. §4 ниже.</li>
-    <li><b>Платежи по группам</b> — название группы и ФИО учеников (<code>applyLtvTeamsDataTableSearch</code>), не сумма и не «Ср. посещаемость». §<a href="#ltv-teams">4.1</a>.</li>
-    <li><b>Платежи по объектам</b> — название объекта и ФИО учеников (<code>applyLtvLocationsDataTableSearch</code>), не сумма и не «Ср. посещаемость». §<a href="#ltv-locations">4.2</a>.</li>
+    <li><b>Платежи по группам</b> — название группы и ФИО учеников (<code>applyLtvTeamsDataTableSearch</code>), не сумма, не «Ср. посещаемость» и не «Ср. чек». §<a href="#ltv-teams">4.1</a>.</li>
+    <li><b>Платежи по объектам</b> — название объекта и ФИО учеников (<code>applyLtvLocationsDataTableSearch</code>), не сумма, не «Ср. посещаемость» и не «Ср. чек». §<a href="#ltv-locations">4.2</a>.</li>
     <li><b>Платежи по месяцам</b> — ФИО, группа и заголовок месяца (<code>YYYY-MM</code> / «Январь 2026»). §5 ниже.</li>
     <li><b>Платежные запросы</b> — ФИО, партнёр, <code>provider_inv_id</code>, числовой <code>id</code>. §6 ниже.</li>
     <li>Пустая строка / пробелы — без доп. фильтра. <code>%</code> и <code>_</code> экранируются.</li>
@@ -570,8 +570,9 @@
         <li><code>POST /admin/reports/ltv/columns-settings</code> (<code>reports.ltv.columns-settings.save</code>)</li>
         <li>Хранение: <code>user_table_settings.table_key = reports_ltv</code></li>
         <li>«Показать N»: <code>page_length</code> в той же строке; вложенная таблица платежей ученика не сохраняет N (§1.1)</li>
-        <li>Ключи: <code>user_name</code>, <code>team_title</code>, <code>total_price</code>, <code>payment_count</code>, <code>first_payment_date</code>, <code>last_payment_date</code>, <code>is_enabled</code></li>
-        <li><b>Поиск DataTables</b> (<code>search.value</code>): только ФИО ученика и название группы. Агрегаты <code>payment_count</code> / даты / <code>is_enabled</code> в SQL <code>WHERE</code> не попадают (это не колонки <code>payments</code>; иначе <code>QueryException</code> 42S22, Ajax error tn/7).
+        <li>Ключи: <code>user_name</code>, <code>team_title</code>, <code>total_price</code>, <code>payment_count</code>, <code>avg_check</code>, <code>first_payment_date</code>, <code>last_payment_date</code>, <code>is_enabled</code></li>
+        <li><b>«Ср. чек»</b> (<code>avg_check</code>) — после «Кол-во платежей»: <code>round(SUM(summ_cents) / COUNT(*) / 100)</code> по строке ученика, целые рубли без копеек. При нуле платежей — <code>0</code>. Сортировка <code>SUM(payments.summ_cents) / NULLIF(COUNT(payments.id), 0)</code> (алиас агрегата в выражении MySQL не принимает). Шапка «Общая сумма» не меняется. Анонс — <a href="/doc#reports-avg-check-index">/doc#reports-avg-check-index</a>.</li>
+        <li><b>Поиск DataTables</b> (<code>search.value</code>): только ФИО ученика и название группы. Агрегаты <code>payment_count</code> / <code>avg_check</code> / даты / <code>is_enabled</code> в SQL <code>WHERE</code> не попадают (это не колонки <code>payments</code>; иначе <code>QueryException</code> 42S22, Ajax error tn/7).
           Реализация: <code>LtvReportController::applyLtvDataTableSearch</code> и <code>filter($callback)</code> <b>без</b> второго аргумента.
           В Yajra <code>filter($cb, true)</code> включает <code>autoFilter</code> (дефолтный поиск по колонкам таблицы) — так и ломался живой поиск.
           Сводка по четырём отчётам — §1.2, <a href="/doc#reports-datatable-search-index">анонс</a>.</li>
@@ -620,8 +621,9 @@
       <ul>
         <li><code>GET /admin/reports/ltv/teams/columns-settings</code> / POST save (<code>ColumnsSettingsWithPageLengthSaveRequest</code>)</li>
         <li><code>user_table_settings.table_key = reports_ltv_teams</code>, «Показать N» — <code>$ltvTeamsPageLength</code></li>
-        <li>Ключи: <code>team_title</code>, <code>user_names</code>, <code>avg_attendance</code>, <code>total_price</code>, <code>payment_count</code>, <code>first_payment_date</code>, <code>last_payment_date</code>, <code>is_enabled</code></li>
-        <li>Поиск DataTables: название группы и ФИО (<code>applyLtvTeamsDataTableSearch</code>, <code>filter($callback)</code> без второго аргумента). Сумма / ср. посещаемость / счётчик / даты / статус в LIKE не входят.</li>
+        <li>Ключи: <code>team_title</code>, <code>user_names</code>, <code>avg_attendance</code>, <code>total_price</code>, <code>payment_count</code>, <code>avg_check</code>, <code>first_payment_date</code>, <code>last_payment_date</code>, <code>is_enabled</code></li>
+        <li><b>«Ср. чек»</b> (<code>avg_check</code>) — после «Кол-во платежей»: сумма строки группы / число её платежей, целые рубли. Анонс — <a href="/doc#reports-avg-check-index">/doc#reports-avg-check-index</a>.</li>
+        <li>Поиск DataTables: название группы и ФИО (<code>applyLtvTeamsDataTableSearch</code>, <code>filter($callback)</code> без второго аргумента). Сумма / ср. чек / ср. посещаемость / счётчик / даты / статус в LIKE не входят.</li>
       </ul>
     </li>
     <li>Сайдбар «Отчеты»: <code>reports.view</code> <b>или</b> <code>reports.ltv.teams.view</code>. Без <code>reports.view</code> href = эта вкладка; Select2 ученик/группа/тренер — <code>can:reports.ltv.teams.view</code> на <code>GET …/ltv/teams/users-search|teams-search|trainers-search</code> (не общий <code>payments/*-search</code>).</li>
@@ -654,8 +656,9 @@
       <ul>
         <li><code>GET /admin/reports/ltv/locations/columns-settings</code> / POST save (<code>ColumnsSettingsWithPageLengthSaveRequest</code>)</li>
         <li><code>user_table_settings.table_key = reports_ltv_locations</code>, «Показать N» — <code>$ltvLocationsPageLength</code></li>
-        <li>Ключи: <code>location_name</code>, <code>user_names</code>, <code>avg_attendance</code>, <code>total_price</code>, <code>payment_count</code>, <code>first_payment_date</code>, <code>last_payment_date</code>, <code>is_enabled</code></li>
-        <li>Поиск DataTables: название объекта и ФИО (<code>applyLtvLocationsDataTableSearch</code>, <code>filter($callback)</code> без второго аргумента). Сумма / ср. посещаемость / счётчик / даты / статус в LIKE не входят.</li>
+        <li>Ключи: <code>location_name</code>, <code>user_names</code>, <code>avg_attendance</code>, <code>total_price</code>, <code>payment_count</code>, <code>avg_check</code>, <code>first_payment_date</code>, <code>last_payment_date</code>, <code>is_enabled</code></li>
+        <li><b>«Ср. чек»</b> (<code>avg_check</code>) — после «Кол-во платежей»: сумма строки объекта / число её платежей, целые рубли. Анонс — <a href="/doc#reports-avg-check-index">/doc#reports-avg-check-index</a>.</li>
+        <li>Поиск DataTables: название объекта и ФИО (<code>applyLtvLocationsDataTableSearch</code>, <code>filter($callback)</code> без второго аргумента). Сумма / ср. чек / ср. посещаемость / счётчик / даты / статус в LIKE не входят.</li>
       </ul>
     </li>
     <li>Сайдбар «Отчеты»: <code>reports.view</code> <b>или</b> <code>reports.ltv.teams.view</code> <b>или</b> <code>reports.ltv.locations.view</code>. Без <code>reports.view</code> href = группы, иначе эта вкладка; Select2 — <code>can:reports.ltv.locations.view</code> на <code>GET …/ltv/locations/users-search|teams-search|trainers-search</code> (не общий <code>payments/*-search</code>).</li>
@@ -687,12 +690,13 @@
         <li><code>POST /admin/reports/payments/monthly/columns-settings</code> (<code>reports.payments.monthly.columns-settings.save</code>)</li>
         <li>Хранение: <code>user_table_settings.table_key = reports_payments_monthly</code></li>
         <li>«Показать N»: <code>page_length</code> основной таблицы; детализация месяца не сохраняет N (§1.1)</li>
-        <li>Ключи: <code>month_title</code>, <code>payments_count</code>, <code>total_sum</code></li>
+        <li>Ключи: <code>month_title</code>, <code>payments_count</code>, <code>total_sum</code>, <code>avg_check</code></li>
+        <li><b>«Ср. чек»</b> (<code>avg_check</code>) — после «Сумма платежей»: сумма месяца / число платежей месяца, целые рубли. Анонс — <a href="/doc#reports-avg-check-index">/doc#reports-avg-check-index</a>.</li>
         <li><b>Поиск DataTables</b> (<code>search.value</code>): ФИО ученика, название группы и заголовок месяца
-          (ключ <code>YYYY-MM</code> и русское имя, в т.ч. «Январь 2026»). Счётчик и сумма в SQL не попадают.
+          (ключ <code>YYYY-MM</code> и русское имя, в т.ч. «Январь 2026»). Счётчик, сумма и «Ср. чек» в SQL не попадают.
           Реализация: <code>PaymentMonthlyReportController::applyMonthlyDataTableSearch</code> и <code>filter($callback)</code> <b>без</b> второго аргумента
           (иначе Yajra autoFilter ищет <code>payments.payments_count</code> → 42S22).
-          В UI у <code>payments_count</code> / <code>total_sum</code> стоит <code>searchable: false</code>; у <code>month_title</code> — нет.
+          В UI у <code>payments_count</code> / <code>total_sum</code> / <code>avg_check</code> стоит <code>searchable: false</code>; у <code>month_title</code> — нет.
           Вложенная таблица месяца (<code>dom: 'rtip'</code>, без поля поиска) при <code>draw</code> ищет только ФИО и группу.
           Пустая строка/пробелы — без доп. фильтра. Шапка total <code>search.value</code> не учитывает.
           Сводка — §1.2, <a href="/doc#reports-datatable-search-index">анонс</a>.</li>

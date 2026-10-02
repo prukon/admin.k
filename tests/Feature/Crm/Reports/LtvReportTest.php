@@ -224,7 +224,9 @@ class LtvReportTest extends CrmTestCase
 
         $response = $this->withSession(['current_partner' => $partner->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('reports.ltv.data', ['draw' => 1]))
+            ->get(route('reports.ltv.data', $this->ltvDataTablesBrowserParams([
+                'order' => [['column' => 5, 'dir' => 'desc']],
+            ])))
             ->assertOk()
             ->json();
 
@@ -232,6 +234,7 @@ class LtvReportTest extends CrmTestCase
         $this->assertNotNull($row);
         $this->assertEquals(300.0, (float) $row['total_price']);
         $this->assertEquals(3, (int) $row['payment_count']);
+        $this->assertEquals(100.0, (float) $row['avg_check']);
     }
 
     /**
@@ -261,6 +264,7 @@ class LtvReportTest extends CrmTestCase
                 $col('team_title', 'team_title'),
                 $col('total_price', 'total_price'),
                 $col('payment_count', 'payment_count'),
+                $col('avg_check', 'avg_check'),
                 $col('first_payment_date', 'first_payment_date'),
                 $col('last_payment_date', 'last_payment_date'),
                 $col('is_enabled', 'is_enabled'),
@@ -555,12 +559,14 @@ class LtvReportTest extends CrmTestCase
         $this->assertArrayHasKey('user_name', $row);
         $this->assertArrayHasKey('total_price', $row);
         $this->assertArrayHasKey('payment_count', $row);
+        $this->assertArrayHasKey('avg_check', $row);
         $this->assertArrayHasKey('first_payment_date', $row);
         $this->assertArrayHasKey('last_payment_date', $row);
         $this->assertArrayHasKey('DT_RowIndex', $row);
 
         $this->assertEquals('Петров Пётр', $row['user_name']);
         $this->assertEquals(123.45, (float) $row['total_price']);
+        $this->assertEquals(123.0, (float) $row['avg_check']);
     }
 
     /**

@@ -54,6 +54,7 @@ final class ReportsMonthlyIntentsDatatableSearchFeatureTest extends CrmTestCase
             $col('month_title', 'month_title'),
             $col('payments_count', 'payments_count'),
             $col('total_sum', 'total_sum'),
+            $col('avg_check', 'avg_check'),
             $col('month_key', 'month_key', false),
         ];
     }
@@ -638,6 +639,7 @@ final class ReportsMonthlyIntentsDatatableSearchFeatureTest extends CrmTestCase
         );
         $this->assertMatchesRegularExpression("/name:\\s*'payments_count'[^\\n]*searchable:\\s*false/", $html);
         $this->assertMatchesRegularExpression("/name:\\s*'total_sum'[^\\n]*searchable:\\s*false/", $html);
+        $this->assertMatchesRegularExpression("/name:\\s*'avg_check'[^\\n]*searchable:\\s*false/", $html);
     }
 
     public function test_intents_search_by_lastname_finds_row(): void

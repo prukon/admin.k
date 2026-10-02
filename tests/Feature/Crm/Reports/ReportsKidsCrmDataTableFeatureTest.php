@@ -195,6 +195,8 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
             ->assertSee('data-column-key="user_name"', false)
             ->assertSee('data-column-key="total_price"', false)
             ->assertSee('data-column-key="payment_count"', false)
+            ->assertSee('data-column-key="avg_check"', false)
+            ->assertSee("key: 'avg_check', type: 'money'", false)
             ->assertSee("key: 'total_price', type: 'money'", false);
     }
 
@@ -208,6 +210,8 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
             ->assertSee('data-column-key="month_title"', false)
             ->assertSee('data-column-key="payments_count"', false)
             ->assertSee('data-column-key="total_sum"', false)
+            ->assertSee('data-column-key="avg_check"', false)
+            ->assertSee("key: 'avg_check', type: 'money'", false)
             ->assertSee("key: 'total_sum', type: 'money'", false);
     }
 

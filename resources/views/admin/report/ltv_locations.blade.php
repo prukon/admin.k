@@ -127,6 +127,10 @@
                                 <label class="form-check-label" for="ltvLocationsColCount">Кол-во платежей</label>
                             </div>
                             <div class="form-check">
+                                <input class="form-check-input ltv-locations-column-toggle" type="checkbox" id="ltvLocationsColAvgCheck" data-column-key="avg_check" checked>
+                                <label class="form-check-label" for="ltvLocationsColAvgCheck">Ср. чек</label>
+                            </div>
+                            <div class="form-check">
                                 <input class="form-check-input ltv-locations-column-toggle" type="checkbox" id="ltvLocationsColFirst" data-column-key="first_payment_date" checked>
                                 <label class="form-check-label" for="ltvLocationsColFirst">Перв. платёж</label>
                             </div>
@@ -216,6 +220,7 @@
             <th>Ср. посещаемость</th>
             <th>Сумма</th>
             <th>Кол-во платежей</th>
+            <th>Ср. чек</th>
             <th>Перв. платёж</th>
             <th>Посл. платёж</th>
             <th>Статус</th>
@@ -627,6 +632,7 @@
                         avg_attendance: true,
                         total_price: true,
                         payment_count: true,
+                        avg_check: true,
                         first_payment_date: true,
                         last_payment_date: true,
                         is_enabled: true
@@ -713,6 +719,7 @@
                     },
                     { key: 'total_price', type: 'money', data: 'total_price', name: 'total_price', searchable: false, suffix: ' ₽' },
                     { key: 'payment_count', type: 'count', data: 'payment_count', name: 'payment_count', searchable: false },
+                    { key: 'avg_check', type: 'money', data: 'avg_check', name: 'avg_check', searchable: false, suffix: ' ₽' },
                     {
                         key: 'first_payment_date',
                         type: 'datetime',
