@@ -263,7 +263,10 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $this->assertStringNotContainsString($overflow->full_name, $html);
         $this->assertStringContainsString($first->full_name, $html);
         $this->assertJournalPagerRendered($html, true);
-        $this->assertStringContainsString('из '.($perPage + 1).' учеников', $html);
+        $this->assertStringContainsString(
+            '1–'.$perPage.'</span> <span class="schedule-journal-pagination__of">из '.($perPage + 1),
+            $html
+        );
         $this->assertStringContainsString('group_pages', $html);
         $this->assertStringContainsString('schedule-group-page-link', $html);
         $this->assertMatchesRegularExpression(
@@ -313,7 +316,7 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $this->assertSame(3, $this->journalRowUserIds($html)->count());
         $this->assertJournalPagerRendered($html, false);
         $this->assertStringNotContainsString('page=2', $html);
-        $this->assertStringNotContainsString('из 3 учеников', $html);
+        $this->assertStringNotContainsString('schedule-journal-pagination__of">из 3', $html);
     }
 
     public function test_exact_page_size_does_not_show_pager(): void

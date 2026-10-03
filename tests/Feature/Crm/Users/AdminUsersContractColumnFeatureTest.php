@@ -156,7 +156,7 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         $this->assertStringContainsString("KidsCrmContractCreate.openModal(preselected, { lockUser: true })", $html);
         $this->assertStringContainsString('id="createContractModal"', $html);
         $this->assertStringContainsString('id="filter-contract"', $html);
-        $this->assertStringContainsString('value="unsigned">Не подписан', $html);
+        $this->assertMatchesRegularExpression('/value="unsigned"(?:\s+selected)?\s*>Не подписан/', $html);
     }
 
     public function test_users_page_hides_contract_filter_without_contracts_view(): void

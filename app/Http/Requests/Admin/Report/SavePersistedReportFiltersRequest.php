@@ -99,6 +99,7 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
         if ($this->filterProfile() === PersistedReportFilters::PAYMENTS) {
             $rules['user_name'] = ['nullable', 'string', 'max:255'];
             $rules['team_title'] = ['nullable', 'string', 'max:255'];
+            $rules['payment_source'] = ['nullable', Rule::in(['gateway', 'manual'])];
             $rules['payment_method'] = ['nullable', Rule::in(['card', 'sbp_qr', 'tpay'])];
             $rules['email_newsletter'] = ['nullable', Rule::in(['0', '1', 0, 1])];
             $rules['payment_refund_status'] = ['nullable', Rule::in(['no_refund', 'refunded', 'refund_pending'])];
@@ -141,6 +142,7 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
             'operation_date_from' => 'Дата платежа с',
             'operation_date_to' => 'Дата платежа по',
             'payment_provider' => 'Провайдер',
+            'payment_source' => 'Источник оплаты',
             'payment_method' => 'Способ оплаты',
             'email_newsletter' => 'Email рассылка',
             'payment_refund_status' => 'Статус платежа',
@@ -172,6 +174,7 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
             'operation_date_from.date_format' => 'Укажите дату платежа «с» в формате ГГГГ-ММ-ДД.',
             'operation_date_to.date_format' => 'Укажите дату платежа «по» в формате ГГГГ-ММ-ДД.',
             'payment_provider.in' => 'Выберите провайдера: T-Bank или Robokassa.',
+            'payment_source.in' => 'Выберите источник оплаты: все, платёжная система или ручная оплата.',
             'payment_method.in' => 'Выберите способ оплаты: карта, QR (СБП) или T-Pay.',
             'email_newsletter.in' => 'Выберите значение фильтра «Email рассылка».',
             'payment_refund_status.in' => 'Выберите статус платежа из списка.',

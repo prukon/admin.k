@@ -15,7 +15,7 @@
     $canViewTrainers = $canViewTrainers ?? (auth()->user() && auth()->user()->can('trainers.view'));
     $filterTeams = $filterTeams ?? collect();
     $filterTrainers = $filterTrainers ?? collect();
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider', 'payment_method', 'email_newsletter', 'payment_refund_status', 'bank_commission_acquiring_min', 'bank_commission_acquiring_max', 'bank_commission_payout_min', 'bank_commission_payout_max'];
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_source', 'payment_provider', 'payment_method', 'email_newsletter', 'payment_refund_status', 'bank_commission_acquiring_min', 'bank_commission_acquiring_max', 'bank_commission_payout_min', 'bank_commission_payout_max'];
     $payFilterSelected = function (string $key) use ($filters): array {
         $raw = $filters[$key] ?? null;
         $items = is_array($raw) ? $raw : ($raw === null || $raw === '' ? [] : [$raw]);
@@ -397,6 +397,15 @@
                        value="{{ $filters['operation_date_to'] ?? '' }}">
             </div>
             <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-filter-source">Источник оплаты</label>
+                @php($fpSource = (string) ($filters['payment_source'] ?? ''))
+                <select class="form-select" id="pay-filter-source" name="payment_source">
+                    <option value="" {{ $fpSource === '' ? 'selected' : '' }}>Все</option>
+                    <option value="gateway" {{ $fpSource === 'gateway' ? 'selected' : '' }}>Платёжная система</option>
+                    <option value="manual" {{ $fpSource === 'manual' ? 'selected' : '' }}>Ручная оплата</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
                 <label class="form-label" for="pay-filter-provider">Провайдер</label>
                 @php($fpProvider = $filters['payment_provider'] ?? '')
                 <select class="form-select" id="pay-filter-provider" name="payment_provider">
@@ -753,6 +762,7 @@
                     payment_month: $payFiltersForm.find('[name="payment_month"]').val(),
                     operation_date_from: $payFiltersForm.find('[name="operation_date_from"]').val(),
                     operation_date_to: $payFiltersForm.find('[name="operation_date_to"]').val(),
+                    payment_source: $payFiltersForm.find('[name="payment_source"]').val(),
                     payment_provider: $payFiltersForm.find('[name="payment_provider"]').val(),
                     payment_method: $payFiltersForm.find('[name="payment_method"]').val(),
                     email_newsletter: $payFiltersForm.find('[name="email_newsletter"]').val(),
@@ -974,7 +984,10 @@ columns.push(
         render: function (data, type, row) {
             if (data === 'tbank') return '<span class="badge" style="background-color:#ffdd2d !important; color:black !important;">T-Bank</span>';
             if (data === 'robokassa') return '<span class="badge bg-secondary">Robokassa</span>';
-            return data ? data : '';
+            if (type !== 'display') {
+                return data ? data : '';
+            }
+            return '<span class="text-muted">—</span>';
         }
     },
     {
@@ -1186,6 +1199,10 @@ columns.push(
             function renderPaymentsReceiptCell(data, type, row) {
                 if (type !== 'display') {
                     return row.has_receipt ? 1 : 0;
+                }
+
+                if (!row.payment_provider) {
+                    return '<span class="text-muted">—</span>';
                 }
 
                 if (row.payment_provider !== 'tbank') {
@@ -1451,6 +1468,7 @@ columns.push(
                         }
                     }
                     $('#pay-filter-user-status').val(defaultFilterUserStatus);
+                    $('#pay-filter-source').val('');
                     $payFiltersForm.find('[name="bank_commission_acquiring_min"],[name="bank_commission_acquiring_max"],[name="bank_commission_payout_min"],[name="bank_commission_payout_max"]').val('');
                     refreshPaymentsReportTotal();
                     dtApi.reload();

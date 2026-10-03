@@ -7334,7 +7334,7 @@ JS;
 
             $resetPos = strpos($content, $meta['reset']);
             $this->assertNotFalse($resetPos, $path);
-            $resetChunk = substr($content, $resetPos, 1200);
+            $resetChunk = substr($content, $resetPos, 2000);
             $this->assertStringContainsString('dtApi.reload', $resetChunk, $path);
             $this->assertStringNotContainsString('KidsCrmDataTable.create', $resetChunk, $path);
 

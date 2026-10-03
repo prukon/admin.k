@@ -131,9 +131,18 @@ final class ContractStatusMemoDocumentationContractTest extends TestCase
         $this->assertStringContainsString('renderContractPathTimeline', $index);
         $this->assertStringNotContainsString('lockUser: true', $index);
         $this->assertStringContainsString('Contract::schoolStatusLabel', $index);
-        $this->assertStringContainsString('value="signed">Подписан', $index);
-        $this->assertStringContainsString('value="revoked">Отозван', $index);
-        $this->assertStringContainsString('value="awaiting_client_fill">Ожидает заполнения', $index);
+        $this->assertMatchesRegularExpression(
+            '/value="signed" @selected\(\$listFilters\[\'status\'\] === \'signed\'\)>Подписан/',
+            $index
+        );
+        $this->assertMatchesRegularExpression(
+            '/value="revoked" @selected\(\$listFilters\[\'status\'\] === \'revoked\'\)>Отозван/',
+            $index
+        );
+        $this->assertMatchesRegularExpression(
+            '/value="awaiting_client_fill" @selected\(\$listFilters\[\'status\'\] === \'awaiting_client_fill\'\)>Ожидает заполнения/',
+            $index
+        );
 
         $this->assertStringContainsString('id="contractStatusMemoModal"', $modal);
         $this->assertStringContainsString('class="modal-dialog"', $modal);

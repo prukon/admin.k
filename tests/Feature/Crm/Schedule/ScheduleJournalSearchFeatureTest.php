@@ -136,7 +136,10 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
 
         $this->assertSame($perPage, $this->journalRowUserIds($html)->count());
         $this->assertJournalPagerRendered($html, true);
-        $this->assertStringContainsString('из '.($perPage + 5).' учеников', $html);
+        $this->assertStringContainsString(
+            '1–'.$perPage.'</span> <span class="schedule-journal-pagination__of">из '.($perPage + 5),
+            $html
+        );
         $this->assertStringContainsString('group_pages', $html);
         $this->assertStringContainsString('schedule-group-page-link', $html);
         $this->assertStringContainsString('ЖурналМногоПоиск', $this->searchFormHtml($html));

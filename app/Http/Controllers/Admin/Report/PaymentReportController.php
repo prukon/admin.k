@@ -39,6 +39,7 @@ use App\Http\Requests\Admin\Report\UpdatePaymentUserCardCommentRequest;
 use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
 use App\Services\Reports\PaymentReportUserCard;
+use App\Services\Reports\PaymentsReportLedgerQuery;
 use Illuminate\Http\JsonResponse;
 
 
@@ -472,12 +473,15 @@ class PaymentReportController extends AdminBaseController
             ->where('type', FiscalReceipt::TYPE_INCOME_RETURN)
             ->groupBy('payment_id');
 
+        $ledger = app(PaymentsReportLedgerQuery::class)->union($partnerId);
+
         return Payment::query()
             ->with([
                 'user.teams' => fn ($q) => $q->where('teams.partner_id', $partnerId),
                 'location',
                 'paidTeam:id,title,partner_id',
             ])
+            ->fromSub($ledger, 'payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
             ->leftJoin('locations as payment_location', 'payment_location.id', '=', 'payments.location_id')
             ->leftJoinSub($latestIncomeReceiptSub, 'latest_income_fiscal_receipts', function ($join) {
@@ -614,6 +618,15 @@ SQL;
 
     private function buildRefundActionMeta(Payment $row, int $partnerId, bool $canViewTbankHistory): array
     {
+        if ($this->paymentRowIsManual($row)) {
+            return [
+                'refund_actions_available' => false,
+                'refund_disabled' => false,
+                'refund_disabled_title' => '',
+                'refund_show_history' => false,
+            ];
+        }
+
         $provider = (! empty($row->deal_id) || ! empty($row->payment_id) || ! empty($row->payment_status))
             ? 'tbank'
             : 'robokassa';
@@ -747,7 +760,16 @@ SQL;
      */
     private function paymentRowIsTbankPayment(Payment $row): bool
     {
+        if ($this->paymentRowIsManual($row)) {
+            return false;
+        }
+
         return ! empty($row->deal_id) || ! empty($row->payment_id) || ! empty($row->payment_status);
+    }
+
+    private function paymentRowIsManual(Payment $row): bool
+    {
+        return (string) ($row->payment_origin ?? '') === PaymentsReportLedgerQuery::ORIGIN_MANUAL;
     }
 
     /**
@@ -955,11 +977,19 @@ SQL;
                 return $row->operation_date;
             })
             ->addColumn('payment_provider', function (Payment $row) {
+                if ($this->paymentRowIsManual($row)) {
+                    return '';
+                }
+
                 return (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status))
                     ? 'tbank'
                     : 'robokassa';
             })
             ->addColumn('payment_method_label', function (Payment $row) {
+                if ($this->paymentRowIsManual($row)) {
+                    return 'Ручная оплата';
+                }
+
                 $code = (string) ($row->intent_payment_method_webhook ?? $row->intent_payment_method_init ?? '');
                 if ($code === '') {
                     return '';
@@ -1548,7 +1578,9 @@ SQL;
                     });
                 });
             } elseif ($p === 'robokassa') {
-                $paymentsQuery->where(function ($w) {
+                $paymentsQuery
+                    ->where('payments.payment_origin', PaymentsReportLedgerQuery::ORIGIN_GATEWAY)
+                    ->where(function ($w) {
                     $w->where(function ($x) {
                         $x->whereNull('payments.deal_id')->orWhere('payments.deal_id', '=', '');
                     })->where(function ($x) {
@@ -1558,6 +1590,12 @@ SQL;
                     });
                 });
             }
+        }
+
+        $paymentSource = (string) $request->query('payment_source', '');
+        if ($paymentSource === PaymentsReportLedgerQuery::ORIGIN_GATEWAY
+            || $paymentSource === PaymentsReportLedgerQuery::ORIGIN_MANUAL) {
+            $paymentsQuery->where('payments.payment_origin', $paymentSource);
         }
 
         if ($request->filled('payment_method')) {

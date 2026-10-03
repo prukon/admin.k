@@ -39,12 +39,12 @@ final class ContractSchoolStatusLabelFeatureTest extends ContractsFeatureTestCas
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('value="sent">Отправлено СМС', $html);
-        $this->assertStringContainsString('value="opened">Открыто СМС', $html);
-        $this->assertStringContainsString('value="signed">Подписан', $html);
-        $this->assertStringContainsString('value="revoked">Отозван', $html);
-        $this->assertStringContainsString('value="awaiting_client_fill">Ожидает заполнения', $html);
-        $this->assertStringContainsString('value="draft">Черновик', $html);
+        $this->assertMatchesRegularExpression('/value="sent"(?:\s+selected)?\s*>Отправлено СМС/', $html);
+        $this->assertMatchesRegularExpression('/value="opened"(?:\s+selected)?\s*>Открыто СМС/', $html);
+        $this->assertMatchesRegularExpression('/value="signed"(?:\s+selected)?\s*>Подписан/', $html);
+        $this->assertMatchesRegularExpression('/value="revoked"(?:\s+selected)?\s*>Отозван/', $html);
+        $this->assertMatchesRegularExpression('/value="awaiting_client_fill"(?:\s+selected)?\s*>Ожидает заполнения/', $html);
+        $this->assertMatchesRegularExpression('/value="draft"(?:\s+selected)?\s*>Черновик/', $html);
         $this->assertStringNotContainsString('value="generating_pdf"', $html);
     }
 

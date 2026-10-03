@@ -182,6 +182,10 @@ final class PersistedReportFilters
             return $this->enum($raw, ['tbank', 'robokassa']);
         }
 
+        if ($key === 'payment_source') {
+            return $this->enum($raw, ['gateway', 'manual']);
+        }
+
         if ($key === 'payment_method') {
             return $this->enum($raw, ['card', 'sbp_qr', 'tpay']);
         }
@@ -388,6 +392,7 @@ final class PersistedReportFilters
                 'operation_date_from' => 'scalar',
                 'operation_date_to' => 'scalar',
                 'payment_provider' => 'scalar',
+                'payment_source' => 'scalar',
                 'payment_method' => 'scalar',
                 'email_newsletter' => 'scalar',
                 'payment_refund_status' => 'scalar',

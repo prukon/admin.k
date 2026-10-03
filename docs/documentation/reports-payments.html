@@ -148,6 +148,37 @@
       <code>EmailNewsletterPaymentSourceTest</code>.</li>
   </ul>
 
+  <h2 id="payment-source">2.4) Фильтр «Источник оплаты»</h2>
+  <div class="note">
+    В журнал <code>payments</code> попадают только оплаты T‑Bank и Robokassa.
+    Ручная отметка (<code>is_manual_paid = 1</code>) живёт на начислении и в этот журнал не пишется.
+    Отчёт подмешивает такие отметки отдельными строками.
+    По умолчанию источник — «Все».
+    Анонс: <a href="/doc#reports-payments-manual-source-index">/doc</a>.
+  </div>
+  <ul>
+    <li><b>Фильтр</b> <code>payment_source</code>, select «Источник оплаты» (<code>#pay-filter-source</code>):
+      пусто — <b>Все</b> (журнал и ручные отметки),
+      <code>gateway</code> — <b>Платёжная система</b> (только <code>payments</code>),
+      <code>manual</code> — <b>Ручная оплата</b>.
+      Тот же параметр уходит в DataTables и в <code>GET /admin/reports/payments/total</code>.
+      «Сброс» возвращает «Все». Значение хранится в <code>user_table_settings.filters</code>.</li>
+    <li><b>Ручные строки</b> — три таблицы, только <code>is_manual_paid = 1</code> (явное «не оплачено» и пустой флаг не входят):
+      месяц <code>users_prices</code> (сумма <code>price_cents</code>, месяц <code>new_month</code>),
+      абонемент <code>user_lesson_packages</code> (сумма <code>fee_amount_cents</code>, в колонке месяца «Абонемент»),
+      дополнительный платёж <code>user_custom_payment</code> (сумма <code>amount_cents</code>, в колонке месяца «Дополнительный платеж»).
+      Дата — <code>manual_paid_at</code>. Группа и объект — со снимка <code>team_id</code> / <code>teams.location_id</code>.</li>
+    <li><b>Колонки</b>: «Способ оплаты» — «Ручная оплата». Провайдер, чек, комиссии, выплата и возврат пустые.
+      Id строки отрицательный и не равен <code>payments.id</code>, кнопка «Возврат» не показывается.</li>
+    <li><b>Сумма в шапке</b> включает ручные отметки, когда источник «Все» или «Ручная оплата».
+      «К выплате», комиссия платформы и «Выплата» считаются только по T‑Bank, как раньше.</li>
+    <li><b>Вместе с другими фильтрами</b>: «Провайдер», «Способ оплаты», «Email рассылка = Да» и диапазон комиссии отсекают ручные строки (у них нет шлюза).
+      «Email рассылка = Нет» и статус «Оплата» ручные строки оставляют.
+      Фильтр оплаченного месяца <code>YYYY-MM</code> оставляет месячные отметки и не оставляет абонемент и доп. платёж.</li>
+    <li>Чужой партнёр в выборку не попадает. Ученик отфильтровывается тем же <code>status</code>, что и журнал.</li>
+    <li>Тест: <code>PaymentsReportManualSourceFeatureTest</code>.</li>
+  </ul>
+
   <h2>3) Поля списка (управление видимостью колонок)</h2>
   <div class="note">
     На странице отчёта доступна кнопка <b>“Поля списка”</b> (dropdown «Колонки» в toolbar).
