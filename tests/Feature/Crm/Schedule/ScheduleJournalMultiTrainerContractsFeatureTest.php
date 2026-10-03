@@ -50,7 +50,10 @@ final class ScheduleJournalMultiTrainerContractsFeatureTest extends ScheduleJour
         $this->assertStringContainsString('js-generic-multiselect-select', $html);
         $this->assertStringContainsString('generic-multiselect-field', $html);
         $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2', $html);
-        $this->assertStringContainsString('js/schedule-journal.js', $html);
+        $this->assertStringContainsString(
+            "@vite(['resources/js/schedule.js'])",
+            (string) file_get_contents(resource_path('views/admin/schedule/index.blade.php'))
+        );
         $this->assertStringContainsString('data-placeholder="Без тренера"', $html);
         // Старые одиночные id модалок ячейки/гибкого/empty-cell больше не рендерятся.
         $this->assertDoesNotMatchRegularExpression('/id="cell-trainer-profile-id"(?!s)/', $html);

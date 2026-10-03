@@ -94,6 +94,11 @@
                     <div class="text-danger small mt-1">{{ $message }}</div>
                 @enderror
             </div>
+            <div id="schedule-bulk-bar" class="schedule-bulk-bar d-none">
+                <span id="schedule-bulk-count">Выбрано: 0</span>
+                <button type="button" class="btn btn-primary btn-sm" id="schedule-bulk-add">Добавить занятие</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="schedule-bulk-clear">Снять выделение</button>
+            </div>
             <div class="wrap-filter-fullscreen">
                 <button id="btn-fullscreen" class="btn btn-primary schedule-btn-fullscreen" type="button" aria-label="На весь экран">
                     <i class="fas fa-expand"></i>
@@ -111,7 +116,10 @@
             </div>
             <div class="schedule-journal-table-stack">
             <div class="table-responsive schedule-table-container">
-            <table id="schedule-table" class="table table-bordered schedule-table">
+            <table id="schedule-table" class="table table-bordered schedule-table"
+                   data-group-rows-url="{{ route('schedule.group-rows') }}"
+                   data-group-bulk-url="{{ route('schedule.group-bulk-candidates') }}"
+                   data-group-per-page="{{ \App\Services\Schedule\ScheduleJournalGroupBoardService::PER_PAGE }}">
                 <thead>
                 <tr>
                     <th class="text-center align-middle sticky-col-1 zi-50 col-number">№</th>
@@ -153,9 +161,9 @@
                             $start->addDay();
                         }
                     @endphp
-                    @foreach($days as $day)
-                        <th class="schedule-day-header @if(isset($teamWeekdays) && count($teamWeekdays) && in_array($day->format('N'), $teamWeekdays)) highlight-column @endif"
-                            style="width: 5px; height: 5px;">
+                        @foreach($days as $day)
+                            <th class="schedule-day-header @if(isset($teamWeekdays) && count($teamWeekdays) && in_array($day->format('N'), $teamWeekdays)) highlight-column @endif"
+                            data-date="{{ $day->format('Y-m-d') }}">
                             <div class="d-flex flex-column justify-content-center align-items-center">
                                 <span>{{ $day->format('d') }}</span>
                                 <span>{{ mb_substr($day->locale('ru_RU')->isoFormat('ddd'), 0, 2) }}</span>
@@ -165,309 +173,39 @@
                 </tr>
                 </thead>
                 <tbody>
-                @foreach($users as $index => $user)
-                    @php
-                        $studentTeamIds = $user->teams->pluck('id')->all();
-                        $journalContextTeamId = $journalTeamFilter->contextTeamId($studentTeamIds);
-                        $userAssignments = $journalAssignments[(int) $user->id] ?? [];
-                        $settingPricesPlaceable = collect($userAssignments)->filter(
-                            static fn ($a) => ! empty($a['placeable'])
-                                && ! empty($a['from_setting_prices'])
-                                && (int) ($a['team_id'] ?? 0) > 0
-                        )->values();
-                        $hasPlaceable = $settingPricesPlaceable->isNotEmpty();
-                        $placeableHoverLines = [];
-                        foreach ($settingPricesPlaceable as $assignment) {
-                            $placeableHoverLines[] = \App\Services\Schedule\ScheduleJournalMonthService::fixedAbonementPlaceButtonHoverLine(
-                                (string) ($assignment['name'] ?? 'Абонемент'),
-                                (int) ($assignment['lessons_remaining'] ?? 0),
-                                (int) ($assignment['lessons_total'] ?? 0),
-                                (int) ($assignment['fee_amount_cents'] ?? 0),
-                            );
-                        }
-                        $placeableHoverText = implode("\n", $placeableHoverLines);
-                        $userFlexibleAssignments = $flexibleByUser[(int) $user->id] ?? [];
-                        $hasFlexibleAssignable = !empty($flexibleUsers[(int) $user->id]) && $userFlexibleAssignments !== [];
-                        $flexibleHintCount = count($userFlexibleAssignments);
-                        // Фильтр группы сужает список до одного; без фильтра при нескольких — иконка.
-                        $flexibleHintShowRatio = $flexibleHintCount === 1;
-                        $flexibleHintText = '';
-                        $flexibleHintRatio = '';
-                        if ($hasFlexibleAssignable && $flexibleHintCount === 1) {
-                            $fa = $userFlexibleAssignments[0];
-                            $flexName = (string) ($fa['name'] ?? 'Абонемент предоплаты');
-                            $flexRem = (int) ($fa['slots_remaining'] ?? 0);
-                            $flexTotal = (int) ($fa['lessons_total'] ?? 0);
-                            $flexFee = (int) ($fa['fee_amount_cents'] ?? 0);
-                            $flexibleHintRatio = \App\Services\Schedule\ScheduleJournalMonthService::flexibleAbonementColumnLabel(
-                                $flexRem,
-                                $flexTotal
-                            );
-                            $flexibleHintText = \App\Services\Schedule\ScheduleJournalMonthService::flexibleAbonementColumnHoverLine(
-                                $flexName,
-                                $flexFee
-                            );
-                        } elseif ($hasFlexibleAssignable && $flexibleHintCount > 1) {
-                            $flexLines = [];
-                            foreach ($userFlexibleAssignments as $fa) {
-                                $flexLines[] = \App\Services\Schedule\ScheduleJournalMonthService::flexibleAbonementColumnHoverLine(
-                                    (string) ($fa['name'] ?? 'Абонемент предоплаты'),
-                                    (int) ($fa['fee_amount_cents'] ?? 0),
-                                    true,
-                                    (int) ($fa['slots_remaining'] ?? 0),
-                                    (int) ($fa['lessons_total'] ?? 0),
-                                );
-                            }
-                            $flexibleHintText = implode("\n", $flexLines);
-                        }
-                        $userPostpayHints = $postpayByUser[(int) $user->id] ?? [];
-                        $postpayHintLabels = [];
-                        $postpayHintHovers = [];
-                        foreach ($userPostpayHints as $ph) {
-                            $postpayHintLabels[] = (string) ($ph['label'] ?? '');
-                            $postpayHintHovers[] = (string) ($ph['hover'] ?? ($ph['label'] ?? ''));
-                        }
-                        $postpayHintLabels = array_values(array_filter($postpayHintLabels, static fn ($v) => $v !== ''));
-                        $postpayHintText = implode("\n", $postpayHintLabels);
-                        $postpayHintHover = implode("\n", array_values(array_filter($postpayHintHovers, static fn ($v) => $v !== '')));
-                        $consumingCount = (int) ($journalConsumingCounts[(int) $user->id] ?? 0);
-                    @endphp
-                    <tr data-user-id="{{ $user->id }}">
-                        <td class="text-center align-middle sticky-col-1 number-line">{{ ($users->firstItem() ?? 1) + $index }}</td>
-                        <td class="schedule-user-name sticky-col-2">
-                            <button type="button" class="schedule-user-card-name js-user-card" data-user-id="{{ $user->id }}">{{ $user?->full_name ?: 'Без имени' }}</button>
-                            @if(! $journalTeamFilter->isSingleTeam() && $user->teams->isNotEmpty())
-                                <small class="text-muted d-block">{{ $user->teams->pluck('title')->join(', ') }}</small>
-                            @endif
-                        </td>
-                        <td class="text-center align-middle schedule-payment-status">
-                            @php
-                                $payStatus = $journalPaymentStatuses[(int) $user->id] ?? null;
-                                $payState = is_array($payStatus) ? (string) ($payStatus['state'] ?? '') : '';
-                                $payHover = is_array($payStatus) ? (string) ($payStatus['hover'] ?? '') : '';
-                                $payIcon = is_array($payStatus) ? (string) ($payStatus['icon_class'] ?? '') : '';
-                                $payAmountLabel = is_array($payStatus) ? (string) ($payStatus['amount_label'] ?? '') : '';
-                            @endphp
-                            @if($payState === 'paid' || $payState === 'partial')
-                                <span data-journal-payment-status="{{ $payState }}">
-                                    @if($payHover !== '')
-                                        @include('partials.ui.tooltip-hint', [
-                                            'title' => $payHover,
-                                            'placement' => 'top',
-                                            'iconClass' => $payIcon,
-                                            'wrapperClass' => 'journal-monthly-payment-hint',
-                                            'container' => 'body',
-                                        ])
-                                    @else
-                                        <i class="{{ $payIcon }}" aria-hidden="true"></i>
-                                    @endif
-                                </span>
-                            @elseif($payState === 'due' && $payAmountLabel !== '')
-                                <span data-journal-payment-status="due">
-                                    @if($payHover !== '')
-                                        @include('partials.ui.tooltip-hint', [
-                                            'title' => $payHover,
-                                            'placement' => 'top',
-                                            'innerHtml' => e($payAmountLabel),
-                                            'wrapperClass' => 'journal-monthly-payment-hint journal-monthly-payment-due',
-                                            'container' => 'body',
-                                        ])
-                                    @else
-                                        <span class="journal-monthly-payment-due">{{ $payAmountLabel }}</span>
-                                    @endif
-                                </span>
-                            @endif
-                        </td>
-                        <td class="text-center align-middle schedule-consuming-count"
-                            data-journal-consuming-count="{{ $consumingCount }}"
-                            data-order="{{ $consumingCount }}">
-                            @if($consumingCount > 0)
-                                {{ $consumingCount }}
-                            @endif
-                        </td>
-                        <td class="text-center align-middle schedule-col-setup schedule-col-abonements">
-                            <div class="journal-abonement-cell d-inline-flex align-items-center gap-1 justify-content-center flex-wrap">
-                                @if($hasPlaceable)
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-primary journal-abonement-btn kids-tooltip-hint"
-                                            data-user-id="{{ $user->id }}"
-                                            data-kids-tooltip-hint="1"
-                                            data-bs-toggle="tooltip"
-                                            data-bs-placement="top"
-                                            data-bs-custom-class="ulp-assignment-paid-tooltip"
-                                            data-bs-container="body"
-                                            title="{{ $placeableHoverText }}"
-                                            aria-label="{{ $placeableHoverText }}">
-                                        <i class="fa-solid fa-plus"></i>
-                                    </button>
-                                @endif
-                                @if($hasFlexibleAssignable && $flexibleHintText !== '')
-                                    @if($flexibleHintShowRatio)
-                                        @php $fa = $userFlexibleAssignments[0]; @endphp
-                                        <span class="kids-tooltip-hint text-muted journal-flexible-hint journal-flexible-hint--ratio"
-                                              tabindex="0"
-                                              role="img"
-                                              aria-label="{{ $flexibleHintText }}"
-                                              data-kids-tooltip-hint="1"
-                                              data-bs-toggle="tooltip"
-                                              data-bs-placement="top"
-                                              data-bs-custom-class="ulp-assignment-paid-tooltip"
-                                              data-bs-container="body"
-                                              data-flexible-ulp-id="{{ (int) ($fa['id'] ?? 0) }}"
-                                              data-slots-remaining="{{ (int) ($fa['slots_remaining'] ?? 0) }}"
-                                              data-lessons-total="{{ (int) ($fa['lessons_total'] ?? 0) }}"
-                                              data-fee-amount-cents="{{ (int) ($fa['fee_amount_cents'] ?? 0) }}"
-                                              data-package-name="{{ $fa['name'] ?? 'Абонемент предоплаты' }}"
-                                              title="{{ $flexibleHintText }}">{{ $flexibleHintRatio }}</span>
-                                    @else
-                                        <i class="fa-solid fa-circle-info text-muted journal-flexible-hint journal-flexible-hint--multi"
-                                           tabindex="0"
-                                           role="img"
-                                           aria-label="{{ $flexibleHintText }}"
-                                           data-kids-tooltip-hint="1"
-                                           data-bs-toggle="tooltip"
-                                           data-bs-placement="top"
-                                           data-bs-custom-class="ulp-assignment-paid-tooltip"
-                                           data-bs-container="body"
-                                           data-flexible-items="{{ e(json_encode(array_map(static fn ($fa) => [
-                                               'id' => (int) ($fa['id'] ?? 0),
-                                               'name' => (string) ($fa['name'] ?? 'Абонемент предоплаты'),
-                                               'slots_remaining' => (int) ($fa['slots_remaining'] ?? 0),
-                                               'lessons_total' => (int) ($fa['lessons_total'] ?? 0),
-                                               'fee_amount_cents' => (int) ($fa['fee_amount_cents'] ?? 0),
-                                           ], $userFlexibleAssignments), JSON_UNESCAPED_UNICODE)) }}"
-                                           title="{{ $flexibleHintText }}"></i>
-                                    @endif
-                                @endif
-                                @if($postpayHintText !== '')
-                                    <span class="kids-tooltip-hint text-muted journal-postpay-hint"
-                                          tabindex="0"
-                                          role="img"
-                                          aria-label="{{ $postpayHintHover !== '' ? $postpayHintHover : $postpayHintText }}"
-                                          data-kids-tooltip-hint="1"
-                                          data-bs-toggle="tooltip"
-                                          data-bs-placement="top"
-                                          data-bs-custom-class="ulp-assignment-paid-tooltip"
-                                          data-bs-container="body"
-                                          title="{{ $postpayHintHover !== '' ? $postpayHintHover : $postpayHintText }}">{{ $postpayHintText }}</span>
-                                @endif
+                @forelse($journalGroups as $group)
+                    <tr class="schedule-group-row" data-group-key="{{ $group['key'] }}" @if($group['team_id']) data-team-id="{{ $group['team_id'] }}" @endif>
+                        <td class="sticky-col-1"></td>
+                        <td class="schedule-user-name sticky-col-2 schedule-group-head-cell">
+                            <div class="schedule-group-head">
+                                <button type="button" class="schedule-group-toggle" aria-expanded="false" aria-label="Развернуть">
+                                    <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                                </button>
+                                <span class="schedule-group-title" title="{{ $group['title'] }}">{{ $group['title'] }}</span>
+                                <span class="schedule-group-count">{{ $group['users']->total() }}</span>
                             </div>
                         </td>
-
+                        <td class="schedule-payment-status"></td>
+                        <td class="schedule-consuming-count"></td>
+                        <td class="schedule-col-setup"></td>
                         @foreach($days as $day)
-                            @php
-                                $dateKey = $user->id . '_' . $day->format('Y-m-d');
-                                $dayItems = $journalOccurrences[$dateKey] ?? [];
-                                $count = count($dayItems);
-                                $primary = $count === 1 ? $dayItems[0] : null;
-                                // Без статуса (типично после привязки в календаре школы) ячейка всё равно должна быть видна.
-                                $cellColor = $primary['status_color'] ?? ($count > 0 ? '#e9ecef' : '');
-                                $cellIcon = $primary['status_icon'] ?? '';
-                                $cellTitle = $primary['status_title'] ?? '';
-                                $hasStatusVisual = ($cellIcon !== '' && $cellIcon !== null) || ($cellTitle !== '' && $cellTitle !== null);
-                                $isPostpayUser = !empty($postpayUsers[(int) $user->id]);
-                                $isPostpayLocked = !empty($postpayLockedUsers[(int) $user->id]);
-                                $isFlexibleUser = !empty($flexibleUsers[(int) $user->id]);
-                                $flexibleRemainingTotal = 0;
-                                foreach ($userFlexibleAssignments as $faRow) {
-                                    $flexibleRemainingTotal += max(0, (int) ($faRow['slots_remaining'] ?? 0));
-                                }
-                                $flexibleHasRemaining = $isFlexibleUser && $flexibleRemainingTotal > 0;
-                                $flexibleAtLimit = $isFlexibleUser && $flexibleRemainingTotal < 1;
-                                // Прямой гибкий: есть остаток, либо лимит без права на пробное/разовое.
-                                $canOpenEmptyFlexible = $count === 0 && (
-                                    $flexibleHasRemaining
-                                    || ($flexibleAtLimit && empty($canPlaceEmptyCellLesson))
-                                );
-                                // Постоплата важнее chooser'а при лимите гибкого.
-                                $canOpenEmptyPostpay = $isPostpayUser && $count === 0 && !$isPostpayLocked && !$flexibleHasRemaining;
-                                // Пробное/разовое (+ гибкий в выборе при лимите).
-                                $canOpenEmptyLesson = !empty($canPlaceEmptyCellLesson)
-                                    && $count === 0
-                                    && !$canOpenEmptyPostpay
-                                    && (!$isFlexibleUser || $flexibleAtLimit);
-                                $cellClickable = $count > 0 || $canOpenEmptyPostpay || $canOpenEmptyFlexible || $canOpenEmptyLesson;
-                                $cellPackageHover = '';
-                                if ($count === 1) {
-                                    $cellPackageHover = (string) ($primary['package_hover'] ?? $primary['package_name'] ?? '');
-                                } elseif ($count > 1) {
-                                    $hoverLines = [];
-                                    foreach ($dayItems as $dayItem) {
-                                        $line = trim((string) ($dayItem['package_hover'] ?? $dayItem['package_name'] ?? ''));
-                                        if ($line !== '') {
-                                            $hoverLines[] = $line;
-                                        }
-                                    }
-                                    $cellPackageHover = implode("\n", $hoverLines);
-                                }
-                            @endphp
-                            <td class="schedule-cell text-center position-relative
-                                @if(isset($teamWeekdays) && count($teamWeekdays) && in_array($day->format('N'), $teamWeekdays)) highlight-column @endif"
-                                data-user-id="{{ $user->id }}"
-                                data-user-name="{{ $user?->full_name ?: 'Без имени' }}"
-                                data-context-team-id="{{ $journalContextTeamId ?? '' }}"
-                                data-team-ids="{{ implode(',', $studentTeamIds) }}"
-                                data-date="{{ $day->format('Y-m-d') }}"
-                                data-occurrence-count="{{ $count }}"
-                                data-postpay="{{ $isPostpayUser ? '1' : '0' }}"
-                                data-postpay-locked="{{ $isPostpayLocked ? '1' : '0' }}"
-                                data-flexible="{{ $isFlexibleUser ? '1' : '0' }}"
-                                data-flexible-remaining="{{ $isFlexibleUser ? (int) $flexibleRemainingTotal : 0 }}"
-                                data-empty-lesson="{{ $canOpenEmptyLesson ? '1' : '0' }}"
-                                @if($cellPackageHover !== '')
-                                    data-package-hover="{{ $cellPackageHover }}"
-                                    data-kids-tooltip-hint="1"
-                                    data-bs-toggle="tooltip"
-                                    data-bs-placement="top"
-                                    data-bs-custom-class="ulp-assignment-paid-tooltip"
-                                    data-bs-container="body"
-                                    title="{{ $cellPackageHover }}"
-                                @elseif($isPostpayLocked)
-                                    data-kids-tooltip-hint="1"
-                                    data-bs-toggle="tooltip"
-                                    data-bs-placement="top"
-                                    data-bs-custom-class="ulp-assignment-paid-tooltip"
-                                    data-bs-container="body"
-                                    title="Изменить данные нельзя, поскольку уже была произведена оплата"
-                                @endif
-                                @if($primary)
-                                    data-utss-id="{{ $primary['utss_id'] }}"
-                                    data-status-id="{{ $primary['lesson_occurrence_status_id'] }}"
-                                    data-comment="{{ $primary['comment'] }}"
-                                @endif
-                                style="cursor: {{ $cellClickable || $isPostpayLocked ? 'pointer' : 'default' }};">
-                                @if($count > 1)
-                                    <span class="schedule-cell__swatch" @if($cellColor) style="background-color: {{ $cellColor }};" @endif>
-                                        <span class="badge bg-primary">×{{ $count }}</span>
-                                    </span>
-                                @elseif($count === 1)
-                                    <span class="schedule-cell__swatch" @if($cellColor) style="background-color: {{ $cellColor }};" @endif>
-                                        @if($hasStatusVisual)
-                                            @if($cellIcon)
-                                                <i class="{{ $cellIcon }} schedule-cell-status-icon" aria-hidden="true"></i>
-                                            @else
-                                                {{ $cellTitle }}
-                                            @endif
-                                        @else
-                                            <i class="fa-solid fa-circle text-secondary schedule-cell-empty-dot" aria-hidden="true"></i>
-                                        @endif
-                                    </span>
-                                    @if(!empty($primary['comment']))
-                                        <div class="cell-comment-indicator"
-                                             style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 5px solid red; border-left: 5px solid transparent;"></div>
-                                    @endif
-                                @elseif($canOpenEmptyFlexible)
-                                    <i class="fa-regular fa-circle text-primary schedule-cell-empty-dot" style="opacity: 0.4;" title="Абонемент предоплаты: поставить занятие"></i>
-                                @elseif($canOpenEmptyPostpay)
-                                    <i class="fa-regular fa-circle text-muted schedule-cell-empty-dot" style="opacity: 0.45;" title="Постоплата: отметить посещение"></i>
-                                @elseif($canOpenEmptyLesson)
-                                    <i class="fa-regular fa-circle text-secondary schedule-cell-empty-dot" style="opacity: 0.35;"
-                                       title="{{ $flexibleAtLimit ? 'Пробное, разовое или занятие из абонемента предоплаты' : 'Пробное или разовое занятие' }}"></i>
-                                @endif
-                            </td>
+                            <td class="schedule-group-day text-center @if(count($group['weekdays']) && in_array($day->format('N'), $group['weekdays'])) highlight-column @endif"
+                                data-date="{{ $day->format('Y-m-d') }}"><span class="schedule-group-day-check" aria-hidden="true"></span></td>
                         @endforeach
                     </tr>
-                @endforeach
+                    @include('admin.schedule._journal_group_users', ['journalGroupCollapsed' => true])
+                @empty
+                    <tr class="schedule-journal-empty">
+                        <td class="sticky-col-1"></td>
+                        <td class="schedule-user-name sticky-col-2 text-muted">Нет учеников</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        @foreach($days as $day)
+                            <td></td>
+                        @endforeach
+                    </tr>
+                @endforelse
                 </tbody>
                 <tfoot>
                 <tr class="schedule-attendance-total">
@@ -488,14 +226,6 @@
                 </tfoot>
             </table>
             </div>
-            @if(isset($users) && method_exists($users, 'lastPage') && $users->lastPage() > 1)
-                <div class="schedule-journal-pagination d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
-                    <div class="text-muted small">
-                        Показаны {{ $users->firstItem() }}–{{ $users->lastItem() }} из {{ $users->total() }} учеников
-                    </div>
-                    {{ $users->onEachSide(1)->links() }}
-                </div>
-            @endif
             </div>
         </div>
     </div>
@@ -509,6 +239,78 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <div class="modal-body" id="dayOccurrencesModalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Массовая постановка занятия в выбранные пустые ячейки --}}
+    <div class="modal fade" id="bulkPlaceModal" tabindex="-1" aria-labelledby="bulkPlaceModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content schedule-modal-content cell-edit-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bulkPlaceModalLabel">Добавить занятие</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="cell-edit-context">
+                        <div class="cell-edit-context__teams" id="bulk-place-group"></div>
+                        <div class="cell-edit-context__date" id="bulk-place-date"></div>
+                        <div class="cell-edit-context__meta" id="bulk-place-count"></div>
+                    </div>
+                    <div id="bulk-students" class="bulk-students"></div>
+                    <form id="bulkPlaceForm" novalidate>
+                        <div class="cell-edit-section">
+                            <div class="cell-edit-section__label">Статус</div>
+                            <div class="invalid-feedback d-block" id="bulk-status-error" style="display:none;"></div>
+                            <div class="cell-status-options">
+                                @foreach($availableStatuses as $st)
+                                    <div class="cell-status-option form-check">
+                                        <label class="cell-status-option__main" for="bulk-status-{{ $st->id }}">
+                                            <input class="form-check-input cell-status-option__input"
+                                                   type="radio"
+                                                   name="bulk_lesson_occurrence_status_id"
+                                                   id="bulk-status-{{ $st->id }}"
+                                                   value="{{ $st->id }}"
+                                                   @if($st->code === \App\Models\LessonOccurrenceStatus::CODE_SCHEDULED) data-is-scheduled="1" @endif
+                                                   @if(!empty($visitedStatusId) && (int) $st->id === (int) $visitedStatusId) checked data-is-visited="1" @endif>
+                                            <span class="schedule-status-option-chip" style="background-color: {{ $st->color }};">
+                                                <i class="{{ $st->icon }}" aria-hidden="true"></i>
+                                            </span>
+                                            <span class="cell-status-option__title">{{ $st->title }}</span>
+                                        </label>
+                                        @if(!empty($st->consumes_lesson))
+                                            <i class="fa-solid fa-circle-info text-muted bulk-postpay-hint d-none"
+                                               tabindex="0"
+                                               role="img"
+                                               aria-label="Идёт в расчёт постоплаты. Влияет на сумму за месяц."
+                                               data-kids-tooltip-hint="1"
+                                               data-bs-toggle="tooltip"
+                                               data-bs-placement="top"
+                                               data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                               data-bs-container="body"
+                                               title="Идёт в расчёт постоплаты. Влияет на сумму за месяц."></i>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="cell-edit-section d-none generic-multiselect-field" id="bulk-trainer-wrap">
+                            <label for="bulk-trainer-profile-ids" class="cell-edit-section__label">Тренеры</label>
+                            <select id="bulk-trainer-profile-ids"
+                                    name="trainer_profile_ids[]"
+                                    class="form-select js-generic-multiselect-select"
+                                    multiple
+                                    data-placeholder="Без тренера">
+                            </select>
+                            <div class="form-text text-muted" id="bulk-trainer-hint"></div>
+                            <div class="invalid-feedback d-block" id="bulk-trainer-error" style="display:none;"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer cell-edit-modal__footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" form="bulkPlaceForm" class="btn btn-primary" id="bulk-place-submit">Сохранить</button>
+                </div>
             </div>
         </div>
     </div>

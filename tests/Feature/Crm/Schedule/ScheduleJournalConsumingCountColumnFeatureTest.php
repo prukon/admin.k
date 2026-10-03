@@ -206,7 +206,8 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
             'month' => '08',
             'team' => 'all',
         ]))->assertOk()->getContent();
-        $this->assertSame('2', $this->journalConsumingCellText($allHtml, (int) $student->id));
+        $this->assertSame('1', $this->journalConsumingCellText($allHtml, (int) $student->id, (int) $teamA->id));
+        $this->assertSame('1', $this->journalConsumingCellText($allHtml, (int) $student->id, (int) $teamB->id));
 
         $teamHtml = (string) $this->get(route('schedule.index', [
             'year' => 2026,
@@ -249,9 +250,12 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
         $this->assertNotSame('', trim($html));
         $page->assertSee('id="cellEditModal"', false)
             ->assertSee('id="cellEditForm"', false)
-            ->assertSee('js/schedule-journal.js', false)
             ->assertSee('schedule-consuming-count', false)
             ->assertSee($student->full_name, false);
+        $this->assertStringContainsString(
+            "@vite(['resources/js/schedule.js'])",
+            (string) file_get_contents(resource_path('views/admin/schedule/index.blade.php'))
+        );
         $this->assertSame('', $this->journalConsumingCellText($html, (int) $student->id));
 
         $save = $this->withHeaders($this->ajaxHeaders())

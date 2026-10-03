@@ -1624,13 +1624,175 @@ JS;
     }
 
     /**
-     * P1: журнал — колонка «N/M\\nПредоплата» и fallback «Абонемент предоплаты» в Vite и hotfix public/js.
+     * P1: массовая постановка. Пустая доступная ячейка не открывает одиночную модалку.
+     * Новичок без выбора по-прежнему идёт в пробное/разовое. «Посетил» — дефолт при каждом открытии.
+     * Тренеры видны сразу, потому что дефолт — «Посетил». Выбор переживает смену страницы группы.
+     */
+    public function test_schedule_journal_bulk_place_keeps_selection_and_does_not_open_single_modal(): void
+    {
+        $journal = (string) file_get_contents(resource_path('views/admin/schedule/journal.blade.php'));
+        $modalPos = strpos($journal, 'id="bulkPlaceModal"');
+        $cellModalPos = strpos($journal, 'id="cellEditModal"');
+        $this->assertNotFalse($modalPos);
+        $this->assertNotFalse($cellModalPos);
+        $this->assertLessThan($cellModalPos, $modalPos);
+        $modal = substr($journal, (int) $modalPos, $cellModalPos - $modalPos);
+        $this->assertStringContainsString('id="bulkPlaceForm"', $modal);
+        $this->assertStringContainsString('novalidate', $modal);
+        $this->assertStringContainsString('id="bulk-status-error"', $modal);
+        $this->assertStringContainsString('id="bulk-trainer-error"', $modal);
+        $this->assertStringContainsString('id="bulk-students"', $modal);
+        $this->assertStringContainsString('data-is-scheduled="1"', $modal);
+        $this->assertStringContainsString('checked data-is-visited="1"', $modal);
+        $this->assertStringNotContainsString('checked data-is-scheduled="1"', $modal);
+        $this->assertStringContainsString('id="bulk-trainer-wrap"', $modal);
+        $this->assertStringContainsString('d-none', $modal);
+        $this->assertStringContainsString('class="modal-dialog"', $modal);
+        $this->assertStringNotContainsString('modal-fullscreen', $modal);
+        $this->assertStringNotContainsString('modal-xl', $modal);
+        $this->assertStringNotContainsString('name="comment"', $modal);
+        $this->assertStringNotContainsString('<textarea', $modal);
+        $this->assertStringContainsString('id="schedule-bulk-bar"', $journal);
+        $this->assertStringContainsString('schedule-bulk-bar d-none', $journal);
+        $this->assertStringContainsString('id="schedule-bulk-add"', $journal);
+        $this->assertStringContainsString('id="schedule-bulk-clear"', $journal);
+        $barPos = strpos($journal, 'id="schedule-bulk-bar"');
+        $stagePos = strpos($journal, 'id="schedule-journal-stage"');
+        $this->assertNotFalse($barPos);
+        $this->assertNotFalse($stagePos);
+        $this->assertLessThan($stagePos, $barPos);
+
+        $groupUsers = (string) file_get_contents(resource_path('views/admin/schedule/_journal_group_users.blade.php'));
+        $this->assertStringContainsString('data-bulk-block', $groupUsers);
+        $this->assertStringContainsString('data-bulk-billing', $groupUsers);
+        $this->assertStringContainsString('data-bulk-fixed', $groupUsers);
+        $eligiblePos = strpos($groupUsers, "\$bulkBlock = 'eligible'");
+        $prepaidEmptyPos = strpos($groupUsers, "\$bulkBlock = 'prepaid_empty'");
+        $this->assertNotFalse($eligiblePos);
+        $this->assertNotFalse($prepaidEmptyPos);
+        $this->assertLessThan($prepaidEmptyPos, $eligiblePos);
+
+        foreach ([
+            resource_path('js/schedule.js') => 'resources/js/schedule.js',
+        ] as $path => $label) {
+            $js = (string) file_get_contents($path);
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+            $this->assertSame(0, $exitCode, "JS syntax error in {$label}:\n".implode("\n", $output));
+
+            $clickPos = strpos($js, "$(document).on('click', '.schedule-cell'");
+            $formPos = strpos($js, "$('#cellEditForm').on('submit'", (int) $clickPos);
+            $this->assertNotFalse($clickPos, $label);
+            $this->assertNotFalse($formPos, $label);
+            $click = substr($js, (int) $clickPos, $formPos - $clickPos);
+            $bulkPos = strpos($click, 'data-bulk-block');
+            $refusePos = strpos($click, 'bulkRefuseMessage');
+            $emptyModalPos = strpos($click, 'openEmptyCellPlaceModal');
+            $lockedPos = strpos($click, 'if (isPostpayLocked)');
+            $this->assertNotFalse($bulkPos, $label);
+            $this->assertNotFalse($refusePos, $label);
+            $this->assertNotFalse($emptyModalPos, $label);
+            $this->assertNotFalse($lockedPos, $label);
+            $this->assertLessThan($refusePos, $bulkPos, $label);
+            $this->assertLessThan($emptyModalPos, $refusePos, $label);
+            $this->assertLessThan($lockedPos, $emptyModalPos, $label);
+            $this->assertStringNotContainsString('openFlexiblePlaceModal', $click, $label);
+            $this->assertStringNotContainsString('createPostpay', $click, $label);
+            $this->assertStringContainsString('Нельзя выбрать: в абонементе не осталось занятий.', $js, $label);
+            $this->assertStringContainsString('Нельзя выбрать: месяц уже оплачен.', $js, $label);
+            $this->assertStringContainsString('Нельзя выбрать: дни фиксированного абонемента задаются кнопкой', $js, $label);
+            $this->assertStringContainsString('Нельзя выбрать: на этот месяц не установлен абонемент.', $js, $label);
+            $this->assertStringContainsString('Можно выбрать только ', $js, $label);
+            $this->assertStringContainsString('В этот день некого выбрать.', $js, $label);
+            $this->assertStringContainsString("window.showToast(message, type || 'error')", $js, $label);
+
+            $refuseFnPos = strpos($js, 'function bulkRefuseMessage');
+            $refuseFnEnd = strpos($js, 'function refreshBulkCellFlags', (int) $refuseFnPos);
+            $this->assertNotFalse($refuseFnPos, $label);
+            $this->assertNotFalse($refuseFnEnd, $label);
+            $refuseFn = substr($js, (int) $refuseFnPos, $refuseFnEnd - $refuseFnPos);
+            $inactivePos = strpos($refuseFn, 'if (!selectionActive)');
+            $fixedPos = strpos($refuseFn, "block === 'fixed_only'");
+            $newcomerPos = strpos($refuseFn, "block === 'no_abonement'");
+            $this->assertNotFalse($inactivePos, $label);
+            $this->assertNotFalse($fixedPos, $label);
+            $this->assertNotFalse($newcomerPos, $label);
+            $this->assertLessThan($fixedPos, $inactivePos, $label);
+            $this->assertLessThan($newcomerPos, $fixedPos, $label);
+            $this->assertStringContainsString("return '';", substr($refuseFn, (int) $inactivePos, $fixedPos - $inactivePos), $label);
+
+            $openPos = strpos($js, 'function openBulkPlaceModal');
+            $openEnd = strpos($js, 'function showBulkFieldErrors', (int) $openPos);
+            $this->assertNotFalse($openPos, $label);
+            $this->assertNotFalse($openEnd, $label);
+            $open = substr($js, (int) $openPos, $openEnd - $openPos);
+            $this->assertStringContainsString("prop('checked', true)", $open, $label);
+            $this->assertStringContainsString('data-is-visited', $open, $label);
+            $this->assertStringContainsString('.schedule-group-title', $js, $label);
+            $this->assertStringContainsString('₽/занятие', $js, $label);
+            $visitedCheck = strpos($open, 'data-is-visited');
+            $scheduledCheck = strpos($open, 'data-is-scheduled');
+            $this->assertNotFalse($visitedCheck, $label);
+            $this->assertNotFalse($scheduledCheck, $label);
+            $this->assertLessThan($scheduledCheck, $visitedCheck, $label);
+            $this->assertStringNotContainsString('bulkSelection = null', $open, $label);
+
+            $trainerPos = strpos($js, 'function syncBulkTrainerBlock');
+            $trainerEnd = strpos($js, 'function openBulkPlaceModal', (int) $trainerPos);
+            $this->assertNotFalse($trainerPos, $label);
+            $this->assertNotFalse($trainerEnd, $label);
+            $trainer = substr($js, (int) $trainerPos, $trainerEnd - $trainerPos);
+            $hidePos = strpos($trainer, "$('#bulk-trainer-wrap').addClass('d-none')");
+            $showPos = strpos($trainer, "$('#bulk-trainer-wrap').removeClass('d-none')");
+            $this->assertNotFalse($hidePos, $label);
+            $this->assertNotFalse($showPos, $label);
+            $this->assertLessThan($showPos, $hidePos, $label);
+            $this->assertLessThan($hidePos, strpos($trainer, 'if (!isVisitedStatusId(statusVal))'), $label);
+
+            $submitPos = strpos($js, "$('#bulkPlaceForm').on('submit'");
+            $submitEnd = strpos($js, "$(document).on('click', '.schedule-group-day'", (int) $submitPos);
+            $this->assertNotFalse($submitPos, $label);
+            $this->assertNotFalse($submitEnd, $label);
+            $submit = substr($js, (int) $submitPos, $submitEnd - $submitPos);
+            $this->assertStringContainsString('e.preventDefault()', $submit, $label);
+            $this->assertStringContainsString("url: '/schedule/bulk-place'", $submit, $label);
+            $this->assertStringContainsString("'Accept': 'application/json'", $submit, $label);
+            $this->assertStringContainsString('renderScheduleCellAfterStatusSave', $submit, $label);
+            $this->assertStringNotContainsString('window.location.reload()', $submit, $label);
+            $visitedGate = strpos($submit, 'if (isVisitedStatusId(statusId))');
+            $trainerPayload = strpos($submit, 'payload.trainer_profile_ids = trainerIds');
+            $this->assertNotFalse($visitedGate, $label);
+            $this->assertNotFalse($trainerPayload, $label);
+            $this->assertLessThan($trainerPayload, $visitedGate, $label);
+
+            $pagePos = strpos($js, "success: function (html) {");
+            $pageEnd = strpos($js, 'error: function () {', (int) $pagePos);
+            $this->assertNotFalse($pagePos, $label);
+            $this->assertNotFalse($pageEnd, $label);
+            $page = substr($js, (int) $pagePos, $pageEnd - $pagePos);
+            $lastReinit = strrpos($page, 'reinitScheduleJournalDataTable();');
+            $paint = strpos($page, 'paintBulkSelection();');
+            $this->assertNotFalse($lastReinit, $label);
+            $this->assertNotFalse($paint, $label);
+            $this->assertGreaterThan($lastReinit, $paint, $label);
+        }
+
+        $source = (string) file_get_contents(resource_path('js/schedule.js'));
+        $sourceClick = strpos($source, 'var bulkSelection = null');
+        $this->assertNotFalse($sourceClick);
+        $sourceEnd = strpos($source, "$('#cellEditForm').on('submit'", (int) $sourceClick);
+        $this->assertNotFalse($sourceEnd);
+        $this->assertStringContainsString('payload.trainer_profile_ids = trainerIds', substr($source, (int) $sourceClick, $sourceEnd - $sourceClick));
+    }
+
+    /**
+     * P1: журнал — колонка «N/M\\nПредоплата» и fallback «Абонемент предоплаты» в resources/js/schedule.js.
      */
     public function test_schedule_journal_flexible_ui_label_is_prepay_in_source_and_hotfix(): void
     {
         foreach ([
             resource_path('js/schedule.js'),
-            public_path('js/schedule-journal.js'),
         ] as $path) {
             $this->assertFileExists($path);
             $content = (string) file_get_contents($path);
@@ -1692,12 +1854,17 @@ JS;
         $journal = (string) file_get_contents($blade);
         $this->assertStringContainsString('id="schedule-journal-stage"', $journal);
         $this->assertStringContainsString('schedule-journal-preloader', $journal);
-        $this->assertStringContainsString('schedule-journal-pagination', $journal);
+        $this->assertStringContainsString(
+            "@include('admin.schedule._journal_group_users', ['journalGroupCollapsed' => true])",
+            $journal
+        );
+        $groupUsers = (string) file_get_contents(resource_path('views/admin/schedule/_journal_group_users.blade.php'));
+        $this->assertStringContainsString('schedule-journal-pagination', $groupUsers);
         $this->assertStringNotContainsString('<x-ui.table-preloader', $journal);
         $this->assertStringNotContainsString('kids-table-preloader', $journal);
         $this->assertStringNotContainsString('Загрузка расписания', $journal);
         $stagePos = strpos($journal, 'id="schedule-journal-stage"');
-        $pagerPos = strpos($journal, 'schedule-journal-pagination');
+        $pagerPos = strpos($journal, "_journal_group_users");
         $this->assertNotFalse($stagePos);
         $this->assertNotFalse($pagerPos);
         $this->assertStringContainsString('schedule-journal-table-stack', $journal);
@@ -1716,8 +1883,9 @@ JS;
         $this->assertNotFalse($scriptsPos);
         $stylesChunk = substr($indexContent, $stylesPos, $scriptsPos - $stylesPos);
         $this->assertStringContainsString("@vite(['resources/css/schedule.css'])", $stylesChunk);
-        $this->assertStringContainsString("asset('css/user-card-modal.css')", $stylesChunk);
-        $this->assertStringContainsString("asset('css/schedule-journal-cells.css')", $stylesChunk);
+        $this->assertStringContainsString('skipUserCardModalCss', $indexContent);
+        $this->assertStringNotContainsString("asset('css/user-card-modal.css')", $stylesChunk);
+        $this->assertStringNotContainsString("asset('css/schedule-journal-cells.css')", $stylesChunk);
         $this->assertStringContainsString('#schedule-journal-stage:not(.is-ready)', $stylesChunk);
         $this->assertStringContainsString('.schedule-journal-preloader', $stylesChunk);
         $this->assertStringContainsString('.schedule-fullscreen-wrapper.fullscreen .schedule-journal-preloader', $stylesChunk);
@@ -1734,17 +1902,11 @@ JS;
         $this->assertStringContainsString('display: none !important', $stylesChunk);
         $this->assertStringContainsString('background: #f4f6f9', $stylesChunk);
         $this->assertStringContainsString('<noscript>', $stylesChunk);
-        $this->assertStringContainsString('asset(\'js/schedule-journal.js\')', $indexContent);
+        $this->assertStringContainsString("@vite(['resources/js/schedule.js'])", $indexContent);
+        $this->assertStringNotContainsString("asset('js/schedule-journal.js')", $indexContent);
 
         $sourceJs = (string) file_get_contents(resource_path('js/schedule.js'));
-        $hotfixJs = (string) file_get_contents(public_path('js/schedule-journal.js'));
         $this->assertScheduleJournalRevealAfterDataTableContract($sourceJs, resource_path('js/schedule.js'));
-        $this->assertScheduleJournalRevealAfterDataTableContract($hotfixJs, public_path('js/schedule-journal.js'));
-        $this->assertSame(
-            $this->scheduleJournalRevealSnippet($sourceJs),
-            $this->scheduleJournalRevealSnippet($hotfixJs),
-            'hotfix public/js/schedule-journal.js должен снимать прелоадер так же, как resources/js/schedule.js'
-        );
     }
 
     /**
@@ -1754,8 +1916,7 @@ JS;
     public function test_schedule_journal_table_content_width_contract(): void
     {
         $css = (string) file_get_contents(resource_path('css/schedule.css'));
-        $hotfixCss = (string) file_get_contents(public_path('css/schedule-journal-cells.css'));
-        foreach ([$css => resource_path('css/schedule.css'), $hotfixCss => public_path('css/schedule-journal-cells.css')] as $chunk => $path) {
+        foreach ([$css => resource_path('css/schedule.css')] as $chunk => $path) {
             $this->assertStringContainsString('.schedule-journal-table-stack', $chunk, $path);
             $this->assertStringContainsString('.schedule-journal-table-stack .schedule-journal-pagination', $chunk, $path);
             $blockPos = strpos($chunk, '#schedule-table_wrapper.dataTables_wrapper');
@@ -1777,8 +1938,8 @@ JS;
 
         $index = resource_path('views/admin/schedule/index.blade.php');
         $indexContent = (string) file_get_contents($index);
-        $this->assertStringContainsString("asset('css/schedule-journal-cells.css')", $indexContent);
-        $this->assertStringContainsString("filemtime(public_path('css/schedule-journal-cells.css'))", $indexContent);
+        $this->assertStringNotContainsString("asset('css/schedule-journal-cells.css')", $indexContent);
+        $this->assertStringContainsString("@vite(['resources/css/schedule.css'])", $indexContent);
         $stylesPos = strpos($indexContent, "@push('styles')");
         $scriptsPos = strpos($indexContent, "@push('scripts')");
         $this->assertNotFalse($stylesPos);
@@ -1794,18 +1955,17 @@ JS;
         $this->assertStringContainsString('body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper', $stylesChunk);
         $this->assertStringContainsString('max-width: 1280px', $stylesChunk);
 
-        $hotfixCss = (string) file_get_contents(public_path('css/schedule-journal-cells.css'));
-        $this->assertStringContainsString('body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper', $hotfixCss);
-        $wrapperOverridePos = strpos($hotfixCss, 'body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper {');
+        $this->assertStringContainsString('body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper', $css);
+        $wrapperOverridePos = strpos($css, 'body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper {');
         $this->assertNotFalse($wrapperOverridePos);
-        $wrapperChunk = substr($hotfixCss, $wrapperOverridePos, 180);
+        $wrapperChunk = substr($css, $wrapperOverridePos, 180);
         $this->assertStringContainsString('max-width: 1280px', $wrapperChunk);
         $this->assertStringNotContainsString('max-width: 100%', $wrapperChunk);
 
         $journal = (string) file_get_contents(resource_path('views/admin/schedule/journal.blade.php'));
         $stackPos = strpos($journal, 'schedule-journal-table-stack');
         $tableContainerPos = strpos($journal, 'schedule-table-container');
-        $pagerPos = strpos($journal, 'schedule-journal-pagination');
+        $pagerPos = strpos($journal, '_journal_group_users');
         $this->assertNotFalse($stackPos);
         $this->assertNotFalse($tableContainerPos);
         $this->assertNotFalse($pagerPos);
@@ -1813,8 +1973,7 @@ JS;
         $this->assertGreaterThan($tableContainerPos, $pagerPos);
 
         $sourceJs = (string) file_get_contents(resource_path('js/schedule.js'));
-        $hotfixJs = (string) file_get_contents(public_path('js/schedule-journal.js'));
-        foreach ([$sourceJs => resource_path('js/schedule.js'), $hotfixJs => public_path('js/schedule-journal.js')] as $js => $path) {
+        foreach ([$sourceJs => resource_path('js/schedule.js')] as $js => $path) {
             $dtPos = strpos($js, '$(\'#schedule-table\').DataTable({');
             $this->assertNotFalse($dtPos, $path);
             $dtChunk = substr($js, $dtPos, 450);
@@ -1849,6 +2008,7 @@ JS;
         $blade = resource_path('views/admin/schedule/journal.blade.php');
         $this->assertFileExists($blade);
         $content = (string) file_get_contents($blade);
+        $content .= "\n".(string) file_get_contents(resource_path('views/admin/schedule/_journal_group_users.blade.php'));
 
         $this->assertStringContainsString("partials.ui.tooltip-hint", $content);
         $this->assertStringContainsString('journalPaymentStatuses', $content);
@@ -1886,7 +2046,6 @@ JS;
 
         foreach ([
             resource_path('js/schedule.js'),
-            public_path('js/schedule-journal.js'),
         ] as $jsPath) {
             $this->assertFileExists($jsPath);
             $js = (string) file_get_contents($jsPath);
@@ -1919,6 +2078,7 @@ JS;
         $blade = resource_path('views/admin/schedule/journal.blade.php');
         $this->assertFileExists($blade);
         $content = (string) file_get_contents($blade);
+        $content .= "\n".(string) file_get_contents(resource_path('views/admin/schedule/_journal_group_users.blade.php'));
 
         $this->assertStringContainsString('fa-person-circle-check', $content);
         $this->assertStringContainsString("'title' => 'Кол-во посещений'", $content);
@@ -1942,7 +2102,6 @@ JS;
 
         foreach ([
             resource_path('css/schedule.css'),
-            public_path('css/schedule-journal-cells.css'),
         ] as $cssPath) {
             $this->assertFileExists($cssPath);
             $css = (string) file_get_contents($cssPath);
@@ -1952,7 +2111,6 @@ JS;
 
         foreach ([
             resource_path('js/schedule.js'),
-            public_path('js/schedule-journal.js'),
         ] as $jsPath) {
             $this->assertFileExists($jsPath);
             $js = (string) file_get_contents($jsPath);
@@ -1975,7 +2133,7 @@ JS;
             $this->assertStringContainsString("data: withJournalTeamFilter({", $js);
 
             $this->assertStringContainsString(
-                "var dtColumns = [\n        {orderable: false},\n        {orderable: true},\n        {orderable: true},\n        {orderable: true},\n        {orderable: false}\n    ];",
+                "var dtColumns = [\n        {orderable: false},\n        {orderable: false},\n        {orderable: false},\n        {orderable: false},\n        {orderable: false}\n    ];",
                 $js
             );
 
@@ -2014,7 +2172,6 @@ JS;
 
         foreach ([
             resource_path('css/schedule.css'),
-            public_path('css/schedule-journal-cells.css'),
         ] as $cssPath) {
             $this->assertFileExists($cssPath);
             $css = (string) file_get_contents($cssPath);
@@ -2036,7 +2193,6 @@ JS;
         $bodies = [];
         foreach ([
             resource_path('js/schedule.js'),
-            public_path('js/schedule-journal.js'),
         ] as $jsPath) {
             $this->assertFileExists($jsPath);
             $js = (string) file_get_contents($jsPath);
@@ -2116,8 +2272,6 @@ JS;
                 "JS syntax error in {$jsPath}:\n".implode("\n", $output)
             );
         }
-
-        $this->assertSame($bodies[0], $bodies[1]);
     }
 
     private function scheduleAttendanceFunctionBody(string $js, string $jsPath): string
@@ -2181,9 +2335,14 @@ JS;
         $this->assertStringContainsString("@error('month')", $journal);
         $this->assertStringContainsString("\$errors->get('team'", $journal);
         $this->assertStringContainsString("@error('q')", $journal);
-        $this->assertStringContainsString('$users->lastPage() > 1', $journal);
-        $this->assertStringContainsString('schedule-journal-pagination', $journal);
-        $this->assertStringContainsString('($users->firstItem() ?? 1) + $index', $journal);
+        $groupUsers = (string) file_get_contents(resource_path('views/admin/schedule/_journal_group_users.blade.php'));
+        $this->assertStringContainsString(
+            "@include('admin.schedule._journal_group_users', ['journalGroupCollapsed' => true])",
+            $journal
+        );
+        $this->assertStringContainsString('$users->lastPage() > 1', $groupUsers);
+        $this->assertStringContainsString('schedule-journal-pagination', $groupUsers);
+        $this->assertStringContainsString('($users->firstItem() ?? 1) + $index', $groupUsers);
 
         $yearPos = strpos($journal, 'id="filter-year"');
         $monthPos = strpos($journal, 'id="filter-month"');
@@ -2199,7 +2358,6 @@ JS;
 
         foreach ([
             resource_path('js/schedule.js'),
-            public_path('js/schedule-journal.js'),
         ] as $jsPath) {
             $this->assertFileExists($jsPath);
             $js = (string) file_get_contents($jsPath);
@@ -2248,6 +2406,43 @@ JS;
     }
 
     /**
+     * P1: смена страницы внутри группы не должна оставлять на экране предыдущих учеников.
+     *
+     * UX-баг: success сначала вставлял HTML, потом reinit → DataTable().destroy()
+     * восстанавливал tbody с момента инициализации, и пользователь снова видел стр. 1.
+     * Свёрнутая соседняя группа при этом тоже раскрывалась.
+     * Фикс: снять DataTable до подстановки, запомнить свёрнутые группы, вставить строки,
+     * снова скрыть их и только потом инициализировать таблицу.
+     * journal.blade.php без inline script — обе копии JS (Vite и hotfix).
+     */
+    public function test_schedule_journal_group_page_swap_keeps_new_rows_and_closed_groups(): void
+    {
+        $blade = resource_path('views/admin/schedule/journal.blade.php');
+        $this->assertFileExists($blade);
+        $journal = (string) file_get_contents($blade);
+        $this->assertStringNotContainsString('<script', $journal);
+        $this->assertStringContainsString('data-group-rows-url="{{ route(\'schedule.group-rows\') }}"', $journal);
+        $this->assertStringContainsString('class="schedule-group-row"', $journal);
+        $this->assertStringNotContainsString('schedule-group-row is-open', $journal);
+        $this->assertStringContainsString('aria-expanded="false"', $journal);
+        $this->assertStringContainsString('aria-label="Развернуть"', $journal);
+        $this->assertStringContainsString('fa-chevron-right', $journal);
+        $this->assertStringContainsString('schedule-group-head-cell', $journal);
+        $this->assertStringContainsString('schedule-group-day-check', $journal);
+        $this->assertStringContainsString('journalGroupCollapsed', $journal);
+        $this->assertStringNotContainsString('col-group', $journal);
+        $this->assertStringNotContainsString('aria-expanded="true"', $journal);
+        $this->assertStringNotContainsString('aria-label="Свернуть"', $journal);
+        $this->assertStringNotContainsString('fa-chevron-down', $journal);
+        $this->assertStringNotContainsString('fa-chevron-up', $journal);
+
+        $this->assertGroupPageSwapDoesNotRestorePreviousRows(
+            (string) file_get_contents(resource_path('js/schedule.js')),
+            resource_path('js/schedule.js')
+        );
+    }
+
+    /**
      * P1: фильтр групп журнала — Select2 apply on close, без change на каждый чекбокс,
      * обе копии JS + journal.blade.php без inline <script> и без «Применить».
      */
@@ -2268,7 +2463,6 @@ JS;
 
         foreach ([
             resource_path('js/schedule.js'),
-            public_path('js/schedule-journal.js'),
         ] as $jsPath) {
             $this->assertFileExists($jsPath);
             $js = (string) file_get_contents($jsPath);
@@ -2312,6 +2506,7 @@ JS;
         $this->assertFileExists($path);
 
         $content = (string) file_get_contents($path);
+        $content .= "\n".(string) file_get_contents(resource_path('views/admin/schedule/_journal_group_users.blade.php'));
         $this->assertStringContainsString('id="abonementPlaceForm" novalidate', $content);
         $this->assertStringContainsString('id="abonement-user-name"', $content);
         $this->assertStringContainsString('id="abonement-team-display"', $content);
@@ -2396,7 +2591,6 @@ JS;
     {
         foreach ([
             resource_path('js/schedule.js'),
-            public_path('js/schedule-journal.js'),
         ] as $path) {
             $content = (string) file_get_contents($path);
             $this->assertStringNotContainsString('has_used_school_schedule_trial', $content);
@@ -9046,7 +9240,7 @@ JS;
             'blade-js-cabinet-own-teams'
         );
 
-        $journalJs = public_path('js/schedule-journal.js');
+        $journalJs = resource_path('js/schedule.js');
         $this->assertFileExists($journalJs);
         $journal = (string) file_get_contents($journalJs);
         $this->assertStringContainsString("newUrl.searchParams.append('team_ids[]', token)", $journal);
@@ -9054,7 +9248,7 @@ JS;
         $output = [];
         $exitCode = 0;
         exec('node --check '.escapeshellarg($journalJs).' 2>&1', $output, $exitCode);
-        $this->assertSame(0, $exitCode, "JS syntax error in schedule-journal.js:\n".implode("\n", $output));
+        $this->assertSame(0, $exitCode, "JS syntax error in schedule.js:\n".implode("\n", $output));
     }
 
     /**
@@ -9160,7 +9354,6 @@ JS;
     {
         foreach ([
             resource_path('js/schedule.js'),
-            public_path('js/schedule-journal.js'),
         ] as $path) {
             $this->assertFileExists($path);
             $content = (string) file_get_contents($path);
@@ -9186,26 +9379,19 @@ JS;
     }
 
     /**
-     * P1: ЗП тренеров — hotfix public/js/trainer-salary.js и resources/js/trainer-salary.js
-     * (два пути, как schedule-journal). Канзас: reload_table + extra.team_id + data-save-trainer-id.
+     * P1: ЗП тренеров — resources/js/trainer-salary.js через Vite.
+     * Канзас: reload_table + extra.team_id + data-save-trainer-id.
      */
     public function test_trainer_salary_js_kansas_reload_contract_is_valid_javascript(): void
     {
         $resourcePath = resource_path('js/trainer-salary.js');
-        $publicPath = public_path('js/trainer-salary.js');
         $this->assertFileExists($resourcePath);
-        $this->assertFileExists($publicPath);
-        $this->assertSame(
-            (string) file_get_contents($resourcePath),
-            (string) file_get_contents($publicPath),
-            'Hotfix public/js/trainer-salary.js должен совпадать с resources/js/trainer-salary.js'
-        );
 
         $index = (string) file_get_contents(resource_path('views/admin/schedule/index.blade.php'));
-        $this->assertStringContainsString("asset('js/trainer-salary.js')", $index);
-        $this->assertStringNotContainsString("@vite(['resources/js/trainer-salary.js'])", $index);
+        $this->assertStringContainsString("@vite(['resources/js/trainer-salary.js'])", $index);
+        $this->assertStringNotContainsString("asset('js/trainer-salary.js')", $index);
 
-        foreach ([$resourcePath, $publicPath] as $path) {
+        foreach ([$resourcePath] as $path) {
             $content = (string) file_get_contents($path);
 
             $this->assertStringContainsString('function applyTableHtml(html)', $content);
@@ -9342,16 +9528,9 @@ JS;
     public function test_trainer_salary_js_sales_live_row_update_contract_is_valid_javascript(): void
     {
         $resourcePath = resource_path('js/trainer-salary.js');
-        $publicPath = public_path('js/trainer-salary.js');
         $this->assertFileExists($resourcePath);
-        $this->assertFileExists($publicPath);
-        $this->assertSame(
-            (string) file_get_contents($resourcePath),
-            (string) file_get_contents($publicPath),
-            'Hotfix public/js/trainer-salary.js должен совпадать с resources/js/trainer-salary.js'
-        );
 
-        foreach ([$resourcePath, $publicPath] as $path) {
+        foreach ([$resourcePath] as $path) {
             $content = (string) file_get_contents($path);
 
             $this->assertSame(
@@ -9453,13 +9632,10 @@ JS;
         $this->assertStringNotContainsString('data-field="premium_increment"', $table);
         $this->assertStringNotContainsString('applyTableHtml', $table);
 
-        $hotfixCss = (string) file_get_contents(public_path('css/trainer-salary.css'));
-        $this->assertStringContainsString('.trainer-salary-cell--saved', $hotfixCss);
-        $this->assertStringContainsString('trainer-salary-saved-flash', $hotfixCss);
-        $this->assertStringContainsString('#d1e7dd', $hotfixCss);
         $sourceCss = (string) file_get_contents(resource_path('css/schedule.css'));
         $this->assertStringContainsString('.trainer-salary-cell--saved', $sourceCss);
         $this->assertStringContainsString('trainer-salary-saved-flash', $sourceCss);
+        $this->assertStringContainsString('#d1e7dd', $sourceCss);
     }
 
     /**
@@ -10956,7 +11132,8 @@ JS;
     /**
      * UX-баг: оверлей ждал draw.dt или обёртку KidsCrmDataTable.create на parse-time
      * Vite-модуля → is-ready не ставился, спиннер крутился бесконечно.
-     * Журнал SSR: reveal сразу после DataTable({...}) и в catch, в обеих копиях JS.
+     * Журнал SSR: после DataTable({...}) сначала сворачиваются закрытые группы,
+     * затем reveal, и то же в catch. В обеих копиях JS.
      */
     private function assertScheduleJournalRevealAfterDataTableContract(string $js, string $path): void
     {
@@ -10973,12 +11150,12 @@ JS;
         $this->assertNotFalse($dtPos, $path);
         $afterDt = substr($js, $dtPos);
         $this->assertMatchesRegularExpression(
-            '/\$\(\'#schedule-table\'\)\.DataTable\(\{[\s\S]*?\}\);\s*revealScheduleJournalTable\(\);/',
+            '/\$\(\'#schedule-table\'\)\.DataTable\(\{[\s\S]*?\}\);\s*collapseClosedScheduleGroups\(\);\s*revealScheduleJournalTable\(\);/',
             $afterDt,
-            $path.': revealScheduleJournalTable() должен вызываться сразу после DataTable(), а не только объявляться выше'
+            $path.': revealScheduleJournalTable() должен вызываться сразу после DataTable() и сворачивания закрытых групп, а не только объявляться выше'
         );
         $this->assertMatchesRegularExpression(
-            '/catch\s*\(\s*err\s*\)\s*\{\s*revealScheduleJournalTable\(\);/',
+            '/catch\s*\(\s*err\s*\)\s*\{\s*collapseClosedScheduleGroups\(\);\s*revealScheduleJournalTable\(\);/',
             $js,
             $path.': catch тоже снимает прелоадер, иначе при ошибке DataTable спиннер бесконечный'
         );
@@ -11001,5 +11178,85 @@ JS;
         $this->assertNotFalse($throwPos);
 
         return substr($js, $start, $throwPos + strlen('throw err;') - $start);
+    }
+
+    private function assertGroupPageSwapDoesNotRestorePreviousRows(string $js, string $jsPath): string
+    {
+        $clickPos = strpos($js, "$(document).on('click', '.schedule-group-page-link'");
+        $this->assertNotFalse($clickPos, $jsPath);
+        $successPos = strpos($js, 'success: function (html) {', $clickPos);
+        $errorPos = strpos($js, 'error: function () {', $successPos);
+        $this->assertNotFalse($successPos, $jsPath);
+        $this->assertNotFalse($errorPos, $jsPath);
+
+        $clickBody = substr($js, $clickPos, $successPos - $clickPos);
+        $this->assertStringContainsString('e.preventDefault();', $clickBody, $jsPath);
+        $this->assertStringContainsString("$('#schedule-table').attr('data-group-rows-url')", $clickBody, $jsPath);
+        $this->assertStringContainsString("method: 'GET'", $clickBody, $jsPath);
+        $this->assertStringContainsString("'Accept': 'text/html'", $clickBody, $jsPath);
+        $this->assertStringContainsString("year: $('#filter-year').val()", $clickBody, $jsPath);
+        $this->assertStringContainsString("month: $('#filter-month').val()", $clickBody, $jsPath);
+        $this->assertStringContainsString("q: $('#table-search').val() || ''", $clickBody, $jsPath);
+        $this->assertStringContainsString('group_key: groupKey', $clickBody, $jsPath);
+        $this->assertStringContainsString('group_page: page', $clickBody, $jsPath);
+        $this->assertStringContainsString('params.team_ids = teams', $clickBody, $jsPath);
+
+        $successBody = substr($js, $successPos, $errorPos - $successPos);
+        $capturePos = strpos($successBody, 'closedKeys.push');
+        $destroyPos = strpos($successBody, 'DataTable().destroy()');
+        $insertPos = strpos($successBody, '$header.after(html)');
+        $hidePos = strpos($successBody, ".nextUntil('tr.schedule-group-row').hide()");
+        $reinitPos = strrpos($successBody, 'reinitScheduleJournalDataTable()');
+        $this->assertNotFalse($capturePos, "{$jsPath}: перед destroy нужно запомнить свёрнутые группы");
+        $this->assertNotFalse($destroyPos, "{$jsPath}: destroy() должен быть в success, а не только внутри reinit после вставки");
+        $this->assertNotFalse($insertPos, $jsPath);
+        $this->assertNotFalse($hidePos, $jsPath);
+        $this->assertNotFalse($reinitPos, $jsPath);
+        $this->assertLessThan($destroyPos, $capturePos, "{$jsPath}: свёрнутые группы читаются до destroy(), иначе DataTables вернёт их раскрытыми");
+        $this->assertLessThan($insertPos, $destroyPos, "{$jsPath}: destroy() после вставки возвращает старые строки страницы 1");
+        $this->assertLessThan($hidePos, $insertPos, $jsPath);
+        $this->assertLessThan($reinitPos, $hidePos, $jsPath);
+        $this->assertStringContainsString("if (!$(this).hasClass('is-open'))", $successBody, $jsPath);
+        $this->assertStringContainsString("aria-label', 'Развернуть'", $successBody, $jsPath);
+
+        $errorBody = substr($js, $errorPos, 180);
+        $this->assertStringContainsString("window.location.href = \$link.attr('href')", $errorBody, $jsPath);
+
+        $fnPos = strpos($js, 'function toggleScheduleGroupRow');
+        $this->assertNotFalse($fnPos, $jsPath);
+        $togglePos = strpos($js, "$(document).on('click', '.schedule-group-toggle'");
+        $this->assertNotFalse($togglePos, $jsPath);
+        $this->assertLessThan($togglePos, $fnPos, $jsPath);
+        $this->assertLessThan($clickPos, $togglePos, $jsPath);
+        $fnBody = substr($js, $fnPos, $togglePos - $fnPos);
+        $this->assertStringContainsString("aria-label', 'Свернуть'", $fnBody, $jsPath);
+        $this->assertStringContainsString("aria-label', 'Развернуть'", $fnBody, $jsPath);
+        $toggleBody = substr($js, $togglePos, $clickPos - $togglePos);
+        $this->assertStringContainsString('e.preventDefault();', $toggleBody, $jsPath);
+        $this->assertStringNotContainsString('$.ajax', $toggleBody, $jsPath);
+        $this->assertStringContainsString('toggleScheduleGroupRow(', $toggleBody, $jsPath);
+
+        $navigatePos = strpos($js, 'function scheduleJournalNavigateWithFilters()');
+        $this->assertNotFalse($navigatePos, $jsPath);
+        $navigateEnd = strpos($js, 'function initScheduleJournalTeamFilter()', $navigatePos);
+        $this->assertNotFalse($navigateEnd, $jsPath);
+        $navigateBody = substr($js, $navigatePos, $navigateEnd - $navigatePos);
+        $this->assertStringContainsString("searchParams.delete('page')", $navigateBody, $jsPath);
+        $this->assertStringContainsString("key === 'group_pages'", $navigateBody, $jsPath);
+        $this->assertStringContainsString("key.indexOf('group_pages[') === 0", $navigateBody, $jsPath);
+        $this->assertStringNotContainsString("searchParams.delete('q')", $navigateBody, "{$jsPath}: смена фильтра не сбрасывает поиск");
+
+        $cellPos = strpos($js, 'function scheduleJournalCell(userId, date, $prefer)');
+        $rowPos = strpos($js, 'function scheduleJournalUserRow(userId, $fromCell)');
+        $this->assertNotFalse($cellPos, $jsPath);
+        $this->assertNotFalse($rowPos, $jsPath);
+        $cellBody = substr($js, $cellPos, $rowPos - $cellPos);
+        $scopePos = strpos($cellBody, "currentCell.attr('data-context-team-id')");
+        $firstPos = strpos($cellBody, 'return $cells.first()');
+        $this->assertNotFalse($scopePos, $jsPath);
+        $this->assertNotFalse($firstPos, $jsPath);
+        $this->assertLessThan($firstPos, $scopePos, "{$jsPath}: ячейка обновляется в строке своей группы, не в первой копии ученика");
+
+        return $clickBody.$successBody;
     }
 }

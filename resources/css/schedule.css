@@ -141,6 +141,9 @@ body.no-scroll {
 
 .schedule-table-container {
     text-align: left;
+    width: auto;
+    max-width: none;
+    overflow-x: visible !important;
 }
 
 #schedule-table_wrapper.dataTables_wrapper,
@@ -399,20 +402,21 @@ table.dataTable tbody th, table.dataTable tbody td {
 
 
 .schedule-day-header {
-    min-width: 15px;
+    min-width: 36px;
+    width: 36px;
     min-height: 5px;
     padding: 0;
     font-size: 8px;
 }
 
 .schedule-cell {
-    min-width: 25px;
+    min-width: 36px;
     min-height: 5px;
     padding: 1px !important;
     font-size: 8px;
     vertical-align: middle !important;
 
-    width: 25px;
+    width: 36px;
     /*height: 5px;*/
     margin: 0;
     position: relative;
@@ -431,6 +435,7 @@ table.dataTable tbody th, table.dataTable tbody td {
     height: 1.45rem;
     aspect-ratio: 1;
     margin: 0 auto;
+    min-height: 0;
     border-radius: 0.4rem;
     box-sizing: border-box;
     line-height: 1;
@@ -683,11 +688,10 @@ table.dataTable tbody th, table.dataTable tbody td {
     border-color: #a8b0b8 !important;
 }
 
-/* Подсветка столбцов расписания выбранной группы */
+/* Подсветка дней группы. Стороны задаются ниже: на стыке только одна линия 1px. */
 .highlight-column {
-    /*border: 2px solid rgba(197, 132, 38, 0.72) !important;*/
-    border: solid 1px #f3a12b !important;
-
+    border-right-color: #f3a12b !important;
+    border-bottom-color: #f3a12b !important;
 }
 
 /* Полноэкранный режим: обёртка для фильтров и таблицы */
@@ -750,6 +754,24 @@ table.dataTable tbody th, table.dataTable tbody td {
         min-width: 160px;
         width: 100%;
         max-width: 100%;
+    }
+
+    .schedule-day-header,
+    #schedule-table td.schedule-group-day,
+    td.schedule-cell {
+        min-width: 36px;
+        width: 36px;
+    }
+
+    .schedule-cell__swatch {
+        width: 1.45rem;
+        height: 1.45rem;
+    }
+
+    .schedule-cell.is-tapped::after {
+        content: none;
+        border: 0;
+        box-shadow: none;
     }
 
     .schedule-fullscreen-wrapper .schedule-filter-team {
@@ -848,8 +870,8 @@ table.dataTable tbody th, table.dataTable tbody td {
 /* Исправляем левый бордер при подсветке столбца */
 .schedule-table-container .schedule-table td.highlight-column,
 .schedule-table-container .schedule-table th.highlight-column {
-    /*border: 1px solid RED !important;*/
-    border: solid 1px #f3a12b !important;
+    border-right-color: #f3a12b !important;
+    border-bottom-color: #f3a12b !important;
 }
 
 
@@ -863,14 +885,26 @@ table.dataTable tbody th, table.dataTable tbody td {
     border-spacing: 0 !important;
 }
 
-/* Общие границы.
+/* Общие границы. У каждой внутренней линии один владелец (правый и нижний край),
+   иначе при border-collapse: separate соседние 1px складываются в 2px.
    !important: иначе DataTables (content-box) расходится с highlight-column (border-box)
    и сжимает цветной swatch статуса по ширине. */
 .schedule-table th,
 .schedule-table td {
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-style: solid;
+    border-color: rgba(0, 0, 0, 0.2);
+    border-width: 0 1px 1px 0;
     background-color: #fff; /* Белый фон, чтобы за ней не было видно движения */
     box-sizing: border-box !important;
+}
+
+.schedule-table tr > :first-child {
+    border-left-width: 1px;
+}
+
+.schedule-table thead tr > th,
+.schedule-table thead tr > td {
+    border-top-width: 1px;
 }
 
 /* ----------------------------------------------- */
@@ -912,7 +946,90 @@ table.dataTable tbody th, table.dataTable tbody td {
 /* ----------------------------------------------- */
 .schedule-table td.highlight-column,
 .schedule-table th.highlight-column {
-    border: 1px solid #f3a12b !important; /* или ваш цвет, можно #007bff */
+    border-width: 0 1px 1px 0 !important;
+    border-right-color: #f3a12b !important;
+    border-bottom-color: #f3a12b !important;
+}
+
+.schedule-table thead tr > .highlight-column {
+    border-top-width: 1px !important;
+    border-top-color: #f3a12b !important;
+}
+
+.schedule-table tr > .highlight-column:first-child {
+    border-left-width: 1px !important;
+    border-left-color: #f3a12b !important;
+}
+
+.schedule-table th:has(+ .highlight-column),
+.schedule-table td:has(+ .highlight-column) {
+    border-right-color: #f3a12b !important;
+}
+
+/* Верх оранжевого блока — это нижняя линия ячейки сверху, не вторая рамка. */
+.schedule-table tr:has(+ tr > :nth-child(6).highlight-column) > :nth-child(6),
+.schedule-table tr:has(+ tr > :nth-child(7).highlight-column) > :nth-child(7),
+.schedule-table tr:has(+ tr > :nth-child(8).highlight-column) > :nth-child(8),
+.schedule-table tr:has(+ tr > :nth-child(9).highlight-column) > :nth-child(9),
+.schedule-table tr:has(+ tr > :nth-child(10).highlight-column) > :nth-child(10),
+.schedule-table tr:has(+ tr > :nth-child(11).highlight-column) > :nth-child(11),
+.schedule-table tr:has(+ tr > :nth-child(12).highlight-column) > :nth-child(12),
+.schedule-table tr:has(+ tr > :nth-child(13).highlight-column) > :nth-child(13),
+.schedule-table tr:has(+ tr > :nth-child(14).highlight-column) > :nth-child(14),
+.schedule-table tr:has(+ tr > :nth-child(15).highlight-column) > :nth-child(15),
+.schedule-table tr:has(+ tr > :nth-child(16).highlight-column) > :nth-child(16),
+.schedule-table tr:has(+ tr > :nth-child(17).highlight-column) > :nth-child(17),
+.schedule-table tr:has(+ tr > :nth-child(18).highlight-column) > :nth-child(18),
+.schedule-table tr:has(+ tr > :nth-child(19).highlight-column) > :nth-child(19),
+.schedule-table tr:has(+ tr > :nth-child(20).highlight-column) > :nth-child(20),
+.schedule-table tr:has(+ tr > :nth-child(21).highlight-column) > :nth-child(21),
+.schedule-table tr:has(+ tr > :nth-child(22).highlight-column) > :nth-child(22),
+.schedule-table tr:has(+ tr > :nth-child(23).highlight-column) > :nth-child(23),
+.schedule-table tr:has(+ tr > :nth-child(24).highlight-column) > :nth-child(24),
+.schedule-table tr:has(+ tr > :nth-child(25).highlight-column) > :nth-child(25),
+.schedule-table tr:has(+ tr > :nth-child(26).highlight-column) > :nth-child(26),
+.schedule-table tr:has(+ tr > :nth-child(27).highlight-column) > :nth-child(27),
+.schedule-table tr:has(+ tr > :nth-child(28).highlight-column) > :nth-child(28),
+.schedule-table tr:has(+ tr > :nth-child(29).highlight-column) > :nth-child(29),
+.schedule-table tr:has(+ tr > :nth-child(30).highlight-column) > :nth-child(30),
+.schedule-table tr:has(+ tr > :nth-child(31).highlight-column) > :nth-child(31),
+.schedule-table tr:has(+ tr > :nth-child(32).highlight-column) > :nth-child(32),
+.schedule-table tr:has(+ tr > :nth-child(33).highlight-column) > :nth-child(33),
+.schedule-table tr:has(+ tr > :nth-child(34).highlight-column) > :nth-child(34),
+.schedule-table tr:has(+ tr > :nth-child(35).highlight-column) > :nth-child(35),
+.schedule-table tr:has(+ tr > :nth-child(36).highlight-column) > :nth-child(36),
+.schedule-table:has(tbody > tr:first-child > :nth-child(6).highlight-column) > thead > tr > :nth-child(6),
+.schedule-table:has(tbody > tr:first-child > :nth-child(7).highlight-column) > thead > tr > :nth-child(7),
+.schedule-table:has(tbody > tr:first-child > :nth-child(8).highlight-column) > thead > tr > :nth-child(8),
+.schedule-table:has(tbody > tr:first-child > :nth-child(9).highlight-column) > thead > tr > :nth-child(9),
+.schedule-table:has(tbody > tr:first-child > :nth-child(10).highlight-column) > thead > tr > :nth-child(10),
+.schedule-table:has(tbody > tr:first-child > :nth-child(11).highlight-column) > thead > tr > :nth-child(11),
+.schedule-table:has(tbody > tr:first-child > :nth-child(12).highlight-column) > thead > tr > :nth-child(12),
+.schedule-table:has(tbody > tr:first-child > :nth-child(13).highlight-column) > thead > tr > :nth-child(13),
+.schedule-table:has(tbody > tr:first-child > :nth-child(14).highlight-column) > thead > tr > :nth-child(14),
+.schedule-table:has(tbody > tr:first-child > :nth-child(15).highlight-column) > thead > tr > :nth-child(15),
+.schedule-table:has(tbody > tr:first-child > :nth-child(16).highlight-column) > thead > tr > :nth-child(16),
+.schedule-table:has(tbody > tr:first-child > :nth-child(17).highlight-column) > thead > tr > :nth-child(17),
+.schedule-table:has(tbody > tr:first-child > :nth-child(18).highlight-column) > thead > tr > :nth-child(18),
+.schedule-table:has(tbody > tr:first-child > :nth-child(19).highlight-column) > thead > tr > :nth-child(19),
+.schedule-table:has(tbody > tr:first-child > :nth-child(20).highlight-column) > thead > tr > :nth-child(20),
+.schedule-table:has(tbody > tr:first-child > :nth-child(21).highlight-column) > thead > tr > :nth-child(21),
+.schedule-table:has(tbody > tr:first-child > :nth-child(22).highlight-column) > thead > tr > :nth-child(22),
+.schedule-table:has(tbody > tr:first-child > :nth-child(23).highlight-column) > thead > tr > :nth-child(23),
+.schedule-table:has(tbody > tr:first-child > :nth-child(24).highlight-column) > thead > tr > :nth-child(24),
+.schedule-table:has(tbody > tr:first-child > :nth-child(25).highlight-column) > thead > tr > :nth-child(25),
+.schedule-table:has(tbody > tr:first-child > :nth-child(26).highlight-column) > thead > tr > :nth-child(26),
+.schedule-table:has(tbody > tr:first-child > :nth-child(27).highlight-column) > thead > tr > :nth-child(27),
+.schedule-table:has(tbody > tr:first-child > :nth-child(28).highlight-column) > thead > tr > :nth-child(28),
+.schedule-table:has(tbody > tr:first-child > :nth-child(29).highlight-column) > thead > tr > :nth-child(29),
+.schedule-table:has(tbody > tr:first-child > :nth-child(30).highlight-column) > thead > tr > :nth-child(30),
+.schedule-table:has(tbody > tr:first-child > :nth-child(31).highlight-column) > thead > tr > :nth-child(31),
+.schedule-table:has(tbody > tr:first-child > :nth-child(32).highlight-column) > thead > tr > :nth-child(32),
+.schedule-table:has(tbody > tr:first-child > :nth-child(33).highlight-column) > thead > tr > :nth-child(33),
+.schedule-table:has(tbody > tr:first-child > :nth-child(34).highlight-column) > thead > tr > :nth-child(34),
+.schedule-table:has(tbody > tr:first-child > :nth-child(35).highlight-column) > thead > tr > :nth-child(35),
+.schedule-table:has(tbody > tr:first-child > :nth-child(36).highlight-column) > thead > tr > :nth-child(36) {
+    border-bottom-color: #f3a12b !important;
 }
 
 /* ----------------------------------------------- */
@@ -989,7 +1106,11 @@ table.dataTable tbody th, table.dataTable tbody td {
 }
 
 .number-line {
-    font-size: 13px;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: #adb5bd;
+    font-variant-numeric: tabular-nums;
 }
 
 
@@ -2285,4 +2406,596 @@ table.dataTable tbody th, table.dataTable tbody td {
     line-height: 1.2;
     color: #868e96;
     font-variant-numeric: tabular-nums;
+}
+
+.schedule-table tr.schedule-group-row td {
+    background: #f4f6f9;
+}
+
+#schedule-table {
+    --schedule-sticky-name-left: 23px;
+}
+
+.schedule-table .col-name,
+.schedule-table td.schedule-user-name {
+    left: var(--schedule-sticky-name-left) !important;
+    vertical-align: middle;
+}
+
+.schedule-table td.schedule-group-head-cell {
+    text-align: left;
+    vertical-align: middle;
+}
+
+.schedule-group-head {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.schedule-table .schedule-group-toggle {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #868e96;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: none;
+}
+
+.schedule-table .schedule-group-toggle:hover,
+.schedule-table .schedule-group-toggle:focus-visible {
+    background: rgba(73, 80, 87, 0.08);
+    color: #495057;
+    outline: none;
+}
+
+.schedule-table .schedule-group-toggle i {
+    display: block;
+    font-size: 11px;
+    line-height: 1;
+    transition: transform 0.18s ease;
+}
+
+.schedule-table tr.schedule-group-row.is-open .schedule-group-toggle i {
+    transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .schedule-table .schedule-group-toggle i {
+        transition: none;
+    }
+}
+
+.schedule-table .schedule-group-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.3;
+    color: #495057;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+}
+
+.schedule-table .schedule-group-count {
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: #868e96;
+    font-variant-numeric: tabular-nums;
+}
+
+.schedule-table td.schedule-group-pager-host,
+.schedule-fullscreen-wrapper.fullscreen td.schedule-group-pager-host,
+body.layout-wide td.schedule-group-pager-host {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    text-align: left;
+}
+
+.schedule-table tr.schedule-group-pager td {
+    background: #fff;
+}
+
+#schedule-table tr.schedule-group-pager td.schedule-group-pager-cell {
+    background: #fff;
+    text-align: left;
+    white-space: normal;
+    overflow: visible;
+    padding: 0.35rem 0.55rem;
+    vertical-align: middle;
+}
+
+#schedule-table tr.schedule-group-pager .schedule-journal-pagination {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+    width: max-content;
+    max-width: calc(100vw - 48px);
+    box-sizing: border-box;
+    background: #fff;
+}
+
+#schedule-table tr.schedule-group-pager .schedule-journal-pagination__meta {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 1;
+    color: #868e96;
+    font-variant-numeric: tabular-nums;
+}
+
+#schedule-table tr.schedule-group-pager .schedule-journal-pagination__range {
+    color: #495057;
+}
+
+#schedule-table tr.schedule-group-pager .schedule-journal-pagination__of {
+    margin-left: 0.2rem;
+}
+
+.schedule-group-pages {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.1rem;
+    margin-top: 0;
+}
+
+.schedule-group-page-link,
+.schedule-group-page-current {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.28rem;
+    border-radius: 999px;
+    font-size: 12px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    text-decoration: none;
+    color: #868e96;
+}
+
+.schedule-group-page-link:hover {
+    color: #343a40;
+    background: #f4f6f8;
+    text-decoration: none;
+}
+
+.schedule-group-page-current {
+    color: #343a40;
+    background: #eef1f4;
+    font-weight: 600;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls__actions .schedule-bulk-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.schedule-fullscreen-wrapper .schedule-controls__actions .schedule-bulk-bar.d-none {
+    display: none !important;
+}
+
+#schedule-bulk-count {
+    font-size: 13px;
+    line-height: 1.2;
+    color: #6c757d;
+    font-variant-numeric: tabular-nums;
+}
+
+#schedule-table tr.schedule-group-collapsed {
+    display: none;
+}
+
+#schedule-table td.schedule-group-day {
+    cursor: pointer;
+    position: relative;
+    min-width: 36px;
+    width: 36px;
+    vertical-align: middle;
+}
+
+.schedule-group-day-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border: 1px solid #c5cdd6;
+    border-radius: 3px;
+    background: #fff;
+    box-sizing: border-box;
+    vertical-align: middle;
+    pointer-events: none;
+    color: transparent;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.schedule-group-day-check::after {
+    content: "✓";
+    display: block;
+    line-height: 1;
+}
+
+#schedule-table td.schedule-group-day--bulk-target:not(.schedule-group-day--bulk-all) .schedule-group-day-check {
+    border-color: #0d6efd;
+    color: #0d6efd;
+}
+
+#schedule-table td.schedule-group-day--bulk-all .schedule-group-day-check {
+    background: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+
+#schedule-table.is-bulk-lock th.schedule-day-header--bulk,
+#schedule-table.is-bulk-lock td.schedule-group-day--bulk-target {
+    background-color: #f4f8ff !important;
+}
+
+#schedule-table td.schedule-cell[data-bulk-block="eligible"][data-occurrence-count="0"] > .schedule-cell-empty-dot {
+    display: none;
+}
+
+#schedule-table td.schedule-cell[data-bulk-block="eligible"][data-occurrence-count="0"]::after {
+    content: "✓";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    margin: 0 auto;
+    border: 1px solid #c5cdd6;
+    border-radius: 3px;
+    background: #fff;
+    box-sizing: border-box;
+    color: transparent;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    pointer-events: none;
+}
+
+#schedule-table td.schedule-cell.schedule-cell--bulk-selected[data-bulk-block="eligible"]::after {
+    background: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+
+#schedule-table td.schedule-cell.schedule-cell--bulk-target {
+    background-color: transparent !important;
+    box-shadow: none;
+}
+
+#schedule-table td.schedule-cell.schedule-cell--bulk-selected {
+    background-color: transparent !important;
+    box-shadow: none;
+}
+
+#schedule-table.is-bulk-lock td.schedule-cell.schedule-cell--bulk-muted {
+    opacity: 0.4;
+}
+
+.bulk-students {
+    max-height: 220px;
+    overflow: auto;
+    margin: 0 0 0.75rem;
+    text-align: left;
+    border: 1px solid #eef1f4;
+    border-radius: 8px;
+    background: #fafbfc;
+}
+
+.bulk-student {
+    min-width: 0;
+    padding: 0.28rem 0.6rem;
+    font-size: 13px;
+    line-height: 1.3;
+    text-align: left;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.bulk-student:last-child {
+    border-bottom: 0;
+}
+
+.bulk-student__line {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.bulk-student__name {
+    flex: 0 1 40%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+    color: #343a40;
+}
+
+.bulk-student__abonement {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #868e96;
+}
+
+.bulk-student__price {
+    flex: 0 0 auto;
+    margin-left: auto;
+    color: #495057;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.bulk-student-error {
+    white-space: normal;
+}
+
+#schedule-table td.schedule-payment-status {
+    width: auto;
+    min-width: 30px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Кабинет на /schedule: 1280px, широкий режим — на всю ширину. */
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content-wrapper,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .container-fluid,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .schedule-section,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .tab-content {
+    overflow-x: visible;
+    min-width: 0;
+}
+
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper {
+    max-width: 1280px;
+}
+
+body.layout-wide:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper {
+    max-width: none;
+    width: 100%;
+}
+
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content-wrapper,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .container-fluid,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .schedule-section,
+body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .tab-content {
+    max-width: none;
+}
+
+.schedule-fullscreen-wrapper:not(.fullscreen) {
+    max-width: none;
+    min-width: 0;
+    overflow-x: visible;
+}
+
+.schedule-fullscreen-wrapper,
+#schedule-journal-stage {
+    max-width: none;
+}
+
+.schedule-day-header,
+#schedule-table td.schedule-group-day,
+#schedule-table tfoot td.schedule-attendance-day,
+td.schedule-cell {
+    min-width: 36px;
+    width: 36px;
+}
+
+/* DataTables: границы ячеек журнала с !important, иначе highlight-column сжимает swatch. */
+#schedule-table th,
+#schedule-table td {
+    border-style: solid !important;
+    border-color: rgba(0, 0, 0, 0.2);
+    border-width: 0 1px 1px 0 !important;
+}
+
+#schedule-table tr > :first-child {
+    border-left-width: 1px !important;
+}
+
+#schedule-table thead tr > th,
+#schedule-table thead tr > td {
+    border-top-width: 1px !important;
+}
+
+#schedule-table th.highlight-column,
+#schedule-table td.highlight-column {
+    border-width: 0 1px 1px 0 !important;
+    border-right-color: #f3a12b !important;
+    border-bottom-color: #f3a12b !important;
+}
+
+#schedule-table thead tr > .highlight-column {
+    border-top-width: 1px !important;
+    border-top-color: #f3a12b !important;
+}
+
+#schedule-table tr > .highlight-column:first-child {
+    border-left-width: 1px !important;
+    border-left-color: #f3a12b !important;
+}
+
+#schedule-table th:has(+ .highlight-column),
+#schedule-table td:has(+ .highlight-column) {
+    border-right-color: #f3a12b !important;
+}
+
+#schedule-table tr:has(+ tr > :nth-child(6).highlight-column) > :nth-child(6),
+#schedule-table tr:has(+ tr > :nth-child(7).highlight-column) > :nth-child(7),
+#schedule-table tr:has(+ tr > :nth-child(8).highlight-column) > :nth-child(8),
+#schedule-table tr:has(+ tr > :nth-child(9).highlight-column) > :nth-child(9),
+#schedule-table tr:has(+ tr > :nth-child(10).highlight-column) > :nth-child(10),
+#schedule-table tr:has(+ tr > :nth-child(11).highlight-column) > :nth-child(11),
+#schedule-table tr:has(+ tr > :nth-child(12).highlight-column) > :nth-child(12),
+#schedule-table tr:has(+ tr > :nth-child(13).highlight-column) > :nth-child(13),
+#schedule-table tr:has(+ tr > :nth-child(14).highlight-column) > :nth-child(14),
+#schedule-table tr:has(+ tr > :nth-child(15).highlight-column) > :nth-child(15),
+#schedule-table tr:has(+ tr > :nth-child(16).highlight-column) > :nth-child(16),
+#schedule-table tr:has(+ tr > :nth-child(17).highlight-column) > :nth-child(17),
+#schedule-table tr:has(+ tr > :nth-child(18).highlight-column) > :nth-child(18),
+#schedule-table tr:has(+ tr > :nth-child(19).highlight-column) > :nth-child(19),
+#schedule-table tr:has(+ tr > :nth-child(20).highlight-column) > :nth-child(20),
+#schedule-table tr:has(+ tr > :nth-child(21).highlight-column) > :nth-child(21),
+#schedule-table tr:has(+ tr > :nth-child(22).highlight-column) > :nth-child(22),
+#schedule-table tr:has(+ tr > :nth-child(23).highlight-column) > :nth-child(23),
+#schedule-table tr:has(+ tr > :nth-child(24).highlight-column) > :nth-child(24),
+#schedule-table tr:has(+ tr > :nth-child(25).highlight-column) > :nth-child(25),
+#schedule-table tr:has(+ tr > :nth-child(26).highlight-column) > :nth-child(26),
+#schedule-table tr:has(+ tr > :nth-child(27).highlight-column) > :nth-child(27),
+#schedule-table tr:has(+ tr > :nth-child(28).highlight-column) > :nth-child(28),
+#schedule-table tr:has(+ tr > :nth-child(29).highlight-column) > :nth-child(29),
+#schedule-table tr:has(+ tr > :nth-child(30).highlight-column) > :nth-child(30),
+#schedule-table tr:has(+ tr > :nth-child(31).highlight-column) > :nth-child(31),
+#schedule-table tr:has(+ tr > :nth-child(32).highlight-column) > :nth-child(32),
+#schedule-table tr:has(+ tr > :nth-child(33).highlight-column) > :nth-child(33),
+#schedule-table tr:has(+ tr > :nth-child(34).highlight-column) > :nth-child(34),
+#schedule-table tr:has(+ tr > :nth-child(35).highlight-column) > :nth-child(35),
+#schedule-table tr:has(+ tr > :nth-child(36).highlight-column) > :nth-child(36),
+#schedule-table:has(tbody > tr:first-child > :nth-child(6).highlight-column) > thead > tr > :nth-child(6),
+#schedule-table:has(tbody > tr:first-child > :nth-child(7).highlight-column) > thead > tr > :nth-child(7),
+#schedule-table:has(tbody > tr:first-child > :nth-child(8).highlight-column) > thead > tr > :nth-child(8),
+#schedule-table:has(tbody > tr:first-child > :nth-child(9).highlight-column) > thead > tr > :nth-child(9),
+#schedule-table:has(tbody > tr:first-child > :nth-child(10).highlight-column) > thead > tr > :nth-child(10),
+#schedule-table:has(tbody > tr:first-child > :nth-child(11).highlight-column) > thead > tr > :nth-child(11),
+#schedule-table:has(tbody > tr:first-child > :nth-child(12).highlight-column) > thead > tr > :nth-child(12),
+#schedule-table:has(tbody > tr:first-child > :nth-child(13).highlight-column) > thead > tr > :nth-child(13),
+#schedule-table:has(tbody > tr:first-child > :nth-child(14).highlight-column) > thead > tr > :nth-child(14),
+#schedule-table:has(tbody > tr:first-child > :nth-child(15).highlight-column) > thead > tr > :nth-child(15),
+#schedule-table:has(tbody > tr:first-child > :nth-child(16).highlight-column) > thead > tr > :nth-child(16),
+#schedule-table:has(tbody > tr:first-child > :nth-child(17).highlight-column) > thead > tr > :nth-child(17),
+#schedule-table:has(tbody > tr:first-child > :nth-child(18).highlight-column) > thead > tr > :nth-child(18),
+#schedule-table:has(tbody > tr:first-child > :nth-child(19).highlight-column) > thead > tr > :nth-child(19),
+#schedule-table:has(tbody > tr:first-child > :nth-child(20).highlight-column) > thead > tr > :nth-child(20),
+#schedule-table:has(tbody > tr:first-child > :nth-child(21).highlight-column) > thead > tr > :nth-child(21),
+#schedule-table:has(tbody > tr:first-child > :nth-child(22).highlight-column) > thead > tr > :nth-child(22),
+#schedule-table:has(tbody > tr:first-child > :nth-child(23).highlight-column) > thead > tr > :nth-child(23),
+#schedule-table:has(tbody > tr:first-child > :nth-child(24).highlight-column) > thead > tr > :nth-child(24),
+#schedule-table:has(tbody > tr:first-child > :nth-child(25).highlight-column) > thead > tr > :nth-child(25),
+#schedule-table:has(tbody > tr:first-child > :nth-child(26).highlight-column) > thead > tr > :nth-child(26),
+#schedule-table:has(tbody > tr:first-child > :nth-child(27).highlight-column) > thead > tr > :nth-child(27),
+#schedule-table:has(tbody > tr:first-child > :nth-child(28).highlight-column) > thead > tr > :nth-child(28),
+#schedule-table:has(tbody > tr:first-child > :nth-child(29).highlight-column) > thead > tr > :nth-child(29),
+#schedule-table:has(tbody > tr:first-child > :nth-child(30).highlight-column) > thead > tr > :nth-child(30),
+#schedule-table:has(tbody > tr:first-child > :nth-child(31).highlight-column) > thead > tr > :nth-child(31),
+#schedule-table:has(tbody > tr:first-child > :nth-child(32).highlight-column) > thead > tr > :nth-child(32),
+#schedule-table:has(tbody > tr:first-child > :nth-child(33).highlight-column) > thead > tr > :nth-child(33),
+#schedule-table:has(tbody > tr:first-child > :nth-child(34).highlight-column) > thead > tr > :nth-child(34),
+#schedule-table:has(tbody > tr:first-child > :nth-child(35).highlight-column) > thead > tr > :nth-child(35),
+#schedule-table:has(tbody > tr:first-child > :nth-child(36).highlight-column) > thead > tr > :nth-child(36) {
+    border-bottom-color: #f3a12b !important;
+}
+
+/* Мобильный журнал: скролл внутри таблицы, № и ФИО слева, шапка сверху. */
+@media (max-width: 768px) {
+    .schedule-fullscreen-wrapper:not(.fullscreen) .schedule-journal-table-stack {
+        display: block;
+        width: 100% !important;
+        max-width: 100%;
+    }
+
+    .schedule-fullscreen-wrapper:not(.fullscreen) .schedule-table-container {
+        overflow: auto !important;
+        max-height: calc(100dvh - 24rem);
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* DataTables .kids-dt-scroll-x шире экрана и сам не скроллится, из-за этого sticky не держится. */
+    #schedule-table_wrapper > .kids-dt-scroll-x {
+        overflow: visible !important;
+        width: max-content;
+        max-width: none;
+    }
+
+    #schedule-table {
+        --schedule-sticky-name-left: 2.5rem;
+    }
+
+    #schedule-table .sticky-col-1,
+    #schedule-table .col-number {
+        position: sticky;
+        left: 0;
+        z-index: 5;
+        width: 2.5rem !important;
+        min-width: 2.5rem !important;
+        max-width: 2.5rem !important;
+        background-color: #fff;
+        background-clip: padding-box;
+    }
+
+    .schedule-fullscreen-wrapper:not(.fullscreen) #schedule-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        background-color: #fff;
+        background-clip: padding-box;
+    }
+
+    #schedule-table thead th.col-name,
+    #schedule-table td.schedule-user-name,
+    #schedule-table tfoot td.schedule-attendance-total-label {
+        position: sticky !important;
+        left: var(--schedule-sticky-name-left) !important;
+        z-index: 5;
+        background-clip: padding-box;
+        box-shadow: 4px 0 6px -4px rgba(0, 0, 0, 0.45);
+    }
+
+    #schedule-table thead th.sticky-col-1,
+    #schedule-table thead th.col-name {
+        z-index: 6;
+        top: 0;
+    }
+
+    #schedule-table td.schedule-user-name {
+        background-color: #fff;
+    }
+
+    #schedule-table tr.schedule-group-row td.sticky-col-1,
+    #schedule-table tr.schedule-group-row td.schedule-user-name {
+        background-color: #f4f6f9;
+    }
+
+    #schedule-table tfoot td.sticky-col-1,
+    #schedule-table tfoot td.schedule-attendance-total-label {
+        background-color: #f8f9fa;
+    }
 }

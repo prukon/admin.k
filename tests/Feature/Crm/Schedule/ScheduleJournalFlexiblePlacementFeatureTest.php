@@ -85,10 +85,12 @@ final class ScheduleJournalFlexiblePlacementFeatureTest extends ScheduleJournalT
 
         $all = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => 'all']));
         $all->assertOk()
-            ->assertSee('journal-flexible-hint--multi', false)
-            ->assertDontSee('journal-flexible-hint--ratio', false)
-            ->assertSee('10/10 остаток занятий в текущем месяце по абонементу &quot;'.$nameA.'&quot; за 5 000 руб', false)
-            ->assertSee('8/8 остаток занятий в текущем месяце по абонементу &quot;'.$nameB.'&quot; за 5 000 руб', false);
+            ->assertSee('journal-flexible-hint--ratio', false)
+            ->assertDontSee('journal-flexible-hint--multi', false)
+            ->assertSee(">10/10\nПредоплата<", false)
+            ->assertSee(">8/8\nПредоплата<", false)
+            ->assertSee('Остаток занятий в текущем месяце по абонементу &quot;'.$nameA.'&quot; за 5 000 руб', false)
+            ->assertSee('Остаток занятий в текущем месяце по абонементу &quot;'.$nameB.'&quot; за 5 000 руб', false);
 
         $filtered = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $teamA->id]));
         $filtered->assertOk()

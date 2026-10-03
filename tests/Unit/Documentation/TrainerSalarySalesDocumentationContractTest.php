@@ -39,7 +39,7 @@ final class TrainerSalarySalesDocumentationContractTest extends TestCase
         $this->assertStringContainsString('flashSavedField', $chunk);
         $this->assertStringContainsString('не кнопка «Расчет»', $chunk);
         $this->assertStringContainsString('sales-percent-saved-flash', $chunk);
-        $this->assertStringContainsString('public/css/trainer-salary.css', $chunk);
+        $this->assertStringContainsString('resources/css/schedule.css', $chunk);
         $this->assertStringContainsString('1400', $chunk);
         $this->assertStringContainsString('step="1"', $chunk);
         $this->assertStringContainsString('is_manual_paid=false', $chunk);
@@ -85,11 +85,8 @@ final class TrainerSalarySalesDocumentationContractTest extends TestCase
         $index = $this->docFile('index.html');
         $page = $this->docFile('schedule-trainer-salary.html');
         $js = (string) file_get_contents(dirname(__DIR__, 3).'/resources/js/trainer-salary.js');
-        $publicJs = (string) file_get_contents(dirname(__DIR__, 3).'/public/js/trainer-salary.js');
-        $hotfixCss = (string) file_get_contents(dirname(__DIR__, 3).'/public/css/trainer-salary.css');
         $sourceCss = (string) file_get_contents(dirname(__DIR__, 3).'/resources/css/schedule.css');
 
-        $this->assertSame($js, $publicJs);
         $this->assertStringContainsString("function flashSavedField(tr, field)", $js);
         $this->assertStringContainsString("flashSavedField(tr, 'sales_percent')", $js);
         $this->assertStringContainsString("input.closest('td')", $js);
@@ -102,7 +99,7 @@ final class TrainerSalarySalesDocumentationContractTest extends TestCase
         $this->assertStringContainsString('1400', $page);
         $this->assertStringContainsString('не кнопка «Расчет»', $page);
         $this->assertStringContainsString('formOne', $page);
-        $this->assertStringContainsString('public/css/trainer-salary.css', $page);
+        $this->assertStringContainsString('resources/js/trainer-salary.js', $page);
         $this->assertStringContainsString('resources/css/schedule.css', $page);
         $this->assertStringContainsString('table_html', $page);
 
@@ -111,8 +108,6 @@ final class TrainerSalarySalesDocumentationContractTest extends TestCase
         $this->assertStringContainsString('sales-percent-saved-flash', $index);
         $this->assertStringContainsString('trainer-salary-cell--saved', $index);
 
-        $this->assertStringContainsString('.trainer-salary-cell--saved', $hotfixCss);
-        $this->assertStringContainsString('trainer-salary-saved-flash', $hotfixCss);
         $this->assertStringContainsString('.trainer-salary-cell--saved', $sourceCss);
         $this->assertStringContainsString('trainer-salary-saved-flash', $sourceCss);
     }

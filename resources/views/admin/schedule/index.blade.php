@@ -40,14 +40,12 @@
     @include('partials.select2.generic-multiselect')
     @include('partials.ui.user-card-modal', [
         'userCardUrl' => url('/schedule/users'),
+        'skipUserCardModalCss' => true,
     ])
 @endif
 
 @push('styles')
     @vite(['resources/css/schedule.css'])
-    <link rel="stylesheet" href="{{ asset('css/user-card-modal.css') }}?v={{ @filemtime(public_path('css/user-card-modal.css')) ?: time() }}">
-    {{-- Hotfix до следующей Vite-сборки: см. public/css/schedule-journal-cells.css --}}
-    <link rel="stylesheet" href="{{ asset('css/schedule-journal-cells.css') }}?v={{ @filemtime(public_path('css/schedule-journal-cells.css')) ?: time() }}">
     @if(($activeTab ?? 'journal') === 'journal')
         <style>
             .schedule-fullscreen-wrapper .wrap-filter-team {
@@ -235,6 +233,80 @@
             body.layout-wide td.schedule-cell {
                 width: auto !important;
             }
+
+            @media (max-width: 768px) {
+                .schedule-fullscreen-wrapper:not(.fullscreen) .schedule-journal-table-stack {
+                    display: block;
+                    width: 100% !important;
+                    max-width: 100%;
+                }
+
+                .schedule-fullscreen-wrapper:not(.fullscreen) .schedule-table-container {
+                    overflow: auto !important;
+                    max-height: calc(100dvh - 24rem);
+                    -webkit-overflow-scrolling: touch;
+                }
+
+                #schedule-table_wrapper > .kids-dt-scroll-x {
+                    overflow: visible !important;
+                    width: max-content;
+                    max-width: none;
+                }
+
+                #schedule-table {
+                    --schedule-sticky-name-left: 2.5rem;
+                }
+
+                #schedule-table .sticky-col-1,
+                #schedule-table .col-number {
+                    position: sticky;
+                    left: 0;
+                    z-index: 5;
+                    width: 2.5rem !important;
+                    min-width: 2.5rem !important;
+                    max-width: 2.5rem !important;
+                    background-color: #fff;
+                    background-clip: padding-box;
+                }
+
+                .schedule-fullscreen-wrapper:not(.fullscreen) #schedule-table thead th {
+                    position: sticky;
+                    top: 0;
+                    z-index: 4;
+                    background-color: #fff;
+                    background-clip: padding-box;
+                }
+
+                #schedule-table thead th.col-name,
+                #schedule-table td.schedule-user-name,
+                #schedule-table tfoot td.schedule-attendance-total-label {
+                    position: sticky !important;
+                    left: var(--schedule-sticky-name-left) !important;
+                    z-index: 5;
+                    background-clip: padding-box;
+                    box-shadow: 4px 0 6px -4px rgba(0, 0, 0, 0.45);
+                }
+
+                #schedule-table thead th.sticky-col-1,
+                #schedule-table thead th.col-name {
+                    z-index: 6;
+                    top: 0;
+                }
+
+                #schedule-table td.schedule-user-name {
+                    background-color: #fff;
+                }
+
+                #schedule-table tr.schedule-group-row td.sticky-col-1,
+                #schedule-table tr.schedule-group-row td.schedule-user-name {
+                    background-color: #f4f6f9;
+                }
+
+                #schedule-table tfoot td.sticky-col-1,
+                #schedule-table tfoot td.schedule-attendance-total-label {
+                    background-color: #f8f9fa;
+                }
+            }
         </style>
         <noscript>
             <style>
@@ -265,14 +337,11 @@
             window.SCHEDULE_VISITED_STATUS_ID = @json($visitedStatusId ?? null);
         </script>
         @include('partials.ui.discount-percent-js')
-        {{-- Hotfix: актуальный schedule.js (мультитренеры) до Vite-сборки; старый build всё ещё на #cell-trainer-profile-id --}}
-        <script src="{{ asset('js/schedule-journal.js') }}?v={{ @filemtime(public_path('js/schedule-journal.js')) ?: time() }}"></script>
+        @vite(['resources/js/schedule.js'])
     @elseif(($activeTab ?? '') === 'trainer-workload')
         @vite(['resources/js/trainer-workload.js'])
     @elseif(($activeTab ?? '') === 'trainer-salary')
-        {{-- Hotfix до следующей Vite-сборки: актуальный trainer-salary.js (схема kansas) --}}
-        <link rel="stylesheet" href="{{ asset('css/trainer-salary.css') }}?v={{ @filemtime(public_path('css/trainer-salary.css')) ?: time() }}">
-        <script src="{{ asset('js/trainer-salary.js') }}?v={{ @filemtime(public_path('js/trainer-salary.js')) ?: time() }}"></script>
+        @vite(['resources/js/trainer-salary.js'])
         @if($can_manage_trainer_types ?? false)
             @include('admin.trainers._trainer_types_assets')
             <script>

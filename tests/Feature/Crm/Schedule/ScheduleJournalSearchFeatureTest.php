@@ -137,7 +137,8 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
         $this->assertSame($perPage, $this->journalRowUserIds($html)->count());
         $this->assertJournalPagerRendered($html, true);
         $this->assertStringContainsString('из '.($perPage + 5).' учеников', $html);
-        $this->assertStringContainsString('page=2', $html);
+        $this->assertStringContainsString('group_pages', $html);
+        $this->assertStringContainsString('schedule-group-page-link', $html);
         $this->assertStringContainsString('ЖурналМногоПоиск', $this->searchFormHtml($html));
     }
 
@@ -159,7 +160,7 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
         $this->assertSame(3, $ids->count());
         $this->assertTrue($ids->contains((int) $overflow->id));
         $this->assertStringContainsString($overflow->full_name, $html);
-        $this->assertStringContainsString('Показаны '.($perPage + 1).'–'.($perPage + 3), $html);
+        $this->assertStringContainsString(($perPage + 1).'–'.($perPage + 3), $html);
     }
 
     public function test_empty_search_query_restores_full_paginated_list(): void

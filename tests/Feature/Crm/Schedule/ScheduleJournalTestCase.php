@@ -587,13 +587,12 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
         return (int) $id;
     }
 
-    protected function journalConsumingCellHtml(string $html, int $userId): string
+    protected function journalConsumingCellHtml(string $html, int $userId, ?int $teamId = null): string
     {
-        if (! preg_match(
-            '/<tr[^>]*data-user-id="'.$userId.'"[^>]*>[\s\S]*?<\/tr>/',
-            $html,
-            $rowMatch
-        )) {
+        $pattern = $teamId
+            ? '/<tr[^>]*data-user-id="'.$userId.'"[^>]*data-team-id="'.$teamId.'"[^>]*>[\s\S]*?<\/tr>/'
+            : '/<tr[^>]*data-user-id="'.$userId.'"[^>]*>[\s\S]*?<\/tr>/';
+        if (! preg_match($pattern, $html, $rowMatch)) {
             return '';
         }
 
@@ -608,9 +607,9 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
         return $cellMatch[0];
     }
 
-    protected function journalConsumingCellText(string $html, int $userId): string
+    protected function journalConsumingCellText(string $html, int $userId, ?int $teamId = null): string
     {
-        $cell = $this->journalConsumingCellHtml($html, $userId);
+        $cell = $this->journalConsumingCellHtml($html, $userId, $teamId);
         if ($cell === '') {
             return '';
         }

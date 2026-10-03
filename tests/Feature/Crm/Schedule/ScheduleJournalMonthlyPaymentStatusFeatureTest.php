@@ -114,19 +114,14 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         );
         $this->assertStringNotContainsString('selected', $teamSelect[1]);
         $this->assertStringNotContainsString('value="all"', $teamSelect[1]);
-        $cell = $this->paymentCellHtml($html, (int) $student->id);
-        $this->assertNotSame('', $cell);
-        $this->assertStringContainsString('data-journal-payment-status="partial"', $cell);
-        $this->assertStringNotContainsString('data-journal-payment-status="paid"', $cell);
-        $this->assertStringContainsString('text-warning', $cell);
-        $this->assertStringNotContainsString('text-success', $cell);
-        $this->assertStringContainsString('journal-monthly-payment-hint', $cell);
-        $this->assertStringContainsString('kids-tooltip-hint', $cell);
-        $this->assertStringContainsString('data-kids-tooltip-hint', $cell);
-        $this->assertStringContainsString('data-bs-toggle="tooltip"', $cell);
-        $this->assertStringContainsString('Оплачено: '.$paidTeam->title, $cell);
-        $this->assertStringContainsString('Не оплачено: '.$unpaidTeam->title, $cell);
-        $this->assertStringNotContainsString(JournalMonthlyPaymentStatusService::HOVER_ALL_GROUPS_PAID, $cell);
+        $paidCell = $this->paymentCellHtml($html, (int) $student->id, (int) $paidTeam->id);
+        $unpaidCell = $this->paymentCellHtml($html, (int) $student->id, (int) $unpaidTeam->id);
+        $this->assertStringContainsString('data-journal-payment-status="paid"', $paidCell);
+        $this->assertStringNotContainsString('data-journal-payment-status="partial"', $paidCell);
+        $this->assertStringNotContainsString(JournalMonthlyPaymentStatusService::HOVER_ALL_GROUPS_PAID, $paidCell);
+        $this->assertSame('', $unpaidCell);
+        $this->assertStringContainsString($paidTeam->title, $html);
+        $this->assertStringContainsString($unpaidTeam->title, $html);
 
         $row = $this->service->statusesByUser(
             (int) $this->partner->id,
@@ -191,20 +186,20 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
 
     public function test_all_groups_paid_shows_green_check_and_all_paid_hover(): void
     {
-        [$student] = $this->makeStudentWithTwoPricedTeams(true, true);
+        [$student, $teamA, $teamB] = $this->makeStudentWithTwoPricedTeams(true, true);
 
         $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
             ->assertOk()
             ->getContent();
 
-        $cell = $this->paymentCellHtml($html, (int) $student->id);
-        $this->assertStringContainsString('data-journal-payment-status="paid"', $cell);
-        $this->assertStringContainsString('text-success', $cell);
-        $this->assertStringContainsString(JournalMonthlyPaymentStatusService::HOVER_ALL_GROUPS_PAID, $cell);
-        $this->assertStringContainsString('journal-monthly-payment-hint', $cell);
-        $this->assertStringContainsString('kids-tooltip-hint', $cell);
-        $this->assertStringNotContainsString('Оплачено:', $cell);
-        $this->assertStringNotContainsString('Не оплачено:', $cell);
+        foreach ([$teamA, $teamB] as $team) {
+            $cell = $this->paymentCellHtml($html, (int) $student->id, (int) $team->id);
+            $this->assertStringContainsString('data-journal-payment-status="paid"', $cell);
+            $this->assertStringContainsString('text-success', $cell);
+            $this->assertStringNotContainsString(JournalMonthlyPaymentStatusService::HOVER_ALL_GROUPS_PAID, $cell);
+            $this->assertStringNotContainsString('Оплачено:', $cell);
+            $this->assertStringNotContainsString('Не оплачено:', $cell);
+        }
     }
 
     public function test_single_paid_group_shows_green_check_without_all_paid_hover(): void
@@ -309,10 +304,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
             ->assertOk()
             ->getContent();
 
-        $cell = $this->paymentCellHtml($html, (int) $student->id);
+        $cell = $this->paymentCellHtml($html, (int) $student->id, (int) $teamA->id);
         $this->assertStringContainsString('data-journal-payment-status="paid"', $cell);
         $this->assertStringNotContainsString(JournalMonthlyPaymentStatusService::HOVER_ALL_GROUPS_PAID, $cell);
         $this->assertStringNotContainsString('journal-monthly-payment-hint', $cell);
+        $this->assertSame('', $this->paymentCellHtml($html, (int) $student->id, (int) $teamB->id));
     }
 
     public function test_manual_unpaid_mark_makes_auto_paid_group_look_unpaid(): void
@@ -328,10 +324,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
             ->assertOk()
             ->getContent();
 
-        $cell = $this->paymentCellHtml($html, (int) $student->id);
-        $this->assertStringContainsString('data-journal-payment-status="partial"', $cell);
-        $this->assertStringContainsString('Оплачено: '.$paidTeam->title, $cell);
-        $this->assertStringContainsString('Не оплачено: '.$unpaidTeam->title, $cell);
+        $paidCell = $this->paymentCellHtml($html, (int) $student->id, (int) $paidTeam->id);
+        $unpaidCell = $this->paymentCellHtml($html, (int) $student->id, (int) $unpaidTeam->id);
+        $this->assertStringContainsString('data-journal-payment-status="paid"', $paidCell);
+        $this->assertStringNotContainsString('data-journal-payment-status="partial"', $paidCell);
+        $this->assertSame('', $unpaidCell);
 
         $unpaidFilter = $this->get(route('schedule.index', [
             'year' => 2026,
@@ -353,10 +350,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $allHtml = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
             ->assertOk()
             ->getContent();
-        $cell = $this->paymentCellHtml($allHtml, (int) $student->id);
-        $this->assertStringContainsString('data-journal-payment-status="partial"', $cell);
-        $this->assertStringContainsString('Оплачено: '.$teamA->title, $cell);
-        $this->assertStringContainsString('Не оплачено: '.$teamB->title, $cell);
+        $paidCell = $this->paymentCellHtml($allHtml, (int) $student->id, (int) $teamA->id);
+        $unpaidCell = $this->paymentCellHtml($allHtml, (int) $student->id, (int) $teamB->id);
+        $this->assertStringContainsString('data-journal-payment-status="paid"', $paidCell);
+        $this->assertStringNotContainsString('data-journal-payment-status="partial"', $paidCell);
+        $this->assertSame('', $unpaidCell);
 
         $paidFilter = $this->get(route('schedule.index', [
             'year' => 2026,
@@ -467,12 +465,13 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
             ->assertOk()
             ->getContent();
 
-        $cell = $this->paymentCellHtml($html, (int) $student->id);
-        $this->assertStringContainsString('data-journal-payment-status="due"', $cell);
-        $this->assertStringContainsString('1800₽', $cell);
-        $this->assertStringNotContainsString('data-journal-payment-status="partial"', $cell);
-        $this->assertStringContainsString('Оплачено: '.$paidTeam->title, $cell);
-        $this->assertStringContainsString('Не оплачено: '.$postpayTeam->title, $cell);
+        $paidCell = $this->paymentCellHtml($html, (int) $student->id, (int) $paidTeam->id);
+        $dueCell = $this->paymentCellHtml($html, (int) $student->id, (int) $postpayTeam->id);
+        $this->assertStringContainsString('data-journal-payment-status="paid"', $paidCell);
+        $this->assertStringNotContainsString('1800₽', $paidCell);
+        $this->assertStringContainsString('data-journal-payment-status="due"', $dueCell);
+        $this->assertStringContainsString('1800₽', $dueCell);
+        $this->assertStringNotContainsString('data-journal-payment-status="partial"', $dueCell);
     }
 
     public function test_other_month_payment_does_not_show_check_in_current_month(): void
@@ -603,31 +602,30 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         return $this->foreignUser;
     }
 
-    private function studentRowHtml(string $html, int $userId): ?string
+    private function studentRowHtml(string $html, int $userId, ?int $teamId = null): ?string
     {
-        if (! preg_match(
-            '/<tr[^>]*data-user-id="'.$userId.'"[^>]*>[\s\S]*?<\/tr>/',
-            $html,
-            $rowMatch
-        )) {
+        $pattern = $teamId
+            ? '/<tr[^>]*data-user-id="'.$userId.'"[^>]*data-team-id="'.$teamId.'"[^>]*>[\s\S]*?<\/tr>/'
+            : '/<tr[^>]*data-user-id="'.$userId.'"[^>]*>[\s\S]*?<\/tr>/';
+        if (! preg_match($pattern, $html, $rowMatch)) {
             return null;
         }
 
         return $rowMatch[0];
     }
 
-    private function paymentCellHtml(string $html, int $userId): string
+    private function paymentCellHtml(string $html, int $userId, ?int $teamId = null): string
     {
-        $row = $this->studentRowHtml($html, $userId);
+        $row = $this->studentRowHtml($html, $userId, $teamId);
         if ($row === null) {
             return '';
         }
 
-        if (! preg_match_all('/<td\b[^>]*>[\s\S]*?<\/td>/', $row, $cells) || count($cells[0]) < 3) {
+        if (! preg_match('/<td\b[^>]*\bschedule-payment-status\b[^>]*>[\s\S]*?<\/td>/', $row, $cellMatch)) {
             return '';
         }
 
-        $cell = $cells[0][2];
+        $cell = $cellMatch[0];
         if (! str_contains($cell, 'data-journal-payment-status') && ! str_contains($cell, 'fa-circle-check')) {
             return '';
         }

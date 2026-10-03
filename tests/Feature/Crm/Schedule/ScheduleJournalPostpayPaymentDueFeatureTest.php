@@ -44,8 +44,9 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
         $this->assertStringContainsString('title="Кол-во посещений"', $html);
         $this->assertStringContainsString('title="Название абонемента"', $html);
         $this->assertStringContainsString('data-bs-container="body"', $html);
-        $this->assertStringContainsString('#schedule-table .kids-tooltip-hint', (string) file_get_contents(public_path('css/schedule-journal-cells.css')));
-        $this->assertStringContainsString('cursor: default', (string) file_get_contents(public_path('css/schedule-journal-cells.css')));
+        $scheduleCss = (string) file_get_contents(resource_path('css/schedule.css'));
+        $this->assertStringContainsString('#schedule-table .kids-tooltip-hint', $scheduleCss);
+        $this->assertStringContainsString('cursor: default', $scheduleCss);
         $this->assertStringContainsString('fa-ruble-sign', $html);
         $this->assertStringContainsString('fa-person-circle-check', $html);
         $this->assertStringContainsString('fa-ticket', $html);
@@ -93,10 +94,9 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
             'month' => '08',
             'team' => 'all',
         ]))->assertOk()->getContent();
-        $allCell = $this->journalPaymentCellHtml($allHtml, (int) $student->id);
-        $this->assertStringContainsString('data-journal-payment-status="due"', $allCell);
-        $this->assertStringContainsString('3000₽', $allCell);
-        $this->assertStringContainsString('Не оплачено:', $allCell);
+        $this->assertStringContainsString('1800₽', $allHtml);
+        $this->assertStringContainsString('1200₽', $allHtml);
+        $this->assertStringNotContainsString('3000₽', $allHtml);
 
         $teamHtml = (string) $this->get(route('schedule.index', [
             'year' => 2026,
@@ -204,9 +204,12 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
         $this->assertNotSame('', trim($html));
         $page->assertSee('id="cellEditModal"', false)
             ->assertSee('id="cellEditForm"', false)
-            ->assertSee('js/schedule-journal.js', false)
             ->assertSee('schedule-payment-status', false)
             ->assertSee($student->full_name, false);
+        $this->assertStringContainsString(
+            "@vite(['resources/js/schedule.js'])",
+            (string) file_get_contents(resource_path('views/admin/schedule/index.blade.php'))
+        );
         $this->assertSame('', $this->journalPaymentCellHtml($html, (int) $student->id));
 
         $save = $this->withHeaders($this->ajaxHeaders())

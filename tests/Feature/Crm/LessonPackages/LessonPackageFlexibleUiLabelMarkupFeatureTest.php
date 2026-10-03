@@ -220,9 +220,17 @@ final class LessonPackageFlexibleUiLabelMarkupFeatureTest extends CrmTestCase
 
     public function test_journal_blade_fallbacks_use_prepay_wording_not_flexible_type_name(): void
     {
-        $path = resource_path('views/admin/schedule/journal.blade.php');
-        $this->assertFileExists($path);
-        $content = (string) file_get_contents($path);
+        $journalPath = resource_path('views/admin/schedule/journal.blade.php');
+        $groupUsersPath = resource_path('views/admin/schedule/_journal_group_users.blade.php');
+        $this->assertFileExists($journalPath);
+        $this->assertFileExists($groupUsersPath);
+        $journal = (string) file_get_contents($journalPath);
+        $groupUsers = (string) file_get_contents($groupUsersPath);
+        $this->assertMatchesRegularExpression(
+            "/@include\\('admin\\.schedule\\._journal_group_users'/",
+            $journal
+        );
+        $content = $journal."\n".$groupUsers;
 
         $this->assertStringContainsString("'Абонемент предоплаты'", $content);
         $this->assertStringContainsString('Абонемент предоплаты: поставить занятие', $content);

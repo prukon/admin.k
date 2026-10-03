@@ -86,9 +86,8 @@ final class ScheduleJournalTeamFilterSelect2UiContractsFeatureTest extends Sched
     {
         $index = (string) file_get_contents(resource_path('views/admin/schedule/index.blade.php'));
         $css = (string) file_get_contents(resource_path('css/schedule.css'));
-        $hotfixCss = (string) file_get_contents(public_path('css/schedule-journal-cells.css'));
 
-        foreach ([$index, $css, $hotfixCss] as $chunk) {
+        foreach ([$index, $css] as $chunk) {
             $wrapPos = strpos($chunk, '.schedule-fullscreen-wrapper .wrap-filter-team {');
             $this->assertNotFalse($wrapPos);
             $wrapChunk = substr($chunk, $wrapPos, 2800);
@@ -103,7 +102,6 @@ final class ScheduleJournalTeamFilterSelect2UiContractsFeatureTest extends Sched
 
         foreach ([
             resource_path('js/schedule.js'),
-            public_path('js/schedule-journal.js'),
         ] as $jsPath) {
             $js = (string) file_get_contents($jsPath);
             $initCallPos = strpos($js, "    initScheduleJournalTeamFilter();\n");
@@ -134,7 +132,6 @@ final class ScheduleJournalTeamFilterSelect2UiContractsFeatureTest extends Sched
 
         foreach ([
             resource_path('js/schedule.js'),
-            public_path('js/schedule-journal.js'),
         ] as $jsPath) {
             $this->assertFileExists($jsPath);
             $js = (string) file_get_contents($jsPath);

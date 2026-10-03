@@ -73,30 +73,17 @@ final class ScheduleJournalFlexibleHoverPriceContractsFeatureTest extends Schedu
         $teamB = Team::factory()->create(['partner_id' => $this->partner->id]);
         app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $teamA->id, (int) $teamB->id]);
 
-        $ulpA = $this->makeMonthlyFlexibleAssignment($student, (int) $teamA->id, '2026-09-01', lessons: 5, feeAmountCents: 100000);
-        $ulpB = $this->makeMonthlyFlexibleAssignment($student, (int) $teamB->id, '2026-09-01', lessons: 4, feeAmountCents: 0);
-
-        $lineA = e(ScheduleJournalMonthService::flexibleAbonementColumnHoverLine(
-            (string) $ulpA->lessonPackage?->name,
-            100000,
-            true,
-            5,
-            5,
-        ));
-        $lineB = e(ScheduleJournalMonthService::flexibleAbonementColumnHoverLine(
-            (string) $ulpB->lessonPackage?->name,
-            0,
-            true,
-            4,
-            4,
-        ));
+        $this->makeMonthlyFlexibleAssignment($student, (int) $teamA->id, '2026-09-01', lessons: 5, feeAmountCents: 100000);
+        $this->makeMonthlyFlexibleAssignment($student, (int) $teamB->id, '2026-09-01', lessons: 4, feeAmountCents: 0);
 
         $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => 'all']))
             ->assertOk()
-            ->assertSee('journal-flexible-hint--multi', false)
-            ->assertSee($lineA, false)
-            ->assertSee($lineB, false)
-            ->assertSee('fee_amount_cents', false);
+            ->assertSee('journal-flexible-hint--ratio', false)
+            ->assertDontSee('journal-flexible-hint--multi', false)
+            ->assertSee('за 1 000 руб', false)
+            ->assertSee('за 0 руб', false)
+            ->assertSee('data-fee-amount-cents="100000"', false)
+            ->assertSee('data-fee-amount-cents="0"', false);
     }
 
     public function test_place_flexible_ajax_returns_fee_amount_cents_in_result(): void

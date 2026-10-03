@@ -224,7 +224,7 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
             'team_ids' => [$teamA->id, $teamB->id, $teamA->id],
         ]))->assertOk()->getContent();
 
-        $this->assertSame(1, substr_count($html, '>'.$student->full_name.'<'));
+        $this->assertSame(2, substr_count($html, '>'.$student->full_name.'<'));
     }
 
     public function test_single_group_hides_team_titles_under_name_several_groups_show_them(): void
@@ -250,6 +250,7 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $this->assertNotNull($rowOne);
         $this->assertStringNotContainsString('ПодписьГруппаА', $rowOne);
         $this->assertStringNotContainsString('ПодписьГруппаБ', $rowOne);
+        $this->assertStringContainsString('ПодписьГруппаА', $one);
 
         $many = (string) $this->get(route('schedule.index', [
             'year' => 2026,
@@ -258,8 +259,10 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         ]))->assertOk()->getContent();
         $rowMany = $this->studentRowHtml($many, (int) $student->id);
         $this->assertNotNull($rowMany);
-        $this->assertStringContainsString('ПодписьГруппаА', $rowMany);
-        $this->assertStringContainsString('ПодписьГруппаБ', $rowMany);
+        $this->assertStringNotContainsString('ПодписьГруппаА', $rowMany);
+        $this->assertStringNotContainsString('ПодписьГруппаБ', $rowMany);
+        $this->assertStringContainsString('ПодписьГруппаА', $many);
+        $this->assertStringContainsString('ПодписьГруппаБ', $many);
     }
 
     public function test_one_group_hides_other_group_occurrence_several_keep_both(): void
@@ -292,11 +295,15 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         ]))->assertOk()->getContent();
         $this->assertStringContainsString(
             'data-utss-id="'.$utssA->id.'"',
-            $this->cellOpenTag($both, (int) $student->id, '2026-08-03')
+            $this->cellOpenTag($both, (int) $student->id, '2026-08-03', (int) $teamA->id)
+        );
+        $this->assertStringContainsString(
+            'data-occurrence-count="0"',
+            $this->cellOpenTag($both, (int) $student->id, '2026-08-04', (int) $teamA->id)
         );
         $this->assertStringContainsString(
             'data-utss-id="'.$utssB->id.'"',
-            $this->cellOpenTag($both, (int) $student->id, '2026-08-04')
+            $this->cellOpenTag($both, (int) $student->id, '2026-08-04', (int) $teamB->id)
         );
     }
 
@@ -335,10 +342,13 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
             'month' => '08',
             'team_ids' => [$teamA->id, $teamB->id],
         ]))->assertOk()->getContent();
-        $bothCell = $this->paymentCellHtml($both, (int) $student->id);
-        $this->assertStringContainsString('data-journal-payment-status="partial"', $bothCell);
-        $this->assertStringContainsString('Оплачено: '.$teamA->title, $bothCell);
-        $this->assertStringContainsString('Не оплачено: '.$teamB->title, $bothCell);
+        $paidCell = $this->paymentCellHtml($both, (int) $student->id, (int) $teamA->id);
+        $unpaidCell = $this->paymentCellHtml($both, (int) $student->id, (int) $teamB->id);
+        $this->assertStringContainsString('data-journal-payment-status="paid"', $paidCell);
+        $this->assertStringNotContainsString('data-journal-payment-status="partial"', $paidCell);
+        $this->assertSame('', $unpaidCell);
+        $this->assertStringContainsString($teamA->title, $both);
+        $this->assertStringContainsString($teamB->title, $both);
 
         $one = (string) $this->get(route('schedule.index', [
             'year' => 2026,
@@ -544,7 +554,7 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
     {
         $this->assertTrue(
             (bool) preg_match(
-                '/class="[^"]*wrap-filter-team[\s\S]*?class="[^"]*wrap-filter-fullscreen/',
+                '/<div class="wrap-filter-team[\s\S]*?(?=<div class="schedule-attendance-average")/',
                 $html,
                 $chunk
             ),
@@ -553,6 +563,7 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $this->assertStringNotContainsString('Применить', $chunk[0]);
         $this->assertStringNotContainsString('filter-apply', $chunk[0]);
         $this->assertStringNotContainsString('btn-primary', $chunk[0]);
+        $this->assertStringNotContainsString('id="schedule-bulk-add"', $chunk[0]);
     }
 
     private function searchFormHtml(string $html): string
@@ -582,12 +593,25 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         return $rowMatch[0];
     }
 
-    private function cellOpenTag(string $html, int $userId, string $date): string
+    private function cellOpenTag(string $html, int $userId, string $date, ?int $teamId = null): string
     {
+        $scope = $html;
+        if ($teamId) {
+            $this->assertTrue(
+                (bool) preg_match(
+                    '/<tr[^>]*data-user-id="'.$userId.'"[^>]*data-team-id="'.$teamId.'"[^>]*>[\s\S]*?<\/tr>/',
+                    $html,
+                    $rowMatch
+                ),
+                "Строка user={$userId} team={$teamId}"
+            );
+            $scope = $rowMatch[0];
+        }
+
         $this->assertTrue(
             (bool) preg_match(
                 '/<td[^>]*data-user-id="'.$userId.'"[^>]*data-date="'.$date.'"[^>]*>/',
-                $html,
+                $scope,
                 $match
             ),
             "Ячейка user={$userId} date={$date}"
@@ -596,16 +620,22 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         return $match[0];
     }
 
-    private function paymentCellHtml(string $html, int $userId): string
+    private function paymentCellHtml(string $html, int $userId, ?int $teamId = null): string
     {
-        $row = $this->studentRowHtml($html, $userId);
-        $this->assertNotNull($row);
+        $pattern = $teamId
+            ? '/<tr[^>]*data-user-id="'.$userId.'"[^>]*data-team-id="'.$teamId.'"[^>]*>[\s\S]*?<\/tr>/'
+            : '/<tr[^>]*data-user-id="'.$userId.'"[^>]*>[\s\S]*?<\/tr>/';
+        $this->assertTrue((bool) preg_match($pattern, $html, $rowMatch), 'Строка ученика');
         $this->assertTrue(
-            (bool) preg_match_all('/<td\b[^>]*>[\s\S]*?<\/td>/', $row, $cells) && count($cells[0]) >= 3,
-            'Ячейки строки ученика'
+            (bool) preg_match('/<td\b[^>]*\bschedule-payment-status\b[^>]*>[\s\S]*?<\/td>/', $rowMatch[0], $cellMatch),
+            'Ячейка оплаты'
         );
+        $cell = $cellMatch[0];
+        if (! str_contains($cell, 'data-journal-payment-status') && ! str_contains($cell, 'fa-circle-check')) {
+            return '';
+        }
 
-        return $cells[0][2];
+        return $cell;
     }
 
     private function theadHighlightCount(string $html): int

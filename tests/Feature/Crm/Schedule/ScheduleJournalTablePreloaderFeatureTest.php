@@ -143,7 +143,9 @@ final class ScheduleJournalTablePreloaderFeatureTest extends ScheduleJournalTest
         $this->assertStringContainsString('class="schedule-journal-preloader"', $html, $suffix);
         $this->assertStringContainsString('spinner-border text-secondary', $html, $suffix);
         $this->assertStringContainsString('id="schedule-table"', $html, $suffix);
-        $this->assertStringContainsString('js/schedule-journal.js', $html, $suffix);
+        $blade = (string) file_get_contents(resource_path('views/admin/schedule/index.blade.php'));
+        $this->assertStringContainsString("@vite(['resources/js/schedule.js'])", $blade, $suffix);
+        $this->assertStringNotContainsString('js/schedule-journal.js', $html, $suffix);
         $this->assertStringNotContainsString('kids-table-preloader', $html, $suffix);
         $this->assertStringNotContainsString('x-ui.table-preloader', $html, $suffix);
         $this->assertStringNotContainsString('KidsCrmTablePreloader', $html, $suffix);

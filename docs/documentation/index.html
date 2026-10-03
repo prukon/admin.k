@@ -1200,8 +1200,7 @@
     3) <b>Применение.</b> Год и месяц — сразу по <code>change</code>.
     Группы — после <code>select2:close</code> / <code>select2:clear</code>,
     только если набор изменился (не по каждому чекбоксу). Кнопки «Применить» нет.
-    Обе копии JS (<code>resources/js/schedule.js</code> и hotfix
-    <code>public/js/schedule-journal.js</code>) пишут <code>team_ids[]</code>,
+    <code>resources/js/schedule.js</code> (Vite) пишет <code>team_ids[]</code>,
     сбрасывают <code>page</code> и <b>не</b> удаляют <code>q</code>.
     <br>
     4) <b>Занятия, оплата, дни недели.</b> Одна группа — как раньше одна.
@@ -4381,7 +4380,7 @@
     <b>имя шаблона</b>, не тип.
     Журнал: колонка <code>N/M</code>+«Предоплата»; tooltip «Абонемент предоплаты: поставить занятие»;
     empty-cell chooser <code>Предоплата: «название» — {остаток}/{всего}</code>;
-    Vite и hotfix <code>public/js/schedule-journal.js</code>.
+    Vite <code>resources/js/schedule.js</code>.
     Excel календаря: колонка типа «Предоплата».
     Письма уведомлений: <code>{{package_type}}</code> / <code>schedule_type_labels.flexible</code> = «Предоплата»;
     чекбокс <code>pn-type-flexible</code>;
@@ -6707,9 +6706,9 @@
     Класс вешает <code>flashSavedField</code> после JSON 200; сервер его не рисует
     (нет в первом HTML, в <code>table_html</code> после PATCH/GET, в JSON PATCH и на листе слепка).
     422, PATCH оклада/бонусов/вычетов и «Расчет» ячейку не подсвечивают.
-    Стили — hotfix <code>public/css/trainer-salary.css</code> (вкладка грузит его вместе с <code>public/js/trainer-salary.js</code>).
+    Стили — Vite <code>resources/css/schedule.css</code> (вкладка грузит его вместе с <code>resources/js/trainer-salary.js</code>).
     Подробнее: <a href="/docs/documentation/schedule-trainer-salary#sales-percent-saved-flash">ЗП §13.1</a>.
-    Hotfix <code>public/js/trainer-salary.js</code> = <code>resources/js/trainer-salary.js</code> (не Vite).
+    Скрипт <code>resources/js/trainer-salary.js</code> подключается через Vite.
     <br>
     5) <b>HTTP.</b> Гость — 302 / JSON 401. Без <code>view</code> или без схемы у сотрудника — 403. Зритель GET 200, PATCH/POST 403.
     Успех PATCH/POST (в том числе без <code>X-Requested-With</code>) — JSON 200, запись в БД, не пустой 200 и не redirect.
@@ -6784,8 +6783,7 @@
     одна группа → её id, несколько → <code>all</code>).
     Сервер предпочитает <code>journal_team_ids[]</code>, иначе при нескольких
     группах колонка считала бы все группы школы.
-    JS <code>applyJournalPaymentStatus</code> (hotfix
-    <code>public/js/schedule-journal.js</code>) перерисовывает
+    JS <code>applyJournalPaymentStatus</code> (<code>resources/js/schedule.js</code>, Vite) перерисовывает
     <code>td.schedule-payment-status</code>. Раскладка fixed — по-прежнему
     <code>window.location.reload()</code>. Отдельного POST колонки нет.
     Non-AJAX POST/DELETE без <code>X-Requested-With</code> — <b>302</b> на журнал,
@@ -6835,8 +6833,7 @@
     <code>data-order="0"</code> (сортировка DataTables). Число &gt; 0 —
     <code>font-size: 13px</code>, цвет как у ФИО
     (<code>#schedule-table td.schedule-consuming-count</code> в
-    <code>resources/css/schedule.css</code> и hotfix
-    <code>public/css/schedule-journal-cells.css</code>).
+    <code>resources/css/schedule.css</code>).
     <br>
     3) <b>Фильтр группы</b> тот же, что у <b>дней</b> таблицы (не как у галочки оплаты при одной группе):
     одна группа — только её UTSS; несколько id — <code>whereIn</code> выбранных;
@@ -6901,7 +6898,7 @@
     Положительное число пишется как есть.
     Числа 11px, начертание 500, цвет <code>#868e96</code>; подпись «Итого» — 12px, тот же цвет.
     Фон строки <code>#f8f9fa</code>. Стили в <code>resources/css/schedule.css</code>
-    и hotfix <code>public/css/schedule-journal-cells.css</code>.
+    и <code>resources/css/schedule.css</code>.
     <br>
     3) <b>Кого считаем.</b> Год и месяц страницы, фильтр групп как у дней таблицы
     (одна группа, несколько id, «Все группы», «Без группы»), ограничение «свои группы».
@@ -6909,7 +6906,7 @@
     Отключённый ученик, кастомная роль и чужой партнёр не входят.
     «Без группы» — нет строк в <code>team_user</code>; визиты такого ученика считаются.
     Участник группы в этот фильтр не попадает.
-    Поиск <code>q</code> и страница списка (по 100) среднее и «Итого» не меняют:
+    Поиск <code>q</code> и страница внутри группы среднее и «Итого» не меняют:
     ученик, скрытый поиском или стоящий на другой странице, остаётся в сумме.
     <br>
     4) <b>Без перезагрузки.</b> <code>POST /schedule/update</code>,
@@ -6922,7 +6919,7 @@
     Нет ключа <code>attendance</code> — подпись и дни не затираются.
     Пустой <code>average_label</code> показывается как «—».
     Вызов стоит во всех трёх ветках перерисовки ячейки (удаление, ×N без смены значка, обычная покраска)
-    в <code>resources/js/schedule.js</code> и <code>public/js/schedule-journal.js</code>.
+    в <code>resources/js/schedule.js</code> (Vite).
     Раскладка fixed по-прежнему <code>window.location.reload()</code>.
     POST и DELETE без <code>X-Requested-With</code> — 302 на <code>/schedule</code>, запись в БД, не пустой 200.
     <br>
@@ -8437,8 +8434,7 @@
     Полноэкран — фон оверлея белый (дубль в <code>schedule.css</code>).
     <code>&lt;noscript&gt;</code> показывает таблицу без спиннера.
     <br>
-    4) <b>Снятие.</b> Страница грузит hotfix <code>public/js/schedule-journal.js</code>
-    (не Vite <code>resources/js/schedule.js</code>; обе копии должны совпадать).
+    4) <b>Снятие.</b> Страница грузит Vite <code>resources/js/schedule.js</code>.
     <code>revealScheduleJournalTable()</code> сразу после
     <code>$('#schedule-table').DataTable({…})</code> и в <code>catch</code>.
     Не <code>draw.dt</code> и не обёртка <code>KidsCrmDataTable.create</code>
@@ -9223,8 +9219,7 @@
     Успех Канзаса: JSON <code>reload_table</code> + <code>table_html</code> + <code>month_settings_html</code>.
     Клиент подменяет только таблицу — поля открытой модалки и фокус не сбрасываются.
     Смена месяца (<code>GET …/data</code>) обновляет и таблицу, и тело/заголовок модалки.
-    Клик «Настройки месяца» fetch не делает. Hotfix: <code>public/js/trainer-salary.js</code>
-    (копия <code>resources/js/trainer-salary.js</code>), не Vite.
+    Клик «Настройки месяца» fetch не делает. Скрипт <code>resources/js/trainer-salary.js</code> подключается через Vite.
     <br>
     5) <b>Лист слепка</b> — readonly: имя и тип в скобках, X в шапке слепка, «Итого:», без «Расчет» и без инпутов.
     <br><br>
@@ -9340,7 +9335,7 @@
     <br>
     5) Кнопка «Расчет» у classic — в строке тренера, у Канзаса — в подвале блока слева от «Итого:»; пакет — «Сформировать всех».
     При Канзасе и manage — «Настройки месяца» и «Типы тренеров» (оклад и премия правятся в типах, не в таблице ЗП).
-    Клиент: hotfix <code>public/js/trainer-salary.js</code> и <code>public/css/trainer-salary.css</code> (не Vite).
+    Клиент: Vite <code>resources/js/trainer-salary.js</code> и <code>resources/css/schedule.css</code>.
     Успешный PATCH/POST Канзаса отдаёт <code>reload_table</code> + полный <code>table_html</code> (+ <code>month_settings_html</code>).
     Клиент после PATCH подменяет только таблицу; смена месяца обновляет и модалку.
     <br><br>
@@ -9500,7 +9495,7 @@
     Несколько выбранных id — как «Все группы», но только по этим начислениям
     (см. <a href="#journal-team-filter-select2-index">анонс фильтра Select2</a>).
     Смена фильтра — полный GET после закрытия Select2
-    (<code>schedule.js</code> / <code>schedule-journal.js</code>),
+    (<code>resources/js/schedule.js</code> через Vite),
     сервер пересчитывает колонку.
     После AJAX смены статуса / постановки / удаления — <code>result.payment_status</code>
     и <code>applyJournalPaymentStatus</code> без reload.
@@ -9522,25 +9517,25 @@
     <code>BladeInlineJsSyntaxTest</code> (колонка + фильтр группы + live JS + шапки hint).
   </div>
 
-  <h2 id="journal-pagination-index">Журнал: пагинация 100 и поиск <code>q</code> (2026‑08)</h2>
+  <h2 id="journal-pagination-index">Журнал: группы и страница по 20, поиск <code>q</code></h2>
   <div class="note">
     <code>GET /schedule</code> больше не рисует всех учеников школы за месяц.
     Раньше таблица «ученики × дни» при ~1000 учениках (dev-seed партнёра 1)
     исчерпывала memory limit. Список режется на сервере:
-    <code>JOURNAL_STUDENTS_PER_PAGE = 100</code>.
+    <code>JOURNAL_GROUP_STUDENTS_PER_PAGE = 20</code> внутри каждой группы. Общего пейджера нет.
     <br><br>
     1) <b>Выборка, не «все подряд».</b> Сначала круг журнала: свой партнёр,
     <code>is_enabled = 1</code>, системная роль <code>user</code>; затем год / месяц /
     группа (<code>team_ids[]</code>: пусто = все, <code>none</code>, один или несколько id — OR;
     legacy <code>team=all|none|id</code>) и поиск <code>q</code>.
-    Страница — 100 строк <b>этой</b> выборки. Занятия, fixed/flexible ULP,
+    Внутри группы — 20 учеников. Занятия, fixed/flexible ULP,
     постоплата и галочка оплаты месяца грузятся только для id текущей страницы
     (<code>fixedAssignmentsByUser()</code>, без N+1 по ученику).
     <br>
     2) <b>Пейджер.</b> Блок <code>.schedule-journal-pagination</code>
-    («Показаны N–M из K учеников» + ссылки) только если страниц больше одной.
-    При 100 и меньше блока нет. Номера строк — сквозные
-    (<code>firstItem + index</code>: на стр. 2 первая строка = 101).
+    («N–M из K» + ссылки) только если страниц больше одной.
+    При 20 и меньше учеников в группе блока нет. Номера строк — внутри группы
+    (<code>firstItem + index</code>: на стр. 2 первая строка = 21).
     Ссылки пейджера сохраняют query string (<code>year</code> / <code>month</code> /
     <code>team_ids[]</code> или legacy <code>team</code> / <code>q</code>).
     <br>
@@ -9551,14 +9546,14 @@
     (и <code>fullscreen=1</code>, если уже в URL). Пустой фильтр групп — hidden <code>team_ids[]</code> нет.
     Кнопка «Найти» и Enter в поле — серверный GET с <code>q</code>
     (поиск по всей выборке, сброс <code>page</code>).
-    Автопоиск при вводе нет. DataTables (<code>paging: false</code>) — только сортировка колонок на текущей странице.
+    Автопоиск при вводе нет. DataTables (<code>paging: false</code>, <code>ordering: false</code>) не переставляет строки групп.
     <br>
     4) <b>Смена года / месяца / группы</b> — полный GET
     (<code>window.location.href</code>). Год и месяц — по <code>change</code>.
     Группы — после закрытия Select2 (<code>select2:close</code> / <code>select2:clear</code>),
     см. <a href="#journal-team-filter-select2-index">анонс фильтра групп</a>.
     Обе копии JS
-    (<code>resources/js/schedule.js</code> и hotfix <code>public/js/schedule-journal.js</code>)
+    (<code>resources/js/schedule.js</code> через Vite)
     пишут <code>team_ids[]</code>, делают <code>searchParams.delete('page')</code> и <b>не</b> удаляют <code>q</code>.
     <br>
     5) <b>Доступ и ошибки.</b> Право <code>schedule.view</code>; отдельного JSON-списка учеников нет

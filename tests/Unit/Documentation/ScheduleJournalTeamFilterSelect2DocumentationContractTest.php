@@ -58,7 +58,6 @@ final class ScheduleJournalTeamFilterSelect2DocumentationContractTest extends Te
         $ui = $this->docFile('reusable-ui-partials.html');
         $blade = (string) file_get_contents(dirname(__DIR__, 3).'/resources/views/admin/schedule/journal.blade.php');
         $js = (string) file_get_contents(dirname(__DIR__, 3).'/resources/js/schedule.js');
-        $hotfix = (string) file_get_contents(dirname(__DIR__, 3).'/public/js/schedule-journal.js');
         $request = (string) file_get_contents(dirname(__DIR__, 3).'/app/Http/Requests/Admin/GetScheduleJournalIndexRequest.php');
 
         $this->assertStringContainsString('id="journal-team-filter"', $journal);
@@ -88,11 +87,9 @@ final class ScheduleJournalTeamFilterSelect2DocumentationContractTest extends Te
         $this->assertStringContainsString('data-placeholder="Все группы"', $blade);
         $this->assertStringContainsString('name="team_ids[]"', $blade);
 
-        foreach ([$js, $hotfix] as $source) {
-            $this->assertStringContainsString('select2:close', $source);
-            $this->assertStringContainsString("append('team_ids[]'", $source);
-            $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.init', $source);
-        }
+        $this->assertStringContainsString('select2:close', $js);
+        $this->assertStringContainsString("append('team_ids[]'", $js);
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.init', $js);
 
         $this->assertStringContainsString("'team_ids'", $request);
     }

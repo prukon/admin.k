@@ -12,9 +12,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var numDays = $('.schedule-day-header').length;
     var dtColumns = [
         {orderable: false},
-        {orderable: true},
-        {orderable: true},
-        {orderable: true},
+        {orderable: false},
+        {orderable: false},
+        {orderable: false},
         {orderable: false}
     ];
     for (var i = 0; i < numDays; i++) {
@@ -29,12 +29,58 @@ document.addEventListener('DOMContentLoaded', function () {
         stage.setAttribute('aria-busy', 'false');
     }
 
+    var scheduleGroupPagerHtml = {};
+
+    function captureScheduleGroupPagers() {
+        $('#schedule-table tbody tr.schedule-group-pager').each(function () {
+            if (this.children.length !== 1) {
+                return;
+            }
+            var key = String(this.getAttribute('data-group-key') || '');
+            if (key === '') {
+                return;
+            }
+            scheduleGroupPagerHtml[key] = this.outerHTML;
+        });
+    }
+
+    function detachScheduleGroupPagers() {
+        $('#schedule-table tbody tr.schedule-group-pager').remove();
+    }
+
+    function restoreScheduleGroupPagers() {
+        Object.keys(scheduleGroupPagerHtml).forEach(function (key) {
+            var $header = $('#schedule-table tbody tr.schedule-group-row').filter(function () {
+                return String($(this).attr('data-group-key')) === key;
+            }).first();
+            if (!$header.length) {
+                return;
+            }
+            $header.nextUntil('tr.schedule-group-row').filter('tr.schedule-group-pager').remove();
+            var $lastUser = $header.nextUntil('tr.schedule-group-row').filter('tr.schedule-group-user').last();
+            if ($lastUser.length) {
+                $lastUser.after(scheduleGroupPagerHtml[key]);
+            } else {
+                $header.after(scheduleGroupPagerHtml[key]);
+            }
+        });
+    }
+
+    function collapseClosedScheduleGroups() {
+        restoreScheduleGroupPagers();
+        $('#schedule-table tbody tr.schedule-group-row').not('.is-open').each(function () {
+            $(this).nextUntil('tr.schedule-group-row').addClass('schedule-group-collapsed').hide();
+        });
+    }
+
     var table;
     try {
+        captureScheduleGroupPagers();
+        detachScheduleGroupPagers();
         table = $('#schedule-table').DataTable({
             paging: false,
             info: false,
-            ordering: true,
+            ordering: false,
             order: [],
             autoWidth: false,
             columns: dtColumns,
@@ -45,11 +91,177 @@ document.addEventListener('DOMContentLoaded', function () {
                 infoEmpty: "",
             }
         });
+        collapseClosedScheduleGroups();
         revealScheduleJournalTable();
     } catch (err) {
+        collapseClosedScheduleGroups();
         revealScheduleJournalTable();
         throw err;
     }
+
+    function scheduleJournalCell(userId, date, $prefer) {
+        if ($prefer && $prefer.length) {
+            return $prefer;
+        }
+        var $cells = $('#schedule-table .schedule-cell[data-user-id="' + userId + '"][data-date="' + date + '"]');
+        if (typeof currentCell !== 'undefined' && currentCell && currentCell.length) {
+            var teamId = currentCell.attr('data-context-team-id');
+            if (teamId) {
+                var $scoped = $cells.filter('[data-context-team-id="' + teamId + '"]');
+                if ($scoped.length) {
+                    return $scoped.first();
+                }
+            }
+        }
+        return $cells.first();
+    }
+
+    function scheduleJournalUserRow(userId, $fromCell) {
+        if ($fromCell && $fromCell.length) {
+            var $fromRow = $fromCell.closest('tr[data-user-id]');
+            if ($fromRow.length) {
+                return $fromRow;
+            }
+        }
+        if (typeof currentCell !== 'undefined' && currentCell && currentCell.length) {
+            var $currentRow = currentCell.closest('tr[data-user-id]');
+            if ($currentRow.length && String($currentRow.attr('data-user-id')) === String(userId)) {
+                return $currentRow;
+            }
+        }
+        return $('#schedule-table tbody tr[data-user-id="' + userId + '"]').first();
+    }
+
+    function reinitScheduleJournalDataTable() {
+        if ($.fn.DataTable.isDataTable('#schedule-table')) {
+            $('#schedule-table').DataTable().destroy();
+        }
+        captureScheduleGroupPagers();
+        detachScheduleGroupPagers();
+        table = $('#schedule-table').DataTable({
+            paging: false,
+            info: false,
+            ordering: false,
+            order: [],
+            autoWidth: false,
+            columns: dtColumns,
+            dom: 'lrtip',
+            language: {
+                search: "Поиск:",
+                zeroRecords: "Ничего не найдено",
+                infoEmpty: "",
+            }
+        });
+        if (window.KidsCrmTooltip) {
+            var scheduleTableEl = document.getElementById('schedule-table');
+            if (scheduleTableEl) {
+                KidsCrmTooltip.bindDataTable(scheduleTableEl);
+                KidsCrmTooltip.init(scheduleTableEl, { scopes: ['hint'] });
+            }
+        }
+        collapseClosedScheduleGroups();
+    }
+
+    function toggleScheduleGroupRow($row) {
+        if (!$row || !$row.length) {
+            return;
+        }
+        var $btn = $row.find('.schedule-group-toggle').first();
+        var $body = $row.nextUntil('tr.schedule-group-row');
+        if ($row.hasClass('is-open')) {
+            $row.removeClass('is-open');
+            $body.addClass('schedule-group-collapsed').hide();
+            $btn.attr('aria-expanded', 'false').attr('aria-label', 'Развернуть');
+            return;
+        }
+        $row.addClass('is-open');
+        $body.removeClass('schedule-group-collapsed').show();
+        $btn.attr('aria-expanded', 'true').attr('aria-label', 'Свернуть');
+    }
+
+    $(document).on('click', '.schedule-group-toggle', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleScheduleGroupRow($(this).closest('tr.schedule-group-row'));
+    });
+
+    $(document).on('click', '.schedule-group-title', function (e) {
+        e.preventDefault();
+        toggleScheduleGroupRow($(this).closest('tr.schedule-group-row'));
+    });
+
+    $(document).on('click', '.schedule-group-page-link', function (e) {
+        e.preventDefault();
+        var $link = $(this);
+        var groupKey = String($link.attr('data-group-key') || '');
+        var page = $link.attr('data-page');
+        var $header = $('#schedule-table tbody tr.schedule-group-row').filter(function () {
+            return String($(this).attr('data-group-key')) === groupKey;
+        }).first();
+        if (!$header.length) {
+            window.location.href = $link.attr('href');
+            return;
+        }
+        var params = {
+            year: $('#filter-year').val(),
+            month: $('#filter-month').val(),
+            q: $('#table-search').val() || '',
+            group_key: groupKey,
+            group_page: page
+        };
+        var teams = $('#filter-team').val() || [];
+        if (!Array.isArray(teams)) {
+            teams = teams ? [teams] : [];
+        }
+        if (teams.length) {
+            params.team_ids = teams;
+        }
+        $.ajax({
+            url: $('#schedule-table').attr('data-group-rows-url'),
+            method: 'GET',
+            data: params,
+            headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html'},
+            success: function (html) {
+                var closedKeys = [];
+                $('#schedule-table tbody tr.schedule-group-row').each(function () {
+                    if (!$(this).hasClass('is-open')) {
+                        closedKeys.push(String($(this).attr('data-group-key')));
+                    }
+                });
+                if ($.fn.DataTable.isDataTable('#schedule-table')) {
+                    $('#schedule-table').DataTable().destroy();
+                }
+                $header = $('#schedule-table tbody tr.schedule-group-row').filter(function () {
+                    return String($(this).attr('data-group-key')) === groupKey;
+                }).first();
+                if (!$header.length) {
+                    reinitScheduleJournalDataTable();
+                    return;
+                }
+                $header.nextUntil('tr.schedule-group-row').remove();
+                $header.after(html);
+                closedKeys.forEach(function (key) {
+                    var $row = $('#schedule-table tbody tr.schedule-group-row').filter(function () {
+                        return String($(this).attr('data-group-key')) === key;
+                    }).first();
+                    if (!$row.length) {
+                        return;
+                    }
+                    $row.removeClass('is-open');
+                    $row.nextUntil('tr.schedule-group-row').addClass('schedule-group-collapsed');
+                    $row.nextUntil('tr.schedule-group-row').hide();
+                    $row.find('.schedule-group-toggle')
+                        .attr('aria-expanded', 'false')
+                        .attr('aria-label', 'Развернуть');
+                });
+                reinitScheduleJournalDataTable();
+                paintBulkSelection();
+            },
+            error: function () {
+                window.location.href = $link.attr('href');
+            }
+        });
+    });
 
     if (window.KidsCrmTooltip) {
         var scheduleTableEl = document.getElementById('schedule-table');
@@ -230,6 +442,11 @@ document.addEventListener('DOMContentLoaded', function () {
         newUrl.searchParams.set('month', $('#filter-month').val());
         scheduleJournalApplyTeamIdsToUrl(newUrl);
         newUrl.searchParams.delete('page');
+        Array.from(newUrl.searchParams.keys()).forEach(function (key) {
+            if (key === 'group_pages' || key.indexOf('group_pages[') === 0) {
+                newUrl.searchParams.delete(key);
+            }
+        });
         if ($('.schedule-fullscreen-wrapper').hasClass('fullscreen')) {
             newUrl.searchParams.set('fullscreen', '1');
         } else {
@@ -1182,6 +1399,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (only.name) {
                 $hint.attr('data-package-name', only.name);
             }
+            if (only.starts_at) {
+                $hint.attr('data-starts-at', only.starts_at);
+            }
+            if (only.ends_at) {
+                $hint.attr('data-ends-at', only.ends_at);
+            }
             title = flexibleAbonementColumnHoverLine(only.name, only.fee_amount_cents, false);
             $hint.attr('title', title).attr('aria-label', title);
         } else if ($hint.hasClass('journal-flexible-hint--multi')) {
@@ -1209,6 +1432,7 @@ document.addEventListener('DOMContentLoaded', function () {
             $c.attr('data-flexible-remaining', String(rem));
             var occ = parseInt($c.attr('data-occurrence-count') || '0', 10);
             if (occ !== 0) {
+                refreshBulkCellFlags($c);
                 return;
             }
             var isPostpay = $c.attr('data-postpay') === '1';
@@ -1221,10 +1445,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         'title="Абонемент предоплаты: поставить занятие"></i>'
                     );
                 }
+                refreshBulkCellFlags($c);
                 return;
             }
             if (isPostpay) {
                 $c.attr('data-empty-lesson', '0');
+                refreshBulkCellFlags($c);
                 return;
             }
             if (hasEmptyLessonPermission) {
@@ -1236,6 +1462,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         'title="Пробное, разовое или занятие из абонемента предоплаты"></i>'
                     );
                 }
+                refreshBulkCellFlags($c);
                 return;
             }
             $c.attr('data-empty-lesson', '0');
@@ -1246,11 +1473,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     'title="Абонемент предоплаты: поставить занятие"></i>'
                 );
             }
+            refreshBulkCellFlags($c);
         });
     }
 
     function updateFlexibleHintAfterPlace(userId, result) {
-        var $row = $('#schedule-table tbody tr[data-user-id="' + userId + '"]');
+        var $row = scheduleJournalUserRow(userId);
         if (!$row.length) {
             return;
         }
@@ -1276,7 +1504,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 lessons_total: total || Number($hint.attr('data-lessons-total') || 0),
                 fee_amount_cents: result.fee_amount_cents != null
                     ? Number(result.fee_amount_cents)
-                    : Number($hint.attr('data-fee-amount-cents') || 0)
+                    : Number($hint.attr('data-fee-amount-cents') || 0),
+                starts_at: $hint.attr('data-starts-at') || '',
+                ends_at: $hint.attr('data-ends-at') || ''
             }]);
             return;
         }
@@ -1296,7 +1526,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     lessons_total: total || item.lessons_total,
                     fee_amount_cents: result.fee_amount_cents != null
                         ? Number(result.fee_amount_cents)
-                        : Number(item.fee_amount_cents || 0)
+                        : Number(item.fee_amount_cents || 0),
+                    starts_at: item.starts_at || '',
+                    ends_at: item.ends_at || ''
                 };
             }
             return item;
@@ -1326,6 +1558,7 @@ document.addEventListener('DOMContentLoaded', function () {
             applyJournalConsumingCount($cell, result);
             applyJournalAttendance(result);
             applyJournalPaymentStatus($cell, result);
+            refreshBulkCellFlags($cell);
             return;
         }
         var increment = options.increment === true;
@@ -1355,6 +1588,7 @@ document.addEventListener('DOMContentLoaded', function () {
         applyJournalConsumingCount($cell, result);
         applyJournalAttendance(result);
         applyJournalPaymentStatus($cell, result);
+        refreshBulkCellFlags($cell);
     }
 
     function stripTrainerHoverLines(text) {
@@ -1588,7 +1822,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        var $row = $('#schedule-table tbody tr[data-user-id="' + userId + '"]');
+        var $row = scheduleJournalUserRow(userId);
         if (!$row.length) {
             return;
         }
@@ -1626,6 +1860,8 @@ document.addEventListener('DOMContentLoaded', function () {
             .attr('data-lessons-total', String(total))
             .attr('data-fee-amount-cents', String(feeCents))
             .attr('data-package-name', name)
+            .attr('data-starts-at', String(result.starts_at || ''))
+            .attr('data-ends-at', String(result.ends_at || ''))
             .text(flexibleAbonementColumnLabel(remaining, total || remaining));
         $host.append($span);
         if (window.KidsCrmTooltip && document.getElementById('schedule-table')) {
@@ -1761,7 +1997,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     enrichResultTrainerNameFromSelect(result, '#flexible-trainer-profile-ids');
                     var $cell = currentCell && currentCell.length
                         ? currentCell
-                        : $('#schedule-table .schedule-cell[data-user-id="' + userId + '"][data-date="' + date + '"]');
+                        : scheduleJournalCell(userId, date, null);
                     renderScheduleCellAfterFlexiblePlace($cell, result);
                     updateFlexibleHintAfterPlace(userId, result);
                     currentCell = $cell;
@@ -2264,7 +2500,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     enrichResultTrainerNameFromSelect(result, '#empty-cell-trainer-profile-ids');
                     var $cell = currentCell && currentCell.length
                         ? currentCell
-                        : $('#schedule-table .schedule-cell[data-user-id="' + userId + '"][data-date="' + date + '"]');
+                        : scheduleJournalCell(userId, date, null);
                     renderScheduleCellFromResult($cell, result, {increment: true});
                     currentCell = $cell;
                     return;
@@ -2440,6 +2676,706 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    var bulkSelection = null;
+    var bulkTrainerContext = null;
+    var bulkPlaceModalEl = document.getElementById('bulkPlaceModal');
+    var bulkPlaceModal = bulkPlaceModalEl ? new bootstrap.Modal(bulkPlaceModalEl, {}) : null;
+
+    function bulkToast(message, type) {
+        if (!message || typeof window.showToast !== 'function') {
+            return;
+        }
+        window.showToast(message, type || 'error');
+    }
+
+    function bulkGroupTitle(groupKey) {
+        var $row = $('#schedule-table tbody tr.schedule-group-row').filter(function () {
+            return String($(this).attr('data-group-key')) === String(groupKey);
+        }).first();
+        var title = $.trim($row.find('.schedule-group-title').first().text());
+        return title || 'группа';
+    }
+
+    function bulkLockMessage() {
+        if (!bulkSelection) {
+            return '';
+        }
+        return 'Можно выбрать только ' + formatDateHumanYmd(bulkSelection.date) + ', группа ' + bulkSelection.groupTitle + '.';
+    }
+
+    function bulkRefuseMessage(block, selectionActive) {
+        if (block === 'prepaid_empty') {
+            return 'Нельзя выбрать: в абонементе не осталось занятий.';
+        }
+        if (block === 'postpay_paid') {
+            return 'Нельзя выбрать: месяц уже оплачен.';
+        }
+        if (!selectionActive) {
+            return '';
+        }
+        if (block === 'fixed_only') {
+            return 'Нельзя выбрать: дни фиксированного абонемента задаются кнопкой «+».';
+        }
+        if (block === 'no_abonement') {
+            return 'Нельзя выбрать: на этот месяц не установлен абонемент.';
+        }
+        return '';
+    }
+
+    function refreshBulkCellFlags($c) {
+        if (!$c || !$c.length) {
+            return;
+        }
+        var occ = parseInt($c.attr('data-occurrence-count') || '0', 10);
+        if (occ > 0) {
+            $c.attr('data-bulk-block', 'occupied').attr('data-bulk-billing', '');
+            return;
+        }
+        var rem = parseInt($c.attr('data-flexible-remaining') || '0', 10);
+        if (isNaN(rem)) {
+            rem = 0;
+        }
+        var isFlex = $c.attr('data-flexible') === '1';
+        var isPostpay = $c.attr('data-postpay') === '1';
+        var locked = $c.attr('data-postpay-locked') === '1';
+        var fixed = $c.attr('data-bulk-fixed') === '1';
+        var teamId = String($c.closest('tr').attr('data-team-id') || $c.attr('data-context-team-id') || '');
+        if (!teamId) {
+            $c.attr('data-bulk-block', 'no_abonement').attr('data-bulk-billing', '');
+            return;
+        }
+        if (isFlex && rem > 0) {
+            $c.attr('data-bulk-block', 'eligible').attr('data-bulk-billing', 'prepaid');
+            return;
+        }
+        if (isPostpay && !locked) {
+            $c.attr('data-bulk-block', 'eligible').attr('data-bulk-billing', 'postpay');
+            return;
+        }
+        if (isFlex) {
+            $c.attr('data-bulk-block', 'prepaid_empty').attr('data-bulk-billing', '');
+            return;
+        }
+        if (locked) {
+            $c.attr('data-bulk-block', 'postpay_paid').attr('data-bulk-billing', '');
+            return;
+        }
+        if (fixed) {
+            $c.attr('data-bulk-block', 'fixed_only').attr('data-bulk-billing', '');
+            return;
+        }
+        $c.attr('data-bulk-block', 'no_abonement').attr('data-bulk-billing', '');
+    }
+
+    function bulkUserCount() {
+        if (!bulkSelection || !bulkSelection.users) {
+            return 0;
+        }
+        return Object.keys(bulkSelection.users).length;
+    }
+
+    function bulkUsersList() {
+        if (!bulkSelection) {
+            return [];
+        }
+        return Object.keys(bulkSelection.users).map(function (id) {
+            var row = bulkSelection.users[id] || {};
+            return {
+                id: id,
+                name: row.name || 'Без имени',
+                billing: row.billing || '',
+                abonementName: row.abonementName || '',
+                priceLabel: row.priceLabel || ''
+            };
+        }).sort(function (a, b) {
+            return String(a.name).localeCompare(String(b.name), 'ru');
+        });
+    }
+
+    function bulkEligibleCells(groupKey, date) {
+        return $('#schedule-table tbody tr.schedule-group-user').filter(function () {
+            return String($(this).attr('data-group-key')) === String(groupKey);
+        }).find('.schedule-cell').filter(function () {
+            return String($(this).attr('data-date')) === String(date)
+                && $(this).attr('data-bulk-block') === 'eligible'
+                && parseInt($(this).attr('data-occurrence-count') || '0', 10) === 0;
+        });
+    }
+
+    function bulkFindCell(userId) {
+        if (!bulkSelection) {
+            return $();
+        }
+        return $('#schedule-table tbody tr.schedule-group-user').filter(function () {
+            return String($(this).attr('data-group-key')) === String(bulkSelection.groupKey)
+                && String($(this).attr('data-user-id')) === String(userId);
+        }).find('.schedule-cell').filter(function () {
+            return String($(this).attr('data-date')) === String(bulkSelection.date);
+        }).first();
+    }
+
+    function paintBulkSelection() {
+        var $table = $('#schedule-table');
+        $table.removeClass('is-bulk-lock');
+        $table.find('.schedule-cell--bulk-selected, .schedule-cell--bulk-target, .schedule-cell--bulk-muted').removeClass('schedule-cell--bulk-selected schedule-cell--bulk-target schedule-cell--bulk-muted');
+        $table.find('.schedule-group-day--bulk-target, .schedule-group-day--bulk-all').removeClass('schedule-group-day--bulk-target schedule-group-day--bulk-all');
+        $table.find('.schedule-day-header--bulk').removeClass('schedule-day-header--bulk');
+        var count = bulkUserCount();
+        if (!bulkSelection || count < 1) {
+            bulkSelection = null;
+            $('#schedule-bulk-bar').addClass('d-none');
+            return;
+        }
+        $table.addClass('is-bulk-lock');
+        $('#schedule-bulk-count').text('Выбрано: ' + count);
+        $('#schedule-bulk-bar').removeClass('d-none');
+        var date = String(bulkSelection.date);
+        var groupKey = String(bulkSelection.groupKey);
+        $table.find('th.schedule-day-header').filter(function () {
+            return String($(this).attr('data-date')) === date;
+        }).addClass('schedule-day-header--bulk');
+        $table.find('tr.schedule-group-row').filter(function () {
+            return String($(this).attr('data-group-key')) === groupKey;
+        }).find('td.schedule-group-day').filter(function () {
+            return String($(this).attr('data-date')) === date;
+        }).addClass('schedule-group-day--bulk-target');
+        if (bulkGroupFullySelected(groupKey, date)) {
+            $table.find('tr.schedule-group-row').filter(function () {
+                return String($(this).attr('data-group-key')) === groupKey;
+            }).find('td.schedule-group-day').filter(function () {
+                return String($(this).attr('data-date')) === date;
+            }).addClass('schedule-group-day--bulk-all');
+        }
+        $table.find('tr.schedule-group-user .schedule-cell').each(function () {
+            var $c = $(this);
+            var same = String($c.closest('tr').attr('data-group-key')) === groupKey
+                && String($c.attr('data-date')) === date;
+            var occ = parseInt($c.attr('data-occurrence-count') || '0', 10);
+            if (same && bulkSelection.users[String($c.attr('data-user-id'))]) {
+                $c.addClass('schedule-cell--bulk-selected');
+                return;
+            }
+            if (same && $c.attr('data-bulk-block') === 'eligible' && occ === 0) {
+                $c.addClass('schedule-cell--bulk-target');
+                return;
+            }
+            if (occ === 0) {
+                $c.addClass('schedule-cell--bulk-muted');
+            }
+        });
+    }
+
+    function formatBulkMoney(cents) {
+        var n = parseInt(cents, 10);
+        if (isNaN(n) || n < 0) {
+            n = 0;
+        }
+        var rub = Math.floor(n / 100);
+        var kop = n % 100;
+        var intPart = String(rub).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        if (kop === 0) {
+            return intPart;
+        }
+        return intPart + ',' + String(kop).padStart(2, '0');
+    }
+
+    function flexibleCoversBulkDate(item, date) {
+        var start = item && item.starts_at ? String(item.starts_at) : '';
+        var end = item && item.ends_at ? String(item.ends_at) : '';
+        if (!start || !end) {
+            return true;
+        }
+        return date >= start && date <= end;
+    }
+
+    function flexibleItemsForBulkRow($row) {
+        var $hint = $row.find('.journal-flexible-hint').first();
+        if (!$hint.length) {
+            return [];
+        }
+        if ($hint.hasClass('journal-flexible-hint--multi')) {
+            try {
+                var items = JSON.parse($hint.attr('data-flexible-items') || '[]');
+                return Array.isArray(items) ? items : [];
+            } catch (e) {
+                return [];
+            }
+        }
+        return [{
+            name: $hint.attr('data-package-name') || 'Абонемент предоплаты',
+            slots_remaining: parseInt($hint.attr('data-slots-remaining') || '0', 10),
+            fee_amount_cents: parseInt($hint.attr('data-fee-amount-cents') || '0', 10),
+            starts_at: $hint.attr('data-starts-at') || '',
+            ends_at: $hint.attr('data-ends-at') || ''
+        }];
+    }
+
+    function pickFlexibleForBulk($row, date) {
+        var items = flexibleItemsForBulkRow($row);
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i] || {};
+            if (parseInt(item.slots_remaining || '0', 10) < 1) {
+                continue;
+            }
+            if (!flexibleCoversBulkDate(item, date)) {
+                continue;
+            }
+            return item;
+        }
+        return null;
+    }
+
+    function bulkAbonementParts($cell) {
+        var billing = String($cell.attr('data-bulk-billing') || '');
+        var $row = $cell.closest('tr');
+        if (billing === 'postpay') {
+            var priceCents = parseInt($row.find('.journal-postpay-hint').attr('data-price-cents') || '0', 10);
+            return {
+                abonementName: 'Постоплата',
+                priceLabel: formatBulkMoney(priceCents) + ' ₽/занятие'
+            };
+        }
+        var picked = pickFlexibleForBulk($row, String($cell.attr('data-date') || ''));
+        var name = picked && picked.name ? String(picked.name) : 'Абонемент предоплаты';
+        var feeCents = picked ? parseInt(picked.fee_amount_cents || '0', 10) : 0;
+        return {
+            abonementName: name,
+            priceLabel: formatBulkMoney(feeCents) + ' руб'
+        };
+    }
+
+    function bulkRememberUser($cell) {
+        var userId = String($cell.attr('data-user-id') || '');
+        if (!userId || !bulkSelection) {
+            return;
+        }
+        var parts = bulkAbonementParts($cell);
+        bulkSelection.users[userId] = {
+            name: String($cell.attr('data-user-name') || 'Без имени'),
+            billing: String($cell.attr('data-bulk-billing') || ''),
+            abonementName: parts.abonementName,
+            priceLabel: parts.priceLabel
+        };
+    }
+
+    function bulkDropUser(userId) {
+        if (!bulkSelection) {
+            return;
+        }
+        delete bulkSelection.users[String(userId)];
+        if (!Object.keys(bulkSelection.users).length) {
+            bulkSelection = null;
+        }
+    }
+
+    function ensureBulkLock(groupKey, teamId, date) {
+        if (!bulkSelection) {
+            bulkSelection = {
+                groupKey: String(groupKey),
+                teamId: String(teamId || ''),
+                date: String(date),
+                groupTitle: bulkGroupTitle(groupKey),
+                users: {}
+            };
+            return true;
+        }
+        if (bulkSelection.groupKey !== String(groupKey) || bulkSelection.date !== String(date)) {
+            bulkToast(bulkLockMessage());
+            return false;
+        }
+        return true;
+    }
+
+    function bulkToggleUser($cell) {
+        var groupKey = String($cell.closest('tr').attr('data-group-key') || '');
+        var teamId = String($cell.closest('tr').attr('data-team-id') || $cell.attr('data-context-team-id') || '');
+        var date = String($cell.attr('data-date') || '');
+        var userId = String($cell.attr('data-user-id') || '');
+        if (!groupKey || !date || !userId) {
+            return;
+        }
+        if (bulkSelection && bulkSelection.users[userId] && bulkSelection.groupKey === groupKey && bulkSelection.date === date) {
+            bulkDropUser(userId);
+            paintBulkSelection();
+            return;
+        }
+        if (!ensureBulkLock(groupKey, teamId, date)) {
+            return;
+        }
+        bulkRememberUser($cell);
+        paintBulkSelection();
+    }
+
+    function renderBulkStudents(users, errorsById) {
+        var $box = $('#bulk-students').empty();
+        users.forEach(function (user) {
+            var studentName = user.name || 'Без имени';
+            var abonementName = user.abonementName || (user.billing === 'postpay'
+                ? 'Постоплата'
+                : 'Абонемент предоплаты');
+            var priceLabel = user.priceLabel || '';
+            var $row = $('<div class="bulk-student">').attr('data-user-id', user.id);
+            var $line = $('<div class="bulk-student__line">');
+            $line.append($('<span class="bulk-student__name">').attr('title', studentName).text(studentName));
+            $line.append($('<span class="bulk-student__abonement">').attr('title', abonementName).text(abonementName));
+            $line.append($('<span class="bulk-student__price">').text(priceLabel));
+            $row.append($line);
+            var err = errorsById && errorsById[String(user.id)];
+            if (err) {
+                $row.append($('<div class="invalid-feedback d-block bulk-student-error">').text(err));
+            }
+            $box.append($row);
+        });
+    }
+
+    function syncBulkTrainerHint() {
+        var defaultIds = defaultTrainerIdsFromContext(bulkTrainerContext);
+        var selectIds = $('#bulk-trainer-profile-ids').val() || [];
+        if (!Array.isArray(selectIds)) {
+            selectIds = selectIds ? [String(selectIds)] : [];
+        } else {
+            selectIds = selectIds.map(String);
+        }
+        var hint = '';
+        if (defaultIds.length
+            && selectIds.length === defaultIds.length
+            && defaultIds.every(function (id) { return selectIds.indexOf(String(id)) !== -1; })) {
+            hint = 'По умолчанию — тренеры группы.';
+        }
+        $('#bulk-trainer-hint').text(hint);
+    }
+
+    function syncBulkTrainerBlock() {
+        var statusVal = $('#bulkPlaceForm input[name="bulk_lesson_occurrence_status_id"]:checked').val();
+        if (!isVisitedStatusId(statusVal)) {
+            $('#bulk-trainer-wrap').addClass('d-none');
+            return;
+        }
+        $('#bulk-trainer-wrap').removeClass('d-none');
+        syncBulkTrainerHint();
+    }
+
+    function openBulkPlaceModal() {
+        if (!bulkPlaceModal || !bulkSelection) {
+            return;
+        }
+        var users = bulkUsersList();
+        if (!users.length) {
+            return;
+        }
+        $('#bulk-status-error, #bulk-trainer-error').text('').hide();
+        renderBulkStudents(users, null);
+        $('#bulk-place-group').text(bulkSelection.groupTitle);
+        $('#bulk-place-date').text(formatDateHumanYmd(bulkSelection.date));
+        $('#bulk-place-count').text('Учеников: ' + users.length);
+        var hasPostpay = users.some(function (user) { return user.billing === 'postpay'; });
+        $('.bulk-postpay-hint').toggleClass('d-none', !hasPostpay);
+        var $visited = $('#bulkPlaceForm input[data-is-visited="1"]');
+        if ($visited.length) {
+            $visited.prop('checked', true);
+        } else {
+            var $scheduled = $('#bulkPlaceForm input[data-is-scheduled="1"]');
+            if ($scheduled.length) {
+                $scheduled.prop('checked', true);
+            }
+        }
+        syncBulkTrainerBlock();
+        $.ajax({
+            url: '/schedule/cell-context',
+            method: 'GET',
+            data: {
+                user_id: users[0].id,
+                date: bulkSelection.date,
+                context_team_id: bulkSelection.teamId
+            },
+            headers: {'Accept': 'application/json'},
+            success: function (ctx) {
+                bulkTrainerContext = ctx;
+                populateTrainerMultiselect(
+                    $('#bulk-trainer-profile-ids'),
+                    ctx.trainers || [],
+                    defaultTrainerIdsFromContext(ctx)
+                );
+                syncBulkTrainerHint();
+            }
+        });
+        if (window.KidsCrmTooltip && bulkPlaceModalEl) {
+            KidsCrmTooltip.init(bulkPlaceModalEl, {scopes: ['hint']});
+        }
+        bulkPlaceModal.show();
+    }
+
+    function showBulkFieldErrors(errors) {
+        if (!errors) {
+            return;
+        }
+        if (errors.lesson_occurrence_status_id) {
+            $('#bulk-status-error').text(errors.lesson_occurrence_status_id[0]).show();
+        }
+        var trainerMsg = errors.trainer_profile_ids || errors['trainer_profile_ids.0'];
+        if (trainerMsg) {
+            $('#bulk-trainer-error').text(trainerMsg[0]).show();
+            if (window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.markInvalid($('#bulk-trainer-profile-ids'));
+            }
+        }
+        if (errors.user_ids && !errors.lesson_occurrence_status_id) {
+            $('#bulk-status-error').text(errors.user_ids[0]).show();
+        }
+        if (errors.team_id) {
+            $('#bulk-status-error').text(errors.team_id[0]).show();
+        }
+        if (errors.occurrence_date) {
+            $('#bulk-status-error').text(errors.occurrence_date[0]).show();
+        }
+    }
+
+    $(document).on('change', '#bulkPlaceForm input[name="bulk_lesson_occurrence_status_id"]', syncBulkTrainerBlock);
+    $(document).on('change', '#bulk-trainer-profile-ids', syncBulkTrainerHint);
+
+    $('#schedule-bulk-clear').on('click', function () {
+        bulkSelection = null;
+        paintBulkSelection();
+    });
+
+    $('#schedule-bulk-add').on('click', function () {
+        openBulkPlaceModal();
+    });
+
+    $('#bulkPlaceForm').on('submit', function (e) {
+        e.preventDefault();
+        if (!bulkSelection) {
+            return;
+        }
+        $('#bulk-status-error, #bulk-trainer-error').text('').hide();
+        if (window.KidsCrmGenericMultiselectSelect2) {
+            KidsCrmGenericMultiselectSelect2.clearInvalid($('#bulk-trainer-profile-ids'));
+        }
+        var statusId = $('#bulkPlaceForm input[name="bulk_lesson_occurrence_status_id"]:checked').val();
+        if (!statusId) {
+            $('#bulk-status-error').text('Выберите статус.').show();
+            return;
+        }
+        var users = bulkUsersList();
+        var payload = {
+            team_id: bulkSelection.teamId,
+            occurrence_date: bulkSelection.date,
+            lesson_occurrence_status_id: statusId,
+            user_ids: users.map(function (user) { return user.id; })
+        };
+        if (isVisitedStatusId(statusId)) {
+            var trainerIds = $('#bulk-trainer-profile-ids').val() || [];
+            if (!Array.isArray(trainerIds)) {
+                trainerIds = trainerIds ? [trainerIds] : [];
+            }
+            payload.trainer_profile_ids = trainerIds;
+        }
+        payload = withJournalTeamFilter(payload);
+        var $btn = $('#bulk-place-submit').prop('disabled', true);
+        $.ajax({
+            url: '/schedule/bulk-place',
+            method: 'POST',
+            data: payload,
+            headers: {'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json'},
+            success: function (response) {
+                var result = (response && response.result) || {};
+                var placed = result.placed || [];
+                var failed = result.failed || [];
+                placed.forEach(function (row) {
+                    var $cell = bulkFindCell(row.user_id);
+                    if ($cell.length) {
+                        renderScheduleCellAfterStatusSave($cell, row);
+                    }
+                    bulkDropUser(row.user_id);
+                });
+                paintBulkSelection();
+                if (!failed.length && response && response.success) {
+                    bulkToast(response.message || 'Занятие поставлено.', 'success');
+                    if (bulkPlaceModal) {
+                        bulkPlaceModal.hide();
+                    }
+                    return;
+                }
+                var errorsById = {};
+                failed.forEach(function (row) {
+                    errorsById[String(row.user_id)] = row.message || 'Не удалось поставить занятие.';
+                });
+                var left = bulkUsersList();
+                renderBulkStudents(left, errorsById);
+                $('#bulk-place-count').text('Учеников: ' + left.length);
+            },
+            error: function (xhr) {
+                if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                    showBulkFieldErrors(xhr.responseJSON.errors);
+                }
+            },
+            complete: function () {
+                $btn.prop('disabled', false);
+            }
+        });
+    });
+
+    function scheduleGroupPerPage() {
+        var n = parseInt($('#schedule-table').attr('data-group-per-page') || '20', 10);
+        if (isNaN(n) || n < 1) {
+            return 20;
+        }
+        return n;
+    }
+
+    function bulkGroupFullySelected(groupKey, date) {
+        if (!bulkSelection || String(bulkSelection.groupKey) !== String(groupKey) || String(bulkSelection.date) !== String(date)) {
+            return false;
+        }
+        var roster = bulkSelection.rosterIds;
+        var total = parseInt(bulkSelection.eligibleTotal, 10);
+        if (roster && roster.length && total > 0) {
+            if (total !== roster.length || Object.keys(bulkSelection.users).length !== total) {
+                return false;
+            }
+            for (var i = 0; i < roster.length; i++) {
+                if (!bulkSelection.users[String(roster[i])]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        var $header = $('#schedule-table tbody tr.schedule-group-row').filter(function () {
+            return String($(this).attr('data-group-key')) === String(groupKey);
+        }).first();
+        var groupTotal = parseInt($header.find('.schedule-group-count').first().text(), 10);
+        if (isNaN(groupTotal) || groupTotal > scheduleGroupPerPage()) {
+            return false;
+        }
+        var $eligible = bulkEligibleCells(groupKey, date);
+        if (!$eligible.length) {
+            return false;
+        }
+        var allOn = true;
+        $eligible.each(function () {
+            if (!bulkSelection.users[String($(this).attr('data-user-id') || '')]) {
+                allOn = false;
+            }
+        });
+        return allOn;
+    }
+
+    function bulkCandidatesErrorMessage(xhr) {
+        var fallback = 'Не удалось загрузить учеников группы.';
+        if (!xhr || xhr.status !== 422 || !xhr.responseJSON || !xhr.responseJSON.errors) {
+            return fallback;
+        }
+        var errors = xhr.responseJSON.errors;
+        var keys = Object.keys(errors);
+        for (var i = 0; i < keys.length; i++) {
+            var list = errors[keys[i]];
+            if (list && list[0]) {
+                return String(list[0]);
+            }
+        }
+        return fallback;
+    }
+
+    function applyBulkGroupRoster(groupKey, teamId, date, payload) {
+        var users = payload && Array.isArray(payload.users) ? payload.users : [];
+        var total = parseInt(payload && payload.total, 10);
+        if (isNaN(total)) {
+            total = users.length;
+        }
+        if (!users.length) {
+            bulkToast('В этот день некого выбрать.');
+            return;
+        }
+        if (bulkSelection && (bulkSelection.date !== date || bulkSelection.groupKey !== groupKey)) {
+            bulkToast(bulkLockMessage());
+            return;
+        }
+        if (!ensureBulkLock(groupKey, teamId, date)) {
+            return;
+        }
+        var allBatchOn = true;
+        users.forEach(function (user) {
+            if (!bulkSelection.users[String(user.id)]) {
+                allBatchOn = false;
+            }
+        });
+        if (allBatchOn) {
+            bulkSelection = null;
+            paintBulkSelection();
+            return;
+        }
+        bulkSelection.users = {};
+        bulkSelection.eligibleTotal = total;
+        bulkSelection.rosterIds = [];
+        users.forEach(function (user) {
+            var id = String(user.id);
+            bulkSelection.rosterIds.push(id);
+            bulkSelection.users[id] = {
+                name: user.name || 'Без имени',
+                billing: user.billing || '',
+                abonementName: user.abonement_name || '',
+                priceLabel: user.price_label || ''
+            };
+        });
+        if (total > users.length) {
+            bulkToast('Отмечены первые ' + users.length + ' учеников. Остальных поставьте отдельно.', 'warning');
+        }
+        paintBulkSelection();
+    }
+
+    $(document).on('click', '.schedule-group-day', function () {
+        var $day = $(this);
+        if ($day.data('bulk-loading')) {
+            return;
+        }
+        var $header = $day.closest('tr.schedule-group-row');
+        var groupKey = String($header.attr('data-group-key') || '');
+        var teamId = String($header.attr('data-team-id') || '');
+        var date = String($day.attr('data-date') || '');
+        if (!groupKey || !date) {
+            return;
+        }
+        if (bulkSelection && (bulkSelection.date !== date || bulkSelection.groupKey !== groupKey)) {
+            bulkToast(bulkLockMessage());
+            return;
+        }
+        var url = $('#schedule-table').attr('data-group-bulk-url');
+        if (!url) {
+            bulkToast('Не удалось загрузить учеников группы.');
+            return;
+        }
+        var params = {
+            year: $('#filter-year').val(),
+            month: $('#filter-month').val(),
+            q: $('#table-search').val() || '',
+            group_key: groupKey,
+            occurrence_date: date
+        };
+        var teams = $('#filter-team').val() || [];
+        if (!Array.isArray(teams)) {
+            teams = teams ? [teams] : [];
+        }
+        if (teams.length) {
+            params.team_ids = teams;
+        }
+        $day.data('bulk-loading', 1);
+        $.ajax({
+            url: url,
+            method: 'GET',
+            data: params,
+            headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'},
+            success: function (payload) {
+                applyBulkGroupRoster(groupKey, teamId, date, payload || {});
+            },
+            error: function (xhr) {
+                bulkToast(bulkCandidatesErrorMessage(xhr));
+            },
+            complete: function () {
+                $day.removeData('bulk-loading');
+            }
+        });
+    });
+
     $(document).on('click', '.schedule-cell', function () {
         currentCell = $(this);
         var count = parseInt($(this).attr('data-occurrence-count') || '0', 10);
@@ -2451,43 +3387,35 @@ document.addEventListener('DOMContentLoaded', function () {
         var userName = $(this).data('user-name');
         var utssId = $(this).data('utss-id');
 
-        if (isPostpayLocked) {
-            return;
-        }
-
         if (!count) {
+            var block = String($(this).attr('data-bulk-block') || 'no_abonement');
+            var groupKey = String($(this).closest('tr').attr('data-group-key') || '');
+            var dateStr = String($(this).attr('data-date') || '');
+            if (bulkSelection && (bulkSelection.date !== dateStr || bulkSelection.groupKey !== groupKey)) {
+                bulkToast(bulkLockMessage());
+                return;
+            }
+            if (block === 'eligible') {
+                bulkToggleUser($(this));
+                return;
+            }
+            var refuse = bulkRefuseMessage(block, !!bulkSelection);
+            if (refuse) {
+                bulkToast(refuse);
+                return;
+            }
             var flexibleRemaining = parseInt($(this).attr('data-flexible-remaining') || '0', 10);
             if (isNaN(flexibleRemaining)) {
                 flexibleRemaining = 0;
             }
             var hasEmptyLesson = $(this).attr('data-empty-lesson') === '1';
-
-            if (isFlexible && flexibleRemaining > 0) {
-                openFlexiblePlaceModal(userId, date, userName, {
-                    teamId: scheduleJournalContextTeamId(currentCell)
-                });
-                return;
-            }
-            if (isPostpay) {
-                openOccurrenceEditor(userId, date, '', userName, {
-                    createPostpay: true,
-                    teamId: scheduleJournalContextTeamId(currentCell)
-                });
-                return;
-            }
-            if (isFlexible && flexibleRemaining < 1 && hasEmptyLesson) {
-                openEmptyCellPlaceModal(userId, date, userName);
-                return;
-            }
-            if (isFlexible) {
-                openFlexiblePlaceModal(userId, date, userName, {
-                    teamId: scheduleJournalContextTeamId(currentCell)
-                });
-                return;
-            }
             if (hasEmptyLesson) {
                 openEmptyCellPlaceModal(userId, date, userName);
             }
+            return;
+        }
+
+        if (isPostpayLocked) {
             return;
         }
 
@@ -2553,7 +3481,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 var date = $('#edit-date').val();
                 var $cell = currentCell && currentCell.length
                     ? currentCell
-                    : $('#schedule-table .schedule-cell[data-user-id="' + userId + '"][data-date="' + date + '"]');
+                    : scheduleJournalCell(userId, date, null);
                 cellEditModal.hide();
                 renderScheduleCellAfterStatusSave($cell, result);
                 currentCell = $cell;
@@ -2653,7 +3581,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 var result = response.result || {};
                 var $cell = currentCell && currentCell.length
                     ? currentCell
-                    : $('#schedule-table .schedule-cell[data-user-id="' + userId + '"][data-date="' + date + '"]');
+                    : scheduleJournalCell(userId, date, null);
                 if (cellDeleteConfirmModal) {
                     cellDeleteConfirmModal.hide();
                 }

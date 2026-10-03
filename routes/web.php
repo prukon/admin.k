@@ -495,6 +495,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Журнал расписания
     Route::middleware('can:schedule.view')->group(function () {
         Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
+        Route::get('/schedule/group-rows', [ScheduleController::class, 'groupRows'])->name('schedule.group-rows');
+        Route::get('/schedule/group-bulk-candidates', [ScheduleController::class, 'groupBulkCandidates'])
+            ->name('schedule.group-bulk-candidates');
         Route::get('/schedule/trainer-workload', [ScheduleTrainerWorkloadController::class, 'index'])
             ->name('schedule.trainer-workload');
         Route::get('/schedule/trainer-workload/data', [ScheduleTrainerWorkloadController::class, 'data'])
@@ -543,6 +546,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('schedule.abonement.flexible-context');
         Route::post('/schedule/user/{user}/place-flexible-abonement', [ScheduleController::class, 'placeFlexibleAbonement'])
             ->name('schedule.abonement.place-flexible');
+        Route::post('/schedule/bulk-place', [ScheduleController::class, 'bulkPlaceEmptyLessons'])
+            ->name('schedule.bulk-place');
         Route::post('/schedule/user/{user}/sync-teams', [ScheduleController::class, 'syncUserTeams'])->name('user.sync.teams');
     });
 

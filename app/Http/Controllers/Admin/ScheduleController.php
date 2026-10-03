@@ -7,11 +7,14 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\DestroyScheduleJournalOccurrenceRequest;
+use App\Http\Requests\Admin\GetScheduleJournalGroupBulkCandidatesRequest;
+use App\Http\Requests\Admin\GetScheduleJournalGroupRowsRequest;
 use App\Http\Requests\Admin\GetScheduleJournalIndexRequest;
 use App\Http\Requests\Admin\GetScheduleCellContextRequest;
 use App\Http\Requests\Admin\GetScheduleJournalAbonementContextRequest;
 use App\Http\Requests\Admin\GetScheduleJournalEmptyCellContextRequest;
 use App\Http\Requests\Admin\GetScheduleJournalFlexibleContextRequest;
+use App\Http\Requests\Admin\PlaceScheduleJournalBulkLessonsRequest;
 use App\Http\Requests\Admin\PlaceScheduleJournalFixedAbonementRequest;
 use App\Http\Requests\Admin\PlaceScheduleJournalFlexibleAbonementRequest;
 use App\Http\Requests\Admin\PlaceScheduleJournalSingleLessonRequest;
@@ -30,6 +33,7 @@ use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
 use App\Services\LessonPackages\UserLessonOccurrenceStatusService;
 use App\Services\PartnerContext;
+use App\Services\Schedule\JournalBulkEmptyLessonPlacementService;
 use App\Services\Schedule\JournalEmptyCellPlacementContextService;
 use App\Services\Schedule\JournalFixedAbonementPlacementService;
 use App\Services\Schedule\JournalFlexibleAbonementPlacementService;
@@ -37,6 +41,7 @@ use App\Services\Schedule\JournalMonthlyPaymentStatusService;
 use App\Services\Schedule\JournalOccurrenceAnnulmentService;
 use App\Services\Schedule\JournalSingleLessonPlacementService;
 use App\Services\Schedule\JournalTrialLessonPlacementService;
+use App\Services\Schedule\ScheduleJournalGroupBoardService;
 use App\Services\Schedule\ScheduleJournalMonthService;
 use App\Services\TeamUserSyncService;
 use App\Services\TrainerOwnTeamsScope;
@@ -61,7 +66,9 @@ class ScheduleController extends AdminBaseController
 {
     use BuildsLogTable;
 
-    public const JOURNAL_STUDENTS_PER_PAGE = 100;
+    public const JOURNAL_GROUP_STUDENTS_PER_PAGE = ScheduleJournalGroupBoardService::PER_PAGE;
+
+    public const JOURNAL_STUDENTS_PER_PAGE = self::JOURNAL_GROUP_STUDENTS_PER_PAGE;
 
     public function __construct(
         PartnerContext $partnerContext,
@@ -70,6 +77,7 @@ class ScheduleController extends AdminBaseController
         private readonly ScheduleJournalMonthService $journalMonthService,
         private readonly JournalFixedAbonementPlacementService $fixedPlacementService,
         private readonly JournalFlexibleAbonementPlacementService $flexiblePlacementService,
+        private readonly JournalBulkEmptyLessonPlacementService $bulkEmptyLessonPlacementService,
         private readonly JournalEmptyCellPlacementContextService $emptyCellPlacementContextService,
         private readonly JournalTrialLessonPlacementService $trialLessonPlacementService,
         private readonly JournalSingleLessonPlacementService $singleLessonPlacementService,
@@ -79,6 +87,7 @@ class ScheduleController extends AdminBaseController
         private readonly PostpayUsersPriceSync $postpaySync,
         private readonly JournalMonthlyPaymentStatusService $journalMonthlyPaymentStatus,
         private readonly TrainerOwnTeamsScope $ownTeams,
+        private readonly ScheduleJournalGroupBoardService $journalGroupBoard,
     ) {
         parent::__construct($partnerContext);
     }
@@ -106,12 +115,6 @@ class ScheduleController extends AdminBaseController
         $startOfMonth = Carbon::createFromDate($year, (int) $month, 1);
         $endOfMonth = $startOfMonth->copy()->endOfMonth();
 
-        $usersQuery = User::query()
-            ->select(['id', 'name', 'lastname', 'partner_id', 'role_id', 'is_enabled'])
-            ->where('partner_id', $partnerId)
-            ->where('is_enabled', 1)
-            ->withSystemRoleUser();
-
         $actor = $request->user();
         foreach ($journalTeamFilter->teamIds as $selectedTeamId) {
             if (! $this->ownTeams->allowsTeamId($actor, $partnerId, $selectedTeamId)) {
@@ -119,12 +122,6 @@ class ScheduleController extends AdminBaseController
                     'team' => ['Выберите группу из списка.'],
                 ]);
             }
-        }
-
-        if ($journalTeamFilter->isAll()) {
-            $this->ownTeams->restrictStudentsQuery($usersQuery, $actor, $partnerId);
-        } else {
-            UserTeamQuery::applyJournalTeamFilter($usersQuery, $partnerId, $journalTeamFilter);
         }
 
         $journalAttendance = $this->journalMonthService->attendanceSummary(
@@ -136,71 +133,16 @@ class ScheduleController extends AdminBaseController
             $this->ownTeams->allowedTeamIds($actor, $partnerId),
         );
 
-        if ($searchQ !== '') {
-            $like = '%'.$searchQ.'%';
-            $usersQuery->where(function ($q) use ($like) {
-                $q->where('lastname', 'like', $like)
-                    ->orWhere('name', 'like', $like)
-                    ->orWhereRaw(
-                        "CONCAT(IFNULL(lastname, ''), ' ', IFNULL(name, '')) LIKE ?",
-                        [$like]
-                    );
-            });
-        }
-
-        $users = $usersQuery
-            ->with(['teams' => function ($q) use ($partnerId, $actor) {
-                $q->where('teams.partner_id', $partnerId);
-                $this->ownTeams->restrictTeamsQuery($q, $actor, $partnerId);
-            }])
-            ->orderBy('lastname')
-            ->orderBy('name')
-            ->orderBy('id')
-            ->paginate(self::JOURNAL_STUDENTS_PER_PAGE)
-            ->withQueryString();
-
-        $userIds = $users->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all();
-
-        $journalOccurrences = $this->journalMonthService->occurrencesByUserDate(
+        $journalGroups = $this->journalGroupBoard->build(
+            $actor,
             $partnerId,
-            $userIds,
+            $journalTeamFilter,
+            $searchQ,
             $startOfMonth,
             $endOfMonth,
-            $journalTeamFilter,
-            $this->ownTeams->allowedTeamIds($actor, $partnerId),
+            (array) ($data['group_pages'] ?? []),
+            (int) ($data['page'] ?? 1),
         );
-
-        $journalAssignments = $this->journalMonthService->fixedAssignmentsByUser($partnerId, $userIds);
-
-        $monthFirst = $startOfMonth->format('Y-m-d');
-        $postpayByUser = $this->postpayJournal->postpayAbonementHintsByUser($userIds, $monthFirst, $journalTeamFilter);
-        $postpayUsers = [];
-        foreach (array_keys($postpayByUser) as $uid) {
-            $postpayUsers[(int) $uid] = true;
-        }
-        $postpayLockedUsers = $this->postpayJournal->postpayLockedUserFlags($userIds, $monthFirst, $journalTeamFilter);
-
-        $flexibleByUser = $this->journalMonthService->flexibleAssignableByUserForBillingMonth(
-            $partnerId,
-            $userIds,
-            $monthFirst,
-            $journalTeamFilter,
-        );
-        $flexibleUsers = [];
-        foreach ($flexibleByUser as $uid => $assignments) {
-            if ($assignments !== []) {
-                $flexibleUsers[(int) $uid] = true;
-            }
-        }
-
-        $journalPaymentStatuses = $this->journalMonthlyPaymentStatus->statusesByUser(
-            $partnerId,
-            $userIds,
-            $monthFirst,
-            $journalTeamFilter,
-        );
-
-        $journalConsumingCounts = $this->journalMonthService->consumingCountsByUser($journalOccurrences);
 
         $teams = Team::where('partner_id', $partnerId)
             ->where('is_enabled', 1)
@@ -229,17 +171,8 @@ class ScheduleController extends AdminBaseController
             'journalTeamFilter',
             'selectedTeamTokens',
             'searchQ',
-            'users',
-            'journalOccurrences',
-            'journalAssignments',
-            'journalPaymentStatuses',
-            'journalConsumingCounts',
+            'journalGroups',
             'journalAttendance',
-            'postpayUsers',
-            'postpayLockedUsers',
-            'postpayByUser',
-            'flexibleUsers',
-            'flexibleByUser',
             'teams',
             'startOfMonth',
             'endOfMonth',
@@ -252,6 +185,78 @@ class ScheduleController extends AdminBaseController
             'activeTab' => 'journal',
             'canPlaceEmptyCellLesson' => auth()->user()?->can('lessonPackages.view') === true,
         ]));
+    }
+
+    public function groupRows(GetScheduleJournalGroupRowsRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        $data = $request->validated();
+        $journalTeamFilter = ScheduleJournalTeamFilter::fromIndexValidated($data);
+        $actor = $request->user();
+        foreach ($journalTeamFilter->teamIds as $selectedTeamId) {
+            if (! $this->ownTeams->allowsTeamId($actor, $partnerId, $selectedTeamId)) {
+                abort(404);
+            }
+        }
+
+        $year = (int) ($data['year'] ?? date('Y'));
+        $month = str_pad((string) ($data['month'] ?? date('m')), 2, '0', STR_PAD_LEFT);
+        $startOfMonth = Carbon::createFromDate($year, (int) $month, 1);
+        $endOfMonth = $startOfMonth->copy()->endOfMonth();
+
+        $group = $this->journalGroupBoard->buildOne(
+            $actor,
+            $partnerId,
+            $journalTeamFilter,
+            trim((string) ($data['q'] ?? '')),
+            $startOfMonth,
+            $endOfMonth,
+            (string) $data['group_key'],
+            (int) ($data['group_page'] ?? 1),
+        );
+        if ($group === null) {
+            abort(404);
+        }
+
+        $days = [];
+        $cursor = $startOfMonth->copy();
+        while ($cursor->lte($endOfMonth)) {
+            $days[] = $cursor->copy();
+            $cursor->addDay();
+        }
+
+        return view('admin.schedule._journal_group_users', [
+            'group' => $group,
+            'days' => $days,
+            'canPlaceEmptyCellLesson' => auth()->user()?->can('lessonPackages.view') === true,
+        ]);
+    }
+
+    public function groupBulkCandidates(GetScheduleJournalGroupBulkCandidatesRequest $request): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+        $data = $request->validated();
+        $journalTeamFilter = ScheduleJournalTeamFilter::fromIndexValidated($data);
+        $actor = $request->user();
+        foreach ($journalTeamFilter->teamIds as $selectedTeamId) {
+            if (! $this->ownTeams->allowsTeamId($actor, $partnerId, $selectedTeamId)) {
+                abort(404);
+            }
+        }
+
+        $result = $this->journalGroupBoard->eligibleBulkCandidates(
+            $actor,
+            $partnerId,
+            $journalTeamFilter,
+            trim((string) ($data['q'] ?? '')),
+            (string) $data['group_key'],
+            (string) $data['occurrence_date'],
+        );
+        if ($result === null) {
+            abort(404);
+        }
+
+        return response()->json($result);
     }
 
     public function cellContext(GetScheduleCellContextRequest $request): JsonResponse
@@ -1088,6 +1093,158 @@ class ScheduleController extends AdminBaseController
         }
 
         return $this->journalMutationResponse($request, $message);
+    }
+
+    /**
+     * Массовая постановка занятия в пустые ячейки одной группы и одной даты.
+     */
+    public function bulkPlaceEmptyLessons(PlaceScheduleJournalBulkLessonsRequest $request): JsonResponse|RedirectResponse
+    {
+        $partnerId = $this->requirePartnerId();
+        $data = $request->validated();
+
+        $team = Team::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey((int) $data['team_id'])
+            ->first();
+        if (! $team) {
+            return $this->journalMutationResponse(
+                $request,
+                'Группа не найдена.',
+                ['team_id' => ['Группа не найдена.']],
+            );
+        }
+
+        try {
+            $status = LessonOccurrenceStatus::findActiveForPartner(
+                (int) $data['lesson_occurrence_status_id'],
+                $partnerId
+            );
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+            return $this->journalMutationResponse(
+                $request,
+                'Выбранный статус не найден или неактивен.',
+                ['lesson_occurrence_status_id' => ['Выбранный статус не найден или неактивен.']],
+            );
+        }
+
+        $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
+        $trainerProfileIds = ($visitedStatusId !== null && (int) $status->id === (int) $visitedStatusId)
+            ? ScheduleOccurrenceTrainerIds::normalize(
+                $data['trainer_profile_ids'] ?? null,
+                $data['trainer_profile_id'] ?? null
+            )
+            : [];
+
+        if ($trainerProfileIds !== []) {
+            $validIds = ScheduleOccurrenceTrainerIds::existingForPartner($partnerId, $trainerProfileIds);
+            if (count($validIds) !== count($trainerProfileIds)) {
+                return $this->journalMutationResponse(
+                    $request,
+                    'Тренер не найден.',
+                    ['trainer_profile_ids' => ['Тренер не найден.']],
+                );
+            }
+            $trainerProfileIds = $validIds;
+        }
+
+        $occurrenceDate = (string) $data['occurrence_date'];
+        $userIds = array_map('intval', $data['user_ids']);
+        $outcome = $this->bulkEmptyLessonPlacementService->place(
+            $partnerId,
+            $team,
+            $occurrenceDate,
+            $userIds,
+            $status,
+            $trainerProfileIds,
+            auth()->id() !== null ? (int) auth()->id() : null,
+        );
+
+        $placed = $this->withBulkJournalMetrics($request, $partnerId, $occurrenceDate, $outcome['placed']);
+        $failed = $outcome['failed'];
+        $placedCount = count($placed);
+        $failedCount = count($failed);
+
+        if ($placedCount > 0 && $failedCount === 0) {
+            $message = $placedCount === 1
+                ? 'Занятие поставлено.'
+                : 'Занятие поставлено выбранным ученикам.';
+        } elseif ($placedCount > 0) {
+            $message = 'Занятие поставлено не всем ученикам.';
+        } else {
+            $message = 'Не удалось поставить занятие.';
+        }
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => $placedCount > 0,
+                'message' => $message,
+                'result' => [
+                    'placed' => $placed,
+                    'failed' => $failed,
+                    'attendance' => $placed[0]['attendance'] ?? null,
+                ],
+            ]);
+        }
+
+        if ($failedCount > 0) {
+            return redirect()
+                ->route('schedule.index')
+                ->with('error', $message);
+        }
+
+        return redirect()
+            ->route('schedule.index')
+            ->with('status', $message);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $placed
+     * @return list<array<string, mixed>>
+     */
+    private function withBulkJournalMetrics(Request $request, int $partnerId, string $occurrenceDateYmd, array $placed): array
+    {
+        if ($placed === []) {
+            return [];
+        }
+
+        $userIds = array_values(array_map(static fn (array $row) => (int) $row['user_id'], $placed));
+        $start = Carbon::parse($occurrenceDateYmd)->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+        $teamFilter = $this->journalTeamFilterFromRequest($request);
+        $counts = $this->journalMonthService->consumingCountsByUser(
+            $this->journalMonthService->occurrencesByUserDate($partnerId, $userIds, $start, $end, $teamFilter)
+        );
+        $payments = $this->journalMonthlyPaymentStatus->statusesByUser(
+            $partnerId,
+            $userIds,
+            $start->format('Y-m-d'),
+            $teamFilter,
+        );
+        $actor = $request->user();
+        $attendance = $this->journalMonthService->attendanceSummary(
+            $partnerId,
+            $this->journalAttendanceStudentIds($actor, $partnerId, $teamFilter),
+            $start,
+            $end,
+            $teamFilter,
+            $this->ownTeams->allowedTeamIds($actor, $partnerId),
+        );
+
+        foreach ($placed as $index => $row) {
+            $userId = (int) $row['user_id'];
+            $placed[$index]['consuming_count'] = (int) ($counts[$userId] ?? 0);
+            $placed[$index]['payment_status'] = $payments[$userId] ?? [
+                'state' => JournalMonthlyPaymentStatusService::STATE_NONE,
+                'icon_class' => '',
+                'hover' => '',
+                'amount_cents' => 0,
+                'amount_label' => '',
+            ];
+            $placed[$index]['attendance'] = $attendance;
+        }
+
+        return $placed;
     }
 
     /**

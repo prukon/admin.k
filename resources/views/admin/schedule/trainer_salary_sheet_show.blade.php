@@ -47,5 +47,4 @@
 
 @push('scripts')
     @vite(['resources/css/schedule.css'])
-    <link rel="stylesheet" href="{{ asset('css/trainer-salary.css') }}?v={{ @filemtime(public_path('css/trainer-salary.css')) ?: time() }}">
 @endpush

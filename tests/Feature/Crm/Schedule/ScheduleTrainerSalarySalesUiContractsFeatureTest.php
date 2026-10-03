@@ -287,8 +287,14 @@ final class ScheduleTrainerSalarySalesUiContractsFeatureTest extends ScheduleTra
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('css/trainer-salary.css', $html);
-        $this->assertStringContainsString('js/trainer-salary.js', $html);
+        $this->assertStringContainsString(
+            "@vite(['resources/css/schedule.css'])",
+            (string) file_get_contents(resource_path('views/admin/schedule/index.blade.php'))
+        );
+        $this->assertStringContainsString(
+            "@vite(['resources/js/trainer-salary.js'])",
+            (string) file_get_contents(resource_path('views/admin/schedule/index.blade.php'))
+        );
         $this->assertStringContainsString('data-field="sales_percent"', $html);
         $this->assertStringNotContainsString(
             'trainer-salary-cell--saved',

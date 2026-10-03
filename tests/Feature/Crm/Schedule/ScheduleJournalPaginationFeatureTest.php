@@ -239,7 +239,9 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $overflow = $students[$perPage];
 
         $team = Team::factory()->create(['partner_id' => $this->partner->id]);
-        app(TeamUserSyncService::class)->syncTeamsForStudent($overflow, [(int) $team->id]);
+        foreach ($students as $student) {
+            app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $team->id]);
+        }
         $this->createTrialUtss($overflow, $team, '2026-08-03');
 
         $page = $this->get(route('schedule.index', [
@@ -262,7 +264,8 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $this->assertStringContainsString($first->full_name, $html);
         $this->assertJournalPagerRendered($html, true);
         $this->assertStringContainsString('из '.($perPage + 1).' учеников', $html);
-        $this->assertStringContainsString('page=2', $html);
+        $this->assertStringContainsString('group_pages', $html);
+        $this->assertStringContainsString('schedule-group-page-link', $html);
         $this->assertMatchesRegularExpression(
             '#number-line">1</td#',
             $this->studentRowHtml($html, (int) $first->id) ?? ''
@@ -294,7 +297,7 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $this->assertNotNull($row);
         $this->assertMatchesRegularExpression('#number-line">'.($perPage + 1).'</td#', $row);
         $this->assertJournalPagerRendered($html, true);
-        $this->assertStringContainsString('Показаны '.($perPage + 1).'–'.($perPage + 1), $html);
+        $this->assertStringContainsString(($perPage + 1).'–'.($perPage + 1), $html);
     }
 
     public function test_pager_is_not_shown_when_students_fit_on_one_page(): void
@@ -497,7 +500,7 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         foreach ($hrefs[1] as $href) {
             $decoded = urldecode(html_entity_decode($href));
             if (
-                str_contains($decoded, 'page=2')
+                str_contains($decoded, 'group_pages[none]=2')
                 && str_contains($decoded, 'ЖурналСсылка')
                 && str_contains($decoded, 'year=2026')
                 && str_contains($decoded, 'month=08')

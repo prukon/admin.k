@@ -302,8 +302,9 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
         $this->assertStringContainsString('cell-edit-modal__footer', $page);
         $this->assertStringContainsString('aria-label="Закрыть"', $page);
         $this->assertStringContainsString('cell-edit-section__label', $page);
-        $this->assertStringContainsString('/js/trainer-salary.js', $page);
-        $this->assertStringNotContainsString('resources/js/trainer-salary.js', $page);
+        $salaryBlade = (string) file_get_contents(resource_path('views/admin/schedule/index.blade.php'));
+        $this->assertStringContainsString("@vite(['resources/js/trainer-salary.js'])", $salaryBlade);
+        $this->assertStringNotContainsString("asset('js/trainer-salary.js')", $salaryBlade);
     }
 
     public function test_group_row_shows_type_money_and_integer_averages_without_hover(): void

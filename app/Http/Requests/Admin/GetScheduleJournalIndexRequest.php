@@ -70,6 +70,8 @@ class GetScheduleJournalIndexRequest extends FormRequest
             'team_ids.*' => ['string', 'max:32', 'regex:/^(none|[1-9][0-9]*)$/', new AllowedActorTeam($partnerId)],
             'q' => ['nullable', 'string', 'max:191'],
             'page' => ['nullable', 'integer', 'min:1'],
+            'group_pages' => ['nullable', 'array'],
+            'group_pages.*' => ['integer', 'min:1'],
             'fullscreen' => ['nullable', 'in:0,1'],
         ];
     }
@@ -93,6 +95,21 @@ class GetScheduleJournalIndexRequest extends FormRequest
                     true,
                 );
             }
+
+            foreach ((array) $this->input('group_pages', []) as $key => $page) {
+                $token = (string) $key;
+                if ($token !== 'none' && ! preg_match('/^[1-9][0-9]*$/', $token)) {
+                    $validator->errors()->add('group_pages.'.$token, 'Выберите группу из списка.');
+
+                    continue;
+                }
+                $this->assertTeamExistsForPartner(
+                    $validator,
+                    $token,
+                    'group_pages.'.$token,
+                    $partnerId,
+                );
+            }
         });
     }
 
@@ -106,6 +123,8 @@ class GetScheduleJournalIndexRequest extends FormRequest
             'team_ids.*' => 'группа',
             'q' => 'поиск',
             'page' => 'страница',
+            'group_pages' => 'страницы групп',
+            'group_pages.*' => 'страница группы',
             'fullscreen' => 'полноэкранный режим',
         ];
     }
@@ -122,10 +141,12 @@ class GetScheduleJournalIndexRequest extends FormRequest
             'q.max' => 'Поисковый запрос слишком длинный.',
             'page.integer' => 'Номер страницы должен быть числом.',
             'page.min' => 'Номер страницы должен быть не меньше 1.',
+            'group_pages.*.integer' => 'Номер страницы группы должен быть числом.',
+            'group_pages.*.min' => 'Номер страницы группы должен быть не меньше 1.',
         ];
     }
 
-    private function assertTeamExistsForPartner(
+    protected function assertTeamExistsForPartner(
         Validator $validator,
         string $token,
         string $errorKey,

@@ -39,7 +39,9 @@
 
 @push('styles')
     <link rel="stylesheet" href="{{ asset('plugins/flag-icon-css/css/flag-icon.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/user-card-modal.css') }}?v={{ @filemtime(public_path('css/user-card-modal.css')) ?: time() }}">
+    @unless($skipUserCardModalCss ?? false)
+        <link rel="stylesheet" href="{{ asset('css/user-card-modal.css') }}?v={{ @filemtime(public_path('css/user-card-modal.css')) ?: time() }}">
+    @endunless
     {{-- Тот же набор, что в resources/css/kids-tooltip.css: vite-файл кэшируется на год, страница должна получить правило сразу. --}}
     <style>
         table.dataTable.dt-columns-managed td.dt-col-list > .kids-hover-list-dropdown__trigger {
