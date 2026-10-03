@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\Admin\Report\SaveDebtsReportFiltersRequest;
+use App\Services\Reports\PersistedReportFilters;
 use App\Models\Location;
 use App\Models\Team;
 use App\Models\TrainerProfile;
@@ -23,6 +25,8 @@ use App\Models\UserTableSetting;
 
 class DeptReportController extends AdminBaseController
 {
+    use SavesPersistedReportFilters;
+
     private const TABLE_KEY = 'reports_debts';
 
     public function __construct(
@@ -35,6 +39,7 @@ class DeptReportController extends AdminBaseController
     //Отчет Задолженности
     public function debts(Request $request)
     {
+        app(PersistedReportFilters::class)->hydrate($request, PersistedReportFilters::DEBTS);
         $partnerId = $this->requirePartnerId();
         $filters = $request->query();
 
@@ -145,15 +150,25 @@ class DeptReportController extends AdminBaseController
         $today = Carbon::now()->format('Y-m-d');
 
         if ($request->ajax()) {
+            /** @var \App\Models\User|null $authUser */
+            $authUser = Auth::user();
+            $canViewLocations = $authUser?->can('locations.view') ?? false;
+
             $monthly = DB::table('users_prices')
                 ->join('users', 'users.id', '=', 'users_prices.user_id')
+                ->tap(fn ($query) => $this->joinDebtReportTeamLocation($query, 'users_prices.team_id', $partnerId))
+                ->leftJoin('lesson_packages', function ($join) use ($partnerId) {
+                    $join->on('lesson_packages.id', '=', 'users_prices.lesson_package_id')
+                        ->where('lesson_packages.partner_id', '=', $partnerId);
+                })
                 ->selectRaw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name")
                 ->addSelect(
                     'users.id as user_id',
                     DB::raw('users_prices.id as row_id'),
                     DB::raw('users_prices.new_month as month'),
                     DB::raw('users_prices.price_cents as price'),
-                    DB::raw('0 as is_period')
+                    DB::raw('0 as is_period'),
+                    ...$this->debtReportContextSelects($partnerId, true),
                 )
                 ->whereRaw(self::effectiveUnpaidSql('users_prices'))
                 ->where('users_prices.price_cents', '>', 0)
@@ -164,13 +179,15 @@ class DeptReportController extends AdminBaseController
 
             $periods = DB::table('user_custom_payment')
                 ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
+                ->tap(fn ($query) => $this->joinDebtReportTeamLocation($query, 'user_custom_payment.team_id', $partnerId))
                 ->selectRaw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name")
                 ->addSelect(
                     'users.id as user_id',
                     DB::raw('user_custom_payment.id as row_id'),
                     DB::raw("CONCAT(user_custom_payment.date_start, ' — ', user_custom_payment.date_end) as month"),
                     DB::raw('user_custom_payment.amount_cents as price'),
-                    DB::raw('1 as is_period')
+                    DB::raw('1 as is_period'),
+                    ...$this->debtReportContextSelects($partnerId, false),
                 )
                 ->where('user_custom_payment.partner_id', $partnerId)
                 ->whereRaw(self::effectiveUnpaidSql('user_custom_payment'))
@@ -188,7 +205,7 @@ class DeptReportController extends AdminBaseController
                 $query->orderBy('is_period')->orderBy('row_id');
             };
 
-            return DataTables::of($base)
+            $table = DataTables::of($base)
                 ->addIndexColumn()
                 ->editColumn('month', fn ($row) => self::formatMonthForDebtReport($row->month))
                 ->addColumn('price', fn ($row) => round(((int) $row->price) / 100, 2))
@@ -207,8 +224,48 @@ class DeptReportController extends AdminBaseController
                     $query->orderBy('price', $dir);
                     $appendStableOrder($query);
                 })
-                ->removeColumn('row_id', 'is_period')
-                ->make(true);
+                ->orderColumn('team_title', function ($query, $order) use ($appendStableOrder) {
+                    $dir = strtolower((string) $order) === 'desc' ? 'desc' : 'asc';
+                    $query->orderBy('team_title', $dir);
+                    $appendStableOrder($query);
+                })
+                ->orderColumn('lesson_package_name', function ($query, $order) use ($appendStableOrder) {
+                    $dir = strtolower((string) $order) === 'desc' ? 'desc' : 'asc';
+                    $query->orderBy('lesson_package_name', $dir);
+                    $appendStableOrder($query);
+                })
+                ->orderColumn('location_title', function ($query, $order) use ($appendStableOrder) {
+                    $dir = strtolower((string) $order) === 'desc' ? 'desc' : 'asc';
+                    $query->orderBy('location_title', $dir);
+                    $appendStableOrder($query);
+                })
+                ->orderColumn('location_admin', function ($query, $order) use ($appendStableOrder) {
+                    $dir = strtolower((string) $order) === 'desc' ? 'desc' : 'asc';
+                    $query->orderByRaw("CASE WHEN location_admin_names_raw IS NULL OR location_admin_names_raw = '' THEN 1 ELSE 0 END asc");
+                    $query->orderBy('location_admin_names_raw', $dir);
+                    $appendStableOrder($query);
+                })
+                ->addColumn('location_admin', function ($row) use ($canViewLocations) {
+                    if (! $canViewLocations) {
+                        return '';
+                    }
+
+                    return self::debtAdminShortLabel(self::debtAdminNames($row->location_admin_names_raw ?? null));
+                })
+                ->addColumn('location_admin_names', function ($row) use ($canViewLocations) {
+                    if (! $canViewLocations) {
+                        return [];
+                    }
+
+                    return self::debtAdminNames($row->location_admin_names_raw ?? null);
+                })
+                ->removeColumn('row_id', 'is_period', 'location_admin_names_raw');
+
+            if (! $canViewLocations) {
+                $table->removeColumn('location_title', 'location_admin', 'location_admin_names');
+            }
+
+            return $table->make(true);
         }
 
         abort(404);
@@ -229,6 +286,11 @@ class DeptReportController extends AdminBaseController
         }
 
         return response()->json($columns);
+    }
+
+    public function saveFilters(SaveDebtsReportFiltersRequest $request)
+    {
+        return $this->storePersistedReportFilters($request, PersistedReportFilters::DEBTS);
     }
 
     public function saveColumnsSettings(Request $request)
@@ -259,6 +321,94 @@ class DeptReportController extends AdminBaseController
         );
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Группа и объект строки долга: месячный долг — users_prices.team_id, доп. платёж — user_custom_payment.team_id.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function joinDebtReportTeamLocation($query, string $teamIdColumn, int $partnerId): void
+    {
+        $query->leftJoin('teams', function ($join) use ($teamIdColumn, $partnerId) {
+            $join->on('teams.id', '=', $teamIdColumn)
+                ->where('teams.partner_id', '=', $partnerId);
+        })->leftJoin('locations', function ($join) use ($partnerId) {
+            $join->on('locations.id', '=', 'teams.location_id')
+                ->where('locations.partner_id', '=', $partnerId);
+        });
+    }
+
+    /**
+     * @return list<\Illuminate\Database\Query\Expression>
+     */
+    private function debtReportContextSelects(int $partnerId, bool $withLessonPackage): array
+    {
+        $packageSql = $withLessonPackage
+            ? "CASE WHEN lesson_packages.id IS NULL OR NULLIF(TRIM(lesson_packages.name), '') IS NULL THEN '—' ELSE lesson_packages.name END"
+            : "'—'";
+
+        return [
+            DB::raw("CASE WHEN teams.id IS NULL OR NULLIF(TRIM(teams.title), '') IS NULL THEN '—' ELSE teams.title END as team_title"),
+            DB::raw("CASE WHEN teams.id IS NULL THEN '—' WHEN locations.id IS NULL OR NULLIF(TRIM(locations.name), '') IS NULL THEN 'Без объекта' ELSE locations.name END as location_title"),
+            DB::raw($packageSql.' as lesson_package_name'),
+            DB::raw($this->debtReportAdminNamesSql($partnerId).' as location_admin_names_raw'),
+        ];
+    }
+
+    private function debtReportAdminNamesSql(int $partnerId): string
+    {
+        $pid = (int) $partnerId;
+        $separator = "\n";
+
+        return <<<SQL
+(
+    SELECT GROUP_CONCAT(
+        TRIM(CONCAT(COALESCE(debt_admin_users.lastname, ''), ' ', COALESCE(debt_admin_users.name, '')))
+        ORDER BY debt_admin_users.lastname, debt_admin_users.name, debt_admin_users.id
+        SEPARATOR '{$separator}'
+    )
+    FROM location_admin_user AS debt_location_admins
+    INNER JOIN users AS debt_admin_users ON debt_admin_users.id = debt_location_admins.user_id
+    WHERE debt_location_admins.location_id = teams.location_id
+      AND debt_location_admins.partner_id = {$pid}
+      AND debt_admin_users.deleted_at IS NULL
+)
+SQL;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function debtAdminNames(mixed $raw): array
+    {
+        $text = trim((string) ($raw ?? ''));
+        if ($text === '') {
+            return [];
+        }
+
+        $names = preg_split("/\r\n|\n|\r/", $text) ?: [];
+
+        return array_values(array_filter(
+            array_map(static fn ($name) => trim((string) $name), $names),
+            static fn (string $name) => $name !== ''
+        ));
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    private static function debtAdminShortLabel(array $names): string
+    {
+        $count = count($names);
+        if ($count === 0) {
+            return '';
+        }
+        if ($count <= 2) {
+            return implode(', ', $names);
+        }
+
+        return $names[0].', еще '.($count - 1).' шт.';
     }
 
     /**
@@ -458,7 +608,7 @@ class DeptReportController extends AdminBaseController
     private function resolveDebtFilterUserLabel(int $partnerId, array $filters): ?array
     {
         $raw = $filters['filter_user_id'] ?? null;
-        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+        if (is_array($raw) || $raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
             return null;
         }
         $uid = (int) $raw;
@@ -489,7 +639,7 @@ class DeptReportController extends AdminBaseController
     private function resolveDebtFilterTeamLabel(int $partnerId, array $filters): ?array
     {
         $raw = $filters['filter_team_id'] ?? null;
-        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+        if (is_array($raw) || $raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
             return null;
         }
         $tid = (int) $raw;
@@ -521,7 +671,7 @@ class DeptReportController extends AdminBaseController
     private function resolveDebtFilterTrainerLabel(int $partnerId, array $filters): ?array
     {
         $raw = $filters['filter_trainer_profile_id'] ?? null;
-        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+        if (is_array($raw) || $raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
             return null;
         }
         $tpid = (int) $raw;

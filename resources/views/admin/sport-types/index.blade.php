@@ -322,22 +322,26 @@
 
             const table = dtApi.table;
 
-            function reloadSportTypesTable() {
-                dtApi.reload({ keepPage: true });
+            function reloadSportTypesTable(options) {
+                dtApi.reload(options && options.resetPage ? {} : { keepPage: true });
             }
 
-            $('#filter-apply').on('click', reloadSportTypesTable);
+            function reloadSportTypesTableFromFilters() {
+                reloadSportTypesTable({ resetPage: true });
+            }
+
+            $('#filter-apply').on('click', reloadSportTypesTableFromFilters);
             $('#sport-types-report-filters').on('submit', function (e) {
                 e.preventDefault();
-                reloadSportTypesTable();
+                reloadSportTypesTableFromFilters();
             });
             $('#filter-reset').on('click', function () {
                 $('#filter-name').val('');
                 $('#filter-status').val(defaultFilterStatus);
-                reloadSportTypesTable();
+                reloadSportTypesTableFromFilters();
             });
             $('#filter-name').on('keyup', function (e) {
-                if (e.key === 'Enter') reloadSportTypesTable();
+                if (e.key === 'Enter') reloadSportTypesTableFromFilters();
             });
 
             @can('sport_types.manage')

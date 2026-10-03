@@ -166,6 +166,27 @@
     <li>Ошибки валидации возвращаются JSON (<code>422</code>) и выводятся под полями формы.</li>
   </ul>
 
+  <h3 id="trainers-persisted-filters">6.0) Фильтры и «Показать N»</h3>
+  <div class="note">
+    Строка <code>user_table_settings</code> с <code>table_key = trainers_index</code>.
+    Фильтры (имя, группа, статус) — в <code>filters</code>.
+    «Показать N» (10 / 20 / 50 / 100, старт 10) — в <code>page_length</code>,
+    <code>persistPageLength: true</code>, POST <code>/admin/trainers/columns-settings</code>
+    (<code>TrainerColumnsSettingsSaveRequest</code>). Колонки и N друг друга не затирают.
+    «Применить» и «Сброс» — POST <code>/admin/trainers/filters</code>
+    (<code>admin.trainers.filters.save</code>, <code>SaveTrainersListFiltersRequest</code>, право <code>trainers.view</code>).
+    «Сброс» — пустое имя, все группы, <code>status=active</code>.
+    AJAX — 200 <code>{success:true}</code>. Обычный POST — 302 на <code>/admin/trainers</code>, запись в БД есть.
+    422 — текст под полем, таблица не обновляется. Обычный POST с ошибкой — 302 назад.
+    Гость — 302/401. Без <code>trainers.view</code> — 403.
+    Варианта «без группы» нет: <code>team_id=none</code> — 422.
+    «Применить», Enter и «Сброс» открывают первую страницу (<code>reloadTrainersTable()</code> → <code>dtApi.reload()</code>).
+    Правка карточки остаётся на текущей (<code>window.__reloadTrainersTable</code>, <code>keepPage: true</code>).
+    Анонс фильтров — <a href="/doc#list-persisted-filters-index">/doc</a>,
+    анонс страницы — <a href="/doc#datatable-filter-resets-page-index">/doc</a>.
+    Тесты: <code>PersistedListFiltersFeatureTest</code>, <code>PersistedListFiltersHttpContractFeatureTest</code>.
+  </div>
+
   <h3 id="trainer-salary-defaults">6.1) Оклад и ставка по умолчанию (ЗП тренеров)</h3>
   <p>
     Схема <code>classic</code>: поля профиля <code>default_base_salary_cents</code> / <code>default_rate_per_training_cents</code>

@@ -12,6 +12,14 @@
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
+        if (is_array($v)) {
+            $items = array_filter($v, static fn ($item) => trim((string) $item) !== '');
+            if ($items !== []) {
+                $payHasActiveFilters = true;
+                break;
+            }
+            continue;
+        }
         if ($v !== null && $v !== '') {
             $payHasActiveFilters = true;
             break;
@@ -78,6 +86,26 @@
                                 <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColName" data-column-key="user_name" checked>
                                 <label class="form-check-label" for="debtColName">Имя пользователя</label>
                             </div>
+                            @if($canViewLocations)
+                                <div class="form-check">
+                                    <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColAdmin" data-column-key="location_admin" checked>
+                                    <label class="form-check-label" for="debtColAdmin">Админ</label>
+                                </div>
+                            @endif
+                            <div class="form-check">
+                                <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColPackage" data-column-key="lesson_package" checked>
+                                <label class="form-check-label" for="debtColPackage">Абонемент</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColTeam" data-column-key="team_title" checked>
+                                <label class="form-check-label" for="debtColTeam">Группа</label>
+                            </div>
+                            @if($canViewLocations)
+                                <div class="form-check">
+                                    <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColLocation" data-column-key="location" checked>
+                                    <label class="form-check-label" for="debtColLocation">Объект</label>
+                                </div>
+                            @endif
                             <div class="form-check">
                                 <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColMonth" data-column-key="month" checked>
                                 <label class="form-check-label" for="debtColMonth">Месяц</label>
@@ -141,6 +169,14 @@
     <tr>
         <th>№</th>
         <th>Имя пользователя</th>
+        @if($canViewLocations)
+            <th>Админ</th>
+        @endif
+        <th>Абонемент</th>
+        <th>Группа</th>
+        @if($canViewLocations)
+            <th>Объект</th>
+        @endif
         <th>Месяц</th>
         <th>Сумма</th>
     </tr>
@@ -151,6 +187,8 @@
     <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script type="text/javascript">
         $(function () {
+            @include('admin.report.partials.persist-report-filters-fn')
+            var debtFiltersSaveUrl = @json(route('reports.debts.filters.save'));
             var canViewLocations = @json($canViewLocations);
             var defaultFilterUserStatus = 'active';
             var $debtFiltersForm = $('#debt-report-filters');
@@ -320,13 +358,22 @@
                     });
             }
 
+            var debtColumnDefaults = {
+                user_name: true,
+                lesson_package: true,
+                team_title: true,
+                month: true,
+                price: true
+            };
+            if (canViewLocations) {
+                debtColumnDefaults.location_admin = true;
+                debtColumnDefaults.location = true;
+            }
+            var debtMonthOrderIndex = canViewLocations ? 6 : 4;
+
             var dtApi = KidsCrmDataTable.create('#debts-table', {
                 columnsSettings: {
-                    defaults: {
-                        user_name: true,
-                        month: true,
-                        price: true
-                    },
+                    defaults: debtColumnDefaults,
                     urls: {
                         get: @json(route('reports.debts.columns-settings.get')),
                         save: @json(route('reports.debts.columns-settings.save'))
@@ -345,7 +392,7 @@
                             });
                         }
                     },
-                    order: [[2, 'asc']],
+                    order: [[debtMonthOrderIndex, 'asc']],
                     language: @include('partials.datatables.ru'),
                     fixedHeader: ($.fn.dataTable && $.fn.dataTable.FixedHeader)
                         ? { header: true, footer: false }
@@ -370,6 +417,37 @@
                             return window.KidsCrmUserCard.renderName(row.user_name, row.user_id);
                         }
                     },
+                    {
+                        key: 'location_admin',
+                        type: 'list',
+                        data: 'location_admin',
+                        name: 'location_admin',
+                        itemsKey: 'location_admin_names',
+                        searchable: false,
+                        when: canViewLocations
+                    },
+                    {
+                        key: 'lesson_package',
+                        type: 'text',
+                        data: 'lesson_package_name',
+                        name: 'lesson_package_name',
+                        searchable: false
+                    },
+                    {
+                        key: 'team_title',
+                        type: 'text',
+                        data: 'team_title',
+                        name: 'team_title',
+                        searchable: false
+                    },
+                    {
+                        key: 'location',
+                        type: 'text',
+                        data: 'location_title',
+                        name: 'location_title',
+                        searchable: false,
+                        when: canViewLocations
+                    },
                     { key: 'month', type: 'text', data: 'month', name: 'month' },
                     { key: 'price', type: 'money', data: 'price', name: 'price', suffix: ' ₽' }
                 ]
@@ -377,25 +455,29 @@
 
             $debtFiltersForm.on('submit', function (e) {
                 e.preventDefault();
-                refreshDebtReportTotal();
-                dtApi.reload({ keepPage: true });
+                kidsCrmPersistReportFilters($debtFiltersForm, debtFiltersSaveUrl, debtReportFilterParams(), function () {
+                    refreshDebtReportTotal();
+                    dtApi.reload();
+                });
             });
 
             $('#debtReportFiltersResetBtn').on('click', function () {
-                $debtFiltersForm[0].reset();
-                $debtFilterUser.val(null).trigger('change');
-                if (window.KidsCrmGenericMultiselectSelect2) {
-                    KidsCrmGenericMultiselectSelect2.reset($debtFilterTeam);
-                    if ($debtFilterTrainer.length) {
-                        KidsCrmGenericMultiselectSelect2.reset($debtFilterTrainer);
+                kidsCrmPersistReportFilters($debtFiltersForm, debtFiltersSaveUrl, { reset: 1 }, function () {
+                    $debtFiltersForm[0].reset();
+                    $debtFilterUser.val(null).trigger('change');
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.reset($debtFilterTeam);
+                        if ($debtFilterTrainer.length) {
+                            KidsCrmGenericMultiselectSelect2.reset($debtFilterTrainer);
+                        }
+                        if (canViewLocations) {
+                            KidsCrmGenericMultiselectSelect2.reset($('#pay-debt-filter-location'));
+                        }
                     }
-                    if (canViewLocations) {
-                        KidsCrmGenericMultiselectSelect2.reset($('#pay-debt-filter-location'));
-                    }
-                }
-                $('#pay-debt-filter-user-status').val(defaultFilterUserStatus);
-                refreshDebtReportTotal();
-                dtApi.reload();
+                    $('#pay-debt-filter-user-status').val(defaultFilterUserStatus);
+                    refreshDebtReportTotal();
+                    dtApi.reload();
+                });
             });
         });
     </script>

@@ -1207,7 +1207,7 @@
 
                 $ulpFiltersForm.on('submit', function (e) {
                     e.preventDefault();
-                    dtApi.reload({ keepPage: true });
+                    dtApi.reload();
                 });
 
                 $('#ulpAssignmentsFiltersResetBtn').on('click', function () {

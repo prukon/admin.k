@@ -561,7 +561,7 @@
             };
 
             function reloadPartnersTable() {
-                dtApi.reload({ keepPage: true });
+                dtApi.reload();
                 syncPartnersFiltersCollapseState();
             }
 

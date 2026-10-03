@@ -1,7 +1,13 @@
 @extends('layouts.admin2')
 
 @php
-    $usersHasActiveFilters = false;
+    $usersHasActiveFilters = $usersHasActiveFilters ?? false;
+    $listFilters = $listFilters ?? [
+        'name' => '',
+        'team_id' => '',
+        'status' => 'active',
+        'contract' => '',
+    ];
     $canViewContracts = $canViewContracts ?? (auth()->user() && auth()->user()->can('contracts.view'));
     $canViewUserSex = $canViewUserSex ?? (auth()->user() && auth()->user()->can('users.sex'));
     $canViewUserComment = $canViewUserComment ?? (auth()->user() && auth()->user()->can('users.comment'));
@@ -241,40 +247,42 @@
                             <div class="col-12 col-md-6 col-lg-3">
                                 <label class="form-label" for="filter-name">Имя</label>
                                 <input id="filter-name"
+                                       name="name"
                                        class="form-control"
                                        type="text"
+                                       value="{{ $listFilters['name'] }}"
                                        placeholder="Поиск по имени, email, телефону">
                             </div>
 
                             <div class="col-12 col-md-6 col-lg-3">
                                 <label class="form-label" for="filter-team">Группа</label>
-                                <select id="filter-team" class="form-select">
-                                    <option value="">Все группы</option>
-                                    <option value="none">Без группы</option>
+                                <select id="filter-team" name="team_id" class="form-select">
+                                    <option value="" @selected($listFilters['team_id'] === '')>Все группы</option>
+                                    <option value="none" @selected($listFilters['team_id'] === 'none')>Без группы</option>
                                     @foreach($allTeams as $team)
-                                        <option value="{{ $team->id }}">{{ $team->title }}</option>
+                                        <option value="{{ $team->id }}" @selected((string) $listFilters['team_id'] === (string) $team->id)>{{ $team->title }}</option>
                                     @endforeach
                                 </select>
                             </div>
 
                             <div class="col-12 col-md-6 col-lg-3">
                                 <label class="form-label" for="filter-status">Статус</label>
-                                <select id="filter-status" class="form-select">
-                                    <option value="">Все клиенты</option>
-                                    <option value="active" selected>Только активные</option>
-                                    <option value="inactive">Только неактивные</option>
+                                <select id="filter-status" name="status" class="form-select">
+                                    <option value="" @selected($listFilters['status'] === '')>Все клиенты</option>
+                                    <option value="active" @selected($listFilters['status'] === 'active')>Только активные</option>
+                                    <option value="inactive" @selected($listFilters['status'] === 'inactive')>Только неактивные</option>
                                 </select>
                             </div>
 
                             @if($canViewContracts)
                             <div class="col-12 col-md-6 col-lg-3">
                                 <label class="form-label" for="filter-contract">Договор</label>
-                                <select id="filter-contract" class="form-select">
-                                    <option value="">Все</option>
-                                    <option value="with">С договором</option>
-                                    <option value="without">Без договора</option>
-                                    <option value="signed">Подписан</option>
-                                    <option value="unsigned">Не подписан</option>
+                                <select id="filter-contract" name="contract" class="form-select">
+                                    <option value="" @selected(($listFilters['contract'] ?? '') === '')>Все</option>
+                                    <option value="with" @selected(($listFilters['contract'] ?? '') === 'with')>С договором</option>
+                                    <option value="without" @selected(($listFilters['contract'] ?? '') === 'without')>Без договора</option>
+                                    <option value="signed" @selected(($listFilters['contract'] ?? '') === 'signed')>Подписан</option>
+                                    <option value="unsigned" @selected(($listFilters['contract'] ?? '') === 'unsigned')>Не подписан</option>
                                 </select>
                             </div>
                             @endif
@@ -365,6 +373,8 @@
             const canViewUserSex = @json((bool) $canViewUserSex);
             const canViewUserComment = @json((bool) $canViewUserComment);
             const defaultFilterStatus = 'active';
+            const usersFiltersSaveUrl = @json(route('admin.users.filters.save'));
+            @include('admin.report.partials.persist-report-filters-fn')
 
             @if ($canViewContracts)
             function renderContractCell(row) {
@@ -776,33 +786,41 @@
             });
             @endif
 
-            function reloadUsersTable() {
-                dtApi.reload({ keepPage: true });
+            function reloadUsersTable(options) {
+                dtApi.reload(options && options.resetPage ? {} : { keepPage: true });
                 syncUsersFiltersCollapseState();
             }
 
+            function applyUsersFilters() {
+                kidsCrmPersistReportFilters($('#users-report-filters'), usersFiltersSaveUrl, usersFilterParams(), function () {
+                    reloadUsersTable({ resetPage: true });
+                });
+            }
+
             $('#filter-apply').on('click', function () {
-                reloadUsersTable();
+                applyUsersFilters();
             });
 
             $('#users-report-filters').on('submit', function (e) {
                 e.preventDefault();
-                reloadUsersTable();
+                applyUsersFilters();
             });
 
             $('#filter-reset').on('click', function () {
-                $('#filter-name').val('');
-                $('#filter-team').val('');
-                $('#filter-status').val(defaultFilterStatus);
-                if (canViewContracts) {
-                    $('#filter-contract').val('');
-                }
-                reloadUsersTable();
+                kidsCrmPersistReportFilters($('#users-report-filters'), usersFiltersSaveUrl, { reset: 1 }, function () {
+                    $('#filter-name').val('');
+                    $('#filter-team').val('');
+                    $('#filter-status').val(defaultFilterStatus);
+                    if (canViewContracts) {
+                        $('#filter-contract').val('');
+                    }
+                    reloadUsersTable({ resetPage: true });
+                });
             });
 
             $('#filter-name').on('keyup', function (e) {
                 if (e.key === 'Enter') {
-                    reloadUsersTable();
+                    applyUsersFilters();
                 }
             });
 

@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers\Contracts;
 
+use App\Http\Controllers\Concerns\SavesPersistedListFilters;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Contracts\ContractCheckBalanceRequest;
+use App\Http\Requests\Tables\SaveContractsListFiltersRequest;
 use App\Http\Requests\Contracts\ContractStoreRequest;
 use App\Http\Requests\Contracts\FilterRequest;
 use App\Models\Contract;
 use App\Models\Partner;
 use App\Models\Team;
 use App\Models\User;
+use App\Models\UserTableSetting;
 use App\Services\Contracts\ContractBillingService;
 use App\Services\Contracts\ContractCreationService;
 use App\Services\Contracts\ContractLessonPackageBinder;
+use App\Services\Tables\PersistedListFilters;
 use App\Services\TeamUserSyncService;
 use App\Support\BuildsLogTable;
 use Illuminate\Http\Request;
@@ -25,6 +29,7 @@ use Illuminate\Validation\ValidationException;
 class ContractsController extends Controller
 {
     use BuildsLogTable;
+    use SavesPersistedListFilters;
 
     public function __construct(
         private readonly ContractCreationService $creationService,
@@ -60,9 +65,28 @@ class ContractsController extends Controller
             || $request->filled('user_id')
             || $request->session()->has('errors');
 
+        $actor = Auth::user();
+        $filters = app(PersistedListFilters::class);
+        $listFilters = $filters->present($actor, PersistedListFilters::CONTRACTS);
+        $contractsHasActiveFilters = $filters->isActive($listFilters, PersistedListFilters::CONTRACTS, $actor);
+        $authUserId = $actor?->id;
+        $contractsPageLength = UserTableSetting::pageLengthForUser(
+            $authUserId !== null ? (int) $authUserId : null,
+            PersistedListFilters::CONTRACTS,
+            PersistedListFilters::CONTRACTS_DEFAULT_PAGE_LENGTH
+        );
+
         return view('contracts.index', compact('allTeams', 'shouldOpenCreateModal') + $createForm + [
             'activeTab' => 'contracts',
+            'listFilters' => $listFilters,
+            'contractsHasActiveFilters' => $contractsHasActiveFilters,
+            'contractsPageLength' => $contractsPageLength,
         ]);
+    }
+
+    public function saveFilters(SaveContractsListFiltersRequest $request)
+    {
+        return $this->storePersistedListFilters($request);
     }
 
     public function create(Request $request)

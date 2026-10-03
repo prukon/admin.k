@@ -23,6 +23,14 @@
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
+        if (is_array($v)) {
+            $items = array_filter($v, static fn ($item) => trim((string) $item) !== '');
+            if ($items !== []) {
+                $payHasActiveFilters = true;
+                break;
+            }
+            continue;
+        }
         if ($v !== null && $v !== '') {
             $payHasActiveFilters = true;
             break;
@@ -232,6 +240,8 @@
     <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script type="text/javascript">
         $(function() {
+            @include('admin.report.partials.persist-report-filters-fn')
+            var ltvLocationsFiltersSaveUrl = @json(route('reports.ltv.locations.filters.save'));
 
             var canViewLocations = @json($canViewLocations);
             var defaultFilterUserStatus = 'active';
@@ -783,11 +793,13 @@
 
             $ltvFiltersForm.on('submit', function (e) {
                 e.preventDefault();
-                refreshLtvLocationsReportTotal();
-                Object.keys(ltvLocationsDetailTables).forEach(function (locationId) {
-                    destroyLtvLocationsDetailTable(locationId);
+                kidsCrmPersistReportFilters($ltvFiltersForm, ltvLocationsFiltersSaveUrl, ltvLocationsReportFilterParams(), function () {
+                    refreshLtvLocationsReportTotal();
+                    Object.keys(ltvLocationsDetailTables).forEach(function (locationId) {
+                        destroyLtvLocationsDetailTable(locationId);
+                    });
+                    dtApi.reload();
                 });
-                dtApi.reload({ keepPage: true });
             });
 
             $('.js-ltv-locations-period-btn').on('click', function () {
@@ -828,23 +840,25 @@
             });
 
             $('#ltvLocationsReportFiltersResetBtn').on('click', function () {
-                $ltvFiltersForm[0].reset();
-                $ltvFilterUser.val(null).trigger('change');
-                if (window.KidsCrmGenericMultiselectSelect2) {
-                    KidsCrmGenericMultiselectSelect2.reset($ltvFilterTeam);
-                    if ($ltvFilterTrainer.length) {
-                        KidsCrmGenericMultiselectSelect2.reset($ltvFilterTrainer);
+                kidsCrmPersistReportFilters($ltvFiltersForm, ltvLocationsFiltersSaveUrl, { reset: 1 }, function () {
+                    $ltvFiltersForm[0].reset();
+                    $ltvFilterUser.val(null).trigger('change');
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.reset($ltvFilterTeam);
+                        if ($ltvFilterTrainer.length) {
+                            KidsCrmGenericMultiselectSelect2.reset($ltvFilterTrainer);
+                        }
+                        if (canViewLocations) {
+                            KidsCrmGenericMultiselectSelect2.reset($('#pay-ltv-locations-filter-location'));
+                        }
                     }
-                    if (canViewLocations) {
-                        KidsCrmGenericMultiselectSelect2.reset($('#pay-ltv-locations-filter-location'));
-                    }
-                }
-                $('#pay-ltv-locations-filter-user-status').val(defaultFilterUserStatus);
-                Object.keys(ltvLocationsDetailTables).forEach(function (locationId) {
-                    destroyLtvLocationsDetailTable(locationId);
+                    $('#pay-ltv-locations-filter-user-status').val(defaultFilterUserStatus);
+                    Object.keys(ltvLocationsDetailTables).forEach(function (locationId) {
+                        destroyLtvLocationsDetailTable(locationId);
+                    });
+                    refreshLtvLocationsReportTotal();
+                    dtApi.reload();
                 });
-                refreshLtvLocationsReportTotal();
-                dtApi.reload();
             });
 
             $('#ltv-locations-table tbody').on('click', 'td.details-control button', function(e) {

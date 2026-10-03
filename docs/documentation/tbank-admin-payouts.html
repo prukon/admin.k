@@ -48,7 +48,8 @@
 
   <h2>2) Маршруты</h2>
   <ul>
-    <li><code>GET /admin/tinkoff/payouts</code> — HTML: таблица выплат (DataTables), фильтры, информационные блоки.</li>
+    <li><code>GET /admin/tinkoff/payouts</code> — HTML: таблица выплат (DataTables), фильтры, информационные блоки.
+      «Применить» и «Сброс» открывают первую страницу (<code>dtApi.reload()</code> без <code>keepPage</code>).</li>
     <li><code>GET /admin/tinkoff/payouts/data</code> — JSON для DataTables (валидация через <code>TinkoffPayoutsDataTableRequest</code>).</li>
     <li><code>GET /admin/tinkoff/payouts/total</code> — JSON: сумма выплат по текущим фильтрам (<code>{ total_formatted, total_raw }</code>).</li>
     <li><code>GET /admin/tinkoff/payouts/partners-search</code> — Select2: поиск партнёров (только <code>superadmin</code>), ответ <code>{ results: [{id,text}] }</code>.</li>
@@ -115,7 +116,7 @@
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsPageFeatureTest.php</code>, <code>TbankPayoutsSectionFullAccessFeatureTest.php</code> — полный доступ к разделу, в т.ч. ключ <code>legal_entity_organization</code> в defaults колонок; карточка выплаты показывает <code>#payout-bank-error</code> при REJECTED.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankPayoutBankErrorUxFeatureTest.php</code> — COMPLETED без красного блока; на карточке платежа без <code>tbank.payouts.manage</code> текст банка остаётся, ссылки на выплату нет.</li>
     <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php</code> / <code>ReportsAndPayoutsPageLengthFullAccessFeatureTest.php</code> — персональный «Показать N» на <code>/admin/tinkoff/payouts</code> (<code>table_key = tinkoff_payouts_index</code>).</li>
-    <li><code>tests/Feature/Crm/Ui/DatatablePageLengthCatalogFeatureTest.php</code> — канонический список всех 9 страниц с persist «Показать N», включая выплаты.</li>
+    <li><code>tests/Feature/Crm/Ui/DatatablePageLengthCatalogFeatureTest.php</code> — канонический список всех 17 страниц с persist «Показать N», включая выплаты.</li>
   </ul>
   <div class="note">
     <b>Карточка выплаты</b> <code>/admin/tinkoff/payouts/{id}</code> строку «Организация» по снимку <b>не показывает</b>

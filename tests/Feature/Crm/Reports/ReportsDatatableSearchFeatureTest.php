@@ -653,7 +653,8 @@ final class ReportsDatatableSearchFeatureTest extends CrmTestCase
         $this->assertMatchesRegularExpression("/name:\\s*'last_payment_date'\\s*,\\s*searchable:\\s*false/", $html);
         $this->assertMatchesRegularExpression("/name:\\s*'is_enabled'\\s*,\\s*searchable:\\s*false/", $html);
         $this->assertStringNotContainsString('searching: false', $html);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $html);
+        $this->assertStringContainsString('dtApi.reload();', $html);
+        $this->assertStringNotContainsString('keepPage', $html);
         $this->assertStringContainsString('$ltvFiltersForm.on(\'submit\'', $html);
         $this->assertStringContainsString('$(\'#ltvReportFiltersResetBtn\').on(\'click\'', $html);
     }
@@ -926,7 +927,8 @@ final class ReportsDatatableSearchFeatureTest extends CrmTestCase
         $this->assertStringContainsString('var canViewLocations = false;', $html);
         $this->assertStringContainsString('if (canViewLocations) {', $html);
         $this->assertStringContainsString('$ltvFiltersForm.on(\'submit\'', $html);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $html);
+        $this->assertStringContainsString('dtApi.reload();', $html);
+        $this->assertStringNotContainsString('keepPage', $html);
         $this->assertStringNotContainsString('searching: false', $html);
     }
 

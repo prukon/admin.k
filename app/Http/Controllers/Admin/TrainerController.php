@@ -3,13 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Controllers\Concerns\SavesPersistedListFilters;
 use App\Http\Requests\Admin\StoreTrainerRequest;
 use App\Http\Requests\Admin\UpdateTrainerRequest;
+use App\Http\Requests\Tables\SaveTrainersListFiltersRequest;
 use App\Models\Role;
 use App\Models\TrainerProfile;
 use App\Models\User;
+use App\Models\UserTableSetting;
 use App\Models\Team;
 use App\Services\PartnerContext;
+use App\Services\Tables\PersistedListFilters;
 use App\Services\TeamTrainerSyncService;
 use App\Services\Trainers\TrainerTypeCatalog;
 use App\Services\Users\ClientWelcomeCredentialsService;
@@ -28,6 +32,7 @@ use Intervention\Image\ImageManager;
 class TrainerController extends AdminBaseController
 {
     use RendersUsersSectionTabs;
+    use SavesPersistedListFilters;
 
     public function __construct(
         PartnerContext $partnerContext,
@@ -55,12 +60,30 @@ class TrainerController extends AdminBaseController
             ? $this->trainerTypes->typesForPartner($partnerId, true)
             : collect();
 
+        $actor = auth()->user();
+        $filters = app(PersistedListFilters::class);
+        $listFilters = $filters->present($actor, PersistedListFilters::TRAINERS);
+        $trainersHasActiveFilters = $filters->isActive($listFilters, PersistedListFilters::TRAINERS, $actor);
+        $authUserId = $actor?->id;
+        $trainersPageLength = UserTableSetting::pageLengthForUser(
+            $authUserId !== null ? (int) $authUserId : null,
+            PersistedListFilters::TRAINERS
+        );
+
         return view('admin.trainers.index', compact(
             'teamOptions',
             'showTrainerTypes',
             'canManageTrainerTypes',
             'trainerTypeOptions',
+            'listFilters',
+            'trainersHasActiveFilters',
+            'trainersPageLength',
         ) + $this->usersSectionViewData('trainers'));
+    }
+
+    public function saveFilters(SaveTrainersListFiltersRequest $request)
+    {
+        return $this->storePersistedListFilters($request);
     }
 
     public function data(Request $request)

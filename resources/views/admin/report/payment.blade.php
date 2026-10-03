@@ -614,6 +614,8 @@
     <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script type="text/javascript">
         $(function () {
+            @include('admin.report.partials.persist-report-filters-fn')
+            const paymentsFiltersSaveUrl = @json(route('reports.payments.filters.save'));
             const canAdditional = @json($canAdditional);
             const canCommissionTotal = @json($canCommissionTotal);
             const canPayoutColumn = @json($canPayoutColumn);
@@ -1427,28 +1429,32 @@ columns.push(
 
             $payFiltersForm.on('submit', function (e) {
                 e.preventDefault();
-                refreshPaymentsReportTotal();
-                dtApi.reload();
+                kidsCrmPersistReportFilters($payFiltersForm, paymentsFiltersSaveUrl, paymentsReportFilterParams(), function () {
+                    refreshPaymentsReportTotal();
+                    dtApi.reload();
+                });
             });
 
             $('#paymentsReportFiltersResetBtn').on('click', function () {
-                $payFiltersForm[0].reset();
-                payReportLegacyFilters.user_name = '';
-                payReportLegacyFilters.team_title = '';
-                $payFilterUser.val(null).trigger('change');
-                if (window.KidsCrmGenericMultiselectSelect2) {
-                    KidsCrmGenericMultiselectSelect2.reset($payFilterTeam);
-                    if ($payFilterTrainer.length) {
-                        KidsCrmGenericMultiselectSelect2.reset($payFilterTrainer);
+                kidsCrmPersistReportFilters($payFiltersForm, paymentsFiltersSaveUrl, { reset: 1 }, function () {
+                    $payFiltersForm[0].reset();
+                    payReportLegacyFilters.user_name = '';
+                    payReportLegacyFilters.team_title = '';
+                    $payFilterUser.val(null).trigger('change');
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.reset($payFilterTeam);
+                        if ($payFilterTrainer.length) {
+                            KidsCrmGenericMultiselectSelect2.reset($payFilterTrainer);
+                        }
+                        if (canViewLocations) {
+                            KidsCrmGenericMultiselectSelect2.reset($('#pay-filter-location'));
+                        }
                     }
-                    if (canViewLocations) {
-                        KidsCrmGenericMultiselectSelect2.reset($('#pay-filter-location'));
-                    }
-                }
-                $('#pay-filter-user-status').val(defaultFilterUserStatus);
-                $payFiltersForm.find('[name="bank_commission_acquiring_min"],[name="bank_commission_acquiring_max"],[name="bank_commission_payout_min"],[name="bank_commission_payout_max"]').val('');
-                refreshPaymentsReportTotal();
-                dtApi.reload();
+                    $('#pay-filter-user-status').val(defaultFilterUserStatus);
+                    $payFiltersForm.find('[name="bank_commission_acquiring_min"],[name="bank_commission_acquiring_max"],[name="bank_commission_payout_min"],[name="bank_commission_payout_max"]').val('');
+                    refreshPaymentsReportTotal();
+                    dtApi.reload();
+                });
             });
 
             // handlers: refund modal

@@ -218,15 +218,26 @@ class ContractTableController extends Controller
     {
         $userId = Auth::id();
         $validated = $request->validated();
+        $payload = [];
+
+        if (array_key_exists('columns', $validated) && is_array($validated['columns'])) {
+            $payload['columns'] = $validated['columns'];
+        }
+
+        if (array_key_exists('page_length', $validated) && $validated['page_length'] !== null) {
+            $payload['page_length'] = (int) $validated['page_length'];
+        }
+
+        if ($payload === []) {
+            return response()->json(['success' => true]);
+        }
 
         UserTableSetting::updateOrCreate(
             [
                 'user_id'   => $userId,
                 'table_key' => 'contracts_index',
             ],
-            [
-                'columns' => $validated['columns'],
-            ]
+            $payload
         );
 
         return response()->json(['success' => true]);

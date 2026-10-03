@@ -3449,7 +3449,9 @@ JS;
             'admin/school-leads/tabs/leads.blade.php',
             'admin/setting/tbankCommissions.blade.php',
             'admin/team.blade.php',
+            'admin/trainers/index.blade.php',
             'admin/user.blade.php',
+            'contracts/index.blade.php',
             'payment/partnerWallet.blade.php',
         ], $hits);
 
@@ -3458,6 +3460,22 @@ JS;
                 'file' => resource_path('views/admin/school-leads/tabs/leads.blade.php'),
                 'pageLength' => 'pageLength: @json((int) ($leadsPageLength ?? 10))',
                 'prefix' => 'blade-js-school-leads-page-length',
+            ],
+            "KidsCrmDataTable.create('#trainers-table'" => [
+                'file' => resource_path('views/admin/trainers/index.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($trainersPageLength ?? 10))',
+                'prefix' => 'blade-js-trainers-page-length',
+            ],
+            "KidsCrmDataTable.create('#role-staff-table'" => [
+                'file' => resource_path('views/admin/role_staff/index.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($roleStaffPageLength ?? 10))',
+                'prefix' => 'blade-js-role-staff-page-length',
+                'persistLiteral' => false,
+            ],
+            "KidsCrmDataTable.create('#contracts-table'" => [
+                'file' => resource_path('views/contracts/index.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($contractsPageLength ?? 20))',
+                'prefix' => 'blade-js-contracts-page-length',
             ],
             "KidsCrmDataTable.create('#users-table'" => [
                 'file' => resource_path('views/admin/user.blade.php'),
@@ -3531,7 +3549,11 @@ JS;
             $createPos = strpos($contents, $createNeedle);
             $this->assertNotFalse($createPos, $createNeedle);
             $chunk = substr($contents, $createPos, 4500);
-            $this->assertStringContainsString('persistPageLength: true', $chunk);
+            if (($meta['persistLiteral'] ?? true) === true) {
+                $this->assertStringContainsString('persistPageLength: true', $chunk);
+            } else {
+                $this->assertStringContainsString('persistPageLength: @json((bool) ($persistRoleStaffPageLength ?? false))', $chunk);
+            }
             if (($meta['prefix'] ?? '') === 'blade-js-tbank-payments-page-length') {
                 $this->assertStringContainsString('pageLength: currentPageLength', $chunk);
                 $this->assertStringContainsString($meta['pageLength'], $contents);
@@ -3631,22 +3653,22 @@ JS;
             resource_path('views/admin/report/payment_monthly.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#payments-monthly-table'",
                 'submit' => '$payMonthlyFiltersForm.on(\'submit\'',
-                'reload' => 'dtApi.reload({ keepPage: true });',
+                'reload' => 'dtApi.reload();',
             ],
             resource_path('views/admin/report/ltv.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#ltv-table'",
                 'submit' => '$ltvFiltersForm.on(\'submit\'',
-                'reload' => 'dtApi.reload({ keepPage: true });',
+                'reload' => 'dtApi.reload();',
             ],
             resource_path('views/admin/report/ltv_teams.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#ltv-teams-table'",
                 'submit' => '$ltvFiltersForm.on(\'submit\'',
-                'reload' => 'dtApi.reload({ keepPage: true });',
+                'reload' => 'dtApi.reload();',
             ],
             resource_path('views/admin/report/ltv_locations.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#ltv-locations-table'",
                 'submit' => '$ltvFiltersForm.on(\'submit\'',
-                'reload' => 'dtApi.reload({ keepPage: true });',
+                'reload' => 'dtApi.reload();',
             ],
             resource_path('views/admin/report/payment_intents.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#payment-intents-table'",
@@ -3666,12 +3688,12 @@ JS;
             resource_path('views/admin/partners/tabs/payouts.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#payouts-table'",
                 'submit' => '$filtersForm.on(\'submit\'',
-                'reload' => 'dtApi.reload({ keepPage: true });',
+                'reload' => 'dtApi.reload();',
             ],
             resource_path('views/admin/setting/tbankCommissions.blade.php') => [
                 'create' => "KidsCrmDataTable.create('#tbank-commissions-table'",
                 'submit' => '$form.on(\'submit\'',
-                'reload' => 'dtApi.reload({ keepPage: true });',
+                'reload' => 'dtApi.reload();',
             ],
         ];
 
@@ -3683,6 +3705,9 @@ JS;
             $chunk = substr($content, $submitPos, 900);
             $this->assertStringContainsString('e.preventDefault()', $chunk, $path);
             $this->assertStringContainsString($meta['reload'], $chunk, $path);
+            if ($meta['reload'] === 'dtApi.reload();') {
+                $this->assertStringNotContainsString('keepPage', $chunk, $path);
+            }
             $this->assertStringNotContainsString('KidsCrmDataTable.create', $chunk, $path);
             $this->assertInlineScriptsContainingHaveValidJavascript(
                 $path,
@@ -3690,6 +3715,345 @@ JS;
                 'blade-js-filter-reload-'.basename($path)
             );
         }
+    }
+
+    /**
+     * P1: сохранённые фильтры отчётов. «Применить» и «Сброс» — два разных пути,
+     * оба через kidsCrmPersistReportFilters. Ошибка 422 не вызывает reload.
+     * Смена периода и группировки не пишет фильтры и не пересоздаёт таблицу.
+     */
+    public function test_persisted_report_filters_keep_values_until_save_succeeds(): void
+    {
+        $partial = resource_path('views/admin/report/partials/persist-report-filters-fn.blade.php');
+        $fn = (string) file_get_contents($partial);
+        $this->assertStringContainsString('function kidsCrmPersistReportFilters', $fn);
+        $this->assertStringContainsString("headers: {\n                        'X-CSRF-TOKEN'", $fn);
+        $this->assertStringContainsString("'Accept': 'application/json'", $fn);
+        $this->assertStringContainsString('$form.find(\'.is-invalid\').removeClass(\'is-invalid\')', $fn);
+        $this->assertStringContainsString('$form.find(\'.payments-report-filter-error\').remove()', $fn);
+        $successPos = strpos($fn, 'success: function ()');
+        $errorPos = strpos($fn, 'error: function (xhr)');
+        $this->assertNotFalse($successPos);
+        $this->assertNotFalse($errorPos);
+        $this->assertLessThan($errorPos, $successPos);
+        $successChunk = substr($fn, $successPos, $errorPos - $successPos);
+        $this->assertStringContainsString('onSuccess();', $successChunk);
+        $this->assertStringNotContainsString('dtApi', $successChunk);
+        $errorChunk = substr($fn, $errorPos);
+        $this->assertStringNotContainsString('onSuccess', $errorChunk);
+        $this->assertStringNotContainsString('dtApi', $errorChunk);
+        $this->assertStringContainsString("String(field).split('.')[0]", $errorChunk);
+        $this->assertStringContainsString("addClass('is-invalid')", $errorChunk);
+        $this->assertStringContainsString('payments-report-filter-error', $errorChunk);
+        $this->assertStringContainsString('data-error-for', $errorChunk);
+
+        $tempFile = sys_get_temp_dir().'/blade-js-persist-report-filters-'.uniqid('', true).'.js';
+        try {
+            file_put_contents($tempFile, $fn);
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+            $this->assertSame(0, $exitCode, implode("\n", $output));
+        } finally {
+            @unlink($tempFile);
+        }
+
+        $pages = [
+            resource_path('views/admin/report/payment.blade.php') => [
+                'submit' => '$payFiltersForm.on(\'submit\'',
+                'reset' => '$(\'#paymentsReportFiltersResetBtn\').on(\'click\'',
+                'params' => 'paymentsReportFilterParams()',
+                'url' => 'paymentsFiltersSaveUrl',
+            ],
+            resource_path('views/admin/report/payment_monthly.blade.php') => [
+                'submit' => '$payMonthlyFiltersForm.on(\'submit\'',
+                'reset' => '$(\'#paymentsMonthlyFiltersResetBtn\').on(\'click\'',
+                'params' => 'paymentsMonthlyFilterParams()',
+                'url' => 'paymentsMonthlyFiltersSaveUrl',
+            ],
+            resource_path('views/admin/report/ltv.blade.php') => [
+                'submit' => '$ltvFiltersForm.on(\'submit\'',
+                'reset' => '$(\'#ltvReportFiltersResetBtn\').on(\'click\'',
+                'params' => 'ltvReportFilterParams()',
+                'url' => 'ltvFiltersSaveUrl',
+            ],
+            resource_path('views/admin/report/ltv_teams.blade.php') => [
+                'submit' => '$ltvFiltersForm.on(\'submit\'',
+                'reset' => '$(\'#ltvTeamsReportFiltersResetBtn\').on(\'click\'',
+                'params' => 'ltvTeamsReportFilterParams()',
+                'url' => 'ltvTeamsFiltersSaveUrl',
+            ],
+            resource_path('views/admin/report/ltv_locations.blade.php') => [
+                'submit' => '$ltvFiltersForm.on(\'submit\'',
+                'reset' => '$(\'#ltvLocationsReportFiltersResetBtn\').on(\'click\'',
+                'params' => 'ltvLocationsReportFilterParams()',
+                'url' => 'ltvLocationsFiltersSaveUrl',
+            ],
+            resource_path('views/admin/report/debt.blade.php') => [
+                'submit' => '$debtFiltersForm.on(\'submit\'',
+                'reset' => '$(\'#debtReportFiltersResetBtn\').on(\'click\'',
+                'params' => 'debtReportFilterParams()',
+                'url' => 'debtFiltersSaveUrl',
+            ],
+        ];
+
+        foreach ($pages as $path => $meta) {
+            $content = (string) file_get_contents($path);
+            $this->assertSame(1, substr_count($content, "persist-report-filters-fn"), $path);
+            $this->assertSame(1, substr_count($content, $meta['submit']), $path);
+            $this->assertSame(1, substr_count($content, $meta['reset']), $path);
+
+            $submitPos = strpos($content, $meta['submit']);
+            $resetPos = strpos($content, $meta['reset']);
+            $this->assertNotFalse($submitPos, $path);
+            $this->assertNotFalse($resetPos, $path);
+            $this->assertGreaterThan($submitPos, $resetPos, $path);
+            $submitChunk = substr($content, $submitPos, $resetPos - $submitPos);
+            $this->assertStringContainsString('e.preventDefault()', $submitChunk, $path);
+            $this->assertStringContainsString('kidsCrmPersistReportFilters', $submitChunk, $path);
+            $this->assertStringContainsString($meta['params'], $submitChunk, $path);
+            $this->assertStringContainsString($meta['url'], $submitChunk, $path);
+            $this->assertStringNotContainsString('.reset()', $submitChunk, $path);
+            $this->assertStringNotContainsString('KidsCrmDataTable.create', $submitChunk, $path);
+            $this->assertStringNotContainsString('pageLength:', $submitChunk, $path);
+
+            $resetChunk = substr($content, $resetPos, 1600);
+            $persistAt = strpos($resetChunk, 'kidsCrmPersistReportFilters');
+            $formResetAt = strpos($resetChunk, '.reset()');
+            $this->assertNotFalse($persistAt, $path);
+            $this->assertNotFalse($formResetAt, $path);
+            $this->assertLessThan($formResetAt, $persistAt, $path);
+            $this->assertStringContainsString('{ reset: 1 }', $resetChunk, $path);
+            $this->assertStringContainsString('defaultFilterUserStatus', $resetChunk, $path);
+            $this->assertStringNotContainsString('KidsCrmDataTable.create', $resetChunk, $path);
+            $this->assertStringNotContainsString('pageLength:', $resetChunk, $path);
+
+            $this->assertInlineScriptsContainingHaveValidJavascript(
+                $path,
+                $meta['submit'],
+                'blade-js-persist-filters-'.basename($path)
+            );
+        }
+
+        $teams = (string) file_get_contents(resource_path('views/admin/report/ltv_teams.blade.php'));
+        $periodPos = strpos($teams, '$(\'.js-ltv-teams-period-btn\').on(\'click\'');
+        $modePos = strpos($teams, '$(\'.js-ltv-teams-group-mode-btn\').on(\'click\'');
+        $this->assertNotFalse($periodPos);
+        $this->assertNotFalse($modePos);
+        $periodChunk = substr($teams, $periodPos, 700);
+        $modeChunk = substr($teams, $modePos, 700);
+        $this->assertStringNotContainsString('kidsCrmPersistReportFilters', $periodChunk);
+        $this->assertStringNotContainsString('kidsCrmPersistReportFilters', $modeChunk);
+        $this->assertStringNotContainsString('KidsCrmDataTable.create', $periodChunk);
+        $this->assertStringNotContainsString('currentPeriod =', substr($teams, strpos($teams, '$(\'#ltvTeamsReportFiltersResetBtn\').on(\'click\''), 900));
+
+        $locations = (string) file_get_contents(resource_path('views/admin/report/ltv_locations.blade.php'));
+        $locationsPeriod = strpos($locations, '$(\'.js-ltv-locations-period-btn\').on(\'click\'');
+        $this->assertNotFalse($locationsPeriod);
+        $this->assertStringNotContainsString(
+            'kidsCrmPersistReportFilters',
+            substr($locations, $locationsPeriod, 700)
+        );
+
+        $monthly = (string) file_get_contents(resource_path('views/admin/report/payment_monthly.blade.php'));
+        $monthlyMode = strpos($monthly, '$(\'.js-group-mode-btn\').on(\'click\'');
+        $this->assertNotFalse($monthlyMode);
+        $monthlyModeChunk = substr($monthly, $monthlyMode, 500);
+        $this->assertStringNotContainsString('kidsCrmPersistReportFilters', $monthlyModeChunk);
+        $this->assertStringNotContainsString('KidsCrmDataTable.create', $monthlyModeChunk);
+        $monthlyReset = substr($monthly, strpos($monthly, '$(\'#paymentsMonthlyFiltersResetBtn\').on(\'click\''), 900);
+        $this->assertStringContainsString("currentMode = 'subscription'", $monthlyReset);
+    }
+
+    /**
+     * P1: фильтры списков. «Применить», submit и Enter идут в kidsCrmPersistReportFilters.
+     * Поля сбрасываются только после успешного сохранения. 422 не обновляет таблицу.
+     * Кастомная роль выходит до POST. Сброс заявок возвращает статусы каталога, не сохранённый набор.
+     * Сброс договоров не подставляет «только активные».
+     */
+    public function test_persisted_list_filters_keep_values_until_save_succeeds(): void
+    {
+        $pages = [
+            resource_path('views/admin/user.blade.php') => [
+                'apply' => 'function applyUsersFilters()',
+                'call' => 'applyUsersFilters',
+                'click' => "$('#filter-apply').on('click'",
+                'submit' => "$('#users-report-filters').on('submit'",
+                'reset' => "$('#filter-reset').on('click'",
+                'enter' => "$('#filter-name').on('keyup'",
+                'reload' => 'reloadUsersTable({ resetPage: true })',
+                'clear' => "$('#filter-status').val(defaultFilterStatus)",
+                'guard' => false,
+            ],
+            resource_path('views/admin/trainers/index.blade.php') => [
+                'apply' => 'function applyTrainersFilters()',
+                'call' => 'applyTrainersFilters',
+                'click' => "$('#filter-apply').on('click'",
+                'submit' => "$('#trainers-report-filters').on('submit'",
+                'reset' => "$('#filter-reset').on('click'",
+                'enter' => "$('#filter-name').on('keyup'",
+                'reload' => 'reloadTrainersTable()',
+                'clear' => "$('#filter-status').val(defaultFilterStatus)",
+                'guard' => false,
+            ],
+            resource_path('views/admin/role_staff/index.blade.php') => [
+                'apply' => 'function applyRoleStaffFilters()',
+                'call' => 'applyRoleStaffFilters',
+                'click' => "$('#role-staff-filter-apply').on('click'",
+                'submit' => "$('#role-staff-filters').on('submit'",
+                'reset' => "$('#role-staff-filter-reset').on('click'",
+                'enter' => "$('#role-staff-filter-name').on('keyup'",
+                'reload' => 'reloadTable()',
+                'clear' => "$('#role-staff-filter-status').val(defaultFilterStatus)",
+                'guard' => true,
+            ],
+            resource_path('views/contracts/index.blade.php') => [
+                'apply' => 'function applyContractsFilters()',
+                'call' => 'applyContractsFilters',
+                'click' => "$('#filter-apply').on('click'",
+                'submit' => "$('#contracts-report-filters').on('submit'",
+                'reset' => "$('#filter-reset').on('click'",
+                'enter' => "$('#filter-search').on('keyup'",
+                'reload' => 'reloadContractsTable()',
+                'clear' => "$('#filter-status').val('')",
+                'guard' => false,
+            ],
+        ];
+
+        foreach ($pages as $path => $meta) {
+            $content = (string) file_get_contents($path);
+            $this->assertSame(1, substr_count($content, 'persist-report-filters-fn'), $path);
+            $this->assertSame(1, substr_count($content, $meta['apply']), $path);
+            $this->assertSame(1, substr_count($content, $meta['click']), $path);
+            $this->assertSame(1, substr_count($content, $meta['submit']), $path);
+            $this->assertSame(1, substr_count($content, $meta['reset']), $path);
+            $this->assertSame(1, substr_count($content, $meta['enter']), $path);
+
+            $applyPos = strpos($content, $meta['apply']);
+            $clickPos = strpos($content, $meta['click']);
+            $submitPos = strpos($content, $meta['submit']);
+            $resetPos = strpos($content, $meta['reset']);
+            $enterPos = strpos($content, $meta['enter']);
+            $this->assertNotFalse($applyPos, $path);
+            $this->assertNotFalse($clickPos, $path);
+            $this->assertGreaterThan($applyPos, $clickPos, $path);
+
+            $applyChunk = substr($content, $applyPos, $clickPos - $applyPos);
+            $persistAt = strpos($applyChunk, 'kidsCrmPersistReportFilters');
+            $this->assertNotFalse($persistAt, $path);
+            if ($meta['guard']) {
+                $guardAt = strpos($applyChunk, 'if (!persistRoleStaffListFilters)');
+                $this->assertNotFalse($guardAt, $path);
+                $this->assertLessThan($persistAt, $guardAt, $path);
+                $this->assertLessThan($persistAt, strpos($applyChunk, 'return;'), $path);
+            } else {
+                $reloadAt = strpos($applyChunk, $meta['reload']);
+                $this->assertNotFalse($reloadAt, $path);
+                $this->assertLessThan($reloadAt, $persistAt, $path);
+            }
+            $this->assertStringNotContainsString(".val('')", $applyChunk, $path);
+            $this->assertStringNotContainsString('KidsCrmDataTable.create', $applyChunk, $path);
+            $this->assertStringNotContainsString('pageLength:', $applyChunk, $path);
+
+            $clickChunk = substr($content, $clickPos, $submitPos - $clickPos);
+            $this->assertStringContainsString($meta['call'], $clickChunk, $path);
+            $this->assertStringNotContainsString($meta['reload'], $clickChunk, $path);
+            $this->assertStringNotContainsString('kidsCrmPersistReportFilters', $clickChunk, $path);
+
+            $submitChunk = substr($content, $submitPos, $resetPos - $submitPos);
+            $this->assertStringContainsString('e.preventDefault()', $submitChunk, $path);
+            $this->assertStringContainsString($meta['call'], $submitChunk, $path);
+            $this->assertStringNotContainsString($meta['reload'], $submitChunk, $path);
+
+            $resetChunk = substr($content, $resetPos, $enterPos - $resetPos);
+            $resetPersistAt = strpos($resetChunk, 'kidsCrmPersistReportFilters');
+            $this->assertNotFalse($resetPersistAt, $path);
+            if ($meta['guard']) {
+                $guardClearAt = strpos($resetChunk, $meta['clear']);
+                $this->assertNotFalse($guardClearAt, $path);
+                $this->assertLessThan($resetPersistAt, $guardClearAt, $path);
+                $this->assertLessThan($resetPersistAt, strpos($resetChunk, 'return;'), $path);
+                $savedClearAt = strpos($resetChunk, $meta['clear'], $resetPersistAt);
+                $this->assertNotFalse($savedClearAt, $path);
+                $this->assertGreaterThan($resetPersistAt, $savedClearAt, $path);
+            } else {
+                $clearAt = strpos($resetChunk, $meta['clear']);
+                $this->assertNotFalse($clearAt, $path);
+                $this->assertLessThan($clearAt, $resetPersistAt, $path);
+            }
+            $this->assertStringContainsString('{ reset: 1 }', $resetChunk, $path);
+            $this->assertStringNotContainsString('KidsCrmDataTable.create', $resetChunk, $path);
+            $this->assertStringNotContainsString('pageLength:', $resetChunk, $path);
+
+            $enterChunk = substr($content, $enterPos, 280);
+            $this->assertStringContainsString("e.key === 'Enter'", $enterChunk, $path);
+            $this->assertStringContainsString($meta['call'], $enterChunk, $path);
+            $this->assertStringNotContainsString($meta['reload'], $enterChunk, $path);
+            $this->assertStringNotContainsString('kidsCrmPersistReportFilters', $enterChunk, $path);
+
+            $this->assertInlineScriptsContainingHaveValidJavascript(
+                $path,
+                'kidsCrmPersistReportFilters',
+                'blade-js-list-filters-'.basename($path)
+            );
+        }
+
+        $contracts = (string) file_get_contents(resource_path('views/contracts/index.blade.php'));
+        $contractsReset = substr($contracts, strpos($contracts, "$('#filter-reset').on('click'"), 500);
+        $this->assertStringNotContainsString('defaultFilterStatus', $contractsReset);
+        $this->assertStringNotContainsString("val('active')", $contractsReset);
+        $this->assertStringContainsString('pageLength: @json((int) ($contractsPageLength ?? 20))', $contracts);
+
+        $roleStaff = (string) file_get_contents(resource_path('views/admin/role_staff/index.blade.php'));
+        $applyPos = strpos($roleStaff, 'function applyRoleStaffFilters()');
+        $applyChunk = substr($roleStaff, $applyPos, strpos($roleStaff, "$('#role-staff-filter-apply').on('click'") - $applyPos);
+        $guardAt = strpos($applyChunk, 'if (!persistRoleStaffListFilters)');
+        $persistAt = strpos($applyChunk, 'kidsCrmPersistReportFilters');
+        $this->assertNotFalse($guardAt);
+        $this->assertNotFalse($persistAt);
+        $this->assertLessThan($persistAt, $guardAt);
+        $this->assertLessThan($persistAt, strpos($applyChunk, 'return;'));
+        $this->assertStringContainsString('persistPageLength: @json((bool) ($persistRoleStaffPageLength ?? false))', $roleStaff);
+        $this->assertStringNotContainsString('persistPageLength: true', $roleStaff);
+
+        $leads = (string) file_get_contents(resource_path('views/admin/school-leads/tabs/leads.blade.php'));
+        $this->assertSame(1, substr_count($leads, 'persist-report-filters-fn'));
+        $this->assertSame(1, substr_count($leads, "\$filtersForm.on('submit'"));
+        $this->assertSame(1, substr_count($leads, "$('#schoolLeadsFiltersResetBtn').on('click'"));
+        $submitPos = strpos($leads, "\$filtersForm.on('submit'");
+        $resetPos = strpos($leads, "$('#schoolLeadsFiltersResetBtn').on('click'");
+        $this->assertNotFalse($submitPos);
+        $this->assertNotFalse($resetPos);
+        $submitChunk = substr($leads, $submitPos, $resetPos - $submitPos);
+        $this->assertStringContainsString('e.preventDefault()', $submitChunk);
+        $this->assertStringContainsString('kidsCrmPersistReportFilters', $submitChunk);
+        $this->assertStringContainsString('readFiltersFromForm()', $submitChunk);
+        $this->assertStringNotContainsString('resetFiltersFormToDefault', $submitChunk);
+        $this->assertStringNotContainsString('KidsCrmDataTable.create', $submitChunk);
+        $persistAt = strpos($submitChunk, 'kidsCrmPersistReportFilters');
+        $reloadAt = strpos($submitChunk, 'dtApi.reload');
+        $this->assertLessThan($reloadAt, $persistAt);
+
+        $resetChunk = substr($leads, $resetPos, 500);
+        $resetPersistAt = strpos($resetChunk, 'kidsCrmPersistReportFilters');
+        $resetFormAt = strpos($resetChunk, 'resetFiltersFormToDefault()');
+        $this->assertNotFalse($resetPersistAt);
+        $this->assertNotFalse($resetFormAt);
+        $this->assertLessThan($resetFormAt, $resetPersistAt);
+        $this->assertStringContainsString('{ reset: 1 }', $resetChunk);
+        $this->assertStringNotContainsString('leadFilterStatusIds', $resetChunk);
+
+        $resetFnPos = strpos($leads, 'function resetFiltersFormToDefault()');
+        $resetFn = substr($leads, $resetFnPos, 900);
+        $this->assertStringContainsString('defaultStatusFilters', $resetFn);
+        $this->assertStringNotContainsString('leadFilterStatusIds', $resetFn);
+        $this->assertStringContainsString('var defaultStatusFilterIds = @json($defaultStatusFilterIds);', $leads);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            resource_path('views/admin/school-leads/tabs/leads.blade.php'),
+            'kidsCrmPersistReportFilters',
+            'blade-js-list-filters-leads'
+        );
     }
 
     /**
@@ -3733,7 +4097,8 @@ JS;
         $this->assertGreaterThan($createPos, $submitPos);
         $submitChunk = substr($content, $submitPos, 400);
         $this->assertStringContainsString('e.preventDefault()', $submitChunk);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $submitChunk);
+        $this->assertStringContainsString('dtApi.reload();', $submitChunk);
+        $this->assertStringNotContainsString('keepPage', $submitChunk);
         $this->assertStringNotContainsString('KidsCrmDataTable.create', $submitChunk);
 
         $resetPos = strpos($content, '$(\'#tbank-commissions-filters-reset\').on(\'click\'');
@@ -6615,7 +6980,8 @@ JS;
         $this->assertMatchesRegularExpression("/name:\\s*'first_payment_date'\\s*,\\s*searchable:\\s*false/", $ltv);
         $this->assertMatchesRegularExpression("/name:\\s*'last_payment_date'\\s*,\\s*searchable:\\s*false/", $ltv);
         $this->assertMatchesRegularExpression("/name:\\s*'is_enabled'\\s*,\\s*searchable:\\s*false/", $ltv);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $ltv);
+        $this->assertStringContainsString('dtApi.reload();', $ltv);
+        $this->assertStringNotContainsString('keepPage', $ltv);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $paymentsPath,
@@ -6648,7 +7014,8 @@ JS;
         );
         $this->assertStringContainsString("name: 'total_price', searchable: false", $ltvTeams);
         $this->assertStringContainsString("name: 'payment_count', searchable: false", $ltvTeams);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $ltvTeams);
+        $this->assertStringContainsString('dtApi.reload();', $ltvTeams);
+        $this->assertStringNotContainsString('keepPage', $ltvTeams);
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $ltvTeamsPath,
             "KidsCrmDataTable.create('#ltv-teams-table'",
@@ -6675,7 +7042,8 @@ JS;
         );
         $this->assertStringContainsString("name: 'total_price', searchable: false", $ltvLocations);
         $this->assertStringContainsString("name: 'payment_count', searchable: false", $ltvLocations);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $ltvLocations);
+        $this->assertStringContainsString('dtApi.reload();', $ltvLocations);
+        $this->assertStringNotContainsString('keepPage', $ltvLocations);
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $ltvLocationsPath,
             "KidsCrmDataTable.create('#ltv-locations-table'",
@@ -7472,7 +7840,8 @@ JS;
         $this->assertStringNotContainsString('fixedHeader', $ltvNested);
         $this->assertStringNotContainsString('KidsCrmReportTableSticky', $ltvNested);
         $this->assertStringContainsString('$ltvFiltersForm.on(\'submit\'', $ltv);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $ltv);
+        $this->assertStringContainsString('dtApi.reload();', $ltv);
+        $this->assertStringNotContainsString('keepPage', $ltv);
         $this->assertSame(1, substr_count($ltv, "KidsCrmDataTable.create('#ltv-table'"));
 
         $ltvTeams = (string) file_get_contents(resource_path('views/admin/report/ltv_teams.blade.php'));
@@ -7483,7 +7852,8 @@ JS;
         $this->assertStringNotContainsString('fixedHeader', $ltvTeamsNested);
         $this->assertStringNotContainsString('KidsCrmReportTableSticky', $ltvTeamsNested);
         $this->assertStringContainsString('$ltvFiltersForm.on(\'submit\'', $ltvTeams);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $ltvTeams);
+        $this->assertStringContainsString('dtApi.reload();', $ltvTeams);
+        $this->assertStringNotContainsString('keepPage', $ltvTeams);
         $this->assertSame(1, substr_count($ltvTeams, "KidsCrmDataTable.create('#ltv-teams-table'"));
 
         $ltvLocations = (string) file_get_contents(resource_path('views/admin/report/ltv_locations.blade.php'));
@@ -7494,7 +7864,8 @@ JS;
         $this->assertStringNotContainsString('fixedHeader', $ltvLocationsNested);
         $this->assertStringNotContainsString('KidsCrmReportTableSticky', $ltvLocationsNested);
         $this->assertStringContainsString('$ltvFiltersForm.on(\'submit\'', $ltvLocations);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $ltvLocations);
+        $this->assertStringContainsString('dtApi.reload();', $ltvLocations);
+        $this->assertStringNotContainsString('keepPage', $ltvLocations);
         $this->assertSame(1, substr_count($ltvLocations, "KidsCrmDataTable.create('#ltv-locations-table'"));
 
         $monthly = (string) file_get_contents(resource_path('views/admin/report/payment_monthly.blade.php'));

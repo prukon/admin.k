@@ -121,7 +121,9 @@
   <p>View: <code>resources/views/admin/locations/index.blade.php</code>, вкладки справочников — <code>admin/directories/_section_tabs.blade.php</code>.</p>
   <ul>
     <li><b>Toolbar</b> — «Добавить» (при <code>locations.manage</code>), «История», «Фильтры», «Колонки».</li>
-    <li><b>Фильтры</b>: название/адрес, статус, район (все / «Без района» / id), администратор (все / «Без администратора» (<code>none</code>) / id пользователя — query-параметр <code>admin_user_id</code> в <code>/data</code>).</li>
+    <li><b>Фильтры</b>: название/адрес, статус, район (все / «Без района» / id), администратор (все / «Без администратора» (<code>none</code>) / id пользователя — query-параметр <code>admin_user_id</code> в <code>/data</code>).
+      «Применить», Enter и «Сброс» открывают первую страницу (<code>reloadLocationsTable({ resetPage: true })</code>).
+      Создание и правка остаются на текущей.</li>
     <li><b>Колонка «Группы»</b> — при наличии групп у партнёра; tooltip со списком (тип <code>list</code>, сокращение «X, еще N шт.» при 3+ объектах в списке).</li>
     <li><b>Колонка «Администратор»</b> — тип <code>list</code>, тот же паттерн сокращения, что у «Группы».</li>
     <li><b>Модалки</b> — multiselect <code>team_ids[]</code> и <code>admin_user_ids[]</code> при <code>locations.manage</code> (единый partial <code>generic-multiselect</code>, <code>KidsCrmGenericMultiselectSelect2</code>; см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a>). Успех create/edit/delete — toast <code>window.showToast</code>, не <code>showSuccessModal</code>: «Объект создан» / «Объект обновлён» (<code>data.message</code> сервера) и «Объект успешно удалён.» (удаление из edit: после закрытия confirm — <code>hidden.bs.modal</code> у <code>#confirmDeleteModal</code>).</li>

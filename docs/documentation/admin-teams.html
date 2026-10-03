@@ -168,7 +168,7 @@
     <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>,
     <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>.
     Анонс — <a href="/doc#datatable-page-length-index">/doc</a>
-    (канонический список всех 9 страниц — <a href="/doc#datatable-page-length-catalog">таблица</a>).
+    (канонический список всех 17 страниц — <a href="/doc#datatable-page-length-catalog">таблица</a>).
     Тот же механизм на учениках — <a href="/docs/documentation/admin-users#users-page-length">admin-users §2.0</a>.</p>
 
   <h3 id="month-price">2.1) Поле «Стоимость» (<code>teams.month_price_cents</code>)</h3>
@@ -497,7 +497,7 @@
       <li><code>tests/Feature/Crm/Teams/TeamColumnsSettingsTest.php</code> — API настроек колонок.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsPageLengthFeatureTest.php</code> — §2.0 персональный page_length, UX повторного открытия, 422 по полям, гость/403</li>
       <li><code>tests/Feature/Crm/Teams/TeamsPageLengthFullAccessFeatureTest.php</code> — гость / без <code>groups.view</code> / viewer / admin; PUT/PATCH/DELETE → 404/405</li>
-      <li><code>tests/Feature/Crm/Ui/DatatablePageLengthCatalogFeatureTest.php</code> — канонический список 9 страниц с persist «Показать N» (в т.ч. <code>/admin/teams</code>)</li>
+      <li><code>tests/Feature/Crm/Ui/DatatablePageLengthCatalogFeatureTest.php</code> — канонический список 17 страниц с persist «Показать N» (в т.ч. <code>/admin/teams</code>)</li>
     </ul>
   </div>
   <pre><code>php artisan test --env=testing \

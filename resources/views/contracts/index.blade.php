@@ -3,7 +3,12 @@
 @section('title','Документы')
 
 @php
-    $contractsHasActiveFilters = false;
+    $contractsHasActiveFilters = $contractsHasActiveFilters ?? false;
+    $listFilters = $listFilters ?? [
+        'search_value' => '',
+        'group_id' => '',
+        'status' => '',
+    ];
     $shouldOpenCreateModal = $shouldOpenCreateModal ?? false;
     $partner = $partner ?? null;
     $contractTemplates = $contractTemplates ?? collect();
@@ -205,34 +210,36 @@
                     <div class="col-12 col-md-3">
                         <label class="form-label" for="filter-search">Поиск</label>
                         <input id="filter-search"
+                               name="search_value"
                                class="form-control"
                                type="text"
+                               value="{{ $listFilters['search_value'] }}"
                                placeholder="Имя, телефон, email, номер">
                     </div>
 
                     <div class="col-12 col-md-3">
                         <label class="form-label" for="filter-group">Группа</label>
-                        <select id="filter-group" class="form-select">
-                            <option value="">Все группы</option>
-                            <option value="none">Без группы</option>
+                        <select id="filter-group" name="group_id" class="form-select">
+                            <option value="" @selected($listFilters['group_id'] === '')>Все группы</option>
+                            <option value="none" @selected($listFilters['group_id'] === 'none')>Без группы</option>
                             @foreach($allTeams as $team)
-                                <option value="{{ $team->id }}">{{ $team->title }}</option>
+                                <option value="{{ $team->id }}" @selected((string) $listFilters['group_id'] === (string) $team->id)>{{ $team->title }}</option>
                             @endforeach
                         </select>
                     </div>
 
                     <div class="col-12 col-md-3">
                         <label class="form-label" for="filter-status">Статус</label>
-                        <select id="filter-status" class="form-select">
-                            <option value="">Все статусы</option>
-                            <option value="draft">Черновик</option>
-                            <option value="awaiting_client_fill">Ожидает заполнения</option>
-                            <option value="sent">{{ \App\Models\Contract::schoolStatusLabel(\App\Models\Contract::STATUS_SENT) }}</option>
-                            <option value="opened">{{ \App\Models\Contract::schoolStatusLabel(\App\Models\Contract::STATUS_OPENED) }}</option>
-                            <option value="signed">Подписан</option>
-                            <option value="revoked">Отозван</option>
-                            <option value="expired">Истёк срок</option>
-                            <option value="failed">Ошибка</option>
+                        <select id="filter-status" name="status" class="form-select">
+                            <option value="" @selected($listFilters['status'] === '')>Все статусы</option>
+                            <option value="draft" @selected($listFilters['status'] === 'draft')>Черновик</option>
+                            <option value="awaiting_client_fill" @selected($listFilters['status'] === 'awaiting_client_fill')>Ожидает заполнения</option>
+                            <option value="sent" @selected($listFilters['status'] === 'sent')>{{ \App\Models\Contract::schoolStatusLabel(\App\Models\Contract::STATUS_SENT) }}</option>
+                            <option value="opened" @selected($listFilters['status'] === 'opened')>{{ \App\Models\Contract::schoolStatusLabel(\App\Models\Contract::STATUS_OPENED) }}</option>
+                            <option value="signed" @selected($listFilters['status'] === 'signed')>Подписан</option>
+                            <option value="revoked" @selected($listFilters['status'] === 'revoked')>Отозван</option>
+                            <option value="expired" @selected($listFilters['status'] === 'expired')>Истёк срок</option>
+                            <option value="failed" @selected($listFilters['status'] === 'failed')>Ошибка</option>
                         </select>
                     </div>
 
@@ -284,6 +291,9 @@
 @section('scripts')
     <script>
         $(document).ready(function () {
+            const contractsFiltersSaveUrl = @json(route('contracts.filters.save'));
+            @include('admin.report.partials.persist-report-filters-fn')
+
             function contractsFilterParams() {
                 return {
                     search_value: $('#filter-search').val() || '',
@@ -348,6 +358,7 @@
                         fill_expires_at: canSeeFillExpiresAt,
                         actions: true,
                     },
+                    persistPageLength: true,
                     urls: {
                         get: @json(route('contracts.columns-settings.get')),
                         save: @json(route('contracts.columns-settings.save')),
@@ -355,7 +366,7 @@
                     csrfToken: $('meta[name="csrf-token"]').attr('content'),
                 },
                 dataTable: {
-                    pageLength: 20,
+                    pageLength: @json((int) ($contractsPageLength ?? 20)),
                     lengthMenu: [10, 20, 50, 100],
                     ajax: {
                         url: @json(route('contracts.data')),
@@ -498,29 +509,37 @@
             }
 
             function reloadContractsTable() {
-                dtApi.reload({ keepPage: true });
+                dtApi.reload();
                 syncContractsFiltersCollapseState();
             }
 
+            function applyContractsFilters() {
+                kidsCrmPersistReportFilters($('#contracts-report-filters'), contractsFiltersSaveUrl, contractsFilterParams(), function () {
+                    reloadContractsTable();
+                });
+            }
+
             $('#filter-apply').on('click', function () {
-                reloadContractsTable();
+                applyContractsFilters();
             });
 
             $('#contracts-report-filters').on('submit', function (e) {
                 e.preventDefault();
-                reloadContractsTable();
+                applyContractsFilters();
             });
 
             $('#filter-reset').on('click', function () {
-                $('#filter-search').val('');
-                $('#filter-group').val('');
-                $('#filter-status').val('');
-                reloadContractsTable();
+                kidsCrmPersistReportFilters($('#contracts-report-filters'), contractsFiltersSaveUrl, { reset: 1 }, function () {
+                    $('#filter-search').val('');
+                    $('#filter-group').val('');
+                    $('#filter-status').val('');
+                    reloadContractsTable();
+                });
             });
 
             $('#filter-search').on('keyup', function (e) {
                 if (e.key === 'Enter') {
-                    reloadContractsTable();
+                    applyContractsFilters();
                 }
             });
 

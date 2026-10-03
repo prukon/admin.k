@@ -726,7 +726,7 @@
 
             $form.on('submit', function (e) {
                 e.preventDefault();
-                dtApi.reload({ keepPage: true });
+                dtApi.reload();
             });
 
             $('#tbank-commissions-filters-reset').on('click', function () {

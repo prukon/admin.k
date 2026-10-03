@@ -533,7 +533,7 @@ final class AdminUserCardFeatureTest extends CrmTestCase
             ->assertDontSee('id="user-card-contracts-table"', false);
     }
 
-    public function test_header_shows_login_flag_and_second_flag_when_activity_country_differs(): void
+    public function test_header_shows_only_the_last_activity_country_flag(): void
     {
         $this->app->instance(\App\Services\Geo\IpCountryResolver::class, new class implements \App\Services\Geo\IpCountryResolver
         {
@@ -563,14 +563,17 @@ final class AdminUserCardFeatureTest extends CrmTestCase
             'created_at' => now(),
         ]);
 
-        $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+        $html = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get(route('admin.user.show', $student))
             ->assertOk()
-            ->assertSee('flag-icon-de', false)
             ->assertSee('flag-icon-ru', false)
-            ->assertSee('Германия, Chrome 120', false)
+            ->assertDontSee('flag-icon-de', false)
+            ->assertSee('Россия', false)
+            ->assertDontSee('Германия', false)
             ->assertSee('fa-mobile-screen', false)
-            ->assertSee('title="Телефон"', false);
+            ->assertSee('title="Телефон"', false)
+            ->getContent();
+        $this->assertSame(1, substr_count($html, 'flag-icon-ru'));
     }
 
     public function test_activity_request_stores_client_ip_when_it_changes(): void

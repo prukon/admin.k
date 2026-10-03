@@ -353,22 +353,26 @@
                 ],
             });
 
-            function reloadDistrictsTable() {
-                dtApi.reload({ keepPage: true });
+            function reloadDistrictsTable(options) {
+                dtApi.reload(options && options.resetPage ? {} : { keepPage: true });
             }
 
-            $('#filter-apply').on('click', reloadDistrictsTable);
+            function reloadDistrictsTableFromFilters() {
+                reloadDistrictsTable({ resetPage: true });
+            }
+
+            $('#filter-apply').on('click', reloadDistrictsTableFromFilters);
             $('#districts-report-filters').on('submit', function (e) {
                 e.preventDefault();
-                reloadDistrictsTable();
+                reloadDistrictsTableFromFilters();
             });
             $('#filter-reset').on('click', function () {
                 $('#filter-name').val('');
                 $('#filter-status').val(defaultFilterStatus);
-                reloadDistrictsTable();
+                reloadDistrictsTableFromFilters();
             });
             $('#filter-name').on('keyup', function (e) {
-                if (e.key === 'Enter') reloadDistrictsTable();
+                if (e.key === 'Enter') reloadDistrictsTableFromFilters();
             });
 
             @can('districts.view')

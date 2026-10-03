@@ -376,22 +376,26 @@
 
             initLegalEntitiesRegisteredHints();
 
-            function reloadTable() {
-                dtApi.reload({ keepPage: true });
+            function reloadTable(options) {
+                dtApi.reload(options && options.resetPage ? {} : { keepPage: true });
             }
 
-            $('#filter-apply').on('click', reloadTable);
+            function reloadTableFromFilters() {
+                reloadTable({ resetPage: true });
+            }
+
+            $('#filter-apply').on('click', reloadTableFromFilters);
             $('#legal-entities-report-filters').on('submit', function (e) {
                 e.preventDefault();
-                reloadTable();
+                reloadTableFromFilters();
             });
             $('#filter-reset').on('click', function () {
                 $('#filter-search').val('');
                 $('#filter-status').val(defaultFilterStatus);
-                reloadTable();
+                reloadTableFromFilters();
             });
             $('#filter-search').on('keyup', function (e) {
-                if (e.key === 'Enter') reloadTable();
+                if (e.key === 'Enter') reloadTableFromFilters();
             });
 
             @can('legal_entities.manage')

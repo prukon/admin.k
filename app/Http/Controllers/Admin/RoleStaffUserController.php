@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Controllers\Concerns\SavesPersistedListFilters;
 use App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs;
 use App\Http\Requests\Admin\StoreRoleStaffUserRequest;
 use App\Http\Requests\Admin\UpdateRoleStaffUserRequest;
+use App\Http\Requests\Tables\SaveAdministratorsListFiltersRequest;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UserTableSetting;
 use App\Services\PartnerContext;
+use App\Services\Tables\PersistedListFilters;
 use App\Services\Users\ClientWelcomeCredentialsService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -21,6 +25,7 @@ use Intervention\Image\ImageManager;
 class RoleStaffUserController extends AdminBaseController
 {
     use RendersUsersSectionTabs;
+    use SavesPersistedListFilters;
 
     /** @var list<string> */
     private const RESERVED_CUSTOM_ROLE_NAMES = [
@@ -131,15 +136,44 @@ class RoleStaffUserController extends AdminBaseController
     /**
      * @return array<string, mixed>
      */
+    public function saveAdministratorFilters(SaveAdministratorsListFiltersRequest $request)
+    {
+        return $this->storePersistedListFilters($request);
+    }
+
     private function roleStaffViewData(Role $role, string $activeTab): array
     {
+        $persistListSettings = $role->name === 'admin';
+        $actor = auth()->user();
+        $filters = app(PersistedListFilters::class);
+        $listFilters = $persistListSettings
+            ? $filters->present($actor, PersistedListFilters::ADMINISTRATORS)
+            : $filters->defaults($actor, PersistedListFilters::ADMINISTRATORS);
+        $authUserId = $actor?->id;
+
         return array_merge($this->usersSectionViewData($activeTab), [
             'role'                    => $role,
             'pageTitle'               => (string) $role->label,
             'tableKey'                => $this->tableKeyForRole($role),
-            'canChangePassword'       => auth()->user()?->can('users.password.update') ?? false,
-            'roleStaffHasActiveFilters' => false,
+            'canChangePassword'       => $actor?->can('users.password.update') ?? false,
+            'roleStaffHasActiveFilters' => $persistListSettings && $filters->isActive(
+                $listFilters,
+                PersistedListFilters::ADMINISTRATORS,
+                $actor
+            ),
             'roleStaffEndpoints'      => $this->endpointsForRole($role),
+            'listFilters'             => $listFilters,
+            'persistRoleStaffListFilters' => $persistListSettings,
+            'persistRoleStaffPageLength' => $persistListSettings,
+            'roleStaffFiltersSaveUrl' => $persistListSettings
+                ? route('admin.administrators.filters.save')
+                : '',
+            'roleStaffPageLength'     => $persistListSettings
+                ? UserTableSetting::pageLengthForUser(
+                    $authUserId !== null ? (int) $authUserId : null,
+                    PersistedListFilters::ADMINISTRATORS
+                )
+                : UserTableSetting::DEFAULT_PAGE_LENGTH,
         ]);
     }
 

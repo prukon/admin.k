@@ -68,7 +68,8 @@
       <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/user-packages</code></td><td>AJAX: каталог абонементов для модалки (<code>contracts.view</code> + <code>contracts.lessonPackage.bind</code>; <code>user_id</code> опционален). §<a href="#contract-lesson-package-bind">5.1.1</a></td></tr>
       <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров; в каждой строке <code>id</code> (колонка «Номер договора»), <code>status_label</code> из <code>school_status_ru</code> (для <code>sent</code>/<code>opened</code> — «Отправлено СМС» / «Открыто СМС»), <code>status_error</code> — текст отказа Подпислона при <code>failed</code> иначе <code>null</code> (<a href="/doc#contract-send-failure-message-index">анонс</a>), <code>path_steps</code> / <code>path_title</code> для ссылки «(посмотреть)», <code>download_signed_url</code> — URL <code>GET …/download-signed</code> или <code>null</code>, если <code>signed_pdf_path</code> пуст. Колонка «Обновлён» (<code>updated_at</code> в JSON) — <code>created_at</code> последнего события журнала этого договора (<code>contract_events</code>, максимальный <code>id</code>, как на карточке), формат <code>d.m.Y H:i:s</code>; не поле <code>contracts.updated_at</code>. При создании через UI всегда есть событие <code>created</code>. Без событий — пустая строка. Сортировка этой колонки — индекс 9, по дате события, без событий в конце. Дефолт списка — индекс 1 (<code>contracts.id</code> desc). Колонка «Срок подписания» (<code>fill_expires_at</code> в JSON) — только при скрытом праве <code>contracts.fillExpiresAt.view</code>: дата и время <code>contracts.fill_expires_at</code> в формате <code>d.m.Y H:i:s</code> и вторая строка остатка дней (<code>fill_expires_remaining</code> / <code>fill_expires_remaining_warn</code>); у <code>signed</code> / <code>revoked</code> вторая строка пустая (<a href="/doc#contract-list-hide-remaining-signed-revoked-index">анонс</a>); без права этих ключей в JSON нет; <code>null</code> срок — пустая ячейка</td></tr>
-      <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
+      <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Колонки и «Показать N» (<code>page_length</code>, старт 20). Пустой POST и невалидный N — JSON 422 и без AJAX</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/filters</code></td><td>Фильтры списка на текущего админа (<code>contracts.filters.save</code>, §<a href="#contracts-persisted-filters">4.0</a>). AJAX 200 <code>{success:true}</code>, обычный POST — 302 на <code>/client-contracts</code></td></tr>
       <tr><td>GET</td><td><code>/client-contracts/logs-data</code> (<code>logs.data.contract</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract</code>)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/send</code></td><td>Отправка на подпись (SMS): первая или повтор при уже существующем <code>provider_doc_id</code>. Модалка карточки (<code>#sendSubmit</code>) всегда бьёт сюда, не на <code>/resend</code>. Пишет <code>provider_signing_url</code>, если Подпислон вернул <code>contacts[].link</code>. HTTP 200 + JSON <code>status: false</code> — JSON 422 <code>code: send_not_sent</code> и текст в UI (§<a href="#contract-send-failure-message">3.1.2</a>), не ложное «Отправлено СМС»</td></tr>
@@ -343,6 +344,29 @@
       Это не колонка «Договор» на <code>/admin/users</code> (там PDF открывает карточку при <code>signed</code>).</li>
     <li>Файлы: диск <code>local</code>, <code>storage/app/</code> + относительный путь из БД.</li>
   </ul>
+
+  <h3 id="contracts-persisted-filters">4.0) Фильтры и «Показать N»</h3>
+  <div class="note">
+    Список <code>/client-contracts</code>, <code>table_key = contracts_index</code>.
+    Фильтры (поиск, группа, статус) — <code>user_table_settings.filters</code>.
+    «Применить» и «Сброс» — POST <code>/client-contracts/filters</code>
+    (<code>contracts.filters.save</code>, <code>SaveContractsListFiltersRequest</code>, право <code>contracts.view</code>).
+    «Сброс» очищает все три поля.
+    «Показать N» — <code>page_length</code>, <code>persistPageLength: true</code>,
+    POST <code>/client-contracts/columns-settings</code> (<code>ContractsColumnsSettingsSaveRequest</code>).
+    Пока админ не менял селект, на странице 20 строк, не 10.
+    Колонки, N и фильтры друг друга не затирают.
+    AJAX фильтров — 200 <code>{success:true}</code>. Обычный POST фильтров — 302 на <code>/client-contracts</code>, запись в БД есть.
+    422 фильтров — текст под полем. Обычный POST с ошибкой — 302 назад.
+    Неверное «Показать N» и пустой POST колонок остаются JSON 422 (<code>ContractsColumnsSettingsSaveRequest</code>), не 302.
+    Старт без сохранённого N — 20, значение вне 10/20/50/100 тоже откатывается к 20.
+    «Применить», Enter и «Сброс» открывают первую страницу (<code>reloadContractsTable()</code> → <code>dtApi.reload()</code>,
+    <a href="/doc#datatable-filter-resets-page-index">анонс</a>).
+    «Сброс» не подставляет статус «только активные».
+    Гость — 302/401. Без <code>contracts.view</code> — 403.
+    Анонс — <a href="/doc#list-persisted-filters-index">/doc</a>.
+    Тесты: <code>PersistedListFiltersFeatureTest</code>, <code>PersistedListFiltersHttpContractFeatureTest</code>.
+  </div>
 
   <h2 id="contracts-list-table">4.1) Таблица списка договоров</h2>
   <p>View: <code>resources/views/contracts/index.blade.php</code>, таблица <code>#contracts-table</code>, пресет <code>KidsCrmDataTable</code>.</p>

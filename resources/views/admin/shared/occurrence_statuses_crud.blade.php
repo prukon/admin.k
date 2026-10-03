@@ -515,25 +515,29 @@
                 ],
             });
 
-            function reloadLosTable() {
-                dtApi.reload({ keepPage: true });
+            function reloadLosTable(options) {
+                dtApi.reload(options && options.resetPage ? {} : { keepPage: true });
             }
 
-            $('#los-filter-apply').on('click', reloadLosTable);
+            function reloadLosTableFromFilters() {
+                reloadLosTable({ resetPage: true });
+            }
+
+            $('#los-filter-apply').on('click', reloadLosTableFromFilters);
             $('#los-report-filters').on('submit', function (e) {
                 e.preventDefault();
-                reloadLosTable();
+                reloadLosTableFromFilters();
             });
             $('#los-filter-reset').on('click', function () {
                 $('#los-filter-title').val('');
                 $('#los-filter-type').val('');
                 $('#los-filter-status').val('');
                 $('#los-filter-consumes').val('');
-                reloadLosTable();
+                reloadLosTableFromFilters();
             });
             $('#los-filter-title').on('keyup', function (e) {
                 if (e.key === 'Enter') {
-                    reloadLosTable();
+                    reloadLosTableFromFilters();
                 }
             });
 

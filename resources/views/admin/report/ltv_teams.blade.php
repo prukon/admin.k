@@ -23,6 +23,14 @@
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
+        if (is_array($v)) {
+            $items = array_filter($v, static fn ($item) => trim((string) $item) !== '');
+            if ($items !== []) {
+                $payHasActiveFilters = true;
+                break;
+            }
+            continue;
+        }
         if ($v !== null && $v !== '') {
             $payHasActiveFilters = true;
             break;
@@ -232,6 +240,8 @@
     <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script type="text/javascript">
         $(function() {
+            @include('admin.report.partials.persist-report-filters-fn')
+            var ltvTeamsFiltersSaveUrl = @json(route('reports.ltv.teams.filters.save'));
 
             var canViewLocations = @json($canViewLocations);
             var defaultFilterUserStatus = 'active';
@@ -778,11 +788,13 @@
 
             $ltvFiltersForm.on('submit', function (e) {
                 e.preventDefault();
-                refreshLtvTeamsReportTotal();
-                Object.keys(ltvTeamsDetailTables).forEach(function (teamId) {
-                    destroyLtvTeamsDetailTable(teamId);
+                kidsCrmPersistReportFilters($ltvFiltersForm, ltvTeamsFiltersSaveUrl, ltvTeamsReportFilterParams(), function () {
+                    refreshLtvTeamsReportTotal();
+                    Object.keys(ltvTeamsDetailTables).forEach(function (teamId) {
+                        destroyLtvTeamsDetailTable(teamId);
+                    });
+                    dtApi.reload();
                 });
-                dtApi.reload({ keepPage: true });
             });
 
             $('.js-ltv-teams-period-btn').on('click', function () {
@@ -823,23 +835,25 @@
             });
 
             $('#ltvTeamsReportFiltersResetBtn').on('click', function () {
-                $ltvFiltersForm[0].reset();
-                $ltvFilterUser.val(null).trigger('change');
-                if (window.KidsCrmGenericMultiselectSelect2) {
-                    KidsCrmGenericMultiselectSelect2.reset($ltvFilterTeam);
-                    if ($ltvFilterTrainer.length) {
-                        KidsCrmGenericMultiselectSelect2.reset($ltvFilterTrainer);
+                kidsCrmPersistReportFilters($ltvFiltersForm, ltvTeamsFiltersSaveUrl, { reset: 1 }, function () {
+                    $ltvFiltersForm[0].reset();
+                    $ltvFilterUser.val(null).trigger('change');
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.reset($ltvFilterTeam);
+                        if ($ltvFilterTrainer.length) {
+                            KidsCrmGenericMultiselectSelect2.reset($ltvFilterTrainer);
+                        }
+                        if (canViewLocations) {
+                            KidsCrmGenericMultiselectSelect2.reset($('#pay-ltv-teams-filter-location'));
+                        }
                     }
-                    if (canViewLocations) {
-                        KidsCrmGenericMultiselectSelect2.reset($('#pay-ltv-teams-filter-location'));
-                    }
-                }
-                $('#pay-ltv-teams-filter-user-status').val(defaultFilterUserStatus);
-                Object.keys(ltvTeamsDetailTables).forEach(function (teamId) {
-                    destroyLtvTeamsDetailTable(teamId);
+                    $('#pay-ltv-teams-filter-user-status').val(defaultFilterUserStatus);
+                    Object.keys(ltvTeamsDetailTables).forEach(function (teamId) {
+                        destroyLtvTeamsDetailTable(teamId);
+                    });
+                    refreshLtvTeamsReportTotal();
+                    dtApi.reload();
                 });
-                refreshLtvTeamsReportTotal();
-                dtApi.reload();
             });
 
             $('#ltv-teams-table tbody').on('click', 'td.details-control button', function(e) {

@@ -98,14 +98,14 @@
                         <div class="row g-2 align-items-end">
                             <div class="col-12 col-md-4">
                                 <label class="form-label" for="role-staff-filter-name">Имя</label>
-                                <input id="role-staff-filter-name" class="form-control" type="text" placeholder="Поиск по ФИО, email, телефону">
+                                <input id="role-staff-filter-name" name="name" class="form-control" type="text" value="{{ $listFilters['name'] ?? '' }}" placeholder="Поиск по ФИО, email, телефону">
                             </div>
                             <div class="col-12 col-md-3">
                                 <label class="form-label" for="role-staff-filter-status">Статус</label>
-                                <select id="role-staff-filter-status" class="form-select">
-                                    <option value="">Все</option>
-                                    <option value="active" selected>Только активные</option>
-                                    <option value="inactive">Только неактивные</option>
+                                <select id="role-staff-filter-status" name="status" class="form-select">
+                                    <option value="" @selected(($listFilters['status'] ?? 'active') === '')>Все</option>
+                                    <option value="active" @selected(($listFilters['status'] ?? 'active') === 'active')>Только активные</option>
+                                    <option value="inactive" @selected(($listFilters['status'] ?? 'active') === 'inactive')>Только неактивные</option>
                                 </select>
                             </div>
                             <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
@@ -330,6 +330,9 @@
             const defaultAvatar = cfg.defaultAvatar;
             const defaultFilterStatus = 'active';
             const tableKeyQuery = '?table_key=' + encodeURIComponent(cfg.tableKey);
+            const persistRoleStaffListFilters = @json((bool) ($persistRoleStaffListFilters ?? false));
+            const roleStaffFiltersSaveUrl = @json($roleStaffFiltersSaveUrl ?? '');
+            @include('admin.report.partials.persist-report-filters-fn')
 
             function urlFromTemplate(template, id) {
                 return (template || '').replace('__ID__', String(id));
@@ -369,6 +372,7 @@
                         is_enabled: true,
                         actions: true,
                     },
+                    persistPageLength: @json((bool) ($persistRoleStaffPageLength ?? false)),
                     urls: {
                         get: cfg.columnsSettingsUrl + tableKeyQuery,
                         save: cfg.columnsSettingsUrl + tableKeyQuery,
@@ -376,6 +380,7 @@
                     csrfToken: $('meta[name="csrf-token"]').attr('content'),
                 },
                 dataTable: {
+                    pageLength: @json((int) ($roleStaffPageLength ?? 10)),
                     ajax: {
                         url: cfg.dataUrl,
                         type: 'GET',
@@ -429,25 +434,43 @@
                 ],
             });
 
-            function reloadTable() {
-                dtApi.reload({ keepPage: true });
+            function reloadTable(options) {
+                dtApi.reload(options && options.resetPage ? {} : { keepPage: true });
                 syncFiltersCollapseState();
             }
 
             window.__reloadRoleStaffTable = reloadTable;
 
-            $('#role-staff-filter-apply').on('click', reloadTable);
+            function applyRoleStaffFilters() {
+                if (!persistRoleStaffListFilters) {
+                    reloadTable({ resetPage: true });
+                    return;
+                }
+                kidsCrmPersistReportFilters($('#role-staff-filters'), roleStaffFiltersSaveUrl, filterParams(), function () {
+                    reloadTable({ resetPage: true });
+                });
+            }
+
+            $('#role-staff-filter-apply').on('click', applyRoleStaffFilters);
             $('#role-staff-filters').on('submit', function (e) {
                 e.preventDefault();
-                reloadTable();
+                applyRoleStaffFilters();
             });
             $('#role-staff-filter-reset').on('click', function () {
-                $('#role-staff-filter-name').val('');
-                $('#role-staff-filter-status').val(defaultFilterStatus);
-                reloadTable();
+                if (!persistRoleStaffListFilters) {
+                    $('#role-staff-filter-name').val('');
+                    $('#role-staff-filter-status').val(defaultFilterStatus);
+                    reloadTable({ resetPage: true });
+                    return;
+                }
+                kidsCrmPersistReportFilters($('#role-staff-filters'), roleStaffFiltersSaveUrl, { reset: 1 }, function () {
+                    $('#role-staff-filter-name').val('');
+                    $('#role-staff-filter-status').val(defaultFilterStatus);
+                    reloadTable({ resetPage: true });
+                });
             });
             $('#role-staff-filter-name').on('keyup', function (e) {
-                if (e.key === 'Enter') reloadTable();
+                if (e.key === 'Enter') applyRoleStaffFilters();
             });
 
             const meta = document.querySelector('meta[name="csrf-token"]');

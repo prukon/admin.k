@@ -1034,7 +1034,8 @@ final class ReportsMonthlyIntentsDatatableSearchFeatureTest extends CrmTestCase
         $this->assertStringContainsString("dom: 'rtip'", $html);
         $this->assertStringContainsString('$payMonthlyFiltersForm.on(\'submit\'', $html);
         $this->assertStringContainsString('$(\'#paymentsMonthlyFiltersResetBtn\').on(\'click\'', $html);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $html);
+        $this->assertStringContainsString('dtApi.reload();', $html);
+        $this->assertStringNotContainsString('keepPage', $html);
     }
 
     public function test_monthly_search_february_title_does_not_match_january(): void
@@ -1109,7 +1110,8 @@ final class ReportsMonthlyIntentsDatatableSearchFeatureTest extends CrmTestCase
         $this->assertStringContainsString('var canViewLocations = false;', $html);
         $this->assertStringContainsString('if (canViewLocations) {', $html);
         $this->assertStringContainsString('$payMonthlyFiltersForm.on(\'submit\'', $html);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $html);
+        $this->assertStringContainsString('dtApi.reload();', $html);
+        $this->assertStringNotContainsString('keepPage', $html);
         $this->assertStringNotContainsString('searching: false', $html);
         $this->assertStringContainsString("dom: 'rtip'", $html);
         $this->assertDoesNotMatchRegularExpression(

@@ -743,7 +743,7 @@
             $filtersForm.on('submit', function (e) {
                 e.preventDefault();
                 refreshTotal();
-                dtApi.reload({ keepPage: true });
+                dtApi.reload();
             });
 
             $('#filter-reset').on('click', function () {
@@ -770,7 +770,7 @@
                 $('#filter-tinkoff-payment-id').val('');
                 $('#filter-payout-payment-id').val('');
                 refreshTotal();
-                dtApi.reload({ keepPage: true });
+                dtApi.reload();
             });
         });
     </script>

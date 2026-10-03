@@ -475,13 +475,13 @@
             $filtersForm.on('submit', function (e) {
                 e.preventDefault();
                 appliedFilters = readFiltersFromForm();
-                dtApi.reload({ keepPage: true });
+                dtApi.reload();
             });
 
             $('#partnerLeadsFiltersResetBtn').on('click', function () {
                 resetFiltersFormToDefault();
                 appliedFilters = readFiltersFromForm();
-                dtApi.reload({ keepPage: true });
+                dtApi.reload();
             });
 
             $('#leads-table').on('click', '.edit-lead', function () {

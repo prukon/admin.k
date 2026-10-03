@@ -929,7 +929,9 @@
     <li><b>Toolbar</b> — «Добавить», «История», «Фильтры», «Колонки» + <code>admin-list-toolbar.css</code>
       (как у <a href="/docs/documentation/admin-sport-types">Видов спорта</a> / шаблонов абонементов).</li>
     <li><b>Таблица</b> — <code>KidsCrmDataTable</code>, <code>GET …/occurrence-statuses/data</code>
-      (фильтры: название, тип, активен, списывает; <code>searching: false</code>).</li>
+      (фильтры: название, тип, активен, списывает; <code>searching: false</code>).
+      «Применить», Enter и «Сброс» открывают первую страницу (<code>reloadLosTableFromFilters</code>).
+      Создание и правка остаются на текущей.</li>
     <li><b>Колонки</b> — <code>user_table_settings.table_key = lesson_occurrence_statuses_index</code>
       (<code>GET/POST …/columns-settings</code>).</li>
     <li><b>История</b> — <code>GET …/occurrence-statuses/logs-data</code>
@@ -993,7 +995,7 @@
 
   <h3>Фильтры (серверные, без перезагрузки страницы)</h3>
   <p>Форма <code>#ulp-assignments-filters</code>, collapse <code>#ulpAssignmentsFiltersCollapse</code>.
-    При submit: <code>preventDefault()</code> → параметры уходят в AJAX <code>GET …/assignments/data</code> → <code>dtApi.reload({ keepPage: true })</code>.
+    При submit: <code>preventDefault()</code> → параметры уходят в AJAX <code>GET …/assignments/data</code> → <code>dtApi.reload()</code> (первая страница).
     При активных query-параметрах в URL (первичная загрузка) панель фильтров раскрыта (<code>collapse show</code>).</p>
   <table>
     <thead>
@@ -1109,7 +1111,7 @@
     <li>UI: <code>#ulp-filter-past-lessons</code>, блок <code>.ulp-filter-past-lessons</code>
       (flex; сброс bootstrap <code>margin-top</code> у чекбокса; подпись обычным весом).</li>
     <li>В AJAX: <code>ulpAssignmentFilterParams()</code> шлёт <code>filter_past_lessons: '1'</code> или <code>''</code>.
-      Submit — <code>preventDefault</code> → <code>dtApi.reload({ keepPage: true })</code>.
+      Submit — <code>preventDefault</code> → <code>dtApi.reload()</code> (первая страница).
       «Сброс» — <code>form.reset()</code> (чекбокс снимается) + reload.</li>
     <li>Реализация: <code>LessonPackageController::applyAssignmentListFilters</code> /
       <code>resolveAssignmentIncludePastLessonsFilter</code> (общий helper

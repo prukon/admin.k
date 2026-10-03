@@ -57,7 +57,8 @@
     <tbody>
       <tr><td>GET</td><td><code>/admin/administrators</code></td><td><code>admin.administrators.index</code></td><td>HTML страницы</td></tr>
       <tr><td>GET</td><td><code>/admin/administrators/data</code></td><td><code>admin.administrators.data</code></td><td>JSON DataTables (<code>role_id = admin</code>)</td></tr>
-      <tr><td>GET/POST</td><td><code>/admin/administrators/columns-settings?table_key=role_staff_admin</code></td><td><code>admin.administrators.columns-settings.*</code></td><td>Настройки колонок</td></tr>
+      <tr><td>GET/POST</td><td><code>/admin/administrators/columns-settings?table_key=role_staff_admin</code></td><td><code>admin.administrators.columns-settings.*</code></td><td>Колонки и «Показать N» (<code>page_length</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/administrators/filters</code></td><td><code>admin.administrators.filters.save</code></td><td>Сохранить фильтры списка</td></tr>
       <tr><td>GET</td><td><code>/admin/administrators/{user}</code></td><td><code>admin.administrators.show</code></td><td>JSON карточки</td></tr>
       <tr><td>POST</td><td><code>/admin/administrators</code></td><td><code>admin.administrators.store</code></td><td>Создание</td></tr>
       <tr><td>PUT</td><td><code>/admin/administrators/{user}</code></td><td><code>admin.administrators.update</code></td><td>Обновление</td></tr>
@@ -74,6 +75,27 @@
     <li><b>Удаление</b> — soft delete из модалки редактирования. Подтверждение через <code>showConfirmDeleteModal</code> (не <code>window.confirm</code>) → <code>DELETE</code>. Успех: edit-модалка закрывается (снятие <code>hidden.bs.modal.return</code> у confirm), AJAX reload таблицы, toast с <code>message</code> сервера (обычно «Пользователь удалён»), не <code>showSuccessModal</code>. Ошибка DELETE — <code>showErrorModal</code>. Вместе с <code>deleted_at</code> пишется <code>users.email = null</code> (<a href="/docs/documentation/admin-users#user-delete-clears-email">admin-users §4.5.6</a>), чтобы почту можно было выдать новому пользователю.</li>
     <li>Ошибки валидации — JSON <code>422</code>, поля под формой.</li>
   </ul>
+
+  <h3 id="administrators-persisted-filters">3.2.1) Фильтры и «Показать N» только у администраторов</h3>
+  <div class="note">
+    <code>table_key = role_staff_admin</code>. Фильтры: имя и статус, JSON <code>filters</code>.
+    «Показать N» — <code>page_length</code>, старт 10, <code>persistPageLength: true</code> только на <code>/admin/administrators</code>.
+    POST фильтров: <code>SaveAdministratorsListFiltersRequest</code>, право <code>users.view</code> и <code>users.role.update</code>.
+    AJAX — 200 <code>{success:true}</code>. Обычный POST — 302 на <code>/admin/administrators</code>.
+    «Сброс» — пустое имя и <code>status=active</code>.
+    Кастомные роли <code>/admin/roles/{name}</code> ту же форму используют, но фильтры и N не пишут:
+    на странице <code>persistRoleStaffListFilters = false</code> и <code>persistPageLength: false</code>
+    (в исходнике нет литерала <code>persistPageLength: true</code>).
+    «Применить» и «Сброс» на кастомной роли только обновляют таблицу, POST фильтров нет.
+    POST <code>page_length</code> на чужой <code>table_key</code> в строку не попадает.
+    Гость — 302/401. Без <code>users.role.update</code> — 403.
+    «Применить», Enter и «Сброс» открывают первую страницу (<code>reloadTable({ resetPage: true })</code>),
+    в том числе на кастомной роли, где фильтры не пишутся.
+    Создание и правка остаются на текущей (<code>reloadTable()</code>).
+    Анонс фильтров — <a href="/doc#list-persisted-filters-index">/doc</a>,
+    анонс страницы — <a href="/doc#datatable-filter-resets-page-index">/doc</a>.
+    Тесты: <code>PersistedListFiltersFeatureTest</code>, <code>PersistedListFiltersHttpContractFeatureTest</code>.
+  </div>
 
   <h3 id="staff-welcome-credentials">3.3) Welcome-письмо при создании (<code>send_welcome_email</code>)</h3>
   <div class="note">

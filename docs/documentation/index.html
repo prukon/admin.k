@@ -28,13 +28,164 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
-  <h1>Документация</h1>
-  <div class="small">Папка: <code>/docs/documentation</code>. В кабинете со правом «документация»
-    эта страница открывается по <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.</div>
-
+  <h2 id="list-persisted-filters-index">Списки: фильтры и «Показать N» на админа (2026‑10)</h2>
   <div class="note">
-    Это “главная” страница документации (список разделов и анонсы). Открывается по
-    <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
+    Пять списков запоминают фильтры формы на каждого админа в JSON-колонке
+    <code>user_table_settings.filters</code>. Это та же строка, что видимость колонок
+    (<code>columns</code>) и «Показать N» (<code>page_length</code>).
+    Сохранение фильтров не затирает колонки и N, смена N не затирает фильтры.
+    Номер страницы (<code>start</code>) и сортировка не пишутся.
+    Чужой админ чужие фильтры не видит.
+    <br><br>
+    1) <b>Где.</b>
+    <code>/admin/users</code> — <code>users_index</code>, право <code>users.view</code>,
+    POST <code>/admin/users/filters</code> (<code>admin.users.filters.save</code>, <code>SaveUsersListFiltersRequest</code>).
+    Поля: имя, группа (<code>team_id</code>, в том числе <code>none</code> «Без группы»), статус, договор.
+    Договор есть в форме и в строке только при <code>contracts.view</code>.
+    <code>/admin/trainers</code> — <code>trainers_index</code>, право <code>trainers.view</code>,
+    POST <code>/admin/trainers/filters</code>. Поля: имя, группа, статус. Варианта «без группы» нет:
+    <code>team_id=none</code> — 422 «Выберите группу из списка.».
+    <code>/admin/administrators</code> — <code>role_staff_admin</code>, права <code>users.view</code> и <code>users.role.update</code>,
+    POST <code>/admin/administrators/filters</code>. Поля: имя и статус. Группы нет.
+    <code>/admin/school-leads</code> — <code>school_leads_index</code>, право <code>schoolLeads.view</code>,
+    POST <code>/admin/school-leads/filters</code>. Поля: статусы, район, объекты, секции, «есть особые условия».
+    Район — только при <code>districts.view</code>, объекты — только при <code>locations.view</code>.
+    Без права поле скрыто и в строку не пишется.
+    <code>/client-contracts</code> — <code>contracts_index</code>, право <code>contracts.view</code>,
+    POST <code>/client-contracts/filters</code>. Поля: поиск, группа (в том числе <code>none</code>), статус договора.
+    Статуса <code>generating_pdf</code> в списке нет — 422.
+    <br><br>
+    2) <b>«Применить» и «Сброс».</b> Оба пути (кнопка, submit формы и Enter) идут в
+    <code>kidsCrmPersistReportFilters</code>. Таблица делает <code>reload</code> только после успеха
+    и не пересоздаётся, поэтому N и колонки не сбрасываются. Поля формы очищаются внутри успешного ответа:
+    при 422 форма остаётся как была.
+    AJAX (<code>X-Requested-With</code>) — 200 <code>{success:true}</code>.
+    Обычный POST без этого заголовка — 302 на страницу раздела, строка в БД всё равно пишется.
+    Ошибка поля: AJAX 422 <code>errors[field]</code> под полем, таблица не обновляется, прежние фильтры остаются;
+    обычный POST — 302 назад с ошибкой в сессии.
+    Гость — 302 на вход или 401. Без права раздела — 403.
+    GET, PUT, PATCH и DELETE на адрес фильтров не отдают 200.
+    <br><br>
+    3) <b>Первый заход и «Сброс».</b> Нет записи или <code>filters = null</code> — панель закрыта.
+    Ученики, тренеры и администраторы: статус «только активные».
+    Пустой статус («все») сохраняется, открывает панель и не подменяется обратно на «активные».
+    «Сброс» пишет пустое имя и <code>status=active</code>; на следующем заходе панель снова закрыта.
+    Заявки: отмечены статусы с <code>is_default_in_filter</code>.
+    Очищенный список статусов хранится пустым и не возвращает статусы по умолчанию, пока админ не нажмёт «Сброс».
+    «Сброс» заявок берёт статусы каталога, не последний сохранённый набор.
+    Галочка «Есть особые условия» выключена, пока её не поставят.
+    Договоры: все три поля пустые. «Сброс» их очищает и не подставляет «только активные».
+    Если набор отличается от значения по умолчанию, следующий заход раскрывает панель и подставляет сохранённое.
+    <br><br>
+    4) <b>«Показать N».</b> На учениках и заявках уже было, старт 10.
+    На тренерах и администраторах тоже старт 10 (<code>persistPageLength: true</code>).
+    На договорах старт 20, пока админ сам не выберет другое; значение вне 10/20/50/100 тоже откатывается к 20.
+    Кастомные роли <code>/admin/roles/{name}</code> ту же форму используют, но фильтры и N не пишут:
+    на странице <code>persistRoleStaffListFilters = false</code> и <code>persistPageLength: false</code>,
+    «Применить» только обновляет таблицу. POST <code>page_length</code> на чужой <code>table_key</code> в строку не попадает.
+    Неверное N — 422 «Можно показать 10, 20, 50 или 100 записей.», прежнее N остаётся.
+    Обычный POST неверного N — 302, кроме договоров: там и без AJAX остаётся JSON 422.
+    <br><br>
+    Подробно — <a href="/docs/documentation/admin-users#users-persisted-filters">admin-users §2.0.2</a>,
+    <a href="/docs/documentation/admin-trainers#trainers-persisted-filters">admin-trainers §6.0</a>,
+    <a href="/docs/documentation/admin-role-staff#administrators-persisted-filters">admin-role-staff §3.2.1</a>,
+    <a href="/docs/documentation/school-leads-widget#school-leads-persisted-filters">school-leads §5.1.8</a>,
+    <a href="/docs/documentation/contracts#contracts-persisted-filters">contracts §4.0</a>.
+    Каталог N — <a href="#datatable-page-length-index">ниже</a>.
+    Тесты: <code>PersistedListFiltersFeatureTest</code>,
+    <code>PersistedListFiltersHttpContractFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_persisted_list_filters_keep_values_until_save_succeeds</code>.
+    Смена фильтра открывает первую страницу —
+    <a href="#datatable-filter-resets-page-index">ниже</a>.
+  </div>
+
+  <h2 id="datatable-filter-resets-page-index">Таблицы: смена фильтра открывает первую страницу (2026‑10)</h2>
+  <div class="note">
+    «Применить», Enter в поле фильтра и «Сброс» вызывают
+    <code>dtApi.reload()</code> без <code>keepPage</code>
+    (в списках — <code>reload…({ resetPage: true })</code>).
+    DataTables запрашивает выборку с <code>start = 0</code>.
+    Иначе после страницы 3 узкий фильтр оставляет смещение и таблица пустая.
+    «Показать N» и видимость колонок не сбрасываются: таблицу не пересоздают.
+    Правка, создание, смена статуса и импорт учеников в той же выборке
+    по-прежнему <code>dtApi.reload({ keepPage: true })</code>
+    (<code>ajax.reload(null, false)</code>).
+    Пресет: <code>KidsCrmDataTable.reload</code> в <code>resources/js/kids-datatable.js</code>.
+    <br><br>
+    Списки: <code>/admin/users</code>, <code>/admin/trainers</code>,
+    <code>/admin/administrators</code> и <code>/admin/roles/{name}</code>,
+    <code>/admin/school-leads</code>, <code>/client-contracts</code>,
+    <code>/admin/partners</code>, <code>/admin/partner-leads</code>,
+    <code>/admin/tinkoff/payouts</code>, <code>/admin/legal-entities</code>,
+    <code>/admin/locations</code>, <code>/admin/sport-types</code>, <code>/admin/districts</code>,
+    <code>/admin/teams</code>, каталог абонементов, назначения абонементов,
+    <code>/admin/lesson-packages/occurrence-statuses</code>.
+    Отчёты: задолженности, LTV, LTV по группам, LTV по объектам, платежи по месяцам,
+    платежи, платежи Т‑Банка, фискальные чеки, намерения платежей, исходящие письма.
+    Ещё: комиссии Т‑Банка, логи настроек, история кошелька.
+    <br><br>
+    Тест: <code>FilterChangeResetsDatatablePageFeatureTest</code>.
+    Якорь: <code>/doc#datatable-filter-resets-page-index</code>.
+    Пресет — <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>.
+  </div>
+
+  <h2 id="reports-persisted-filters-index">Отчёты: фильтры сохраняются на админа (2026‑10)</h2>
+  <div class="note">
+    Шесть вкладок запоминают фильтры формы на каждого админа в JSON-колонке
+    <code>user_table_settings.filters</code> (та же строка, что видимость колонок).
+    Колонки остаются в <code>columns</code>. «Показать N» там, где оно уже пишется, остаётся в
+    <code>page_length</code> и сохранением фильтров не затирается. У задолженностей N по-прежнему не сохраняется —
+    это не отменяет сохранение их фильтров.
+    Поиск над таблицей (<code>search.value</code>) в эти фильтры не входит.
+    <br><br>
+    1) <b>Где.</b>
+    <code>/admin/reports/payments</code> — <code>reports_payments</code>, право <code>reports.view</code>,
+    POST <code>/admin/reports/payments/filters</code>.
+    <code>/admin/reports/payments/monthly</code> — <code>reports_payments_monthly</code>, то же право.
+    <code>/admin/reports/ltv</code> — <code>reports_ltv</code>, то же право.
+    <code>/admin/reports/debts</code> — <code>reports_debts</code>, то же право.
+    <code>/admin/reports/ltv/teams</code> — <code>reports_ltv_teams</code>, право <code>reports.ltv.teams.view</code>.
+    <code>/admin/reports/ltv/locations</code> — <code>reports_ltv_locations</code>, право <code>reports.ltv.locations.view</code>.
+    Без права — 403 и на страницу, и на POST. Гость: обычный POST уходит на вход, JSON-POST — 401.
+    <br>
+    2) <b>Кнопки.</b> «Применить» пишет текущий набор. «Сброс» шлёт <code>reset=1</code> и кладёт пустые поля
+    и <code>status=active</code>, даже если в том же запросе ещё пришли старые значения.
+    AJAX (<code>Accept: application/json</code> или <code>X-Requested-With</code>) → 200 <code>{success:true}</code>,
+    затем таблица перезагружается без пересоздания (сохранённый «Показать N» не сбрасывается,
+    страница пагинации — первая, <a href="#datatable-filter-resets-page-index">анонс</a>).
+    Обычный POST без этих заголовков → 302 на страницу вкладки, запись уже в БД.
+    Ошибка поля: AJAX → 422 <code>errors</code> (у списка — <code>filter_team_id.0</code>), текст под полем, таблица не обновляется;
+    обычный POST → 302 назад со session errors. GET/PUT/PATCH/DELETE на URL сохранения не отвечают 200.
+    <br>
+    3) <b>Заход и ссылка.</b> Обычный заход без ключей фильтра подставляет сохранённое в форму, шапку-сумму и таблицу.
+    Нет строки или <code>filters = null</code> — как раньше, «Только активные», панель закрыта.
+    Пустые списки групп, тренеров и объектов панель не открывают. «Только неактивные» и пустой
+    <code>status</code> (все ученики) открывают её и не подменяют выбор на «Только активные».
+    Если в адресе есть хотя бы один ключ фильтра, включая пустой <code>status</code> или старые
+    <code>user_name</code> / <code>team_title</code>, этот заход перезаписывает запись целиком:
+    чего в адресе нет, становится значением по умолчанию, отсутствующий <code>status</code> — «Только активные».
+    На «Платежах» <code>user_name</code> и <code>team_title</code> тоже хранятся. На остальных вкладках они только
+    повод перезаписать набор и в JSON не входят.
+    Массив вместо строки (<code>user_name[]=</code>, вложенный <code>filter_team_id</code>, <code>payment_month[]=</code>)
+    страницу не роняет: значение отбрасывается.
+    <br>
+    4) <b>Что не пишется в filters.</b> Группировка «Платежей по месяцам» (<code>mode</code>).
+    На «Платежах по группам» и «Платежах по объектам» таб периода (<code>period</code>: current / previous / all,
+    по умолчанию current) и группировка (<code>mode</code>: operation / subscription, по умолчанию operation).
+    Смена этих табов таблицу обновляет, сохранённые фильтры не трогает. Адрес только с <code>period</code> или
+    <code>mode</code> запись фильтров не перезаписывает.
+    Тренер — только при <code>trainers.view</code>, объект — при <code>locations.view</code>,
+    комиссии оплаты и выплаты на «Платежах» — при <code>reports.additional.value.view</code>.
+    Чужое значение в POST молча не сохраняется и 422 не даёт.
+    <br>
+    5) <b>Это не «Установка цен → По месяцам».</b> Там месяц и фильтры лежат внутри <code>columns</code>
+    при <code>table_key = setting_prices_monthly</code>. У отчётов <code>columns</code> — только видимость колонок.
+    <br><br>
+    Подробно — <a href="/docs/documentation/reports-payments#persisted-filters">reports-payments</a>
+    и <a href="/docs/documentation/reports-admin#persisted-report-filters">reports-admin §1.4</a>.
+    Тесты: <code>PersistedReportFiltersFeatureTest</code>,
+    <code>PersistedReportFiltersHttpContractFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_persisted_report_filters_keep_values_until_save_succeeds</code>.
   </div>
 
   <h2 id="cloudkassir-receipt-email-index">Чек CloudKassir: почта родителя, иначе ученика (2026‑10)</h2>
@@ -975,6 +1126,23 @@
     <code>ReportsLtvTeamsPermissionCatalogFeatureTest</code>,
     <code>ReportsLtvTeamsDocumentationContractTest</code>.
     Анонс: <a href="/doc#reports-ltv-teams-index">/doc#reports-ltv-teams-index</a>.
+  </div>
+
+    <h2 id="reports-debts-context-columns-index">Задолженности: админ, абонемент, группа и объект (2026‑10)</h2>
+  <div class="note">
+    В таблице <code>/admin/reports/debts</code> после имени ученика идут столбцы
+    <b>Админ</b>, <b>Абонемент</b>, <b>Группа</b>, <b>Объект</b>, затем месяц и сумма.
+    Группа — у месячного долга <code>users_prices.team_id</code>, у доп. платежа
+    <code>user_custom_payment.team_id</code>. Объект и админ берутся с этой группы:
+    объект — <code>teams.location_id</code> (нет объекта — «Без объекта»; нет группы — «—»),
+    админ — текущие пользователи <code>location_admin_user</code> (до двух ФИО, дальше
+    «Фамилия Имя, еще N шт.»). Абонемент — <code>lesson_packages.name</code>, иначе «—»
+    (у доп. платежа всегда «—»). Админ и объект видны только при <code>locations.view</code>.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/reports-admin#debts-context-columns">reports-admin §3.2</a>.
+    Тест: <code>DeptReportTest::test_getDebts_context_columns_from_team_location_and_package</code>.
+    Анонс: <a href="/doc#reports-debts-context-columns-index">/doc#reports-debts-context-columns-index</a>.
   </div>
 
     <h2 id="reports-debts-hide-deleted-users-index">Задолженности: скрывать soft-deleted учеников (2026‑09)</h2>
@@ -3823,8 +3991,8 @@
     <br>
     4) <b>Что не сбрасывает вид.</b> Query-фильтры партнёра/метода,
     <code>?open_create=1</code> и <code>?edit={id}</code> не убирают toolbar и не сбрасывают N.
-    «Применить» — <code>e.preventDefault()</code> + <code>dtApi.reload({ keepPage: true })</code>;
-    «Сброс» — <code>dtApi.reload()</code>. Таблицу не пересоздают.
+    «Применить» и «Сброс» — <code>e.preventDefault()</code> + <code>dtApi.reload()</code>
+    (первая страница пагинации). Таблицу не пересоздают.
     Без query-фильтров блок фильтров свёрнут. Отдельной HTML-страницы правки нет:
     <code>GET …/{id}/edit</code> без AJAX редиректит на список с <code>?edit={id}</code>
     и открывает модалку.
@@ -9108,6 +9276,9 @@
         <tr><td>Клиенты</td><td><a href="/docs/documentation/admin-users#users-page-length"><code>/admin/users</code></a></td><td><code>users_index</code></td><td><code>users.view</code></td></tr>
         <tr><td>Группы</td><td><a href="/docs/documentation/admin-teams#teams-page-length"><code>/admin/teams</code></a></td><td><code>teams_index</code></td><td><code>groups.view</code></td></tr>
         <tr><td>Заявки</td><td><a href="/docs/documentation/school-leads-widget#school-leads-page-length"><code>/admin/school-leads</code></a></td><td><code>school_leads_index</code></td><td><code>schoolLeads.view</code></td></tr>
+        <tr><td>Тренеры</td><td><a href="/docs/documentation/admin-trainers#trainers-persisted-filters"><code>/admin/trainers</code></a></td><td><code>trainers_index</code></td><td><code>trainers.view</code></td></tr>
+        <tr><td>Администраторы</td><td><a href="/docs/documentation/admin-role-staff#administrators-persisted-filters"><code>/admin/administrators</code></a></td><td><code>role_staff_admin</code></td><td><code>users.view</code> + <code>users.role.update</code></td></tr>
+        <tr><td>Договоры</td><td><a href="/docs/documentation/contracts#contracts-persisted-filters"><code>/client-contracts</code></a></td><td><code>contracts_index</code></td><td><code>contracts.view</code></td></tr>
         <tr><td>Все платежи</td><td><a href="/docs/documentation/reports-payments"><code>/admin/reports/payments</code></a></td><td><code>reports_payments</code></td><td><code>reports.view</code></td></tr>
         <tr><td>Платежи по месяцам</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payments/monthly</code></a></td><td><code>reports_payments_monthly</code></td><td><code>reports.view</code></td></tr>
         <tr><td>LTV</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/ltv</code></a></td><td><code>reports_ltv</code></td><td><code>reports.view</code></td></tr>
@@ -9124,14 +9295,16 @@
     <br>
     2) <b>Старт таблицы.</b> PHP читает сохранённое значение и передаёт в Blade
     (<code>$leadsPageLength</code>, <code>$usersPageLength</code>,
-    <code>$teamsPageLength</code>,
+    <code>$teamsPageLength</code>, <code>$trainersPageLength</code>,
+    <code>$roleStaffPageLength</code>, <code>$contractsPageLength</code>,
     <code>$paymentsPageLength</code>, <code>$paymentsMonthlyPageLength</code>,
     <code>$ltvPageLength</code>, <code>$ltvTeamsPageLength</code>, <code>$ltvLocationsPageLength</code>, <code>$paymentIntentsPageLength</code>,
     <code>$fiscalReceiptsPageLength</code>, <code>$tbankPaymentsPageLength</code>, <code>$payoutsPageLength</code>,
     <code>$tbankCommissionsPageLength</code>, <code>$walletHistoryPageLength</code>).
     Пресет получает <code>dataTable.pageLength</code> — первый AJAX сразу с нужным <code>length</code>.
     Нет записи или значение не из <code>10/20/50/100</code> → <b>10</b>
-    (<code>UserTableSetting::resolvePageLength</code>).
+    (<code>UserTableSetting::pageLengthForUser</code>).
+    Исключение — <code>/client-contracts</code>: запасное значение <b>20</b>, не 10.
     Настройка чужого пользователя (даже того же партнёра) не подставляется;
     у каждой таблицы свой ключ (N на «Все платежи» не меняет monthly/LTV).
     <br>
@@ -9144,14 +9317,18 @@
     невалидное N → <b>422</b> <code>errors.page_length</code>
     («Можно показать 10, 20, 50 или 100 записей.»), текст под блоком «Показать N».
     Пустой POST: AJAX → 422 по <code>columns</code>; non-AJAX → 302.
-    Non-AJAX успех → JSON 200 + запись в БД (не пустой 200 и не redirect);
-    non-AJAX ошибка → <b>302</b> + session <code>errors[field]</code>.
+    На <code>/client-contracts</code> пустой POST и невалидный <code>page_length</code> остаются JSON 422 и без AJAX
+    (<code>ContractsJsonRequest</code>).
+    Non-AJAX успех сохранения N → JSON 200 + запись в БД (не пустой 200 и не redirect);
+    non-AJAX ошибка N → <b>302</b> + session <code>errors[field]</code>, кроме договоров (там JSON 422).
     Гость → 302/401; без права страницы → 403. PUT/PATCH/DELETE на URI настроек → 404/405.
     <br>
     5) <b>GET колонок не менялся:</b> объект <code>{ ключ: bool }</code> или <code>[]</code>,
     ключа <code>page_length</code> в JSON нет. Сохранение колонок не затирает N и наоборот.
     <br>
     6) <b>Где не включено.</b> Задолженности, исходящие письма, лендинг/виджет заявок,
+    кастомные роли <code>/admin/roles/{name}</code> (общий blade с администраторами, но
+    <code>persistPageLength: false</code> — N и фильтры не пишутся),
     остальные админские таблицы на пресете — пока нет <code>persistPageLength: true</code>.
     Вложенные таблицы LTV, «Платежи по группам» и «Платежи по месяцам» (<code>$('#…').DataTable</code>, не пресет)
     всегда <code>pageLength: 10</code> и N основной таблицы не подхватывают.
@@ -9161,6 +9338,9 @@
     <a href="/docs/documentation/school-leads-widget#school-leads-page-length">заявки §5.1.4</a>,
     <a href="/docs/documentation/admin-users#users-page-length">ученики §2.0</a>,
     <a href="/docs/documentation/admin-teams#teams-page-length">группы §2.0</a>,
+    <a href="/docs/documentation/admin-trainers#trainers-persisted-filters">тренеры §6.0</a>,
+    <a href="/docs/documentation/admin-role-staff#administrators-persisted-filters">администраторы §3.2.1</a>,
+    <a href="/docs/documentation/contracts#contracts-persisted-filters">договоры §4.0</a>,
     <a href="/docs/documentation/reports-admin#reports-page-length">отчёты §1.1</a>,
     <a href="/docs/documentation/tbank-admin-payouts">выплаты T‑Bank</a>,
     <a href="/docs/documentation/tbank#commissions-ui">комиссии Т‑Банк</a>
@@ -11143,17 +11323,17 @@
     <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>manage</code> / <code>sm_register</code>, модалки CRUD, <b>корр. счёт</b> (<code>bank_corr_account</code>, CRM-only + плейсхолдер договоров), <b>API-ключ Подпислона</b> (только superadmin, не <code>.env</code> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), карточка sm-register, ShopCode T‑Bank, guardrails, <code>LegalEntityResolver</code></a></li>
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, <b>create/edit/delete без «OK» и без F5</b> (<a href="/doc#teams-create-edit-toast-index">анонс</a>, §1.2, toast <code>#kidsMainToast</code>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: сайдбар/h4 «Пользователи»; вкладка <b>«Клиенты»</b> (<code>/admin/users</code>, роль <code>user</code>, label «Клиент»); <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок — <a href="/doc#users-client-naming-index">анонс нейминга</a></a></li>
-    <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>только свои группы (<code>groups.own</code>)</b> — <a href="/doc#groups-own-index">анонс</a> / <a href="/docs/documentation/groups-own">groups-own</a>, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
+    <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>только свои группы (<code>groups.own</code>)</b> — <a href="/doc#groups-own-index">анонс</a> / <a href="/docs/documentation/groups-own">groups-own</a>, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, <b>фильтры списка и «Показать N»</b> (<code>trainers_index</code>, старт 10, <a href="/doc#list-persisted-filters-index">анонс</a>), фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/groups-own">Право <code>groups.own</code>: тренер видит только свои группы (<code>team_trainer</code>), учеников своих групп в журнале/клиентах/консоли, merge чужих групп ученика; не в базовых ролях — <a href="/doc#groups-own-index">анонс</a></a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>«Мои документы» активного ребёнка</b> и ссылка из письма <code>?student=&amp;fill=</code> (<a href="/doc#account-documents-family-link-index">анонс</a>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>SMS-2FA</b> (§4.6, <a href="/doc#account-two-factor-permission-index">анонс</a>), <b>подтверждение телефона SMS</b> (§4.7, <a href="/doc#account-phone-verify-permission-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>, шапки от текущего учебного года до 2021–2022 — <a href="/doc#cabinet-season-years-index">анонс</a>), селект «ФИО» (<code>users.view</code>) — только активные ученики <code>role=user</code> (<a href="/doc#cabinet-fio-select-index">анонс</a>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>оверлей «Пульт»</b> (<a href="/doc#ops-monitors-overlay-index">анонс</a>, «Касса» без выплаты после задержки — <a href="/doc#ops-till-missing-payout-index">анонс</a>, копирование строки — <a href="/doc#ops-row-copy-index">анонс</a>)</a></li>
-    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>колонка «Номер договора»</b> (<code>contracts.id</code>, дефолт сортировки, <a href="/doc#contract-list-number-and-fill-remaining-index">анонс</a>), <b>колонка «Договор»</b> — иконка PDF при <code>signed_pdf_path</code>, скачать в новой вкладке (<a href="/doc#contract-list-signed-file-index">анонс</a>), <b>колонка «Обновлён»</b> — последнее событие журнала (<a href="/doc#contract-list-updated-at-index">анонс</a>), <b>колонка «Срок подписания»</b> — <code>fill_expires_at</code> и остаток дней скрытым правом <code>contracts.fillExpiresAt.view</code> (<a href="/doc#contract-list-fill-expires-at-index">анонс</a>; без второй строки у signed/revoked — <a href="/doc#contract-list-hide-remaining-signed-revoked-index">анонс</a>), <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<code>provider_signing_url</code>, <a href="/doc#contract-podpislon-signing-url-index">анонс</a>), <b>текст ошибки Подпислона при failed</b> (<a href="/doc#contract-send-failure-message-index">анонс</a>), <b>телефон в PDF с маской</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), <b>отзыв черновика без возврата 70 ₽</b> (<a href="/doc#contract-revoke-draft-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, <b>фильтры и «Показать N» (старт 20)</b> (<a href="/doc#list-persisted-filters-index">анонс</a>, §4.0), <b>колонка «Номер договора»</b> (<code>contracts.id</code>, дефолт сортировки, <a href="/doc#contract-list-number-and-fill-remaining-index">анонс</a>), <b>колонка «Договор»</b> — иконка PDF при <code>signed_pdf_path</code>, скачать в новой вкладке (<a href="/doc#contract-list-signed-file-index">анонс</a>), <b>колонка «Обновлён»</b> — последнее событие журнала (<a href="/doc#contract-list-updated-at-index">анонс</a>), <b>колонка «Срок подписания»</b> — <code>fill_expires_at</code> и остаток дней скрытым правом <code>contracts.fillExpiresAt.view</code> (<a href="/doc#contract-list-fill-expires-at-index">анонс</a>; без второй строки у signed/revoked — <a href="/doc#contract-list-hide-remaining-signed-revoked-index">анонс</a>), <b>памятка статусов</b> (кнопка «Памятка», timeline как у платежа T‑Bank — <a href="/doc#contract-status-memo-index">анонс</a>), модалка создания, <b>создание со списка клиентов и заявок</b> (<code>lockUser</code>, <a href="/doc#users-contract-create-index">анонс</a>), <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, <b>ЭП Подпислона с ключа юрлица</b> (<a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<code>provider_signing_url</code>, <a href="/doc#contract-podpislon-signing-url-index">анонс</a>), <b>текст ошибки Подпислона при failed</b> (<a href="/doc#contract-send-failure-message-index">анонс</a>), <b>телефон в PDF с маской</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), карточка, revoke/refund, <b>аннулирование sent/opened без возврата 70 ₽</b> (<a href="/doc#contract-annul-after-send-index">анонс</a>), <b>отзыв черновика без возврата 70 ₽</b> (<a href="/doc#contract-revoke-draft-index">анонс</a>), аудит <code>contract.*</code>, вкладка «Шаблоны», <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <b>«По умолчанию» → <code>{{documents_url}}</code></b> (<a href="/doc#contract-template-email-default-link-index">анонс</a>), <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), <b>телефон в PDF с маской +7 (999) 999-99-99</b> (<a href="/doc#account-contract-phone-mask-index">анонс</a>), аккордеон «Юр. лицо» / <code>child_address</code>, пресеты <code>{{child_passport}}</code> / <code>{{child_passport_issued_at}}</code> (<a href="/doc#child-passport-contract-presets-index">анонс</a>), <b>{{team_title}} «Название группы»</b> (<a href="/doc#contract-template-team-title-index">анонс</a>), <b>{{package_lessons_count}} / объект группы / партнёр / соцсети</b> (<a href="/doc#contract-template-context-placeholders-index">анонс</a>), версии, аудит</a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>отчество ребёнка в <code>{{child_full_name}}</code></b> — <a href="/doc#account-contract-child-middlename-index">анонс</a>, <b>авто <code>{{contract_date}}</code></b>, inject юрлица, <b>телефон с маской</b> — <a href="/doc#account-contract-phone-mask-index">анонс</a>, §2.2.1), подпись SMS (<b>ключ юрлица</b> — <a href="/doc#legal-entities-podpislon-key-index">анонс</a>), <b>ссылка на подпись из SMS</b> (<a href="/doc#contract-podpislon-signing-url-index">анонс</a>, §1.3), <b>просрочка заполнения и SMS</b> (<a href="/doc#account-documents-expiry-notice-index">анонс</a>, §1.4), <b>повтор SMS из кабинета</b> (<a href="/doc#account-documents-resend-sms-index">анонс</a>, §1.5), <b>оставшиеся дни до срока подписания</b> (<a href="/doc#account-documents-fill-remaining-days-index">анонс</a>, §1.6), sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0), <b>семейная ссылка из письма на нужного ребёнка</b> (<a href="/doc#account-documents-family-link-index">анонс</a>, §1.2), <b>паспорт (серия и номер)</b>, fallback <code>parent_email</code>, ошибки Laravel под полями, <b>ФИО в родительном: ≥10 символов и 3 слова</b> (<a href="/doc#account-contract-genitive-full-name-index">анонс</a>, §2.2) (<a href="/doc#account-contract-fill-modal-ux-index">анонс</a>), <b>приглашение на почту родителя, иначе клиента</b> (<code>{{addressee_name}}</code>, §6, <a href="/doc#contract-invitation-parent-email-index">анонс</a>), <b>колокольчик админам при signed</b> (<a href="/doc#contract-signed-in-app-index">анонс</a>; после <code>revoked</code> не шлётся — <a href="/doc#contract-annul-after-send-index">анонс</a>)</a></li>
-    <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), <b>фильтры и «Показать N» только на <code>/admin/administrators</code></b> (кастомные роли не запоминают, <a href="/doc#list-persisted-filters-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, <b>уход из группы снимает неоплаченный абонемент</b> (<a href="/doc#student-team-detach-unpaid-charge-index">анонс</a>, §1.3), договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
-    <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>create/edit без «OK» и без F5</b> (<a href="/doc#users-create-edit-toast-index">анонс</a>), <b>шапка и горизонтальный скролл на экране</b> (§2.0.1, <a href="/doc#users-sticky-header-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>поиск «фамилия имя» и ФИО родителя</b> (§2, <a href="/doc#users-datatable-name-search-index">анонс</a>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>паспорт/св-во ученика</b> (<code>users.passport</code>, <code>users.passport_issued_at</code>, §2.7, <a href="/doc#user-student-passport-index">анонс</a>), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
-    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>шапка и горизонтальный скролл на экране</b> §5.1.6 — <a href="/doc#school-leads-sticky-header-index">анонс</a>, <b>фильтры «Секция» и «Объект»</b> Select2 с чекбоксами, несколько значений = любой match §5.1.7 — <a href="/doc#school-leads-filter-select2-index">анонс</a>, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>кнопка «Уведомления»</b> — список email о новых заявках, галочка «не получать», Telegram на вкладке виджета — <a href="/doc#school-leads-email-notifications-index">анонс</a>, §5.1.5 / §7, <b>модалка «Редактирование лида»</b> §5.5.2 — <a href="/doc#school-lead-edit-modal-width-index">анонс</a>, <a href="/doc#school-lead-edit-modal-static-backdrop-index">не закрывается по клику на фон</a>, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы (<code>lockUser</code>, на клиентах — <a href="/doc#users-contract-create-index">анонс</a>), <b>модалка «с договором / без»</b> при «Создать клиента» (70&nbsp;₽, §5.7.2, <a href="/doc#school-lead-create-client-choice-index">анонс</a>), <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
+    <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>create/edit без «OK» и без F5</b> (<a href="/doc#users-create-edit-toast-index">анонс</a>), <b>шапка и горизонтальный скролл на экране</b> (§2.0.1, <a href="/doc#users-sticky-header-index">анонс</a>), <b>delete обнуляет email</b> (<a href="/doc#user-delete-clears-email-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>фильтры формы на админа</b> (§2.0.2, <a href="/doc#list-persisted-filters-index">анонс</a>), <b>поиск «фамилия имя» и ФИО родителя</b> (§2, <a href="/doc#users-datatable-name-search-index">анонс</a>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>паспорт/св-во ученика</b> (<code>users.passport</code>, <code>users.passport_issued_at</code>, §2.7, <a href="/doc#user-student-passport-index">анонс</a>), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), <b>колонка «Договор»</b> (только <code>contracts.view</code>: создать / черновик / PDF signed, встроенная модалка, <code>lockUser</code> — <a href="/doc#users-contract-create-index">анонс</a>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
+    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>фильтры формы на админа</b> §5.1.8 — <a href="/doc#list-persisted-filters-index">анонс</a>, <b>шапка и горизонтальный скролл на экране</b> §5.1.6 — <a href="/doc#school-leads-sticky-header-index">анонс</a>, <b>фильтры «Секция» и «Объект»</b> Select2 с чекбоксами, несколько значений = любой match §5.1.7 — <a href="/doc#school-leads-filter-select2-index">анонс</a>, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>кнопка «Уведомления»</b> — список email о новых заявках, галочка «не получать», Telegram на вкладке виджета — <a href="/doc#school-leads-email-notifications-index">анонс</a>, §5.1.5 / §7, <b>модалка «Редактирование лида»</b> §5.5.2 — <a href="/doc#school-lead-edit-modal-width-index">анонс</a>, <a href="/doc#school-lead-edit-modal-static-backdrop-index">не закрывается по клику на фон</a>, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы (<code>lockUser</code>, на клиентах — <a href="/doc#users-contract-create-index">анонс</a>), <b>модалка «с договором / без»</b> при «Создать клиента» (70&nbsp;₽, §5.7.2, <a href="/doc#school-lead-create-client-choice-index">анонс</a>), <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, <b>инструкция для родителей</b> <code>/instruction</code> и PDF <code>/instruction.pdf</code> (телефон только из query, не из <code>partners.phone</code>), CRM-кнопка открывает <b>модалку телефона</b> → <code>POST /admin/school-leads/instruction-preview</code> (<a href="/doc#landing-parents-instruction-index">анонс</a>, §4.2 / §8), каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), блок «Об услуге» — адрес / вид спорта / стоимость / период без расписания (<a href="/doc#landing-team-info-rows-index">анонс</a>, §5.4.2), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
     <li><a href="/docs/documentation/partner-self-registration"><strong>Саморегистрация школы с лендинга</strong>: кнопка «Регистрация» (школа, не ученик), <code>/partner/register</code>, native POST → 302 <code>/cabinet</code>, флаг <code>PARTNER_SELF_REGISTRATION_ENABLED</code>, заглушка при закрытии — <a href="/doc#partner-self-registration-index">анонс</a></a></li>

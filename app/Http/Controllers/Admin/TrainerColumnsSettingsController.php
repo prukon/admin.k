@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\TrainerColumnsSettingsSaveRequest;
 use App\Models\UserTableSetting;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class TrainerColumnsSettingsController extends Controller
@@ -26,23 +26,22 @@ class TrainerColumnsSettingsController extends Controller
         return response()->json($columns);
     }
 
-    public function saveColumnsSettings(Request $request)
+    public function saveColumnsSettings(TrainerColumnsSettingsSaveRequest $request)
     {
         $userId = Auth::id();
+        $data = $request->validated();
+        $payload = [];
 
-        $data = $request->validate([
-            'columns' => 'required|array',
-        ]);
+        if (array_key_exists('columns', $data) && is_array($data['columns'])) {
+            $payload['columns'] = $data['columns'];
+        }
 
-        $raw = $data['columns'];
-        $normalized = [];
+        if (array_key_exists('page_length', $data) && $data['page_length'] !== null) {
+            $payload['page_length'] = (int) $data['page_length'];
+        }
 
-        foreach ($raw as $key => $value) {
-            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-            if ($bool === null) {
-                $bool = false;
-            }
-            $normalized[$key] = $bool;
+        if ($payload === []) {
+            return response()->json(['success' => true]);
         }
 
         UserTableSetting::updateOrCreate(
@@ -50,9 +49,7 @@ class TrainerColumnsSettingsController extends Controller
                 'user_id'   => $userId,
                 'table_key' => 'trainers_index',
             ],
-            [
-                'columns' => $normalized,
-            ]
+            $payload
         );
 
         return response()->json(['success' => true]);

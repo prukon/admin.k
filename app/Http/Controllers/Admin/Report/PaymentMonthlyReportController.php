@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
+use App\Http\Requests\Admin\Report\SavePaymentsMonthlyReportFiltersRequest;
+use App\Services\Reports\PersistedReportFilters;
 use App\Models\Location;
 use App\Models\Team;
 use App\Models\TrainerProfile;
@@ -20,6 +22,8 @@ use Yajra\DataTables\DataTables;
 
 class PaymentMonthlyReportController extends AdminBaseController
 {
+    use SavesPersistedReportFilters;
+
     private const TABLE_KEY = 'reports_payments_monthly';
 
     public function __construct(PartnerContext $partnerContext)
@@ -32,6 +36,7 @@ class PaymentMonthlyReportController extends AdminBaseController
      */
     public function index(Request $request)
     {
+        app(PersistedReportFilters::class)->hydrate($request, PersistedReportFilters::MONTHLY);
         $partnerId = $this->requirePartnerId();
 
         $filters = $request->query();
@@ -313,6 +318,11 @@ class PaymentMonthlyReportController extends AdminBaseController
         }
 
         return response()->json($columns);
+    }
+
+    public function saveFilters(SavePaymentsMonthlyReportFiltersRequest $request)
+    {
+        return $this->storePersistedReportFilters($request, PersistedReportFilters::MONTHLY);
     }
 
     public function saveColumnsSettings(ColumnsSettingsWithPageLengthSaveRequest $request)

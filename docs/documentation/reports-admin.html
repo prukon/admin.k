@@ -29,7 +29,7 @@
     Начиная с 2026‑03, отчёты админки приводятся к единому каркасу (как в “Платежи”):
     <ul>
       <li>верхняя панель: заголовок + “Общая сумма” + кнопки “Фильтры”/“Колонки”</li>
-      <li>применение фильтров <b>без перезагрузки страницы</b>: <code>preventDefault()</code> → <code>dtApi.reload({ keepPage: true })</code> (пресет <code>KidsCrmDataTable</code>)</li>
+      <li>применение фильтров <b>без перезагрузки страницы</b>: <code>preventDefault()</code> → <code>dtApi.reload()</code> (первая страница пагинации; пресет <code>KidsCrmDataTable</code>)</li>
       <li>“Общая сумма” обновляется через отдельный endpoint <code>…/total</code> и меняется <b>с анимацией</b></li>
       <li>настройки колонок сохраняются <b>для текущего пользователя</b> в <code>user_table_settings</code> (если отчёт поддерживает “Колонки”)</li>
       <li>с 2026‑08 на opted-in таблицах ещё и «Показать N» (<code>page_length</code>) — §<a href="#reports-page-length">1.1</a>; номер страницы не пишем</li>
@@ -75,6 +75,43 @@
     <code>BladeInlineJsSyntaxTest::test_monthly_and_ltv_detail_tables_hardcode_ten_and_do_not_persist</code>,
     <code>BladeInlineJsSyntaxTest::test_report_and_payout_filter_submit_reloads_without_recreating_datatable</code>.
     Канонический список URL — <a href="/doc#datatable-page-length-catalog">/doc</a>.
+  </div>
+
+  <h2 id="persisted-report-filters">1.4) Фильтры формы — персонально на пользователя</h2>
+  <div class="note">
+    Вкладки «Платежи», «Платежи по месяцам», «Платежи по ученикам (LTV)», «Платежи по группам»,
+    «Платежи по объектам» и «Задолженности»
+    запоминают фильтры формы в <code>user_table_settings.filters</code>
+    (ключи <code>reports_payments</code>, <code>reports_payments_monthly</code>, <code>reports_ltv</code>,
+    <code>reports_ltv_teams</code>, <code>reports_ltv_locations</code>, <code>reports_debts</code>).
+    Видимость колонок и «Показать N» в той же строке не затираются.
+    У задолженностей <code>page_length</code> по-прежнему не пишется (§1.1); их фильтры при этом сохраняются.
+    Поиск DataTables (§1.2) в <code>filters</code> не входит.
+    Анонс — <a href="/doc#reports-persisted-filters-index">/doc#reports-persisted-filters-index</a>.
+    <ul>
+      <li><b>Запись.</b> «Применить» — POST <code>…/filters</code> (Request <code>Save*ReportFiltersRequest</code>).
+        «Сброс» — тот же URL с <code>reset=1</code>: пустые поля и <code>status=active</code>, даже если в том же запросе пришли старые значения.
+        AJAX (<code>Accept: application/json</code> или <code>X-Requested-With</code>) → 200 <code>{success:true}</code>.
+        Обычный POST без этих заголовков → <b>302</b> на страницу вкладки, запись в БД уже сохранена.
+        После успеха «Применить» и «Сброс» таблица открывается с первой страницы (<code>dtApi.reload()</code> без <code>keepPage</code>).
+        Ошибка валидации: AJAX → 422 <code>errors.&lt;поле&gt;</code> (для списка — <code>filter_team_id.0</code>), UI показывает текст под полем и не вызывает <code>reload</code>;
+        non-AJAX → 302 назад со session errors. GET/PUT/PATCH/DELETE на этот URL не отвечают 200.</li>
+      <li><b>Чтение.</b> Заход без параметров фильтра подставляет JSON в query страницы, форма и шапка-сумма совпадают с таблицей.
+        Нет строки или <code>filters = null</code> — как раньше, по умолчанию только активные ученики, панель фильтров закрыта.
+        Пустые списки групп/тренеров/объектов панель не открывают. «Только неактивные» и пустой <code>status</code> (все ученики) открывают её и не подставляют «Только активные».
+        Query, где вместо строки пришёл массив (<code>user_name[]=</code>, вложенный <code>filter_team_id</code>, <code>payment_month[]=</code>), не роняет страницу: значение отбрасывается.</li>
+      <li><b>Ссылка.</b> Если в query есть ключ фильтра (в том числе пустой <code>status</code> или старые <code>user_name</code> / <code>team_title</code>),
+        этот набор перезаписывает запись. На «Платежах» <code>user_name</code> и <code>team_title</code> тоже хранятся;
+        на остальных вкладках они только повод перезаписать форму, в JSON не входят.</li>
+      <li>Тренер, объект и комиссии оплаты/выплаты пишутся и читаются только при своём праве.
+        Группировка «По месяцам» (<code>mode</code>) в эти фильтры не входит.
+        На «Платежах по группам» и «Платежах по объектам» табы периода (<code>period</code>) и группировки (<code>mode</code>) тоже не пишутся в <code>filters</code>.
+        POST: <code>reports.ltv.teams.filters.save</code> (<code>SaveLtvTeamsReportFiltersRequest</code>, право <code>reports.ltv.teams.view</code>),
+        <code>reports.ltv.locations.filters.save</code> (<code>SaveLtvLocationsReportFiltersRequest</code>, право <code>reports.ltv.locations.view</code>).</li>
+    </ul>
+    Тесты: <code>PersistedReportFiltersFeatureTest</code>,
+    <code>PersistedReportFiltersHttpContractFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_persisted_report_filters_keep_values_until_save_succeeds</code>.
   </div>
 
   <h2 id="reports-datatable-search">1.2) Поиск DataTables (поле над таблицей)</h2>
@@ -406,6 +443,18 @@
         <td><code>DeptReportController::resolveDebtUserStatusFilter</code> → <code>applyDebtReportUserStatusFilter</code></td>
       </tr>
       <tr>
+        <td>Платежи по группам</td>
+        <td><code>/admin/reports/ltv/teams</code></td>
+        <td><code>pay-ltv-teams-filter-user-status</code></td>
+        <td><code>LtvTeamsReportController::resolveLtvTeamsUserStatusFilter</code></td>
+      </tr>
+      <tr>
+        <td>Платежи по объектам</td>
+        <td><code>/admin/reports/ltv/locations</code></td>
+        <td><code>pay-ltv-locations-filter-user-status</code></td>
+        <td><code>LtvLocationsReportController::resolveLtvLocationsUserStatusFilter</code></td>
+      </tr>
+      <tr>
         <td>Назначение абонементов</td>
         <td><code>/admin/lesson-packages/assignments</code></td>
         <td><code>ulp-filter-user-status</code></td>
@@ -416,7 +465,7 @@
   <ul>
     <li><b>JS:</b> параметр <code>status</code> добавляется в объект фильтров при AJAX (<code>…FilterParams()</code>); кнопка «Сброс» возвращает значение <code>active</code> (не «Все ученики»). Значение <code>active</code> не считается «нестандартным» фильтром — панель фильтров по умолчанию свёрнута.</li>
     <li><b>LTV — не путать с колонкой «Статус»:</b> колонка <code>is_enabled</code> (badge «Активен» / «Отключен») показывает статус ученика в строке таблицы; фильтр «Активность ученика» задаёт, <i>каких</i> учеников включать в выборку.</li>
-    <li><b>Не путать с отчётом «Payment intents»:</b> там колонка/ключ <code>status</code> — статус платёжного намерения провайдера; параметр фильтра активности ученика используется только в отчётах Платежи / monthly / LTV / Задолженности.</li>
+    <li><b>Не путать с отчётом «Payment intents»:</b> там колонка/ключ <code>status</code> — статус платёжного намерения провайдера; параметр фильтра активности ученика используется в отчётах Платежи, monthly, LTV, «Платежи по группам», «Платежи по объектам» и Задолженности.</li>
     <li><b>Задолженности:</b> фильтр применяется и к месячным (<code>users_prices</code>), и к периодным (<code>user_custom_payment</code>) источникам через общий join <code>users</code>.
       Soft-deleted ученики (<code>users.deleted_at</code>) в этот отчёт <b>не</b> входят независимо от <code>status</code> —
       <a href="#debts">§3</a>.</li>
@@ -466,7 +515,9 @@
 
   <h2 id="debts">3) Отчёт “Задолженности”</h2>
   <ul>
-    <li><b>Страница</b>: <code>/admin/reports/debts</code> (middleware <code>can:reports.view</code>)</li>
+    <li><b>Страница</b>: <code>/admin/reports/debts</code> (middleware <code>can:reports.view</code>).
+      Фильтры формы — <code>user_table_settings.filters</code> при <code>table_key = reports_debts</code> (§<a href="#persisted-report-filters">1.4</a>).
+      «Показать N» у этой таблицы по-прежнему не сохраняется (§1.1).</li>
     <li><b>DataTables</b>: <code>GET /admin/reports/getDebts</code> (только AJAX / <code>X-Requested-With</code>; без AJAX → <b>404</b>; UI — <code>KidsCrmDataTable.create('#debts-table')</code>; шапка и горизонтальный скролл — §<a href="#reports-tables-sticky-header">1.3</a>)</li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/debts/total</code> (JSON: <code>{ total_formatted, total_raw }</code>) —
       те же фильтры и то же правило оплаты, что у таблицы; на странице JS
@@ -497,7 +548,7 @@
         <li><code>GET /admin/reports/debts/columns-settings</code> (<code>reports.debts.columns-settings.get</code>)</li>
         <li><code>POST /admin/reports/debts/columns-settings</code> (<code>reports.debts.columns-settings.save</code>, тело: <code>columns: {key: true/false}</code>; без <code>columns</code> → <b>422</b>)</li>
         <li>Хранение: <code>user_table_settings.table_key = reports_debts</code></li>
-        <li>Ключи колонок по умолчанию: <code>user_name</code>, <code>month</code>, <code>price</code></li>
+        <li>Ключи колонок по умолчанию: <code>user_name</code>, <code>lesson_package</code>, <code>team_title</code>, <code>month</code>, <code>price</code>. При праве <code>locations.view</code> ещё <code>location_admin</code> и <code>location</code> (§<a href="#debts-context-columns">3.2</a>).</li>
       </ul>
     </li>
   </ul>
@@ -556,6 +607,19 @@
     Soft-deleted ученики скрыты всегда, этот фильтр их не возвращает.
     <br>Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>; гость — <b>302/401/403</b>.
   </div>
+
+  <h3 id="debts-context-columns">3.2) Колонки «Админ», «Абонемент», «Группа», «Объект»</h3>
+  <div class="note">
+    Порядок после «Имя пользователя»: Админ, Абонемент, Группа, Объект, затем Месяц и Сумма.
+    По умолчанию включены, скрываются в «Колонках», сортируются.
+    Анонс — <a href="/doc#reports-debts-context-columns-index">/doc#reports-debts-context-columns-index</a>.
+  </div>
+  <ul>
+    <li><b>Группа</b> (<code>team_title</code>): название группы строки. Месячный долг — <code>users_prices.team_id</code>, доп. платёж — <code>user_custom_payment.team_id</code>. Нет группы — «—».</li>
+    <li><b>Объект</b> (<code>location</code> / JSON <code>location_title</code>): <code>teams.location_id</code> этой группы. Группа без объекта — «Без объекта». Нет группы — «—». Колонка и чекбокс только при <code>locations.view</code>; без права поле не отдаётся в JSON.</li>
+    <li><b>Админ</b> (<code>location_admin</code>): текущие администраторы объекта (<code>location_admin_user</code>, без soft-deleted). До двух фамилий с именами через запятую; если больше — «Фамилия Имя, еще N шт.», полный список в <code>location_admin_names</code> (ховер, как в справочнике объектов). Нет объекта или администраторов — «—». То же право <code>locations.view</code>.</li>
+    <li><b>Абонемент</b> (<code>lesson_package</code> / JSON <code>lesson_package_name</code>): <code>lesson_packages.name</code> по <code>users_prices.lesson_package_id</code>. Нет шаблона и любой доп. платёж — «—».</li>
+  </ul>
 
   <h2 id="ltv-vs-partners-turnover">4) Отчёт “Платежи по ученикам (LTV)”</h2>
   <ul>
@@ -620,7 +684,7 @@
     <li><b>Колонки</b>:
       <ul>
         <li><code>GET /admin/reports/ltv/teams/columns-settings</code> / POST save (<code>ColumnsSettingsWithPageLengthSaveRequest</code>)</li>
-        <li><code>user_table_settings.table_key = reports_ltv_teams</code>, «Показать N» — <code>$ltvTeamsPageLength</code></li>
+        <li><code>user_table_settings.table_key = reports_ltv_teams</code>, «Показать N» — <code>$ltvTeamsPageLength</code>. Фильтры формы — та же строка, колонка <code>filters</code> (§<a href="#persisted-report-filters">1.4</a>). <code>period</code> и <code>mode</code> в неё не пишутся.</li>
         <li>Ключи: <code>team_title</code>, <code>user_names</code>, <code>avg_attendance</code>, <code>total_price</code>, <code>payment_count</code>, <code>avg_check</code>, <code>first_payment_date</code>, <code>last_payment_date</code>, <code>is_enabled</code></li>
         <li><b>«Ср. чек»</b> (<code>avg_check</code>) — после «Кол-во платежей»: сумма строки группы / число её платежей, целые рубли. Анонс — <a href="/doc#reports-avg-check-index">/doc#reports-avg-check-index</a>.</li>
         <li>Поиск DataTables: название группы и ФИО (<code>applyLtvTeamsDataTableSearch</code>, <code>filter($callback)</code> без второго аргумента). Сумма / ср. чек / ср. посещаемость / счётчик / даты / статус в LIKE не входят.</li>
@@ -655,7 +719,7 @@
     <li><b>Колонки</b>:
       <ul>
         <li><code>GET /admin/reports/ltv/locations/columns-settings</code> / POST save (<code>ColumnsSettingsWithPageLengthSaveRequest</code>)</li>
-        <li><code>user_table_settings.table_key = reports_ltv_locations</code>, «Показать N» — <code>$ltvLocationsPageLength</code></li>
+        <li><code>user_table_settings.table_key = reports_ltv_locations</code>, «Показать N» — <code>$ltvLocationsPageLength</code>. Фильтры формы — та же строка, колонка <code>filters</code> (§<a href="#persisted-report-filters">1.4</a>). <code>period</code> и <code>mode</code> в неё не пишутся.</li>
         <li>Ключи: <code>location_name</code>, <code>user_names</code>, <code>avg_attendance</code>, <code>total_price</code>, <code>payment_count</code>, <code>avg_check</code>, <code>first_payment_date</code>, <code>last_payment_date</code>, <code>is_enabled</code></li>
         <li><b>«Ср. чек»</b> (<code>avg_check</code>) — после «Кол-во платежей»: сумма строки объекта / число её платежей, целые рубли. Анонс — <a href="/doc#reports-avg-check-index">/doc#reports-avg-check-index</a>.</li>
         <li>Поиск DataTables: название объекта и ФИО (<code>applyLtvLocationsDataTableSearch</code>, <code>filter($callback)</code> без второго аргумента). Сумма / ср. чек / ср. посещаемость / счётчик / даты / статус в LIKE не входят.</li>
@@ -712,6 +776,8 @@
   </div>
   <div class="note">
     Режим группировки (по дате операции / по месяцу абонемента) в UI хранится в форме/JS и не обязан отражаться в URL.
+    В <code>user_table_settings.filters</code> <code>mode</code> не пишется (§<a href="#persisted-report-filters">1.4</a>).
+    «Сброс» фильтров в UI возвращает группировку на <code>subscription</code>, в базу режим не кладётся.
     В запросы DataTables/детализации/total передаётся параметр <code>mode</code> (<code>subscription</code> по умолчанию).
     Фильтр локации — §2.1: <code>payments.location_id</code>; параметр <code>filter_location_id</code> уходит в <code>monthly/data</code>, <code>monthly/total</code> и <code>monthly/{yearMonth}/payments</code>.
     Фильтр «Активность ученика» — §2.3: <code>status</code> в тех же endpoints.
@@ -949,6 +1015,8 @@
       <tr><td>Платежи</td><td><code>reports_payments</code></td><td><code>PaymentReportController</code></td></tr>
       <tr><td>Задолженности</td><td><code>reports_debts</code></td><td><code>DeptReportController</code></td></tr>
       <tr><td>LTV</td><td><code>reports_ltv</code></td><td><code>LtvReportController</code></td></tr>
+      <tr><td>Платежи по группам</td><td><code>reports_ltv_teams</code></td><td><code>LtvTeamsReportController</code></td></tr>
+      <tr><td>Платежи по объектам</td><td><code>reports_ltv_locations</code></td><td><code>LtvLocationsReportController</code></td></tr>
       <tr><td>Платежи по месяцам</td><td><code>reports_payments_monthly</code></td><td><code>PaymentMonthlyReportController</code></td></tr>
       <tr><td>Платежные запросы</td><td><code>reports_payment_intents</code></td><td><code>PaymentIntentReportController</code></td></tr>
       <tr><td>Чеки</td><td><code>reports_fiscal_receipts</code></td><td><code>FiscalReceiptReportController</code></td></tr>
@@ -960,7 +1028,7 @@
   </table>
   <p class="small">GET везде возвращает JSON-объект <code>{ column_key: bool, … }</code> (пустой объект, если настроек нет)
     и ключа <code>page_length</code> не отдаёт.
-    POST на opted-in таблицах (payments / monthly / LTV / intents / fiscal / tbank-payments) принимает
+    POST на opted-in таблицах (payments / monthly / LTV / «Платежи по группам» / «Платежи по объектам» / intents / fiscal / tbank-payments) принимает
     <code>{ columns: { … } }</code> и/или <code>{ page_length: 10|20|50|100 }</code>
     (<code>ColumnsSettingsWithPageLengthSaveRequest</code>), отвечает <code>{ success: true }</code>.
     Задолженности и исходящие письма: POST только <code>columns</code> (обычный <code>Request</code>),
@@ -1076,7 +1144,7 @@
     <li><code>tests/Feature/Crm/Reports/ReportsTablesStickyHeaderFeatureTest.php</code> — закрепление thead и липкого горизонтального скролла на payments / monthly / LTV / debts / intents / fiscal / tbank / emails: fallback без плагина, <code>scrollLeft</code> не <code>margin-left</code>, фильтр не recreate, вложенные LTV/monthly без FixedHeader, колонки payments/tbank/intents/fiscal/emails rebind, intents/fiscal без <code>fixedColumns</code>, первое открытие extra — колонки checked и фильтры свёрнуты, повтор с фильтром не снимает pin и не снимает checked, невалидный status T‑Bank — 302/422 по полю</li>
     <li><code>tests/Feature/Crm/Reports/ReportsTablesStickyHeaderFullAccessFeatureTest.php</code> — гость HTML 302 / JSON 401; без <code>reports.view</code> → 403 на payments/monthly/LTV/debts; без права вкладки → 403 на intents/fiscal/tbank/emails; viewer с правом и superadmin 200 + bind; admin без права вкладки 403; повторное открытие с фильтром; POST/PATCH/PUT/DELETE → 405; data AJAX JSON 200 без sticky-скрипта, emails без AJAX → 404, tbank data без AJAX — JSON; учётка без организации</li>
     <li><code>tests/Unit/Documentation/ReportsTablesStickyHeaderDocumentationContractTest.php</code> — анонс <code>/doc#reports-tables-sticky-header-index</code>, Vite-вход <code>admin-reports-tables.css</code> / <code>admin-reports-tables-sticky.js</code>, <code>@vite</code>, нет <code>public/css</code></li>
-    <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code>, фильтр локации, unit-кейсы <code>is_manual_paid</code>,
+    <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code>, фильтр локации, колонки группы / объекта / админа / абонемента §<a href="#debts-context-columns">3.2</a>, unit-кейсы <code>is_manual_paid</code>,
       <code>test_debts_exclude_soft_deleted_users_from_table_and_total</code>,
       <code>test_debts_exclude_soft_deleted_users_when_status_all</code>)</li>
     <li><code>tests/Unit/Documentation/ReportsDebtsHideDeletedUsersDocumentationContractTest.php</code> — анонс <a href="/doc#reports-debts-hide-deleted-users-index">/doc#reports-debts-hide-deleted-users-index</a></li>

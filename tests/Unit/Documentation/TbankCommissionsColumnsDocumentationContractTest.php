@@ -30,7 +30,8 @@ final class TbankCommissionsColumnsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('data-column-key', $chunk);
         $this->assertStringContainsString('persistPageLength', $chunk);
         $this->assertStringContainsString('$tbankCommissionsPageLength', $chunk);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $chunk);
+        $this->assertStringContainsString('dtApi.reload()', $chunk);
+        $this->assertStringNotContainsString('keepPage: true', $chunk);
         $this->assertStringContainsString('errors.columns', $chunk);
         $this->assertStringContainsString('errors.page_length', $chunk);
         $this->assertStringContainsString('whereNumber', $chunk);
@@ -104,7 +105,12 @@ final class TbankCommissionsColumnsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('pageLength: @json((int) ($tbankCommissionsPageLength ?? 10))', $listChunk);
         $this->assertStringContainsString("KidsCrmDataTable.create('#tbank-commissions-table'", $listChunk);
         $this->assertStringContainsString('$form.on(\'submit\'', $listChunk);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $listChunk);
+        $submitPos = strpos($listChunk, '$form.on(\'submit\'');
+        $this->assertNotFalse($submitPos);
+        $submitChunk = substr($listChunk, $submitPos, 400);
+        $this->assertStringContainsString('dtApi.reload();', $submitChunk);
+        $this->assertStringNotContainsString('keepPage', $submitChunk);
+        $this->assertStringContainsString('dtApi.reload({keepPage: true})', $listChunk);
         $this->assertStringContainsString('$(\'#tbank-commissions-filters-reset\').on(\'click\'', $listChunk);
         $this->assertStringNotContainsString('data-column-key="rownum"', $listChunk);
         foreach ([

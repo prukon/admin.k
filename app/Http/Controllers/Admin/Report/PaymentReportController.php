@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\Admin\Report\SavePaymentsReportFiltersRequest;
+use App\Services\Reports\PersistedReportFilters;
 use App\Models\FiscalReceipt;
 use App\Models\Location;
 use App\Models\UserTableSetting;
@@ -42,6 +44,8 @@ use Illuminate\Http\JsonResponse;
 
 class PaymentReportController extends AdminBaseController
 {
+    use SavesPersistedReportFilters;
+
     public function __construct(PartnerContext $partnerContext)
     {
         parent::__construct($partnerContext);
@@ -50,6 +54,7 @@ class PaymentReportController extends AdminBaseController
     //Отчет Платежи
     public function payments(Request $request)
     {
+        app(PersistedReportFilters::class)->hydrate($request, PersistedReportFilters::PAYMENTS);
         $partnerId = $this->requirePartnerId();
         // Log::debug('[payments] Partner ID', ['partnerId' => $partnerId]);
 
@@ -356,7 +361,7 @@ class PaymentReportController extends AdminBaseController
     private function resolvePaymentsFilterUserLabel(int $partnerId, array $filters): ?array
     {
         $raw = $filters['filter_user_id'] ?? null;
-        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+        if (is_array($raw) || $raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
             return null;
         }
         $uid = (int) $raw;
@@ -387,7 +392,7 @@ class PaymentReportController extends AdminBaseController
     private function resolvePaymentsFilterTeamLabel(int $partnerId, array $filters): ?array
     {
         $raw = $filters['filter_team_id'] ?? null;
-        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+        if (is_array($raw) || $raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
             return null;
         }
         $tid = (int) $raw;
@@ -419,7 +424,7 @@ class PaymentReportController extends AdminBaseController
     private function resolvePaymentsFilterTrainerLabel(int $partnerId, array $filters): ?array
     {
         $raw = $filters['filter_trainer_profile_id'] ?? null;
-        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+        if (is_array($raw) || $raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
             return null;
         }
         $tpid = (int) $raw;
@@ -2051,6 +2056,11 @@ SQL;
         }
 
         return response()->json($columns);
+    }
+
+    public function saveFilters(SavePaymentsReportFiltersRequest $request)
+    {
+        return $this->storePersistedReportFilters($request, PersistedReportFilters::PAYMENTS);
     }
 
     /**

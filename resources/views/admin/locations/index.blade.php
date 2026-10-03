@@ -533,20 +533,20 @@
 
             const table = dtApi.table;
 
-            function reloadLocationsTable() {
-                dtApi.reload({ keepPage: true });
+            function reloadLocationsTable(options) {
+                dtApi.reload(options && options.resetPage ? {} : { keepPage: true });
                 syncLocationsFiltersCollapseState();
             }
 
             window.__reloadLocationsTable = reloadLocationsTable;
 
             $('#filter-apply').on('click', function () {
-                reloadLocationsTable();
+                reloadLocationsTable({ resetPage: true });
             });
 
             $('#locations-report-filters').on('submit', function (e) {
                 e.preventDefault();
-                reloadLocationsTable();
+                reloadLocationsTable({ resetPage: true });
             });
 
             $('#filter-reset').on('click', function () {
@@ -554,12 +554,12 @@
                 $('#filter-district').val('');
                 $('#filter-admin').val('');
                 $('#filter-status').val(defaultFilterStatus);
-                reloadLocationsTable();
+                reloadLocationsTable({ resetPage: true });
             });
 
             $('#filter-name').on('keyup', function (e) {
                 if (e.key === 'Enter') {
-                    reloadLocationsTable();
+                    reloadLocationsTable({ resetPage: true });
                 }
             });
 

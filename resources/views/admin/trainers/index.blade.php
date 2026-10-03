@@ -2,7 +2,12 @@
 
 @php
     $canChangeTrainerPassword = auth()->user()->can('users.password.update');
-    $trainersHasActiveFilters = false;
+    $trainersHasActiveFilters = $trainersHasActiveFilters ?? false;
+    $listFilters = $listFilters ?? [
+        'name' => '',
+        'team_id' => '',
+        'status' => 'active',
+    ];
 @endphp
 
 @section('content')
@@ -122,23 +127,23 @@
                         <div class="row g-2 align-items-end">
                             <div class="col-12 col-md-3">
                                 <label class="form-label" for="filter-name">Имя</label>
-                                <input id="filter-name" class="form-control" type="text" placeholder="Поиск по ФИО, email, телефону">
+                                <input id="filter-name" name="name" class="form-control" type="text" value="{{ $listFilters['name'] }}" placeholder="Поиск по ФИО, email, телефону">
                             </div>
                             <div class="col-12 col-md-3">
                                 <label class="form-label" for="filter-team">Группа</label>
-                                <select id="filter-team" class="form-select">
-                                    <option value="">Все группы</option>
+                                <select id="filter-team" name="team_id" class="form-select">
+                                    <option value="" @selected($listFilters['team_id'] === '')>Все группы</option>
                                     @foreach($teamOptions as $team)
-                                        <option value="{{ $team->id }}">{{ $team->title }}</option>
+                                        <option value="{{ $team->id }}" @selected((string) $listFilters['team_id'] === (string) $team->id)>{{ $team->title }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-12 col-md-3">
                                 <label class="form-label" for="filter-status">Статус</label>
-                                <select id="filter-status" class="form-select">
-                                    <option value="">Все</option>
-                                    <option value="active" selected>Только активные</option>
-                                    <option value="inactive">Только неактивные</option>
+                                <select id="filter-status" name="status" class="form-select">
+                                    <option value="" @selected($listFilters['status'] === '')>Все</option>
+                                    <option value="active" @selected($listFilters['status'] === 'active')>Только активные</option>
+                                    <option value="inactive" @selected($listFilters['status'] === 'inactive')>Только неактивные</option>
                                 </select>
                             </div>
                             <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
@@ -497,6 +502,8 @@
         $(document).ready(function () {
             const defaultAvatar = window.__trainerPageConfig.defaultAvatar;
             const defaultFilterStatus = 'active';
+            const trainersFiltersSaveUrl = @json(route('admin.trainers.filters.save'));
+            @include('admin.report.partials.persist-report-filters-fn')
 
             window.__onTrainerTypesChanged = function (types) {
                 const list = Array.isArray(types) ? types : [];
@@ -572,6 +579,7 @@
                         is_enabled: true,
                         actions: true,
                     },
+                    persistPageLength: true,
                     urls: {
                         get: @json(route('admin.trainers.columns-settings.get')),
                         save: @json(route('admin.trainers.columns-settings.save')),
@@ -579,6 +587,7 @@
                     csrfToken: $('meta[name="csrf-token"]').attr('content'),
                 },
                 dataTable: {
+                    pageLength: @json((int) ($trainersPageLength ?? 10)),
                     ajax: {
                         url: window.__trainerPageConfig.dataUrl,
                         type: 'GET',
@@ -656,7 +665,7 @@
             const table = dtApi.table;
 
             function reloadTrainersTable() {
-                dtApi.reload({ keepPage: true });
+                dtApi.reload();
                 syncTrainersFiltersCollapseState();
             }
 
@@ -665,25 +674,33 @@
                 syncTrainersFiltersCollapseState();
             };
 
+            function applyTrainersFilters() {
+                kidsCrmPersistReportFilters($('#trainers-report-filters'), trainersFiltersSaveUrl, trainersFilterParams(), function () {
+                    reloadTrainersTable();
+                });
+            }
+
             $('#filter-apply').on('click', function () {
-                reloadTrainersTable();
+                applyTrainersFilters();
             });
 
             $('#trainers-report-filters').on('submit', function (e) {
                 e.preventDefault();
-                reloadTrainersTable();
+                applyTrainersFilters();
             });
 
             $('#filter-reset').on('click', function () {
-                $('#filter-name').val('');
-                $('#filter-team').val('');
-                $('#filter-status').val(defaultFilterStatus);
-                reloadTrainersTable();
+                kidsCrmPersistReportFilters($('#trainers-report-filters'), trainersFiltersSaveUrl, { reset: 1 }, function () {
+                    $('#filter-name').val('');
+                    $('#filter-team').val('');
+                    $('#filter-status').val(defaultFilterStatus);
+                    reloadTrainersTable();
+                });
             });
 
             $('#filter-name').on('keyup', function (e) {
                 if (e.key === 'Enter') {
-                    reloadTrainersTable();
+                    applyTrainersFilters();
                 }
             });
 

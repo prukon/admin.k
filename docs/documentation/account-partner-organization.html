@@ -218,7 +218,8 @@
         UI-дефолт «Только активные»: <code>option value="active" selected</code> + <code>ajax.data</code> шлёт <code>d.status</code>.
         API без <code>status</code> не навязывает active (считает всех не-soft-deleted).
         Сброс фильтра возвращает <code>defaultFilterStatus</code>, не <code>val('')</code>.
-        Apply / Submit / Reset → <code>reloadPartnersTable</code>, без перезагрузки страницы.</td>
+        Apply / Submit / Enter / Reset → <code>reloadPartnersTable()</code> → <code>dtApi.reload()</code> (первая страница).
+        Правка партнёра — <code>window.reloadPartnersTable</code> с <code>keepPage: true</code>.</td>
       </tr>
       <tr>
         <td>Клиент</td>

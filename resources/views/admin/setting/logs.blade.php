@@ -285,7 +285,7 @@
             });
 
             $('#settingsLogsFiltersApply').on('click', function () {
-                dtApi.reload({ keepPage: true });
+                dtApi.reload();
                 syncSettingsLogsFiltersCollapseState();
             });
 

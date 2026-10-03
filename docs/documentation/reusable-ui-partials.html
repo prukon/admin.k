@@ -474,7 +474,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     </thead>
     <tbody>
       <tr><td><code>table</code></td><td>Экземпляр jQuery DataTables</td></tr>
-      <tr><td><code>reload({ keepPage? })</code></td><td><code>ajax.reload</code>; <code>keepPage: true</code> — остаться на текущей странице</td></tr>
+      <tr><td><code>reload({ keepPage? })</code></td><td><code>ajax.reload</code>. Без <code>keepPage</code> — первая страница (<code>start = 0</code>). <code>keepPage: true</code> — <code>ajax.reload(null, false)</code>, остаться на текущей. Смена фильтра вызывает вариант без <code>keepPage</code> (<a href="/doc#datatable-filter-resets-page-index">/doc</a>)</td></tr>
       <tr><td><code>loadColumnsConfigFromServer()</code></td><td>Перечитать настройки колонок с сервера</td></tr>
       <tr><td><code>applyVisibleColumns(config)</code></td><td>Применить видимость по ключу колонки (<code>config[key]</code>), не по индексу</td></tr>
       <tr><td><code>getColumnsConfig()</code></td><td>Текущий объект видимости колонок</td></tr>
@@ -506,7 +506,9 @@ dataTable: {
   <ul>
     <li>Смена селекта → <code>POST</code> на <code>columnsSettings.urls.save</code> с полем <code>page_length</code> (без <code>columns</code>).</li>
     <li>Ошибка 422: текст <code>errors.page_length</code> под <code>.dataTables_length</code> (<code>.kids-dt-page-length-error</code>).</li>
-    <li>Номер страницы не сохраняется. Задолженности и исходящие письма — без opt-in.</li>
+    <li>Номер страницы не сохраняется. Задолженности и исходящие письма — без opt-in.
+      Кастомные роли <code>/admin/roles/{name}</code> тоже без записи: на странице <code>persistPageLength: false</code>.
+      Нет записи → 10, на <code>/client-contracts</code> → 20.</li>
   </ul>
   <p>Канонический список страниц, где N пишется в <code>user_table_settings.page_length</code>:</p>
   <table id="persist-page-length-catalog">
@@ -517,6 +519,9 @@ dataTable: {
       <tr><td>Клиенты</td><td><a href="/docs/documentation/admin-users#users-page-length"><code>/admin/users</code></a></td><td><code>users_index</code></td></tr>
       <tr><td>Группы</td><td><a href="/docs/documentation/admin-teams#teams-page-length"><code>/admin/teams</code></a></td><td><code>teams_index</code></td></tr>
       <tr><td>Заявки</td><td><a href="/docs/documentation/school-leads-widget#school-leads-page-length"><code>/admin/school-leads</code></a></td><td><code>school_leads_index</code></td></tr>
+      <tr><td>Тренеры</td><td><a href="/docs/documentation/admin-trainers#trainers-persisted-filters"><code>/admin/trainers</code></a></td><td><code>trainers_index</code></td></tr>
+      <tr><td>Администраторы</td><td><a href="/docs/documentation/admin-role-staff#administrators-persisted-filters"><code>/admin/administrators</code></a></td><td><code>role_staff_admin</code></td></tr>
+      <tr><td>Договоры</td><td><a href="/docs/documentation/contracts#contracts-persisted-filters"><code>/client-contracts</code></a></td><td><code>contracts_index</code></td></tr>
       <tr><td>Все платежи</td><td><a href="/docs/documentation/reports-payments"><code>/admin/reports/payments</code></a></td><td><code>reports_payments</code></td></tr>
       <tr><td>Платежи по месяцам</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/payments/monthly</code></a></td><td><code>reports_payments_monthly</code></td></tr>
       <tr><td>LTV</td><td><a href="/docs/documentation/reports-admin#reports-page-length"><code>/admin/reports/ltv</code></a></td><td><code>reports_ltv</code></td></tr>
@@ -731,7 +736,7 @@ dataTable: {
     <li>Инициализация — <code>KidsCrmDataTable.create('#…-table', { columnsSettings, dataTable, columns })</code> (см. §3).</li>
     <li>Dropdown «Колонки» — чекбоксы <code>class="column-toggle"</code> с <code>data-column-key</code>, совпадающим с <code>columns[].key</code>.</li>
     <li>Backend — GET/POST <code>…/columns-settings</code> с объектом <code>columns</code> (как на locations / sport-types / teams).</li>
-    <li>Reload после фильтров — <code>dtApi.reload({ keepPage: true })</code>.</li>
+    <li>Reload после фильтров — <code>dtApi.reload()</code> (первая страница). После правки строки — <code>dtApi.reload({ keepPage: true })</code>.</li>
     <li>Кликабельное название — <code>type: 'link'</code> + handler модалки или <code>bindNavLinks</code> (см. <a href="#datatable-clickable-names">§3.2</a>).</li>
     <li>Для Select2 в модалках — partial <code>generic-multiselect</code> (§4.2) + <code>@include('partials.select2.ru')</code> при необходимости.</li>
     <li>Для multiselect в панели фильтров — partial <code>filter-multiselect</code> (§4.1), <code>KidsCrmFilterMultiselectSelect2</code>; без Select2.</li>

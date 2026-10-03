@@ -82,6 +82,44 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
                 'permission'  => 'schoolLeads.view',
             ],
             [
+                'label'       => 'Тренеры',
+                'url'         => '/admin/trainers',
+                'index_route' => 'admin.trainers.index',
+                'save_url'    => '/admin/trainers/columns-settings',
+                'table_key'   => 'trainers_index',
+                'view_var'    => 'trainersPageLength',
+                'create'      => "KidsCrmDataTable.create('#trainers-table'",
+                'blade'       => 'admin/trainers/index.blade.php',
+                'auth'        => 'admin',
+                'permission'  => 'trainers.view',
+            ],
+            [
+                'label'       => 'Администраторы',
+                'url'         => '/admin/administrators',
+                'index_route' => 'admin.administrators.index',
+                'save_url'    => '/admin/administrators/columns-settings?table_key=role_staff_admin',
+                'table_key'   => 'role_staff_admin',
+                'view_var'    => 'roleStaffPageLength',
+                'create'      => "KidsCrmDataTable.create('#role-staff-table'",
+                'blade'       => 'admin/role_staff/index.blade.php',
+                'source_literal' => false,
+                'auth'        => 'admin',
+                'permission'  => 'users.role.update',
+            ],
+            [
+                'label'                => 'Договоры',
+                'url'                  => '/client-contracts',
+                'index_route'          => 'contracts.index',
+                'save_url'             => '/client-contracts/columns-settings',
+                'table_key'            => 'contracts_index',
+                'view_var'             => 'contractsPageLength',
+                'create'               => "KidsCrmDataTable.create('#contracts-table'",
+                'blade'                => 'contracts/index.blade.php',
+                'auth'                 => 'admin',
+                'permission'           => 'contracts.view',
+                'default_page_length'  => 20,
+            ],
+            [
                 'label'       => 'Все платежи',
                 'url'         => '/admin/reports/payments',
                 'index_route' => 'payments',
@@ -254,11 +292,17 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
 
         sort($hits);
 
-        $expected = array_column(self::catalog(), 'blade');
+        $expected = [];
+        foreach (self::catalog() as $case) {
+            if (($case['source_literal'] ?? true) === false) {
+                continue;
+            }
+            $expected[] = $case['blade'];
+        }
         sort($expected);
 
         $this->assertSame($expected, $hits);
-        $this->assertCount(14, $hits);
+        $this->assertCount(16, $hits);
     }
 
     /**
@@ -273,9 +317,11 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
             ->where('table_key', $case['table_key'])
             ->delete();
 
+        $defaultLength = (int) ($case['default_page_length'] ?? 10);
+
         $html = $this->get(route($case['index_route']))
             ->assertOk()
-            ->assertViewHas($case['view_var'], 10)
+            ->assertViewHas($case['view_var'], $defaultLength)
             ->getContent();
 
         $pos = strpos($html, $case['create']);
@@ -286,7 +332,7 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
             $this->assertMatchesRegularExpression('/pageLength:\s*currentPageLength\b/', $chunk);
             $this->assertMatchesRegularExpression('/var currentPageLength\s*=\s*10\b/', $html);
         } else {
-            $this->assertMatchesRegularExpression('/pageLength:\s*10\b/', $chunk);
+            $this->assertMatchesRegularExpression('/pageLength:\s*'.$defaultLength.'\b/', $chunk);
         }
 
         $this->postJson($case['save_url'], [

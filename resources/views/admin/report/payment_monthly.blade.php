@@ -232,6 +232,8 @@
     <script src="{{ asset('plugins/datatables-fixedheader/js/dataTables.fixedHeader.min.js') }}"></script>
     <script type="text/javascript">
         $(function() {
+            @include('admin.report.partials.persist-report-filters-fn')
+            var paymentsMonthlyFiltersSaveUrl = @json(route('reports.payments.monthly.filters.save'));
 
             var canViewLocations = @json($canViewLocations);
             var currentMode = @json($groupMode);
@@ -663,31 +665,35 @@
 
             $payMonthlyFiltersForm.on('submit', function (e) {
                 e.preventDefault();
-                Object.keys(monthlyDetailTables).forEach(function (monthKey) {
-                    destroyMonthlyDetailTable(monthKey);
+                kidsCrmPersistReportFilters($payMonthlyFiltersForm, paymentsMonthlyFiltersSaveUrl, paymentsMonthlyFilterParams(), function () {
+                    Object.keys(monthlyDetailTables).forEach(function (monthKey) {
+                        destroyMonthlyDetailTable(monthKey);
+                    });
+                    refreshPaymentsMonthlyReportTotal();
+                    dtApi.reload();
                 });
-                refreshPaymentsMonthlyReportTotal();
-                dtApi.reload({ keepPage: true });
             });
 
             $('#paymentsMonthlyFiltersResetBtn').on('click', function () {
-                $payMonthlyFiltersForm[0].reset();
-                $payMonthlyFilterUser.val(null).trigger('change');
-                $payMonthlyFilterTeam.val(null).trigger('change');
-                $payMonthlyFilterTrainer.val(null).trigger('change');
-                $('#pay-monthly-filter-user-status').val(defaultFilterUserStatus);
-                if (canViewLocations) {
-                    $('#pay-monthly-filter-location').val('');
-                }
-                currentMode = 'subscription';
-                $('#payments-monthly-mode-hidden').val(currentMode);
-                $('.js-group-mode-btn').removeClass('active');
-                $('.js-group-mode-btn[data-mode=\"subscription\"]').addClass('active');
-                Object.keys(monthlyDetailTables).forEach(function (monthKey) {
-                    destroyMonthlyDetailTable(monthKey);
+                kidsCrmPersistReportFilters($payMonthlyFiltersForm, paymentsMonthlyFiltersSaveUrl, { reset: 1 }, function () {
+                    $payMonthlyFiltersForm[0].reset();
+                    $payMonthlyFilterUser.val(null).trigger('change');
+                    $payMonthlyFilterTeam.val(null).trigger('change');
+                    $payMonthlyFilterTrainer.val(null).trigger('change');
+                    $('#pay-monthly-filter-user-status').val(defaultFilterUserStatus);
+                    if (canViewLocations) {
+                        $('#pay-monthly-filter-location').val('');
+                    }
+                    currentMode = 'subscription';
+                    $('#payments-monthly-mode-hidden').val(currentMode);
+                    $('.js-group-mode-btn').removeClass('active');
+                    $('.js-group-mode-btn[data-mode=\"subscription\"]').addClass('active');
+                    Object.keys(monthlyDetailTables).forEach(function (monthKey) {
+                        destroyMonthlyDetailTable(monthKey);
+                    });
+                    refreshPaymentsMonthlyReportTotal();
+                    dtApi.reload();
                 });
-                refreshPaymentsMonthlyReportTotal();
-                dtApi.reload();
             });
 
             $('.js-group-mode-btn').on('click', function() {

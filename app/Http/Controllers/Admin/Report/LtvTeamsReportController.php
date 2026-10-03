@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin\Report;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Http\Requests\Admin\Report\LtvTeamsReportPeriodRequest;
+use App\Http\Requests\Admin\Report\SaveLtvTeamsReportFiltersRequest;
+use App\Services\Reports\PersistedReportFilters;
 use App\Models\Location;
 use App\Models\Team;
 use App\Models\TrainerProfile;
@@ -23,6 +25,8 @@ use Yajra\DataTables\DataTables;
 
 class LtvTeamsReportController extends AdminBaseController
 {
+    use SavesPersistedReportFilters;
+
     private const TABLE_KEY = 'reports_ltv_teams';
 
     public function __construct(
@@ -37,6 +41,7 @@ class LtvTeamsReportController extends AdminBaseController
      */
     public function index(LtvTeamsReportPeriodRequest $request)
     {
+        app(PersistedReportFilters::class)->hydrate($request, PersistedReportFilters::LTV_TEAMS);
         $partnerId = $this->requirePartnerId();
         $filters = $request->query();
 
@@ -279,6 +284,11 @@ class LtvTeamsReportController extends AdminBaseController
         }
 
         return response()->json($columns);
+    }
+
+    public function saveFilters(SaveLtvTeamsReportFiltersRequest $request)
+    {
+        return $this->storePersistedReportFilters($request, PersistedReportFilters::LTV_TEAMS);
     }
 
     public function saveColumnsSettings(ColumnsSettingsWithPageLengthSaveRequest $request)
@@ -598,7 +608,7 @@ class LtvTeamsReportController extends AdminBaseController
     private function resolveLtvTeamsFilterUserLabel(int $partnerId, array $filters): ?array
     {
         $raw = $filters['filter_user_id'] ?? null;
-        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+        if (is_array($raw) || $raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
             return null;
         }
         $uid = (int) $raw;
@@ -629,7 +639,7 @@ class LtvTeamsReportController extends AdminBaseController
     private function resolveLtvTeamsFilterTeamLabel(int $partnerId, array $filters): ?array
     {
         $raw = $filters['filter_team_id'] ?? null;
-        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+        if (is_array($raw) || $raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
             return null;
         }
         $tid = (int) $raw;
@@ -661,7 +671,7 @@ class LtvTeamsReportController extends AdminBaseController
     private function resolveLtvTeamsFilterTrainerLabel(int $partnerId, array $filters): ?array
     {
         $raw = $filters['filter_trainer_profile_id'] ?? null;
-        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+        if (is_array($raw) || $raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
             return null;
         }
         $tpid = (int) $raw;

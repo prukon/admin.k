@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm\Reports;
 
 use App\Http\Controllers\Admin\Report\DeptReportController;
+use App\Models\LessonPackage;
 use App\Models\Location;
 use App\Models\Team;
 use App\Models\User;
@@ -806,11 +807,175 @@ class DeptReportTest extends CrmTestCase
             ->all();
     }
 
-    private function insertCustomPayment(User $user, int $amountCents, string $dateStart, string $dateEnd): void
+    public function test_getDebts_context_columns_from_team_location_and_package(): void
+    {
+        Carbon::setTestNow('2026-02-15');
+        $this->grantPermission('locations.view');
+
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Зал Север',
+            'is_enabled' => true,
+        ]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Младшая',
+            'location_id' => $location->id,
+        ]);
+        $bareTeam = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Без зала',
+            'location_id' => null,
+        ]);
+        $package = LessonPackage::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => '8 занятий',
+        ]);
+
+        foreach ([
+            ['Альфа', 'Анна'],
+            ['Бета', 'Борис'],
+            ['Гамма', 'Галина'],
+        ] as [$lastname, $name]) {
+            $admin = User::factory()->create([
+                'partner_id' => $this->partner->id,
+                'lastname' => $lastname,
+                'name' => $name,
+                'is_enabled' => 1,
+            ]);
+            DB::table('location_admin_user')->insert([
+                'partner_id' => $this->partner->id,
+                'location_id' => $location->id,
+                'user_id' => $admin->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $this->insertUserPrice($this->user, [
+            'is_paid' => 0,
+            'price' => 100,
+            'new_month' => '2026-01-01',
+            'lesson_package_id' => $package->id,
+        ], $team);
+        $this->insertUserPrice($this->user, [
+            'is_paid' => 0,
+            'price' => 50,
+            'new_month' => '2025-12-01',
+        ], $bareTeam);
+        $this->insertCustomPayment($this->user, 3000, '2025-11-01', '2025-11-30', $team->id);
+        $this->insertCustomPayment($this->user, 4000, '2025-10-01', '2025-10-31', null);
+
+        $rows = collect($this->debtsReportRows())->keyBy(fn ($row) => (string) $row['price']);
+
+        $withPackage = $rows->get('100');
+        $this->assertNotNull($withPackage);
+        $this->assertSame('Младшая', $withPackage['team_title']);
+        $this->assertSame('Зал Север', $withPackage['location_title']);
+        $this->assertSame('8 занятий', $withPackage['lesson_package_name']);
+        $this->assertSame('Альфа Анна, еще 2 шт.', $withPackage['location_admin']);
+        $this->assertSame(['Альфа Анна', 'Бета Борис', 'Гамма Галина'], $withPackage['location_admin_names']);
+
+        $withoutLocation = $rows->get('50');
+        $this->assertNotNull($withoutLocation);
+        $this->assertSame('Без зала', $withoutLocation['team_title']);
+        $this->assertSame('Без объекта', $withoutLocation['location_title']);
+        $this->assertSame('—', $withoutLocation['lesson_package_name']);
+        $this->assertSame('', $withoutLocation['location_admin']);
+        $this->assertSame([], $withoutLocation['location_admin_names']);
+
+        $customWithTeam = $rows->get('30');
+        $this->assertNotNull($customWithTeam);
+        $this->assertSame('Младшая', $customWithTeam['team_title']);
+        $this->assertSame('Зал Север', $customWithTeam['location_title']);
+        $this->assertSame('—', $customWithTeam['lesson_package_name']);
+        $this->assertSame('Альфа Анна, еще 2 шт.', $customWithTeam['location_admin']);
+
+        $customWithoutTeam = $rows->get('40');
+        $this->assertNotNull($customWithoutTeam);
+        $this->assertSame('—', $customWithoutTeam['team_title']);
+        $this->assertSame('—', $customWithoutTeam['location_title']);
+        $this->assertSame('—', $customWithoutTeam['lesson_package_name']);
+        $this->assertSame('', $customWithoutTeam['location_admin']);
+
+        $this->get(route('debts'))
+            ->assertOk()
+            ->assertSee('data-column-key="location_admin"', false)
+            ->assertSee('data-column-key="lesson_package"', false)
+            ->assertSee('data-column-key="team_title"', false)
+            ->assertSee('data-column-key="location"', false)
+            ->assertSee('<th>Админ</th>', false)
+            ->assertSee('<th>Абонемент</th>', false)
+            ->assertSee('<th>Группа</th>', false)
+            ->assertSee('<th>Объект</th>', false);
+    }
+
+    public function test_getDebts_hides_location_columns_without_locations_view(): void
+    {
+        Carbon::setTestNow('2026-02-15');
+
+        $actor = $this->createUserWithoutPermission('locations.view', $this->partner);
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id' => $this->partner->id,
+            'role_id' => $actor->role_id,
+            'permission_id' => $this->permissionId('reports.view'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->actingAs($actor);
+
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Скрытый зал',
+            'is_enabled' => true,
+        ]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Группа скрытая',
+            'location_id' => $location->id,
+        ]);
+        $this->insertUserPrice($this->user, [
+            'is_paid' => 0,
+            'price' => 80,
+            'new_month' => '2026-01-01',
+        ], $team);
+
+        $row = collect($this->debtsReportRows())->firstWhere('price', 80);
+        $this->assertNotNull($row);
+        $this->assertSame('Группа скрытая', $row['team_title']);
+        $this->assertSame('—', $row['lesson_package_name']);
+        $this->assertArrayNotHasKey('location_title', $row);
+        $this->assertArrayNotHasKey('location_admin', $row);
+        $this->assertArrayNotHasKey('location_admin_names', $row);
+
+        $this->get(route('debts'))
+            ->assertOk()
+            ->assertSee('data-column-key="lesson_package"', false)
+            ->assertSee('data-column-key="team_title"', false)
+            ->assertDontSee('data-column-key="location_admin"', false)
+            ->assertDontSee('data-column-key="location"', false);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function debtsReportRows(): array
+    {
+        $response = $this->get(route('debts.getDebts'), [
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json',
+        ]);
+        $response->assertOk();
+
+        return $response->json('data');
+    }
+
+    private function insertCustomPayment(User $user, int $amountCents, string $dateStart, string $dateEnd, ?int $teamId = null): void
     {
         DB::table('user_custom_payment')->insert([
             'user_id' => $user->id,
             'partner_id' => $user->partner_id,
+            'team_id' => $teamId,
             'is_paid' => 0,
             'is_manual_paid' => null,
             'amount_cents' => $amountCents,

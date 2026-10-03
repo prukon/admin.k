@@ -169,6 +169,7 @@
       <tr><td>GET</td><td><code>/admin/school-leads</code></td><td><code>can:schoolLeads.view</code></td><td>HTML: список (DataTables), toolbar со счётчиками, панель фильтров, меню колонок</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON для DataTables (см. §5.2)</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>JSON видимости: объект ключ → bool. Нет строки / <code>columns</code> не массив → <code>[]</code>. Без записи в БД. Ключа <code>page_length</code> в ответе нет (§5.1.4)</td></tr>
+      <tr><td>POST</td><td><code>/admin/school-leads/filters</code></td><td><code>can:schoolLeads.view</code></td><td>Фильтры списка на текущего админа (<code>admin.school-leads.filters.save</code>, §<a href="#school-leads-persisted-filters">5.1.8</a>). AJAX 200 <code>{success:true}</code>, обычный POST — 302 на <code>/admin/school-leads</code>. 422 — <code>errors[field]</code></td></tr>
       <tr><td>POST</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Сохранение видимости и/или «Показать N»: <code>columns</code> — объект ключ → bool (не индексы) и/или <code>page_length</code> ∈ {10,20,50,100}. AJAX/JSON и non-AJAX успех → <b>200</b> <code>{success: true}</code> + запись в БД. Без <code>columns</code> и без <code>page_length</code>: AJAX → <b>422</b> <code>errors.columns</code>; non-AJAX → <b>302</b> + session errors. Невалидный <code>page_length</code>: AJAX → <b>422</b> <code>errors.page_length</code>; non-AJAX → <b>302</b>. Гость → 302/401; без <code>schoolLeads.view</code> → 403. PUT/PATCH/DELETE на этот URI → 404/405</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/logs-data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON модалки «История изменений» (категория <code>school_lead</code>)</td></tr>
       <tr><td>PUT</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Обновление заявки: статус, комментарий, ФИО родителя/ученика, дата рождения, группа, флаги особенностей, <code>parent_id</code> / <code>parent_match_confirmed</code> (§5.5.5); при <code>districts.view</code> / <code>locations.view</code> — <code>district_id</code> / <code>location_id</code>. Заявка с <code>user_id</code>: можно менять только <code>school_lead_status_id</code>; любые другие поля → <b>422</b> (AJAX) / redirect с ошибками (non-AJAX). AJAX (<code>X-Requested-With</code> / <code>Accept: application/json</code>) → JSON; иначе → <b>302</b> на <code>/admin/school-leads</code></td></tr>
@@ -310,11 +311,33 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   </ul>
   <p class="small">Тесты: <code>SchoolLeadsPageLengthFeatureTest</code> (HTTP 200/403/422/302, UX: повторное открытие страницы держит N, скрытие колонок не сбрасывает N, <code>start</code> не пишется, лендинг/виджет без opt-in),
     <code>SchoolLeadsPageLengthFullAccessFeatureTest</code> (гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405),
-    <code>DatatablePageLengthCatalogFeatureTest</code> (заявки в каноническом списке 9 страниц),
+    <code>DatatablePageLengthCatalogFeatureTest</code> (заявки в каноническом списке 17 страниц),
     <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>
     (POST только <code>page_length</code>, без <code>columns</code>/<code>start</code>),
     <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>.
     Анонс — <a href="/doc#datatable-page-length-index">/doc</a>.</p>
+
+  <h3 id="school-leads-persisted-filters">5.1.8) Фильтры формы — персонально на пользователя</h3>
+  <div class="note">
+    Вкладка «Заявки» пишет фильтры в <code>user_table_settings.filters</code>
+    при <code>table_key = school_leads_index</code>.
+    Поля: статусы, район, объекты, секции, «есть особые условия».
+    Район — только при <code>districts.view</code>, объекты — только при <code>locations.view</code>.
+    «Применить» и «Сброс» — POST <code>/admin/school-leads/filters</code>
+    (<code>admin.school-leads.filters.save</code>, <code>SaveSchoolLeadsListFiltersRequest</code>, право <code>schoolLeads.view</code>).
+    «Сброс» возвращает статусы с <code>is_default_in_filter</code> и пустые район, объекты, секции, без особых условий.
+    Нет записи — тот же набор по умолчанию.
+    Пустой список статусов сохраняется как пустой и не подменяется статусами по умолчанию, пока админ не нажмёт «Сброс».
+    AJAX — 200 <code>{success:true}</code>. Обычный POST — 302 на <code>/admin/school-leads</code>, запись в БД есть.
+    «Применить» и «Сброс» открывают первую страницу (<code>dtApi.reload()</code> без <code>keepPage</code>,
+    <a href="/doc#datatable-filter-resets-page-index">анонс</a>).
+    Смена статуса и сохранение заявки остаются на текущей.
+    422 — текст под полем (<code>errors[status_ids.0]</code> и соседние), таблица не обновляется.
+    Гость — 302/401. Без <code>schoolLeads.view</code> — 403.
+    Без <code>districts.view</code> / <code>locations.view</code> поля скрыты и в строку не пишутся.
+    Анонс — <a href="/doc#list-persisted-filters-index">/doc</a>.
+    Тесты: <code>PersistedListFiltersFeatureTest</code>, <code>PersistedListFiltersHttpContractFeatureTest</code>.
+  </div>
 
   <h3 id="school-leads-email-notifications">5.1.5) Email-уведомления о новых заявках</h3>
   <p>Кнопка <b>«Уведомления»</b> (иконка колокольчика) в toolbar вкладки «Заявки» открывает стандартную Bootstrap-модалку

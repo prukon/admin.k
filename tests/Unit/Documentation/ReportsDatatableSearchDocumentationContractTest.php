@@ -127,8 +127,10 @@ final class ReportsDatatableSearchDocumentationContractTest extends TestCase
         $this->assertStringContainsString("dom: 'rtip'", $ltvBlade);
         $this->assertStringContainsString("dom: 'rtip'", $monthlyBlade);
         $this->assertStringContainsString('dtApi.reload();', $paymentBlade);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $ltvBlade);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true });', $monthlyBlade);
+        $this->assertStringContainsString('dtApi.reload();', $ltvBlade);
+        $this->assertStringNotContainsString('keepPage', $ltvBlade);
+        $this->assertStringContainsString('dtApi.reload();', $monthlyBlade);
+        $this->assertStringNotContainsString('keepPage', $monthlyBlade);
     }
 
     private function extractGetUserPayments(string $ltvController): string

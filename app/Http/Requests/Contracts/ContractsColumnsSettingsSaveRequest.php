@@ -2,12 +2,16 @@
 
 namespace App\Http\Requests\Contracts;
 
+use App\Models\UserTableSetting;
+use Illuminate\Validation\Rule;
+
 class ContractsColumnsSettingsSaveRequest extends ContractsJsonRequest
 {
     public function rules(): array
     {
         return [
-            'columns' => ['required', 'array'],
+            'columns' => ['required_without:page_length', 'array'],
+            'page_length' => ['sometimes', 'integer', Rule::in(UserTableSetting::PAGE_LENGTHS)],
         ];
     }
 
@@ -15,14 +19,17 @@ class ContractsColumnsSettingsSaveRequest extends ContractsJsonRequest
     {
         return [
             'columns' => 'Колонки',
+            'page_length' => 'Показывать по',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'columns.required' => 'Передайте настройки колонок.',
+            'columns.required_without' => 'Передайте настройки колонок.',
             'columns.array'    => 'Настройки колонок должны быть массивом.',
+            'page_length.integer' => 'Количество строк должно быть целым числом.',
+            'page_length.in' => 'Можно показать 10, 20, 50 или 100 записей.',
         ];
     }
 

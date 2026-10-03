@@ -690,24 +690,24 @@
                     ],
                 });
 
-                function reloadPackagesTable() {
-                    dtApi.reload({ keepPage: true });
+                function reloadPackagesTable(options) {
+                    dtApi.reload(options && options.resetPage ? {} : { keepPage: true });
                     syncPackagesFiltersCollapseState();
                 }
 
                 $('#filter-lesson-package-apply').on('click', function () {
-                    reloadPackagesTable();
+                    reloadPackagesTable({ resetPage: true });
                 });
 
                 $('#lesson-packages-filters').on('submit', function (e) {
                     e.preventDefault();
-                    reloadPackagesTable();
+                    reloadPackagesTable({ resetPage: true });
                 });
 
                 $('#filter-lesson-package-reset').on('click', function () {
                     $('#filter-lesson-package-search').val('');
                     $('#filter-lesson-package-type').val('');
-                    reloadPackagesTable();
+                    reloadPackagesTable({ resetPage: true });
                 });
 
                 const createModalEl = document.getElementById('lessonPackageCreateModal');

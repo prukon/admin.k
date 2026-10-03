@@ -223,7 +223,8 @@ final class TbankCommissionsColumnsSettingsFeatureTest extends CrmTestCase
         $this->assertGreaterThan($createPos, $submitPos);
         $submitChunk = substr($html, $submitPos, 400);
         $this->assertStringContainsString('e.preventDefault()', $submitChunk);
-        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $submitChunk);
+        $this->assertStringContainsString('dtApi.reload();', $submitChunk);
+        $this->assertStringNotContainsString('keepPage', $submitChunk);
         $this->assertStringNotContainsString('KidsCrmDataTable.create', $submitChunk);
 
         $resetPos = strpos($html, '$(\'#tbank-commissions-filters-reset\').on(\'click\'');

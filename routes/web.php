@@ -300,12 +300,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // Настройки отображения колонок в отчёте "Платежи"
         Route::get('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'getColumnsSettings']);
         Route::post('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'saveColumnsSettings']);
+        Route::post('/admin/reports/payments/filters', [PaymentReportController::class, 'saveFilters'])->name('reports.payments.filters.save');
         //Отчеты -> Задолженности
         Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
         Route::get('/admin/reports/debts/total', [DeptReportController::class, 'debtsTotal'])->name('reports.debts.total');
         Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
         Route::get('/admin/reports/debts/columns-settings', [DeptReportController::class, 'getColumnsSettings'])->name('reports.debts.columns-settings.get');
         Route::post('/admin/reports/debts/columns-settings', [DeptReportController::class, 'saveColumnsSettings'])->name('reports.debts.columns-settings.save');
+        Route::post('/admin/reports/debts/filters', [DeptReportController::class, 'saveFilters'])->name('reports.debts.filters.save');
 
         // Страница отчёта LTV (вкладка)
         Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('reports.ltv');
@@ -314,6 +316,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/ltv/data', [LtvReportController::class, 'getLtv'])->name('reports.ltv.data');
         Route::get('/admin/reports/ltv/columns-settings', [LtvReportController::class, 'getColumnsSettings'])->name('reports.ltv.columns-settings.get');
         Route::post('/admin/reports/ltv/columns-settings', [LtvReportController::class, 'saveColumnsSettings'])->name('reports.ltv.columns-settings.save');
+        Route::post('/admin/reports/ltv/filters', [LtvReportController::class, 'saveFilters'])->name('reports.ltv.filters.save');
         // Детализация — платежи конкретного пользователя (раскрытие строки)
         Route::get('/admin/reports/ltv/{user}/payments', [LtvReportController::class, 'getUserPayments'])->whereNumber('user')->name('reports.ltv.user_payments');
 
@@ -324,6 +327,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/payments/monthly/data', [PaymentMonthlyReportController::class, 'getMonths'])->name('reports.payments.monthly.data');
         Route::get('/admin/reports/payments/monthly/columns-settings', [PaymentMonthlyReportController::class, 'getColumnsSettings'])->name('reports.payments.monthly.columns-settings.get');
         Route::post('/admin/reports/payments/monthly/columns-settings', [PaymentMonthlyReportController::class, 'saveColumnsSettings'])->name('reports.payments.monthly.columns-settings.save');
+        Route::post('/admin/reports/payments/monthly/filters', [PaymentMonthlyReportController::class, 'saveFilters'])->name('reports.payments.monthly.filters.save');
         // Детализация по конкретному месяцу (формат yearMonth: 2025-01)
         Route::get('/admin/reports/payments/monthly/{yearMonth}/payments', [PaymentMonthlyReportController::class, 'getMonthPayments'])->name('reports.payments.monthly.payments');
     });
@@ -337,6 +341,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/ltv/teams/data', [LtvTeamsReportController::class, 'getLtvTeams'])->name('reports.ltv.teams.data');
         Route::get('/admin/reports/ltv/teams/columns-settings', [LtvTeamsReportController::class, 'getColumnsSettings'])->name('reports.ltv.teams.columns-settings.get');
         Route::post('/admin/reports/ltv/teams/columns-settings', [LtvTeamsReportController::class, 'saveColumnsSettings'])->name('reports.ltv.teams.columns-settings.save');
+        Route::post('/admin/reports/ltv/teams/filters', [LtvTeamsReportController::class, 'saveFilters'])->name('reports.ltv.teams.filters.save');
         Route::get('/admin/reports/ltv/teams/{team}/payments', [LtvTeamsReportController::class, 'getTeamPayments'])->whereNumber('team')->name('reports.ltv.teams.payments');
     });
 
@@ -349,6 +354,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/ltv/locations/data', [LtvLocationsReportController::class, 'getLtvLocations'])->name('reports.ltv.locations.data');
         Route::get('/admin/reports/ltv/locations/columns-settings', [LtvLocationsReportController::class, 'getColumnsSettings'])->name('reports.ltv.locations.columns-settings.get');
         Route::post('/admin/reports/ltv/locations/columns-settings', [LtvLocationsReportController::class, 'saveColumnsSettings'])->name('reports.ltv.locations.columns-settings.save');
+        Route::post('/admin/reports/ltv/locations/filters', [LtvLocationsReportController::class, 'saveFilters'])->name('reports.ltv.locations.filters.save');
         Route::get('/admin/reports/ltv/locations/{location}/payments', [LtvLocationsReportController::class, 'getLocationPayments'])->whereNumber('location')->name('reports.ltv.locations.payments');
     });
 
@@ -741,6 +747,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         //Настройка таблицы
         Route::get('admin/users/columns-settings', [UserTableSettingsController::class, 'getColumnsSettings'])->name('admin.users.table-settings.get');
         Route::post('admin/users/columns-settings', [UserTableSettingsController::class, 'saveColumnsSettings'])->name('admin.users.table-settings.save');
+        Route::post('admin/users/filters', [UserController::class, 'saveFilters'])->name('admin.users.filters.save');
 
         Route::middleware('can:users.import')->group(function () {
             Route::get('admin/users/import/template', [UserImportController::class, 'template'])->name('admin.users.import.template');
@@ -794,6 +801,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/trainers/data', [\App\Http\Controllers\Admin\TrainerController::class, 'data'])->name('admin.trainers.data');
         Route::get('admin/trainers/columns-settings', [\App\Http\Controllers\Admin\TrainerColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.trainers.columns-settings.get');
         Route::post('admin/trainers/columns-settings', [\App\Http\Controllers\Admin\TrainerColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.trainers.columns-settings.save');
+        Route::post('admin/trainers/filters', [\App\Http\Controllers\Admin\TrainerController::class, 'saveFilters'])->name('admin.trainers.filters.save');
         Route::get('admin/trainers/{trainerProfile}', [\App\Http\Controllers\Admin\TrainerController::class, 'show'])->whereNumber('trainerProfile')->name('admin.trainers.show');
         Route::post('admin/trainers', [\App\Http\Controllers\Admin\TrainerController::class, 'store'])->name('admin.trainers.store');
         Route::put('admin/trainers/{trainerProfile}', [\App\Http\Controllers\Admin\TrainerController::class, 'update'])
@@ -824,6 +832,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/administrators/data', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'administratorsData'])->name('admin.administrators.data');
         Route::get('admin/administrators/columns-settings', [\App\Http\Controllers\Admin\RoleStaffColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.administrators.columns-settings.get');
         Route::post('admin/administrators/columns-settings', [\App\Http\Controllers\Admin\RoleStaffColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.administrators.columns-settings.save');
+        Route::post('admin/administrators/filters', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'saveAdministratorFilters'])->name('admin.administrators.filters.save');
         Route::get('admin/administrators/{user}', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'administratorsShow'])->whereNumber('user')->name('admin.administrators.show');
         Route::post('admin/administrators', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'administratorsStore'])->name('admin.administrators.store');
         Route::put('admin/administrators/{user}', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'administratorsUpdate'])->whereNumber('user')->name('admin.administrators.update');
@@ -1152,6 +1161,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('/admin/school-leads/statuses/{schoolLeadStatus}', [\App\Http\Controllers\Admin\SchoolLeadStatusController::class, 'destroy'])->name('admin.school-leads.statuses.destroy');
         Route::get('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.school-leads.columns-settings.get');
         Route::post('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.school-leads.columns-settings.save');
+        Route::post('/admin/school-leads/filters', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'saveFilters'])->name('admin.school-leads.filters.save');
         Route::get('/admin/school-leads/notifications', [\App\Http\Controllers\Admin\SchoolLeadNotificationSettingsController::class, 'show'])->name('admin.school-leads.notifications.show');
         Route::put('/admin/school-leads/notifications', [\App\Http\Controllers\Admin\SchoolLeadNotificationSettingsController::class, 'update'])->name('admin.school-leads.notifications.update');
         Route::put('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'update'])->name('admin.school-leads.update');
@@ -1235,6 +1245,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/client-contracts/data', [ContractTableController::class, 'data'])->name('contracts.data');
         Route::get('/client-contracts/columns-settings', [ContractTableController::class, 'getColumnsSettings'])->name('contracts.columns-settings.get');
         Route::post('/client-contracts/columns-settings', [ContractTableController::class, 'saveColumnsSettings'])->name('contracts.columns-settings.save');
+        Route::post('/client-contracts/filters', [ContractsController::class, 'saveFilters'])->name('contracts.filters.save');
         Route::get('/client-contracts/logs-data', [ContractsController::class, 'log'])->name('logs.data.contract');
 
         // >>> ПОТОМ обычные CRUD-роуты без параметров <<<

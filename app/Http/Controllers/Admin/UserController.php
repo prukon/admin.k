@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Controllers\Concerns\SavesPersistedListFilters;
 use App\Enums\UserSex;
+use App\Http\Requests\Tables\SaveUsersListFiltersRequest;
 use App\Http\Requests\User\FilterRequest;
 use App\Http\Requests\User\StoreRequest;
 use App\Http\Requests\User\UpdatePasswordRequest;
@@ -17,6 +19,7 @@ use App\Models\UserTableSetting;
 use App\Services\Contracts\ContractCreationService;
 use App\Services\Contracts\ContractLessonPackageBinder;
 use App\Services\PartnerContext;
+use App\Services\Tables\PersistedListFilters;
 use Illuminate\Http\Request;
 use App\Models\UserField;
 use Illuminate\Support\Facades\Auth;
@@ -52,6 +55,7 @@ class UserController extends AdminBaseController
 
     use BuildsLogTable;
     use RendersUsersSectionTabs;
+    use SavesPersistedListFilters;
 
 
     public function __construct(
@@ -119,6 +123,12 @@ class UserController extends AdminBaseController
             $authUserId !== null ? (int) $authUserId : null,
             'users_index'
         );
+        $listFilters = app(PersistedListFilters::class)->present($currentUser, PersistedListFilters::USERS);
+        $usersHasActiveFilters = app(PersistedListFilters::class)->isActive(
+            $listFilters,
+            PersistedListFilters::USERS,
+            $currentUser
+        );
 
         $viewData = compact(
             'allTeams',
@@ -132,7 +142,9 @@ class UserController extends AdminBaseController
             'canViewUserComment',
             'canManageUserDiscount',
             'studentRoleId',
-            'usersPageLength'
+            'usersPageLength',
+            'listFilters',
+            'usersHasActiveFilters'
         ) + $this->usersSectionViewData('users');
 
         if ($canViewContracts && $partnerId) {
@@ -142,6 +154,11 @@ class UserController extends AdminBaseController
 
         // 6) Отдаём на view
         return view('admin.user', $viewData);
+    }
+
+    public function saveFilters(SaveUsersListFiltersRequest $request)
+    {
+        return $this->storePersistedListFilters($request);
     }
 
     public function data(Request $request)

@@ -130,7 +130,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
       PUT/PATCH/DELETE на URI настроек → <b>404/405</b> (<code>{id}</code> в CRUD ограничен <code>whereNumber</code>), запись не создаётся.
       Первое открытие: все чекбоксы меню включены, фильтры свёрнуты, <code>pageLength: 10</code>.
       Query-фильтры, <code>?open_create=1</code> и <code>?edit={id}</code> не убирают toolbar «Колонки» и не сбрасывают сохранённый N.
-      «Применить» / «Сброс» фильтров — <code>e.preventDefault()</code> + <code>dtApi.reload</code> (с <code>keepPage: true</code> на submit), таблицу не пересоздают.
+      «Применить» / «Сброс» фильтров — <code>e.preventDefault()</code> + <code>dtApi.reload()</code> (первая страница пагинации), таблицу не пересоздают.
       Отдельной HTML-страницы правки нет: <code>GET …/{id}/edit</code> без AJAX редиректит на список с <code>?edit={id}</code>.
       Русификация — <code>@include('partials.datatables.ru')</code>.
       Подробнее о пресете: <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>,

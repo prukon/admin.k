@@ -12,7 +12,7 @@ use App\Services\Geo\IpCountryResolver;
 use Jenssegers\Agent\Agent;
 
 /**
- * Флаги и устройство для шапки карточки ученика: последний успешный вход и последняя активность, если страна другая.
+ * Устройство и один флаг страны для шапки карточки: последняя активность, а если её страна не определилась — последний успешный вход.
  */
 final class StudentCardLoginHints
 {
@@ -35,25 +35,21 @@ final class StudentCardLoginHints
         $loginParsed = $login === null ? [] : $this->parseLoginDescription((string) $login->description);
         $activity = $this->parseUserAgent((string) ($student->last_activity_user_agent ?? ''));
 
-        $loginCountry = $this->countries->resolve($loginParsed['ip'] ?? null);
         $activityIp = trim((string) ($student->last_activity_ip ?? ''));
-        $loginIp = trim((string) ($loginParsed['ip'] ?? ''));
-        $activityCountry = $activityIp !== '' && $activityIp !== $loginIp
-            ? $this->countries->resolve($activityIp)
+        $activityCountry = $activityIp !== '' ? $this->countries->resolve($activityIp) : null;
+        $loginCountry = $activityCountry === null
+            ? $this->countries->resolve($loginParsed['ip'] ?? null)
             : null;
-        $activityCountryName = $activityCountry?->name ?? '';
-        if ($activityCountryName === '') {
-            $activityCountryName = $loginCountry?->name ?? '';
-        }
+        $flagCountry = $activityCountry ?? $loginCountry;
+        $flagBrowser = $activityCountry !== null
+            ? (string) ($activity['browser'] ?? '')
+            : (string) ($loginParsed['browser'] ?? '');
+        $activityCountryName = $flagCountry?->name ?? '';
         $activityDevice = $activity['device'] ?? ($loginParsed['device'] ?? null);
 
         $flags = [];
-        if ($loginCountry !== null) {
-            $flags[] = $this->flag($loginCountry, (string) ($loginParsed['browser'] ?? ''));
-        }
-
-        if ($activityCountry !== null && ($loginCountry === null || strcasecmp($activityCountry->code, $loginCountry->code) !== 0)) {
-            $flags[] = $this->flag($activityCountry, (string) ($activity['browser'] ?? ''));
+        if ($flagCountry !== null) {
+            $flags[] = $this->flag($flagCountry, $flagBrowser);
         }
 
         $device = $loginParsed['device'] ?? $activity['device'] ?? null;

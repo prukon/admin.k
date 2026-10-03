@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Controllers\Concerns\SavesPersistedListFilters;
 use App\Http\Requests\SchoolLead\FilterRequest;
+use App\Http\Requests\Tables\SaveSchoolLeadsListFiltersRequest;
 use App\Http\Requests\UpdateSchoolLeadRequest;
 use App\Models\District;
 use App\Models\Location;
@@ -19,6 +21,7 @@ use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
 use App\Services\Contracts\ContractLessonPackageBinder;
 use App\Services\PartnerContext;
+use App\Services\Tables\PersistedListFilters;
 use App\Services\SchoolLeads\LatestUserContractLookup;
 use App\Support\BuildsLogTable;
 use Illuminate\Database\Eloquent\Builder;
@@ -31,6 +34,7 @@ use Illuminate\View\View;
 class SchoolLeadController extends AdminBaseController
 {
     use BuildsLogTable;
+    use SavesPersistedListFilters;
 
     public function __construct(
         PartnerContext $partnerContext,
@@ -102,7 +106,14 @@ class SchoolLeadController extends AdminBaseController
                 $authUserId !== null ? (int) $authUserId : null,
                 'school_leads_index'
             ),
+            'listFilters'              => app(PersistedListFilters::class)->present(Auth::user(), PersistedListFilters::SCHOOL_LEADS),
         ];
+
+        $viewData['leadsHasActiveFilters'] = app(PersistedListFilters::class)->isActive(
+            $viewData['listFilters'],
+            PersistedListFilters::SCHOOL_LEADS,
+            Auth::user()
+        );
 
         if ($canViewContracts) {
             $viewData['contractCreatePartner'] = app('current_partner');
@@ -140,6 +151,11 @@ class SchoolLeadController extends AdminBaseController
         return view('admin.school-leads.index', $viewData + [
             'activeTab' => 'leads',
         ]);
+    }
+
+    public function saveFilters(SaveSchoolLeadsListFiltersRequest $request): JsonResponse|RedirectResponse
+    {
+        return $this->storePersistedListFilters($request);
     }
 
     public function dataTable(Request $request): JsonResponse

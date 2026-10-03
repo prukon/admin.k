@@ -5,9 +5,21 @@
     $canViewContracts = $canViewContracts ?? (auth()->user() && auth()->user()->can('contracts.view'));
     $canShowLeadClientColumn = $canViewContracts || $canCreateUserFromLead;
     $leadStats = $leadStats ?? ['total' => 0, 'new' => 0];
-    $leadsHasActiveFilters = false;
+    $leadsHasActiveFilters = $leadsHasActiveFilters ?? false;
     $schoolLeadStatuses = $schoolLeadStatuses ?? collect();
     $defaultStatusFilterIds = $defaultStatusFilterIds ?? [];
+    $listFilters = $listFilters ?? [
+        'status_ids' => $defaultStatusFilterIds,
+        'district_id' => '',
+        'location_ids' => [],
+        'team_ids' => [],
+        'has_special_conditions' => 0,
+    ];
+    $leadFilterStatusIds = array_map('strval', $listFilters['status_ids'] ?? []);
+    $leadFilterDistrictId = (string) ($listFilters['district_id'] ?? '');
+    $leadFilterLocationIds = array_map('strval', $listFilters['location_ids'] ?? []);
+    $leadFilterTeamIds = array_map('strval', $listFilters['team_ids'] ?? []);
+    $leadFilterSpecial = (int) ($listFilters['has_special_conditions'] ?? 0) === 1;
     $filterTeams = $filterTeams ?? collect();
 @endphp
 
@@ -189,7 +201,7 @@
                             multiple
                             data-placeholder="Выберите статусы">
                         @foreach ($schoolLeadStatuses as $status)
-                            <option value="{{ $status->id }}" @selected(in_array((string) $status->id, $defaultStatusFilterIds, true))>{{ $status->name }}</option>
+                            <option value="{{ $status->id }}" @selected(in_array((string) $status->id, $leadFilterStatusIds, true))>{{ $status->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -198,10 +210,10 @@
                     <div class="col-12 col-md-3">
                         <label class="form-label" for="sl-filter-district">Район</label>
                         <select class="form-select" id="sl-filter-district" name="district_id">
-                            <option value="">Все районы</option>
-                            <option value="none">Без района</option>
+                            <option value="" @selected($leadFilterDistrictId === '')>Все районы</option>
+                            <option value="none" @selected($leadFilterDistrictId === 'none')>Без района</option>
                             @foreach ($activeDistricts as $district)
-                                <option value="{{ $district->id }}">{{ $district->name }}</option>
+                                <option value="{{ $district->id }}" @selected($leadFilterDistrictId === (string) $district->id)>{{ $district->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -215,9 +227,9 @@
                                 name="location_ids[]"
                                 multiple
                                 data-placeholder="Все объекты">
-                            <option value="none">Без объекта</option>
+                            <option value="none" @selected(in_array('none', $leadFilterLocationIds, true))>Без объекта</option>
                             @foreach ($activeLocations as $location)
-                                <option value="{{ $location->id }}">{{ $location->name }}</option>
+                                <option value="{{ $location->id }}" @selected(in_array((string) $location->id, $leadFilterLocationIds, true))>{{ $location->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -230,16 +242,16 @@
                             name="team_ids[]"
                             multiple
                             data-placeholder="Все секции">
-                        <option value="none">Без секции</option>
+                        <option value="none" @selected(in_array('none', $leadFilterTeamIds, true))>Без секции</option>
                         @foreach ($filterTeams as $team)
-                            <option value="{{ $team->id }}">{{ $team->title }}</option>
+                            <option value="{{ $team->id }}" @selected(in_array((string) $team->id, $leadFilterTeamIds, true))>{{ $team->title }}</option>
                         @endforeach
                     </select>
                 </div>
 
                 <div class="col-12 col-md-auto">
                     <div class="form-check mb-0 pb-md-1">
-                        <input class="form-check-input" type="checkbox" value="1" id="sl-filter-special-conditions" name="has_special_conditions">
+                        <input class="form-check-input" type="checkbox" value="1" id="sl-filter-special-conditions" name="has_special_conditions" @checked($leadFilterSpecial)>
                         <label class="form-check-label text-nowrap" for="sl-filter-special-conditions">Есть особые условия</label>
                     </div>
                 </div>
@@ -327,6 +339,9 @@
                 update: @json(route('admin.school-leads.statuses.update', ['schoolLeadStatus' => '__ID__'])),
                 destroy: @json(route('admin.school-leads.statuses.destroy', ['schoolLeadStatus' => '__ID__'])),
             };
+
+            var schoolLeadsFiltersSaveUrl = @json(route('admin.school-leads.filters.save'));
+            @include('admin.report.partials.persist-report-filters-fn')
 
             var $filtersForm = $('#school-leads-filters');
             var $statNew = $('.school-leads-stat-new');
@@ -1164,14 +1179,18 @@
 
             $filtersForm.on('submit', function(e) {
                 e.preventDefault();
-                appliedFilters = readFiltersFromForm();
-                dtApi.reload({ keepPage: true });
+                kidsCrmPersistReportFilters($filtersForm, schoolLeadsFiltersSaveUrl, readFiltersFromForm(), function () {
+                    appliedFilters = readFiltersFromForm();
+                    dtApi.reload();
+                });
             });
 
             $('#schoolLeadsFiltersResetBtn').on('click', function() {
-                resetFiltersFormToDefault();
-                appliedFilters = readFiltersFromForm();
-                dtApi.reload({ keepPage: true });
+                kidsCrmPersistReportFilters($filtersForm, schoolLeadsFiltersSaveUrl, { reset: 1 }, function () {
+                    resetFiltersFormToDefault();
+                    appliedFilters = readFiltersFromForm();
+                    dtApi.reload();
+                });
             });
 
             var editLeadModalEl = document.getElementById('editLeadModal');
