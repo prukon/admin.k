@@ -21,6 +21,7 @@ final class PaymentNotificationDispatchService
     public function __construct(
         private readonly PaymentNotificationTriggerResolver $triggerResolver,
         private readonly PaymentNotificationAudienceQuery $audienceQuery,
+        private readonly PaymentNotificationRecipient $recipient,
     ) {
     }
 
@@ -85,8 +86,9 @@ final class PaymentNotificationDispatchService
         UserPrice $userPrice,
         CarbonImmutable $triggerDate,
     ): bool {
-        $email = trim((string) ($userPrice->user?->email ?? ''));
-        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $userPrice->loadMissing('user.parentProfile');
+        $email = $this->recipient->emailFor($userPrice->user);
+        if ($email === null) {
             $this->createSkippedDispatch(
                 $rule,
                 $userPrice,

@@ -36,13 +36,15 @@
     <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>,
     <a href="/docs/documentation/payments#up-public-pay">payments §3.1.3</a> (публичная СБП месяца),
     <a href="/docs/documentation/reports-admin#reports-outgoing-emails">reports-admin §8</a>,
-    анонс <a href="/doc#payment-notifications-sbp-link-index">/doc — ссылка СБП в письме</a>.
+    анонс <a href="/doc#payment-notifications-sbp-link-index">/doc — ссылка СБП в письме</a>,
+    анонс <a href="/doc#payment-notifications-parent-email-index">/doc — почта и обращение родителя</a>.
   </div>
 
   <div class="ok">
     <b>Кратко.</b> Конструктор правил email-уведомлений по неоплаченным месячным начислениям
     <code>users_prices</code> в разрезе типов абонементов (<code>fixed</code> / <code>flexible</code> / <code>postpay</code>).
-    Письма — на email ученика, <b>отдельно на каждую</b> строку начисления.
+    Письмо — на email родителя, если его нет или он некорректный — на email ученика.
+    Совпадающие адреса дают <b>одно</b> письмо. Отдельно на <b>каждую</b> строку начисления.
     При готовом T‑Bank в письмо попадает ссылка СБП <code>/pm/{code}</code>
     (или автоблок «Оплатить через СБП», если в шаблоне нет <code>{{pay_url}}</code>) —
     <a href="#sbp-pay-link">§6.1</a>, <a href="/doc#payment-notifications-sbp-link-index">анонс на /doc</a>.
@@ -150,9 +152,14 @@
     <li><code>price_cents &gt; 0</code>, <code>effective_is_paid = false</code>
       (ручной <code>is_manual_paid</code> важнее авто <code>is_paid</code> — как в отчёте задолженностей).</li>
     <li>Есть <code>lesson_package_id</code>, <code>schedule_type</code> шаблона ∈ <code>schedule_types</code> правила.</li>
-    <li>Email ученика валиден; иначе запись dispatch = <code>skipped</code>
+    <li>Адрес: валидный <code>parents.email</code> (карточка через <code>users.parent_id</code>).
+      Если родителя нет, почта пустая или не проходит <code>filter_var</code> — <code>users.email</code>.
+      Оба адреса есть и совпадают без учёта регистра — одно письмо, в <code>To</code> написание почты родителя.
+      Разные адреса — тоже одно письмо, только родителю.
+      Нет ни одного валидного адреса — dispatch = <code>skipped</code>
       (<code>missing_or_invalid_email</code>), письмо не ставится в очередь.</li>
-    <li>Одно письмо на каждую подходящую строку <code>users_prices</code>.</li>
+    <li>Одно письмо на каждую подходящую строку <code>users_prices</code>
+      (два начисления одного родителя — два письма, даже на один email).</li>
     <li>Перед отправкой из job повторная проверка: если уже оплатили / сумма 0 →
       <code>skipped</code> (<code>already_paid_or_zero</code>).</li>
   </ul>
@@ -176,7 +183,11 @@
     паттерн как «Как это работает» при создании договора на
     <a href="/docs/documentation/contracts">/client-contracts</a>).</p>
   <ul>
-    <li><code>{{student_name}}</code>, <code>{{student_firstname}}</code>, <code>{{student_lastname}}</code></li>
+    <li><code>{{addressee_name}}</code> — полное ФИО родителя
+      (фамилия, имя, отчество из <code>parents</code>). Пустое ФИО или родителя нет —
+      ФИО ученика, как у <code>{{student_name}}</code>.</li>
+    <li><code>{{student_name}}</code>, <code>{{student_firstname}}</code>, <code>{{student_lastname}}</code>
+      — по-прежнему ученик, не адресат обращения.</li>
     <li><code>{{month}}</code>, <code>{{month_year}}</code> — из <code>users_prices.new_month</code>
       (locale ru, Europe/Moscow)</li>
     <li><code>{{amount}}</code> — <code>Money::formatRub(price_cents)</code></li>
@@ -228,14 +239,21 @@
   <ul>
     <li>Текст шапки:
       «Правила email-рассылки:» / «Абонемент не оплачен.» / «Отправка в 10:00 (Europe/Moscow).»</li>
-    <li>Дефолты «Добавить правило» (<code>openCreate</code>): типы fixed+flexible, день месяца = 5,
+    <li>Дефолты «Добавить правило» (<code>openCreate</code> → <code>applyDefaultTemplates</code>):
+      тема <code>Оплата за {{month_year}}</code>,
+      тело «Здравствуйте, {{addressee_name}}!» и напоминание про сумму, месяц и группу.
+      Типы fixed+flexible, день месяца = 5,
       offset = текущий, правило включено. Чекбокс <code>flexible</code> подписан «Предоплата»
       (JSON <code>schedule_type_labels.flexible</code>, <code>setScheduleTypes</code> шлёт код).
       <code>ensureScheduleTypeCheckbox</code> при этом может создать чекбокс, скрытый
       <code>@can</code> на HTML; store без type-права → 422 на <code>schedule_types</code>.
       Тело письма <b>без</b> <code>{{pay_url}}</code> —
       чтобы сработал автоблок «Оплатить через СБП». <code>openEdit</code> подставляет
-      сохранённый шаблон, дефолт не навязывает. Анонс подписи типа —
+      сохранённый шаблон, дефолт не навязывает. Кнопка <code>#pn-rule-reset-defaults</code>
+      «По умолчанию» у поля «Текст письма» подставляет системные тему и тело
+      (с <code>{{addressee_name}}</code>) и в создании, и в «Изменить правило».
+      Уже сохранённые правила сами не переписываются.
+      Анонс подписи типа —
       <a href="/doc#flexible-ui-label-index">/doc#flexible-ui-label-index</a>.</li>
     <li>При триггере overdue блок «Месяц начисления» скрывается (<code>syncTriggerUi</code>).</li>
     <li>Превью без <code>users_price_id</code> — <b>демо-данные</b>: текущий календарный месяц MSK
@@ -301,7 +319,8 @@
   <ul>
     <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — метод вкладки</li>
     <li><code>app/Http/Controllers/Admin/PaymentNotificationRuleController.php</code></li>
-    <li><code>app/Services/PaymentNotifications/*</code></li>
+    <li><code>app/Services/PaymentNotifications/*</code>
+      (<code>PaymentNotificationRecipient</code> — адрес письма)</li>
     <li><code>app/Services/Payments/UserPricePublicPayService.php</code>,
       <code>app/Http/Controllers/PublicUserPricePayController.php</code></li>
     <li><code>app/Mail/PaymentNotificationMail.php</code>, <code>resources/views/emails/payment-notification.blade.php</code></li>

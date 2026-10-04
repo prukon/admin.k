@@ -6639,8 +6639,17 @@ JS;
             $openCreateMatch[1],
             'Дефолтное тело openCreate не должно содержать {{pay_url}}: иначе автоблок СБП не добавится'
         );
-        $this->assertStringContainsString('student_name', $openCreateMatch[1]);
-        $this->assertStringContainsString('month_year', $openCreateMatch[1]);
+        $this->assertStringContainsString('applyDefaultTemplates();', $openCreateMatch[1]);
+        $this->assertStringContainsString('function applyDefaultTemplates()', $content);
+        $this->assertStringContainsString('id="pn-rule-reset-defaults"', $content);
+        $this->assertStringContainsString('>По умолчанию</button>', $content);
+        $defaultBody = \App\Services\PaymentNotifications\PaymentNotificationTemplateRenderer::defaultBodyHtmlTemplate();
+        $this->assertStringContainsString('{{addressee_name}}', $defaultBody);
+        $this->assertStringNotContainsString('pay_url', $defaultBody);
+        $this->assertStringContainsString(
+            '{{month_year}}',
+            \App\Services\PaymentNotifications\PaymentNotificationTemplateRenderer::defaultSubjectTemplate()
+        );
         $this->assertStringContainsString("pn-rule-body').value = rule.body_html_template", $content);
 
         $this->assertStringContainsString('api(\'POST\', urls.preview, {', $content);

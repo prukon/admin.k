@@ -9,6 +9,7 @@ use App\Jobs\SendPaymentNotificationDispatchJob;
 use App\Mail\PaymentNotificationMail;
 use App\Models\LessonPackage;
 use App\Models\OutgoingEmailLog;
+use App\Models\ParentProfile;
 use App\Models\Partner;
 use App\Models\PaymentNotificationDispatch;
 use App\Models\PaymentNotificationRule;
@@ -234,7 +235,10 @@ final class PaymentNotificationsFeatureTest extends CrmTestCase
             $html,
             'Панель переменных по умолчанию скрыта (как «Как это работает» в договорах)'
         );
+        $this->assertStringContainsString('{{addressee_name}}', $html);
         $this->assertStringContainsString('{{student_name}}', $html);
+        $this->assertStringContainsString('id="pn-rule-reset-defaults"', $html);
+        $this->assertStringContainsString('По умолчанию', $html);
         $this->assertStringContainsString('{{month_year}}', $html);
         $this->assertStringContainsString('{{pay_url}}', $html);
         $this->assertStringNotContainsString('id="pn-variables-help"', $html);
@@ -1336,6 +1340,247 @@ final class PaymentNotificationsFeatureTest extends CrmTestCase
                 && ! str_contains($mail->bodyHtml, 'Оплатить через СБП');
         });
         $this->assertDatabaseCount('user_price_public_pay_links', 0);
+    }
+
+    public function test_mail_goes_to_parent_and_greeting_uses_parent_name(): void
+    {
+        Mail::fake();
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Петрова',
+            'firstname' => 'Мария',
+            'middlename' => 'Ивановна',
+            'email' => 'parent-pay-notify@example.com',
+        ]);
+        $this->student->update(['parent_id' => $parent->id]);
+
+        $userPrice = $this->unpaidSeptemberPrice();
+        $rule = $this->greetingRule();
+        $dispatch = $this->pendingDispatch($rule, $userPrice);
+
+        (new SendPaymentNotificationDispatchJob((int) $dispatch->id))->handle(
+            app(\App\Services\PaymentNotifications\PaymentNotificationSendService::class)
+        );
+
+        Mail::assertSent(PaymentNotificationMail::class, 1);
+        Mail::assertSent(PaymentNotificationMail::class, function (PaymentNotificationMail $mail) {
+            return $mail->hasTo('parent-pay-notify@example.com')
+                && ! $mail->hasTo('student-pay-notify@example.com')
+                && str_contains($mail->bodyHtml, 'Петрова Мария Ивановна')
+                && str_contains($mail->bodyHtml, 'Тестов Иван');
+        });
+    }
+
+    public function test_mail_falls_back_to_student_when_parent_email_is_missing(): void
+    {
+        Mail::fake();
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Петрова',
+            'firstname' => 'Мария',
+            'middlename' => null,
+            'email' => null,
+        ]);
+        $this->student->update(['parent_id' => $parent->id]);
+
+        $dispatch = $this->pendingDispatch($this->greetingRule(), $this->unpaidSeptemberPrice());
+
+        (new SendPaymentNotificationDispatchJob((int) $dispatch->id))->handle(
+            app(\App\Services\PaymentNotifications\PaymentNotificationSendService::class)
+        );
+
+        Mail::assertSent(PaymentNotificationMail::class, 1);
+        Mail::assertSent(PaymentNotificationMail::class, function (PaymentNotificationMail $mail) {
+            return $mail->hasTo('student-pay-notify@example.com')
+                && str_contains($mail->bodyHtml, 'Петрова Мария');
+        });
+    }
+
+    public function test_same_parent_and_student_email_sends_one_letter_with_parent_spelling(): void
+    {
+        Mail::fake();
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Петрова',
+            'firstname' => 'Мария',
+            'middlename' => null,
+            'email' => 'Same-Pay@example.com',
+        ]);
+        $this->student->update([
+            'parent_id' => $parent->id,
+            'email' => 'same-pay@example.com',
+        ]);
+
+        $dispatch = $this->pendingDispatch($this->greetingRule(), $this->unpaidSeptemberPrice());
+
+        (new SendPaymentNotificationDispatchJob((int) $dispatch->id))->handle(
+            app(\App\Services\PaymentNotifications\PaymentNotificationSendService::class)
+        );
+
+        Mail::assertSent(PaymentNotificationMail::class, 1);
+        Mail::assertSent(PaymentNotificationMail::class, function (PaymentNotificationMail $mail) {
+            return $mail->hasTo('Same-Pay@example.com');
+        });
+    }
+
+    public function test_invalid_parent_email_falls_back_to_student(): void
+    {
+        Mail::fake();
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Петрова',
+            'firstname' => 'Мария',
+            'middlename' => null,
+            'email' => 'not-an-email',
+        ]);
+        $this->student->update(['parent_id' => $parent->id]);
+
+        $dispatch = $this->pendingDispatch($this->greetingRule(), $this->unpaidSeptemberPrice());
+
+        (new SendPaymentNotificationDispatchJob((int) $dispatch->id))->handle(
+            app(\App\Services\PaymentNotifications\PaymentNotificationSendService::class)
+        );
+
+        Mail::assertSent(PaymentNotificationMail::class, 1);
+        Mail::assertSent(PaymentNotificationMail::class, function (PaymentNotificationMail $mail) {
+            return $mail->hasTo('student-pay-notify@example.com');
+        });
+    }
+
+    public function test_dispatch_uses_parent_email_and_skips_only_when_both_emails_missing(): void
+    {
+        Queue::fake();
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'email' => 'parent-queue@example.com',
+        ]);
+        $this->student->update([
+            'parent_id' => $parent->id,
+            'email' => null,
+        ]);
+
+        UserPrice::query()->create([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-09-01',
+            'price_cents' => 500000,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        PaymentNotificationRule::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'parent-email',
+            'is_enabled' => true,
+            'trigger_type' => PaymentNotificationRule::TRIGGER_DAY_OF_MONTH,
+            'trigger_value' => 5,
+            'billing_month_offset' => 0,
+            'schedule_types' => ['fixed'],
+            'subject_template' => 'x',
+            'body_html_template' => 'y',
+            'sort_order' => 0,
+        ]);
+
+        $stats = app(PaymentNotificationDispatchService::class)
+            ->dispatchForDate(CarbonImmutable::parse('2026-09-05', 'Europe/Moscow'));
+
+        $this->assertSame(1, $stats['dispatches_created']);
+        Queue::assertPushed(SendPaymentNotificationDispatchJob::class, 1);
+
+        $parent->update(['email' => '']);
+        $this->student->update(['email' => null]);
+
+        Queue::fake();
+        $second = UserPrice::query()->create([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-08-01',
+            'price_cents' => 500000,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+
+        PaymentNotificationRule::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'no-emails',
+            'is_enabled' => true,
+            'trigger_type' => PaymentNotificationRule::TRIGGER_DAY_OF_MONTH,
+            'trigger_value' => 5,
+            'billing_month_offset' => -1,
+            'schedule_types' => ['fixed'],
+            'subject_template' => 'x',
+            'body_html_template' => 'y',
+            'sort_order' => 1,
+        ]);
+
+        app(PaymentNotificationDispatchService::class)
+            ->dispatchForDate(CarbonImmutable::parse('2026-09-05', 'Europe/Moscow'));
+
+        $skipped = PaymentNotificationDispatch::query()
+            ->where('users_price_id', $second->id)
+            ->first();
+        $this->assertNotNull($skipped);
+        $this->assertSame(PaymentNotificationDispatch::STATUS_SKIPPED, $skipped->status);
+        $this->assertSame('missing_or_invalid_email', $skipped->skip_reason);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_preview_addressee_name_uses_student_when_parent_is_absent(): void
+    {
+        $userPrice = $this->unpaidSeptemberPrice();
+
+        $preview = $this->postJson(route('admin.settingPrices.paymentNotifications.preview'), [
+            'subject_template' => 'Оплата',
+            'body_html_template' => '<p>{{addressee_name}}</p>',
+            'users_price_id' => $userPrice->id,
+        ], $this->ajaxHeaders())
+            ->assertOk();
+
+        $this->assertStringContainsString('Тестов Иван', (string) $preview->json('body_html'));
+    }
+
+    private function unpaidSeptemberPrice(): UserPrice
+    {
+        return UserPrice::query()->create([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-09-01',
+            'price_cents' => 500000,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->fixedPackage->id,
+        ]);
+    }
+
+    private function greetingRule(): PaymentNotificationRule
+    {
+        return PaymentNotificationRule::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'greeting',
+            'is_enabled' => true,
+            'trigger_type' => PaymentNotificationRule::TRIGGER_DAY_OF_MONTH,
+            'trigger_value' => 5,
+            'billing_month_offset' => 0,
+            'schedule_types' => ['fixed'],
+            'subject_template' => 'Оплата {{month_year}}',
+            'body_html_template' => '<p>Здравствуйте, {{addressee_name}}!</p><p>{{student_name}}</p>',
+            'sort_order' => 0,
+        ]);
+    }
+
+    private function pendingDispatch(PaymentNotificationRule $rule, UserPrice $userPrice): PaymentNotificationDispatch
+    {
+        return PaymentNotificationDispatch::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_notification_rule_id' => $rule->id,
+            'users_price_id' => $userPrice->id,
+            'trigger_date' => '2026-09-05',
+            'status' => PaymentNotificationDispatch::STATUS_PENDING,
+        ]);
     }
 
     private function seedTbankForNotifications(): void

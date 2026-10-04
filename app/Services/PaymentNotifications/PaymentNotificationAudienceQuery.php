@@ -45,7 +45,8 @@ final class PaymentNotificationAudienceQuery
 
         return UserPrice::query()
             ->with([
-                'user:id,partner_id,email,name,lastname,is_enabled',
+                'user:id,partner_id,email,name,lastname,parent_id,is_enabled',
+                'user.parentProfile:id,email,lastname,firstname,middlename',
                 'team:id,partner_id,title',
                 'lessonPackage:id,partner_id,name,schedule_type',
             ])

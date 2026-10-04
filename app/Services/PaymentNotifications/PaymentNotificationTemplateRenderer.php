@@ -32,6 +32,7 @@ final class PaymentNotificationTemplateRenderer
         $monthYear = $monthName.' '.$monthDate->format('Y');
 
         return [
+            ['key' => 'addressee_name', 'label' => 'Обращение: ФИО родителя, иначе ученика', 'example' => 'Петрова Мария Ивановна'],
             ['key' => 'student_name', 'label' => 'ФИО ученика', 'example' => 'Иванов Иван'],
             ['key' => 'student_firstname', 'label' => 'Имя ученика', 'example' => 'Иван'],
             ['key' => 'student_lastname', 'label' => 'Фамилия ученика', 'example' => 'Иванов'],
@@ -48,6 +49,17 @@ final class PaymentNotificationTemplateRenderer
     public static function demoPayUrl(): string
     {
         return rtrim((string) config('app.url'), '/').'/pm/examplePay';
+    }
+
+    public static function defaultSubjectTemplate(): string
+    {
+        return 'Оплата за {{month_year}}';
+    }
+
+    public static function defaultBodyHtmlTemplate(): string
+    {
+        return '<p>Здравствуйте, {{addressee_name}}!</p>'
+            .'<p>Напоминаем об оплате <strong>{{amount}} ₽</strong> за {{month_year}} (группа {{team}}).</p>';
     }
 
     /**
@@ -107,9 +119,12 @@ final class PaymentNotificationTemplateRenderer
     public function variablesFromUserPrice(UserPrice $userPrice): array
     {
         $user = $userPrice->user;
+        $user?->loadMissing('parentProfile');
         $firstname = trim((string) ($user?->name ?? ''));
         $lastname = trim((string) ($user?->lastname ?? ''));
         $fullName = trim($lastname.' '.$firstname);
+        $studentName = $fullName !== '' ? $fullName : 'Ученик';
+        $parentName = trim((string) ($user?->parentProfile?->full_name ?? ''));
 
         $monthDate = CarbonImmutable::parse((string) $userPrice->new_month, PaymentNotificationTriggerResolver::TIMEZONE)
             ->locale('ru');
@@ -121,7 +136,8 @@ final class PaymentNotificationTemplateRenderer
         $scheduleType = (string) ($userPrice->lessonPackage?->schedule_type ?? '');
 
         return [
-            'student_name' => $fullName !== '' ? $fullName : 'Ученик',
+            'addressee_name' => $parentName !== '' ? $parentName : $studentName,
+            'student_name' => $studentName,
             'student_firstname' => $firstname !== '' ? $firstname : 'Имя',
             'student_lastname' => $lastname !== '' ? $lastname : 'Фамилия',
             'month' => $monthName,

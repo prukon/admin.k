@@ -19,6 +19,7 @@ final class PaymentNotificationSendService
 {
     public function __construct(
         private readonly PaymentNotificationTemplateRenderer $renderer,
+        private readonly PaymentNotificationRecipient $recipient,
     ) {
     }
 
@@ -52,9 +53,9 @@ final class PaymentNotificationSendService
             return;
         }
 
-        $userPrice->loadMissing(['user', 'team', 'lessonPackage']);
-        $email = trim((string) ($userPrice->user?->email ?? ''));
-        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $userPrice->loadMissing(['user.parentProfile', 'team', 'lessonPackage']);
+        $email = $this->recipient->emailFor($userPrice->user);
+        if ($email === null) {
             $dispatch->update([
                 'status' => PaymentNotificationDispatch::STATUS_SKIPPED,
                 'skip_reason' => 'missing_or_invalid_email',

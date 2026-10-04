@@ -120,7 +120,10 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label" for="pn-rule-body">Текст письма (HTML)</label>
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                            <label class="form-label mb-0" for="pn-rule-body">Текст письма (HTML)</label>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="pn-rule-reset-defaults">По умолчанию</button>
+                        </div>
                         <textarea class="form-control" id="pn-rule-body" name="body_html_template" rows="8" required
                                   placeholder="<p>Здравствуйте!</p><p>Напоминаем об оплате @{{amount}} ₽ за @{{month_year}} (@{{team}}).</p>"></textarea>
                         <div class="invalid-feedback d-block pn-field-error" data-field="body_html_template" style="display:none;"></div>
@@ -207,6 +210,13 @@
     var rulesCache = [];
     var modalEl = document.getElementById('pnRuleModal');
     var modal = modalEl ? new bootstrap.Modal(modalEl) : null;
+    var defaultSubjectTemplate = @json(\App\Services\PaymentNotifications\PaymentNotificationTemplateRenderer::defaultSubjectTemplate());
+    var defaultBodyTemplate = @json(\App\Services\PaymentNotifications\PaymentNotificationTemplateRenderer::defaultBodyHtmlTemplate());
+
+    function applyDefaultTemplates() {
+        document.getElementById('pn-rule-subject').value = defaultSubjectTemplate;
+        document.getElementById('pn-rule-body').value = defaultBodyTemplate;
+    }
 
     function urlWithId(tpl, id) {
         return String(tpl || '').replace('__ID__', String(id));
@@ -400,8 +410,7 @@
         document.getElementById('pn-rule-trigger-type').value = 'day_of_month';
         document.getElementById('pn-rule-trigger-value').value = '5';
         document.getElementById('pn-rule-billing-offset').value = '0';
-        document.getElementById('pn-rule-subject').value = 'Оплата за @{{month_year}}';
-        document.getElementById('pn-rule-body').value = '<p>Здравствуйте, @{{student_name}}!</p><p>Напоминаем об оплате <strong>@{{amount}} ₽</strong> за @{{month_year}} (группа @{{team}}).</p>';
+        applyDefaultTemplates();
         document.getElementById('pn-preview-box').classList.add('d-none');
         document.getElementById('pn-test-result').classList.add('d-none');
         syncTriggerUi();
@@ -442,6 +451,7 @@
     }
 
     document.getElementById('pn-rule-create-btn').addEventListener('click', openCreate);
+    document.getElementById('pn-rule-reset-defaults').addEventListener('click', applyDefaultTemplates);
     document.getElementById('pn-rule-trigger-type').addEventListener('change', syncTriggerUi);
 
     (function initTemplateVarsToggle() {
