@@ -167,6 +167,86 @@ final class LocationAdminReportFeatureTest extends CrmTestCase
         $this->assertFalse(collect($otherDebts)->contains(fn ($row) => (int) ($row['user_id'] ?? 0) === (int) $student->id));
     }
 
+    public function test_debts_admin_filter_total_uses_debt_team_and_skips_deleted_team(): void
+    {
+        [$location, $otherLocation, $admin] = $this->seedTwoLocations();
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $location->id,
+            'is_enabled' => 1,
+        ]);
+        $otherTeam = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $otherLocation->id,
+            'is_enabled' => 1,
+        ]);
+        $month = now()->subMonth()->startOfMonth()->format('Y-m-d');
+        $this->insertUserPrice($student, [
+            'is_paid' => 0,
+            'price' => 70,
+            'new_month' => $month,
+        ], $team);
+        $this->insertUserPrice($student, [
+            'is_paid' => 0,
+            'price' => 30,
+            'new_month' => $month,
+        ], $otherTeam);
+        $this->insertDebtCustomPayment($student, 1500, $team->id, '2020-01-01', '2020-01-31');
+        $this->insertDebtCustomPayment($student, 2500, $otherTeam->id, '2020-02-01', '2020-02-28');
+
+        $query = [
+            'filter_admin_user_id' => [$admin->id],
+            'status' => '',
+        ];
+
+        $this->get(route('debts', $query))->assertOk();
+
+        $rows = collect($this->rows('debts.getDebts', $query))
+            ->filter(fn ($row) => (int) ($row['user_id'] ?? 0) === (int) $student->id);
+        $this->assertEqualsWithDelta(85.0, (float) $rows->sum('price'), 0.001);
+
+        $total = $this->get(route('reports.debts.total', $query))->assertOk();
+        $this->assertEqualsWithDelta(85.0, (float) $total->json('total_raw'), 0.001);
+
+        $deletedTeam = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $location->id,
+            'is_enabled' => 1,
+        ]);
+        $this->insertUserPrice($student, [
+            'is_paid' => 0,
+            'price' => 40,
+            'new_month' => $month,
+        ], $deletedTeam);
+        $deletedTeam->delete();
+
+        $rowsAfter = collect($this->rows('debts.getDebts', $query))
+            ->filter(fn ($row) => (int) ($row['user_id'] ?? 0) === (int) $student->id);
+        $this->assertEqualsWithDelta(85.0, (float) $rowsAfter->sum('price'), 0.001);
+        $totalAfter = $this->get(route('reports.debts.total', $query))->assertOk();
+        $this->assertEqualsWithDelta(85.0, (float) $totalAfter->json('total_raw'), 0.001);
+    }
+
+    private function insertDebtCustomPayment(User $user, int $amountCents, int $teamId, string $dateStart, string $dateEnd): void
+    {
+        DB::table('user_custom_payment')->insert([
+            'user_id' => $user->id,
+            'partner_id' => $user->partner_id,
+            'team_id' => $teamId,
+            'is_paid' => 0,
+            'is_manual_paid' => null,
+            'amount_cents' => $amountCents,
+            'date_start' => $dateStart,
+            'date_end' => $dateEnd,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     /**
      * @return array{0: Location, 1: Location, 2: User}
      */

@@ -2826,7 +2826,7 @@ JS;
             "JS syntax error in resources/js/settings-prices.js (former charge clear):\n".implode("\n", $output)
         );
 
-        $this->assertStringContainsString('if (!isFormer && canManage && uid && hasAbon)', $content);
+        $this->assertStringContainsString('if (!isFormer && canManage && uid && hasAbon && !acquiringPaid)', $content);
         $this->assertStringContainsString('if (isFormer && !eff && uid)', $content);
         $this->assertStringContainsString('user-price-former-clear', $content);
         $this->assertStringContainsString('can_clear_former_charge', $content);
@@ -3032,6 +3032,48 @@ JS;
     }
 
     /**
+     * Автооплата эквайринга не открывает сумму после ручного «Не оплачено».
+     */
+    public function test_setting_prices_acquiring_amount_stays_locked_after_manual_unpaid_ux_contract(): void
+    {
+        $message = 'Нельзя изменить сумму: месяц уже оплачен через платёжную систему.';
+        $jsPath = resource_path('js/settings-prices.js');
+        $js = (string) file_get_contents($jsPath);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($jsPath).' 2>&1', $output, $exitCode);
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+
+        $this->assertStringContainsString($message, $js);
+        $this->assertStringContainsString('function acquiringPaidFromUserPrice(', $js);
+        $this->assertStringContainsString('data-acquiring-paid', $js);
+        $this->assertStringContainsString('if (!acquiringPaidNow)', $js);
+        $this->assertStringContainsString("errs['usersPrice.0.price']", $js);
+        $this->assertStringContainsString("showMonthlyCardFieldError(\$card, 'price'", $js);
+        $this->assertStringContainsString('!acquiringPaid && hasAbon', $js);
+        $this->assertStringContainsString('if (!isFormer && canManage && uid && hasAbon && !acquiringPaid)', $js);
+        $this->assertStringContainsString("attr('data-acquiring-paid') === '1'", $js);
+
+        $usersPath = resource_path('views/admin/SettingPrices/users.blade.php');
+        $blade = (string) file_get_contents($usersPath);
+        $this->assertStringContainsString($message, $blade);
+        $this->assertStringContainsString('data-acquiring-paid', $blade);
+        $this->assertStringContainsString('!eff && !acquiringPaid && hasAbonNow', $blade);
+        $this->assertStringContainsString('if (canManual && hasRow && hasAbon && !acquiringPaid)', $blade);
+        $this->assertStringContainsString("attr('data-acquiring-paid') === '1'", $blade);
+        $this->assertStringContainsString("errs['prices.0.price']", $blade);
+        $this->assertStringContainsString('setting-prices-monthly-price-error', $blade);
+        $this->assertStringContainsString("\$input.data('acquiring-paid')", $blade);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $usersPath,
+            'function postManualPaidForUser',
+            'blade-js-setting-prices-acquiring-amount-lock'
+        );
+    }
+
+    /**
      * P1: замена предоплаты у оплаченного месяца — селект доступен, цена не сбрасывается,
      * 422 под строкой карточки. Два JS-пути: Vite «По месяцам» и inline «По ученикам».
      */
@@ -3055,7 +3097,7 @@ JS;
         $this->assertStringContainsString('if (pkg && !isPaid)', $js);
         $this->assertStringContainsString('/^usersPrice\\.(\\d+)\\.lesson_package_id$/', $js);
         $this->assertStringContainsString('setting-prices-monthly-package-error', $js);
-        $this->assertStringContainsString("} else if (\$card.attr('data-effective-paid') === '1')", $js);
+        $this->assertStringContainsString("} else if (acquiringPaidForInput || \$card.attr('data-effective-paid') === '1')", $js);
 
         $applyStart = strpos($js, "$('#set-price-all-users').on('click'");
         $this->assertNotFalse($applyStart);
@@ -3118,7 +3160,7 @@ JS;
         $enablePos = strpos($afterFormer, "packageSelectDisabled = ''");
         $this->assertNotFalse($enablePos);
         $this->assertStringNotContainsString('hasAbon', substr($afterFormer, 0, $enablePos));
-        $this->assertStringContainsString('} else if (!eff && hasAbon && !canManage)', $render);
+        $this->assertStringContainsString('} else if (!eff && !acquiringPaid && hasAbon && !canManage)', $render);
         $this->assertStringContainsString('if (pkg && !isPaid)', $js);
 
         $payloadStart = strpos($js, 'function buildRightApplyPayloadFromDom');
@@ -3145,7 +3187,7 @@ JS;
         $this->assertStringContainsString('} else if (!isPaid && pkgPrice != null && pkgPrice !== \'\')', $blade);
         $this->assertStringContainsString("errs['prices.0.lesson_package_id']", $blade);
         $this->assertStringContainsString("prices.' + i + '.lesson_package_id", $blade);
-        $this->assertStringContainsString('if (!isFormer && !effectivePaid && hasAbon && !canManual)', $blade);
+        $this->assertStringContainsString('if (!isFormer && !effectivePaid && !acquiringPaid && hasAbon && !canManual)', $blade);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $usersPath,
@@ -3172,8 +3214,8 @@ JS;
             "JS syntax error in resources/js/settings-prices.js (require package for price):\n".implode("\n", $output)
         );
 
-        $this->assertStringContainsString('} else if (isEditing && !eff && hasAbon)', $js);
-        $this->assertStringContainsString('} else if (!eff && hasAbon && !canManage)', $js);
+        $this->assertStringContainsString('} else if (isEditing && !eff && !acquiringPaid && hasAbon)', $js);
+        $this->assertStringContainsString('} else if (!eff && !acquiringPaid && hasAbon && !canManage)', $js);
         $this->assertStringNotContainsString('!canManage || !hasAbon', $js);
         $this->assertStringContainsString('} else if (!pkg && !isPaid)', $js);
         $this->assertStringContainsString('$priceInput.val(formatPriceValue(0))', $js);
@@ -3183,7 +3225,7 @@ JS;
         $usersPath = resource_path('views/admin/SettingPrices/users.blade.php');
         $this->assertFileExists($usersPath);
         $blade = (string) file_get_contents($usersPath);
-        $this->assertStringContainsString('if (!isFormer && !effectivePaid && hasAbon && !canManual)', $blade);
+        $this->assertStringContainsString('if (!isFormer && !effectivePaid && !acquiringPaid && hasAbon && !canManual)', $blade);
         $this->assertStringNotContainsString('!canManual || !hasAbon', $blade);
         $this->assertStringContainsString('if (!select.value)', $blade);
         $this->assertStringContainsString('$input.val(formatPriceValue(0))', $blade);

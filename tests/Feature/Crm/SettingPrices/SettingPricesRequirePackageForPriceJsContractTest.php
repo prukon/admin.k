@@ -21,12 +21,12 @@ final class SettingPricesRequirePackageForPriceJsContractTest extends TestCase
         $js = $this->settingsPricesJs();
         $render = $this->renderUsersSource($js);
 
-        $this->assertStringContainsString('} else if (isEditing && !eff && hasAbon)', $render);
-        $this->assertStringContainsString('} else if (!eff && hasAbon && !canManage)', $render);
+        $this->assertStringContainsString('} else if (isEditing && !eff && !acquiringPaid && hasAbon)', $render);
+        $this->assertStringContainsString('} else if (!eff && !acquiringPaid && hasAbon && !canManage)', $render);
         $this->assertStringNotContainsString('!canManage || !hasAbon', $render);
 
         $disabledPos = strpos($render, "let priceInputDisabled = 'disabled'");
-        $editEnable = strpos($render, '} else if (isEditing && !eff && hasAbon)');
+        $editEnable = strpos($render, '} else if (isEditing && !eff && !acquiringPaid && hasAbon)');
         $this->assertNotFalse($disabledPos);
         $this->assertNotFalse($editEnable);
         $this->assertLessThan($editEnable, $disabledPos);
@@ -108,7 +108,7 @@ final class SettingPricesRequirePackageForPriceJsContractTest extends TestCase
     public function test_users_tab_locks_price_without_package_on_first_card_render(): void
     {
         $blade = $this->usersBlade();
-        $this->assertStringContainsString('if (!isFormer && !effectivePaid && hasAbon && !canManual)', $blade);
+        $this->assertStringContainsString('if (!isFormer && !effectivePaid && !acquiringPaid && hasAbon && !canManual)', $blade);
         $this->assertStringContainsString('data-abon-established', $blade);
         $this->assertStringNotContainsString('!canManual || !hasAbon', $blade);
     }

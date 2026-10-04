@@ -100,7 +100,7 @@ final class UserUnpaidPriceDiscountRecalc
             ->orderBy('new_month')
             ->orderBy('team_id')
             ->get()
-            ->filter(static fn (UserPrice $row) => ! $row->effective_is_paid)
+            ->filter(static fn (UserPrice $row) => ! $row->amountIsFrozen())
             ->values()
             ->all();
     }

@@ -662,6 +662,7 @@
   <div class="note">
     <b>Фильтр «Группа» (<code>filter_team_id</code>):</b> для месячных долгов — <code>users_prices.team_id = …</code>; для периодных доп. платежей — ученик состоит в группе (pivot). Текстовый <code>team_title</code> — по любой группе ученика в pivot.
     <br><b>Фильтр локации</b> — §2.1: через группы ученика в pivot (<code>team_user</code> → <code>teams.location_id</code>), не по <code>users_prices.team_id</code>. Платёжные отчёты — <code>payments.location_id</code>.
+    <br><b>Фильтр «Админ»</b> — §2.1.1: <code>LocationAdminReport::applyForTeamId</code> по группе строки долга (<code>users_prices.team_id</code> у месяца, <code>user_custom_payment.team_id</code> у доп. платежа). Страница, таблица и <code>debts/total</code> вызывают его одинаково. Внешний join <code>teams</code> фильтру не нужен. Мягко удалённая группа в фильтр не входит. Колонки «Группа» и «Объект» по-прежнему читают <code>teams</code> своим join.
     <br><b>Фильтр «Активность ученика»</b> — §2.3: параметр <code>status</code>; по умолчанию только активные (<code>users.is_enabled = 1</code>); сброс фильтров в UI снова ставит <code>active</code>.
     Soft-deleted ученики скрыты всегда, этот фильтр их не возвращает.
     <br>Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>; гость — <b>302/401/403</b>.

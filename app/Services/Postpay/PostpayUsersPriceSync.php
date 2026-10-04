@@ -20,7 +20,7 @@ final class PostpayUsersPriceSync
 
     public function isLocked(UserPrice $row): bool
     {
-        return (bool) $row->effective_is_paid;
+        return $row->amountIsFrozen();
     }
 
     /**

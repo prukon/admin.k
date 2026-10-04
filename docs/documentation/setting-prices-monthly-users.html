@@ -647,6 +647,8 @@
     предоплата на оплаченный месяц без абонемента —
     <a href="/doc#setting-prices-paid-empty-prepaid-attach-index">анонс</a>).
     Если месяц уже эффективно оплачен, <code>applyUnpaidUserPriceRow</code> поля карточки не применяет.
+    Автооплата эквайринга (<code>is_paid = 1</code>) держит сумму даже после ручного
+    «Не оплачено» — <a href="#acquiring-amount-lock">§4.0.2</a>.
     Без этих полей контракт прежний: только ручная отметка.
     Фронт читает селект/цену из DOM карточки (<code>JSON.stringify(payload)</code> после
     <code>if (mode === 'paid')</code>), а не из устаревшего <code>usersPrice</code> в памяти.
@@ -656,6 +658,28 @@
     <b>422</b> <code>errors.lesson_package_id</code> / <code>errors.price</code> / <code>errors.comment</code>.
     Non-AJAX POST — <b>302</b> на вкладку «По ученикам» и запись в БД (не пустой 200).
     Анонс — <a href="/doc#setting-prices-monthly-manual-paid-card-index">/doc#setting-prices-monthly-manual-paid-card-index</a>.
+  </div>
+
+  <h2 id="acquiring-amount-lock">4.0.2) Сумма после эквайринга не меняется ручным «Не оплачено»</h2>
+  <div class="ok">
+    <code>is_paid = 1</code> ставит webhook месячного платежа. Карандаш
+    <code>user-price-manual-edit</code> при этом не рисуется: ручной статус через интерфейс
+    не ставится, автофлаг не снимается.
+    Если <code>is_manual_paid</code> уже «не оплачено», месяц для экрана и задолженностей снова неоплаченный,
+    но <code>price_cents</code> остаётся суммой эквайринга.
+    Поле цены на «По месяцам» и «По ученикам» закрыто
+    (<code>data-acquiring-paid="1"</code>), смена абонемента не подставляет каталог.
+    Подсказка и текст 422: «Нельзя изменить сумму: месяц уже оплачен через платёжную систему.»
+    (<code>UserPrice::ACQUIRING_AMOUNT_LOCKED_MESSAGE</code>), под
+    <code>setting-prices-monthly-price-error</code>.
+    Та же сумма в запросе сохраняется; замена предоплаты сумму не трогает.
+    <code>UserPrice::amountIsFrozen()</code> также не даёт переписать сумму снимком группы,
+    пересчётом персональной скидки, синхронизацией постоплаты и корзиной бывшего.
+    Месяц только с ручной оплатой (<code>is_paid = 0</code>) после снятия отметки переоценить можно.
+    Анонс — <a href="/doc#setting-prices-acquiring-amount-lock-index">/doc#setting-prices-acquiring-amount-lock-index</a>.
+    Тесты: <code>SettingPricesAcquiringAmountLockFeatureTest</code>,
+    <code>SettingPricesAcquiringAmountLockDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_acquiring_amount_stays_locked_after_manual_unpaid_ux_contract</code>.
   </div>
 
   <h3 id="manual-paid-zero-price">4.0.1) Нельзя отметить оплату при 0 ₽</h3>

@@ -548,6 +548,7 @@
 
                 response.months.forEach(function (item) {
                     const effectivePaid = !!item.effective_is_paid;
+                    const acquiringPaid = !!item.is_paid;
                     const hasRow = !!item.has_price_row;
                     const packageId = item.lesson_package_id != null ? item.lesson_package_id : '';
                     const hasAbon = packageId !== '';
@@ -555,10 +556,17 @@
                     const packageDisabledAttr = isFormer ? 'disabled' : '';
                     // Сумма без абонемента закрыта; после установки абона — только через карандаш
                     // (если есть право). Без права карандаша поле открыто, пока выбран абонемент.
+                    // Автооплата эквайринга сумму не открывает, даже после ручного «Не оплачено».
                     let priceDisabledAttr = 'disabled';
-                    if (!isFormer && !effectivePaid && hasAbon && !canManual) {
+                    if (!isFormer && !effectivePaid && !acquiringPaid && hasAbon && !canManual) {
                         priceDisabledAttr = '';
                     }
+                    const acquiringLockTitle = 'Нельзя изменить сумму: месяц уже оплачен через платёжную систему.';
+                    const acquiringLockAttrs = acquiringPaid
+                        ? (' data-acquiring-paid="1" data-kids-tooltip-hint="1" data-bs-toggle="tooltip"'
+                            + ' data-bs-placement="top" data-bs-custom-class="ulp-assignment-paid-tooltip"'
+                            + ' title="' + escapeAttr(acquiringLockTitle) + '"')
+                        : ' data-acquiring-paid="0"';
 
                     const manualNote = item.manual_paid_note || '';
                     const hasManual = item.is_manual_paid !== null && item.is_manual_paid !== undefined;
@@ -576,7 +584,7 @@
                     }
 
                     let pencilHtml = '';
-                    if (canManual && hasRow && hasAbon) {
+                    if (canManual && hasRow && hasAbon && !acquiringPaid) {
                         pencilHtml = '<button type="button" class="btn btn-link btn-sm p-0 user-price-manual-edit setting-prices-monthly-edit-btn" ' +
                             'data-new-month="' + item.new_month + '" title="Изменить статус и сумму">' +
                             '<i class="fa fa-edit" aria-hidden="true"></i></button>';
@@ -599,7 +607,7 @@
                         '<div class="setting-prices-monthly-edit-wrap">' + pencilHtml + '</div>' +
                         '</div>';
 
-                    html += '<div class="setting-prices-user-card mb-2 pb-2 border-bottom' + (isFormer ? ' setting-prices-user-card--former' : '') + '" data-new-month="' + item.new_month + '"' + (isFormer ? ' data-is-former-member="1"' : '') + ' data-abon-established="' + (hasAbon ? '1' : '0') + '">';
+                    html += '<div class="setting-prices-user-card mb-2 pb-2 border-bottom' + (isFormer ? ' setting-prices-user-card--former' : '') + '" data-new-month="' + item.new_month + '"' + (isFormer ? ' data-is-former-member="1"' : '') + ' data-abon-established="' + (hasAbon ? '1' : '0') + '" data-acquiring-paid="' + (acquiringPaid ? '1' : '0') + '">';
                     html += '<div class="setting-prices-monthly-row d-flex align-items-center gap-1 flex-nowrap w-100 min-w-0">';
                     html += '<div class="setting-prices-monthly-name-col d-flex align-items-center min-w-0 flex-grow-1 gap-1">';
                     html += '<span class="setting-prices-monthly-name-text text-truncate" title="' + monthTitle + '">' + escapeHtml(item.month_label) + '</span>';
@@ -615,6 +623,7 @@
                         'data-new-month="' + item.new_month + '" ' +
                         'data-effective-paid="' + (effectivePaid ? '1' : '0') + '" ' +
                         'value="' + escapeAttr(formatPriceValue(item.price)) + '" ' + priceDisabledAttr +
+                        acquiringLockAttrs +
                         (isFormer ? ' readonly' : '') +
                         ' aria-label="Цена за месяц">';
                     const appliedPct = item.applied_discount_percent != null
@@ -665,11 +674,13 @@
                 const $cell = $row.find('.user-price-status-cell');
                 const $priceInput = $row.find('.user-price-input');
                 const eff = !!item.effective_is_paid;
+                const acquiringPaid = !!item.is_paid;
                 const selVal = eff ? '1' : '0';
 
                 // В режиме карандаша сумму можно править только у неоплаченных с абонементом.
+                // Автооплата эквайринга поле суммы не открывает.
                 const hasAbonNow = String($row.find('.setting-prices-monthly-package-select').val() || '') !== '';
-                if (!eff && hasAbonNow) {
+                if (!eff && !acquiringPaid && hasAbonNow) {
                     $priceInput.prop('disabled', false);
                 }
 
@@ -710,7 +721,8 @@
                     return;
                 }
 
-                $card.find('.setting-prices-monthly-package-error').hide().text('');
+                $card.find('.setting-prices-monthly-package-error, .setting-prices-monthly-price-error').hide().text('');
+                $card.find('.user-price-input, .setting-prices-monthly-package-select').removeClass('is-invalid');
 
                 // Для оплаченного месяца сумму не меняем, но абонемент предоплаты можно заменить.
                 const year = $('#user-year-select').val();
@@ -754,13 +766,20 @@
                             }
                             const errs = xhr.responseJSON.errors;
                             if (errs) {
+                                const priceErr = errs['prices.0.price'] || errs.price;
+                                if (priceErr && priceErr[0]) {
+                                    $card.find('.setting-prices-monthly-price-error').text(priceErr[0]).show();
+                                    $card.find('.user-price-input').addClass('is-invalid');
+                                    fieldShown = true;
+                                    msg = priceErr[0];
+                                }
                                 const pkgErr = errs['prices.0.lesson_package_id']
                                     || errs.lesson_package_id;
                                 if (pkgErr && pkgErr[0]) {
                                     $card.find('.setting-prices-monthly-package-error').text(pkgErr[0]).show();
                                     fieldShown = true;
                                     msg = pkgErr[0];
-                                } else {
+                                } else if (!fieldShown) {
                                     const firstKey = Object.keys(errs)[0];
                                     if (firstKey && errs[firstKey] && errs[firstKey][0]) {
                                         msg = errs[firstKey][0];
@@ -857,6 +876,9 @@
                     if (lastPricesPayload && lastPricesPayload.is_former_member) {
                         return;
                     }
+                    if ($(this).closest('.setting-prices-user-card').attr('data-acquiring-paid') === '1') {
+                        return;
+                    }
                     const newMonth = $(this).data('new-month');
                     if (!newMonth) {
                         return;
@@ -903,7 +925,9 @@
                     if (!$input.length) {
                         return;
                     }
-                    const isPaid = Number($input.data('effective-paid')) === 1;
+                    const isPaid = Number($input.data('effective-paid')) === 1
+                        || Number($input.data('acquiring-paid')) === 1
+                        || $card.attr('data-acquiring-paid') === '1';
                     const api = window.KidsCrmUserDiscount;
                     const $wrap = $input.closest('.kids-user-discount-price-wrap');
                     const pct = yearUserDiscountPercent();

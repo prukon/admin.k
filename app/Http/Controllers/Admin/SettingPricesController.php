@@ -1717,6 +1717,42 @@ class SettingPricesController extends AdminBaseController
     }
 
     /**
+     * Ручное «не оплачено» не разблокирует сумму, если месяц уже оплачен эквайрингом.
+     * Эффективно оплаченный месяц по-прежнему молча оставляет старую сумму.
+     *
+     * @param  array{price?: mixed, lesson_package_id?: mixed, user?: array{name?: string}}  $priceData
+     *
+     * @throws ValidationException
+     */
+    protected function rejectAcquiringPriceChange(UserPrice $row, array $priceData, string $priceField): void
+    {
+        if (! (bool) $row->is_paid || $row->effective_is_paid) {
+            return;
+        }
+        if (! array_key_exists('price', $priceData)) {
+            return;
+        }
+
+        $submittedCents = Money::toCentsOrFail($priceData['price'] ?? 0);
+        if ($submittedCents === (int) $row->price_cents) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            $priceField => [UserPrice::ACQUIRING_AMOUNT_LOCKED_MESSAGE],
+        ]);
+    }
+
+    protected function priceErrorField(string $packageField): string
+    {
+        if (str_ends_with($packageField, 'lesson_package_id')) {
+            return substr($packageField, 0, -strlen('lesson_package_id')).'price';
+        }
+
+        return 'price';
+    }
+
+    /**
      * Применить абонемент/цену к строке users_prices (как «Применить» справа для одной записи).
      * Оплаченный месяц: пусто → предоплата или предоплата → предоплата; цена заморожена.
      *
@@ -1733,6 +1769,12 @@ class SettingPricesController extends AdminBaseController
         string $selectedDateString,
         string $ulpErrorField
     ): void {
+        $this->rejectAcquiringPriceChange(
+            $userPriceRecord,
+            $priceData,
+            $this->priceErrorField($ulpErrorField)
+        );
+
         $packageKeyPresent = array_key_exists('lesson_package_id', $priceData);
         $newPackageId = $packageKeyPresent
             ? ($priceData['lesson_package_id'] !== null ? (int) $priceData['lesson_package_id'] : null)
@@ -1751,7 +1793,7 @@ class SettingPricesController extends AdminBaseController
 
         $userId = (int) $user->id;
 
-        if ($userPriceRecord->effective_is_paid) {
+        if ($userPriceRecord->amountIsFrozen()) {
             $this->applyPaidUserPricePackageChange(
                 $userPriceRecord,
                 $priceData,
@@ -1900,7 +1942,7 @@ class SettingPricesController extends AdminBaseController
                         ->first();
 
                     if ($userPrice) {
-                        if ($userPrice->effective_is_paid) {
+                        if ($userPrice->amountIsFrozen()) {
                             if ($package === null
                                 || ! $this->usersPriceLessonPackageSync->isFlexibleReplaceAllowed($userPrice, $package)
                             ) {
@@ -2546,7 +2588,7 @@ class SettingPricesController extends AdminBaseController
                     : null;
 
                 if ($userPrice) {
-                    if ($userPrice->effective_is_paid) {
+                    if ($userPrice->amountIsFrozen()) {
                         $this->applyUnpaidUserPriceRow(
                             $userPrice,
                             array_merge($item, [

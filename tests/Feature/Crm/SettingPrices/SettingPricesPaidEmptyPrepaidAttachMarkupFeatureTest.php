@@ -60,7 +60,7 @@ final class SettingPricesPaidEmptyPrepaidAttachMarkupFeatureTest extends CrmTest
         $beforeEnable = substr($afterFormer, 0, $enablePos);
         $this->assertStringNotContainsString('hasAbon', $beforeEnable);
         $this->assertStringNotContainsString('eff ?', $beforeEnable);
-        $this->assertStringContainsString('} else if (!eff && hasAbon && !canManage)', $render);
+        $this->assertStringContainsString('} else if (!eff && !acquiringPaid && hasAbon && !canManage)', $render);
         $this->assertStringContainsString('setting-prices-monthly-package-error', $render);
         $this->assertStringContainsString('data-effective-paid', $render);
         $this->assertStringContainsString('data-abon-established', $render);
@@ -79,7 +79,7 @@ final class SettingPricesPaidEmptyPrepaidAttachMarkupFeatureTest extends CrmTest
         $blade = (string) file_get_contents(resource_path('views/admin/SettingPrices/users.blade.php'));
         $this->assertStringContainsString("const packageDisabledAttr = isFormer ? 'disabled' : ''", $blade);
         $this->assertStringNotContainsString("effectivePaid ? 'disabled'", $blade);
-        $this->assertStringContainsString('if (!isFormer && !effectivePaid && hasAbon && !canManual)', $blade);
+        $this->assertStringContainsString('if (!isFormer && !effectivePaid && !acquiringPaid && hasAbon && !canManual)', $blade);
         $this->assertStringContainsString('setting-prices-monthly-package-error', $blade);
         $this->assertStringContainsString("data-effective-paid=\"' + (effectivePaid ? '1' : '0')", $blade);
         $this->assertStringNotContainsString('modal-fullscreen', $blade);

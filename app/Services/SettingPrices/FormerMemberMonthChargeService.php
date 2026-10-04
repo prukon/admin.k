@@ -43,7 +43,7 @@ final class FormerMemberMonthChargeService
      */
     public function assess(UserPrice $row): array
     {
-        if ($row->effective_is_paid) {
+        if ($row->amountIsFrozen()) {
             return $this->blocked(self::REASON_PAID);
         }
 

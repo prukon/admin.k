@@ -28,6 +28,50 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="setting-prices-acquiring-amount-lock-index">Установка цен: сумма после эквайринга не меняется ручным «Не оплачено» (2026‑10)</h2>
+  <div class="note">
+    Если месяц уже оплачен через платёжную систему (<code>users_prices.is_paid = 1</code>),
+    ручная отметка «Не оплачено» меняет только статус для экрана и задолженностей
+    (<code>is_manual_paid = 0</code>, <code>effective_is_paid = false</code>).
+    Сумму начисления <code>price_cents</code> она не открывает.
+    Журнал платежей на 540 ₽ при этом не переписывается.
+    <br><br>
+    1) <b>Где.</b> Вкладки <code>/admin/setting-prices/monthly</code> и
+    <code>/admin/setting-prices/users</code>. Поле суммы остаётся закрытым,
+    подсказка на нём: «Нельзя изменить сумму: месяц уже оплачен через платёжную систему.»
+    (<code>UserPrice::ACQUIRING_AMOUNT_LOCKED_MESSAGE</code>).
+    Смена абонемента в селекте не подставляет каталожную цену.
+    Карандаш не рисуется при <code>is_paid = 1</code>
+    (<code>user-price-manual-edit</code> на «По месяцам» и «По ученикам»):
+    ручной статус через интерфейс для такого месяца не ставится.
+    Право карандаша у остальных месяцев — <code>setPrices.manualPaid.manage</code>
+    и <code>setPrices.view</code>.
+    <br>
+    2) <b>Сервер.</b> <code>UserPrice::amountIsFrozen()</code> — истина при
+    <code>is_paid</code> или <code>effective_is_paid</code>.
+    <code>POST /admin/setting-prices/manual-paid</code> (<code>mode=paid</code> и другая сумма),
+    <code>POST /admin/setting-prices/set-price-all-users</code> и
+    <code>POST /admin/setting-prices/user-year-prices/save</code>
+    при другой сумме → <b>422</b>
+    <code>errors.price</code> / <code>errors.usersPrice.N.price</code> /
+    <code>errors.prices.N.price</code>, текст под полем цены
+    (<code>setting-prices-monthly-price-error</code>).
+    Та же сумма — 200, <code>price_cents</code> прежние; предоплату можно заменить
+    (сумма заморожена). Эффективно оплаченный месяц без смены ручного флага
+    по-прежнему молча оставляет сумму.
+    Массовый снимок группы, пересчёт скидки и постоплата тоже не пишут новую сумму.
+    Корзина бывшего при <code>is_paid = 1</code> не обнуляет начисление.
+    Месяц, который оплачен только вручную (<code>is_paid = 0</code>), после снятия отметки
+    по-прежнему можно переоценить.
+    <br>
+    3) <b>Тесты.</b>
+    <code>SettingPricesAcquiringAmountLockFeatureTest</code>,
+    <code>SettingPricesAcquiringAmountLockDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_setting_prices_acquiring_amount_stays_locked_after_manual_unpaid_ux_contract</code>.
+    Подробно — <a href="/docs/documentation/setting-prices-monthly-users#acquiring-amount-lock">setting-prices-monthly-users §4.0.2</a>.
+    Анонс: <a href="/doc#setting-prices-acquiring-amount-lock-index">/doc#setting-prices-acquiring-amount-lock-index</a>.
+  </div>
+
   <h2 id="payment-notifications-parent-email-index">Уведомления об оплате: почта и обращение родителя (2026‑10)</h2>
   <div class="note">
     Письма вкладки <code>/admin/setting-prices/notifications</code>
@@ -1184,6 +1228,10 @@
     В сводке «Платежи по месяцам» столбца нет: администратор есть у платежа, не у месяца.
     У группы LTV и у долга — объект группы (<code>teams.location_id</code>).
     В задолженностях колонка «Админ» уже была, добавлен фильтр.
+    Таблица и сумма шапки берут объект группы строки долга
+    (<code>users_prices.team_id</code> / <code>user_custom_payment.team_id</code>)
+    через <code>LocationAdminReport::applyForTeamId</code>, без join <code>teams</code> во внешнем запросе.
+    Мягко удалённая группа в этот фильтр не входит.
     «Без администратора» — нет объекта или у объекта нет администраторов.
     Колонка и фильтр только при <code>locations.view</code>.
     <br><br>

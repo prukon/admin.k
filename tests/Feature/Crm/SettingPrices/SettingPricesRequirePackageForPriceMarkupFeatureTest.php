@@ -55,14 +55,14 @@ final class SettingPricesRequirePackageForPriceMarkupFeatureTest extends CrmTest
         $this->assertNotFalse($changePos);
         $render = substr($js, $renderPos, $changePos - $renderPos);
 
-        $this->assertStringContainsString('} else if (isEditing && !eff && hasAbon)', $render);
-        $this->assertStringContainsString('} else if (!eff && hasAbon && !canManage)', $render);
+        $this->assertStringContainsString('} else if (isEditing && !eff && !acquiringPaid && hasAbon)', $render);
+        $this->assertStringContainsString('} else if (!eff && !acquiringPaid && hasAbon && !canManage)', $render);
         $this->assertStringNotContainsString('!canManage || !hasAbon', $render);
         $this->assertStringContainsString('setting-prices-monthly-package-error', $render);
         $this->assertStringContainsString('data-abon-established', $render);
         $this->assertStringContainsString('aria-label="Абонемент"', $render);
 
-        $enablePos = strpos($render, '} else if (!eff && hasAbon && !canManage)');
+        $enablePos = strpos($render, '} else if (!eff && !acquiringPaid && hasAbon && !canManage)');
         $this->assertNotFalse($enablePos);
         $beforeEnable = substr($render, 0, $enablePos);
         $this->assertStringContainsString("let priceInputDisabled = 'disabled'", $beforeEnable);
@@ -79,7 +79,7 @@ final class SettingPricesRequirePackageForPriceMarkupFeatureTest extends CrmTest
 
         $blade = (string) file_get_contents(resource_path('views/admin/SettingPrices/users.blade.php'));
         $this->assertStringNotContainsString("@vite(['resources/js/settings-prices.js'])", $blade);
-        $this->assertStringContainsString('if (!isFormer && !effectivePaid && hasAbon && !canManual)', $blade);
+        $this->assertStringContainsString('if (!isFormer && !effectivePaid && !acquiringPaid && hasAbon && !canManual)', $blade);
         $this->assertStringNotContainsString('!canManual || !hasAbon', $blade);
         $this->assertStringContainsString('setting-prices-monthly-package-error', $blade);
         $this->assertStringContainsString('data-abon-established', $blade);

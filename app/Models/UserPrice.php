@@ -10,6 +10,12 @@ class UserPrice extends Model
 {
     use HasFactory;
 
+    /**
+     * Сумму месяца с автооплатой эквайринга нельзя переписать,
+     * даже если ручной флаг говорит «не оплачено».
+     */
+    public const ACQUIRING_AMOUNT_LOCKED_MESSAGE = 'Нельзя изменить сумму: месяц уже оплачен через платёжную систему.';
+
     protected $table = 'users_prices'; //явное указание к какой таблице в БД привязана модель
     protected $guarded = []; //разрешение на изменение данных в таблице}
 
@@ -69,6 +75,15 @@ class UserPrice extends Model
         }
 
         return (bool) $this->is_paid;
+    }
+
+    /**
+     * Сумма начисления заморожена: автооплата эквайринга или эффективная оплата.
+     * Ручное «не оплачено» при is_paid = 1 сумму не разблокирует.
+     */
+    public function amountIsFrozen(): bool
+    {
+        return (bool) $this->is_paid || $this->effective_is_paid;
     }
 
     /**

@@ -31,7 +31,7 @@ final class SettingPricesPaidEmptyPrepaidAttachJsContractTest extends TestCase
         $this->assertStringNotContainsString('hasAbon', $beforeEnable);
         $this->assertStringNotContainsString('eff', $beforeEnable);
 
-        $this->assertStringContainsString('} else if (!eff && hasAbon && !canManage)', $render);
+        $this->assertStringContainsString('} else if (!eff && !acquiringPaid && hasAbon && !canManage)', $render);
         $this->assertStringContainsString("priceInputDisabled = ''", $render);
     }
 

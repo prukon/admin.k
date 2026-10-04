@@ -27,6 +27,28 @@ document.addEventListener('DOMContentLoaded', function () {
     let editingMonthlyUserId = null;
     /** @type {{userId:string,price:*,lesson_package_id:*,is_postpay:*}|null} */
     let editingMonthlySnapshot = null;
+    const ACQUIRING_AMOUNT_LOCKED_TITLE = 'Нельзя изменить сумму: месяц уже оплачен через платёжную систему.';
+
+    function acquiringPaidFromUserPrice(row) {
+        if (!row) {
+            return false;
+        }
+        return row.is_paid === true || row.is_paid === 1 || row.is_paid === '1';
+    }
+
+    function applyAcquiringAmountLockHint($input, locked) {
+        if (!$input || !$input.length) {
+            return;
+        }
+        if (!locked || $input.hasClass('is-postpay-calc')) {
+            return;
+        }
+        $input.attr('data-kids-tooltip-hint', '1');
+        $input.attr('data-bs-toggle', 'tooltip');
+        $input.attr('data-bs-placement', 'top');
+        $input.attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip');
+        $input.attr('title', ACQUIRING_AMOUNT_LOCKED_TITLE);
+    }
 
     function disposeTeamOkTooltip(okBtn) {
         if (!okBtn || typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
@@ -856,6 +878,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const isFormer = isFormerMemberRow(up, userTeam);
 
             const eff = effectivePaidFromUserPrice(up);
+            const acquiringPaid = acquiringPaidFromUserPrice(up);
 
             const last = (userTeam && userTeam.lastname) ? String(userTeam.lastname).trim() : '';
             const first = (userTeam && userTeam.name) ? String(userTeam.name).trim() : '';
@@ -886,7 +909,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const packageId = up.lesson_package_id != null ? up.lesson_package_id : '';
             const hasAbon = packageId !== '';
             let pencilHtml = '';
-            if (!isFormer && canManage && uid && hasAbon) {
+            if (!isFormer && canManage && uid && hasAbon && !acquiringPaid) {
                 pencilHtml = '<button type="button" class="btn btn-link btn-sm p-0 user-price-manual-edit setting-prices-monthly-edit-btn" data-user-id="' + uid + '" title="Изменить статус и сумму">' +
                     '<i class="fa fa-edit" aria-hidden="true"></i></button>';
             }
@@ -977,10 +1000,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 packageSelectDisabled = '';
                 if (isPostpay) {
                     priceInputDisabled = 'disabled';
-                } else if (isEditing && !eff && hasAbon) {
+                } else if (isEditing && !eff && !acquiringPaid && hasAbon) {
                     // Карандаш: сумму можно править только для неоплаченных с абонементом.
+                    // Автооплата эквайринга сумму не открывает.
                     priceInputDisabled = '';
-                } else if (!eff && hasAbon && !canManage) {
+                } else if (!eff && !acquiringPaid && hasAbon && !canManage) {
                     // Без права карандаша — сумму можно править после выбора абонемента.
                     priceInputDisabled = '';
                 }
@@ -1000,6 +1024,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const formerCardClass = isFormer ? ' setting-prices-user-card--former' : '';
             const formerDataAttr = isFormer ? ' data-is-former-member="1"' : '';
             const paidDataAttr = ' data-effective-paid="' + (eff ? '1' : '0') + '"';
+            const acquiringDataAttr = ' data-acquiring-paid="' + (acquiringPaid ? '1' : '0') + '"';
             const abonEstablishedAttr = ' data-abon-established="' + (hasAbon ? '1' : '0') + '"';
             const postpayVisitsHtml = isPostpay ? buildPostpayVisitsHtml(postpayVisits) : '';
             const postpayPriceHintAttrs = isPostpay
@@ -1015,7 +1040,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 + ' ' + priceInputDisabled
                 + ' aria-label="Цена"'
                 + (isFormer || isPostpay ? ' readonly' : '')
-                + postpayPriceHintAttrs + '>';
+                + postpayPriceHintAttrs
+                + (acquiringPaid && !isPostpay
+                    ? (' data-kids-tooltip-hint="1" data-bs-toggle="tooltip" data-bs-placement="top"'
+                        + ' data-bs-custom-class="ulp-assignment-paid-tooltip"'
+                        + ' title="' + escapeAttr(ACQUIRING_AMOUNT_LOCKED_TITLE) + '"')
+                    : '')
+                + '>';
             const api = userDiscountApi();
             const priceCellInner = api
                 ? api.wrapPriceHtml(
@@ -1026,7 +1057,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 : priceInputHtml;
 
             const userBlock = `
-                        <div class="setting-prices-user-card mb-2 pb-2 border-bottom${formerCardClass}" data-user-id="${uid}"${formerDataAttr}${paidDataAttr}${abonEstablishedAttr} data-is-postpay="${isPostpay ? '1' : '0'}">
+                        <div class="setting-prices-user-card mb-2 pb-2 border-bottom${formerCardClass}" data-user-id="${uid}"${formerDataAttr}${paidDataAttr}${acquiringDataAttr}${abonEstablishedAttr} data-is-postpay="${isPostpay ? '1' : '0'}">
                             <div class="setting-prices-monthly-row d-flex align-items-center gap-1 flex-nowrap w-100 min-w-0">
                                 <div class="setting-prices-monthly-name-col min-w-0">
                                     <span id="${uid}" class="user-name setting-prices-monthly-name-host d-flex flex-column min-w-0 w-100">${nameHtml}${formerBadgeHtml}</span>
@@ -1102,8 +1133,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 .val(String(knownVisits))
                 .attr('title', postpayVisitsTooltipTitle());
             applyKidsHintAttrs($visits.find('input'), postpayVisitsTooltipTitle());
+            const acquiringPaidNow = $card.attr('data-acquiring-paid') === '1'
+                || acquiringPaidFromUserPrice(known);
             const amount = payableRubAfterUserDiscount(calcPostpayAmount(knownVisits, pkg.price), previewPct);
-            $priceInput.val(formatPriceValue(amount));
+            if (!acquiringPaidNow) {
+                $priceInput.val(formatPriceValue(amount));
+            }
             $priceInput.prop('disabled', true).prop('readonly', true);
             $priceInput.addClass('is-postpay-calc');
             applyKidsHintAttrs($priceInput, POSTPAY_PRICE_TOOLTIP);
@@ -1112,7 +1147,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         } else {
             $visits.remove();
-            const isPaid = $card.attr('data-effective-paid') === '1'
+            const acquiringPaidNow = $card.attr('data-acquiring-paid') === '1'
+                || acquiringPaidFromUserPrice(known);
+            const isPaid = acquiringPaidNow
+                || $card.attr('data-effective-paid') === '1'
                 || (known ? effectivePaidFromUserPrice(known) : false);
             if (pkg && !isPaid) {
                 $priceInput.val(formatPriceValue(payableRubAfterUserDiscount(pkg.price, previewPct)));
@@ -1152,10 +1190,15 @@ document.addEventListener('DOMContentLoaded', function () {
         // пока абон ещё не сохранён (или нет права карандаша).
         const inEditMode = uid && editingMonthlyUserId !== null && String(editingMonthlyUserId) === String(uid);
         const abonEstablished = $card.attr('data-abon-established') === '1';
+        const acquiringPaidForInput = $card.attr('data-acquiring-paid') === '1'
+            || acquiringPaidFromUserPrice(known);
         if (isPostpay) {
             $priceInput.prop('disabled', true).prop('readonly', true);
-        } else if ($card.attr('data-effective-paid') === '1') {
+        } else if (acquiringPaidForInput || $card.attr('data-effective-paid') === '1') {
             $priceInput.prop('disabled', true);
+            if (acquiringPaidForInput) {
+                applyAcquiringAmountLockHint($priceInput, true);
+            }
         } else if (!pkg) {
             $priceInput.prop('disabled', true);
         } else if (inEditMode) {
@@ -1216,7 +1259,8 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         e.stopPropagation();
         const $btn = $(this);
-        if ($btn.closest('.setting-prices-user-card').attr('data-is-former-member') === '1') {
+        const $card = $btn.closest('.setting-prices-user-card');
+        if ($card.attr('data-is-former-member') === '1' || $card.attr('data-acquiring-paid') === '1') {
             return;
         }
         const uid = $btn.attr('data-user-id');
@@ -1451,12 +1495,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     const errs = xhr.responseJSON.errors;
                     if (errs) {
+                        const priceErr = errs['usersPrice.0.price'] || errs.price;
+                        if (priceErr && priceErr[0]) {
+                            showMonthlyCardFieldError($card, 'price', priceErr[0]);
+                            fieldShown = true;
+                            msg = priceErr[0];
+                        }
                         const pkgErr = errs['usersPrice.0.lesson_package_id'] || errs.lesson_package_id;
                         if (pkgErr && pkgErr[0]) {
                             showMonthlyCardFieldError($card, 'lesson_package_id', pkgErr[0]);
                             fieldShown = true;
                             msg = pkgErr[0];
-                        } else {
+                        } else if (!fieldShown) {
                             const firstKey = Object.keys(errs)[0];
                             if (firstKey && errs[firstKey] && errs[firstKey][0]) {
                                 msg = errs[firstKey][0];

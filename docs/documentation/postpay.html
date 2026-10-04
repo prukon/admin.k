@@ -133,7 +133,7 @@
     в колонке рубля журнала как <code>{N}₽</code>
     (<a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>,
     <a href="/doc#journal-postpay-payment-due-index">анонс /doc</a>).
-    <br>Смена цены шаблона пересчитывает <b>неоплаченные</b> postpay-строки; оплаченные (<code>effective_is_paid</code>) не трогаются.
+    <br>Смена цены шаблона пересчитывает <b>неоплаченные</b> postpay-строки; оплаченные (<code>amountIsFrozen</code>: <code>is_paid</code> или <code>effective_is_paid</code>) не трогаются. Ручное «не оплачено» при уже прошедшем эквайринге сумму не пересчитывает.
   </div>
 
   <h2 id="journal">3) Журнал <code>/schedule</code></h2>

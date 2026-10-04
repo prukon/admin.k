@@ -72,11 +72,11 @@ final class SettingPricesMonthlyFormerChargeClearJsContractTest extends TestCase
     {
         $render = $this->renderUsersSource();
 
-        $this->assertStringContainsString('if (!isFormer && canManage && uid && hasAbon)', $render);
+        $this->assertStringContainsString('if (!isFormer && canManage && uid && hasAbon && !acquiringPaid)', $render);
         $this->assertStringContainsString('user-price-manual-edit', $render);
         $this->assertStringContainsString('pencilHtml + trashHtml', $render);
 
-        $pencilPos = strpos($render, 'if (!isFormer && canManage && uid && hasAbon)');
+        $pencilPos = strpos($render, 'if (!isFormer && canManage && uid && hasAbon && !acquiringPaid)');
         $trashPos = strpos($render, 'if (isFormer && !eff && uid)');
         $this->assertNotFalse($pencilPos);
         $this->assertNotFalse($trashPos);

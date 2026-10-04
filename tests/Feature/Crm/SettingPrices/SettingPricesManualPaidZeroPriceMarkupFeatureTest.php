@@ -48,7 +48,7 @@ final class SettingPricesManualPaidZeroPriceMarkupFeatureTest extends SettingPri
         $this->assertNotFalse($changePos);
         $render = substr($js, $renderPos, $changePos - $renderPos);
 
-        $this->assertStringContainsString('if (!isFormer && canManage && uid && hasAbon)', $render);
+        $this->assertStringContainsString('if (!isFormer && canManage && uid && hasAbon && !acquiringPaid)', $render);
         $this->assertStringNotContainsString('price > 0', $render);
         $this->assertStringNotContainsString('price_cents > 0', $render);
         $this->assertStringNotContainsString('up.price > 0', $render);
@@ -67,7 +67,7 @@ final class SettingPricesManualPaidZeroPriceMarkupFeatureTest extends SettingPri
         $this->assertStringContainsString('id="manualUserPricePaidModal"', $html);
 
         $blade = (string) file_get_contents(resource_path('views/admin/SettingPrices/users.blade.php'));
-        $this->assertStringContainsString('if (canManual && hasRow && hasAbon)', $blade);
+        $this->assertStringContainsString('if (canManual && hasRow && hasAbon && !acquiringPaid)', $blade);
         $this->assertStringNotContainsString('item.price > 0', $blade);
         $this->assertStringContainsString('setting-prices-monthly-price-error', $blade);
         $this->assertStringNotContainsString('modal-fullscreen', $blade);
