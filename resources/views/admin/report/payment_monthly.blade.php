@@ -6,8 +6,10 @@
     $canViewTrainers = $canViewTrainers ?? (auth()->user() && auth()->user()->can('trainers.view'));
     $canViewLocations = $canViewLocations ?? (auth()->user() && auth()->user()->can('locations.view'));
     $activeLocations = $activeLocations ?? collect();
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'filter_admin_user_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
+    $payFilterAdmin = $filters['filter_admin_user_id'] ?? '';
+    $adminOptions = $adminOptions ?? collect();
     $payFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
@@ -171,6 +173,18 @@
                     @foreach($activeLocations as $location)
                         <option value="{{ $location->id }}" {{ (string) $payFilterLocation === (string) $location->id ? 'selected' : '' }}>
                             {{ $location->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-monthly-filter-admin">Админ</label>
+                <select class="form-select" id="pay-monthly-filter-admin" name="filter_admin_user_id">
+                    <option value="">Все администраторы</option>
+                    <option value="none" {{ (string) $payFilterAdmin === 'none' ? 'selected' : '' }}>Без администратора</option>
+                    @foreach($adminOptions as $admin)
+                        <option value="{{ $admin->id }}" {{ (string) $payFilterAdmin === (string) $admin->id ? 'selected' : '' }}>
+                            {{ $admin->full_name }}
                         </option>
                     @endforeach
                 </select>
@@ -341,6 +355,9 @@
                     filter_location_id: canViewLocations
                         ? ($payMonthlyFiltersForm.find('[name=\"filter_location_id\"]').val() || '')
                         : '',
+                    filter_admin_user_id: canViewLocations
+                        ? ($payMonthlyFiltersForm.find('[name=\"filter_admin_user_id\"]').val() || '')
+                        : '',
                     status: $payMonthlyFiltersForm.find('[name=\"status\"]').val() || '',
                     user_name: '',
                     team_title: '',
@@ -505,73 +522,101 @@
                             return json.data || [];
                         }
                     },
-                    columns: [
-                        {
-                            data: 'operation_date',
-                            name: 'operation_date',
-                            searchable: false,
-                            render: function (data, type) {
-                                if (type !== 'display') {
-                                    return data || '';
-                                }
-                                return formatOperationDateTime(data);
-                            }
-                        },
-                        {
-                            data: 'user_name',
-                            name: 'user_name',
-                            render: function (data, type, row) {
-                                if (type !== 'display' || !window.KidsCrmUserCard) {
-                                    return data || '';
-                                }
-                                return window.KidsCrmUserCard.renderName(data, row.user_id);
-                            }
-                        },
-                        { data: 'team_title', name: 'team_title' },
-                        {
-                            data: 'summ',
-                            name: 'summ',
-                            searchable: false,
-                            className: 'text-end',
-                            render: function (data, type) {
-                                if (type !== 'display') {
-                                    return data;
-                                }
-                                return window.KidsCrmMoney.formatAmount(parseFloat(data || 0)) + ' ₽';
-                            }
-                        },
-                        {
-                            data: 'payment_month',
-                            name: 'payment_month',
-                            searchable: false,
-                            render: function (data, type) {
-                                if (type !== 'display') {
-                                    return data || '';
-                                }
-                                return formatSubscriptionMonth(data);
-                            }
-                        },
-                        {
-                            data: 'payment_provider',
-                            name: 'payment_provider',
-                            orderable: false,
-                            searchable: false,
-                            render: function (data, type) {
-                                if (type !== 'display') {
-                                    return data || '';
-                                }
-                                return renderPaymentProviderBadge(data);
-                            }
-                        }
-                    ],
+                    columns: monthlyDetailColumns(),
                     order: [[0, 'desc']],
                     language: @include('partials.datatables.ru')
                 });
             }
 
+            function monthlyDetailColumns() {
+                var detailColumns = [
+                    {
+                        data: 'operation_date',
+                        name: 'operation_date',
+                        searchable: false,
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            return formatOperationDateTime(data);
+                        }
+                    },
+                    {
+                        data: 'user_name',
+                        name: 'user_name',
+                        render: function (data, type, row) {
+                            if (type !== 'display' || !window.KidsCrmUserCard) {
+                                return data || '';
+                            }
+                            return window.KidsCrmUserCard.renderName(data, row.user_id);
+                        }
+                    },
+                    { data: 'team_title', name: 'team_title' }
+                ];
+                if (canViewLocations) {
+                    detailColumns.push({
+                        data: 'location_admin',
+                        name: 'location_admin',
+                        searchable: false,
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            if (!data) {
+                                return '<span class="dt-cell-empty text-muted">—</span>';
+                            }
+                            if (window.KidsCrmTooltip) {
+                                return window.KidsCrmTooltip.renderList(data, row.location_admin_names || []);
+                            }
+                            return $('<div/>').text(String(data)).html();
+                        }
+                    });
+                }
+                detailColumns.push(
+                    {
+                        data: 'summ',
+                        name: 'summ',
+                        searchable: false,
+                        className: 'text-end',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data;
+                            }
+                            return window.KidsCrmMoney.formatAmount(parseFloat(data || 0)) + ' ₽';
+                        }
+                    },
+                    {
+                        data: 'payment_month',
+                        name: 'payment_month',
+                        searchable: false,
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            return formatSubscriptionMonth(data);
+                        }
+                    },
+                    {
+                        data: 'payment_provider',
+                        name: 'payment_provider',
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            return renderPaymentProviderBadge(data);
+                        }
+                    }
+                );
+
+                return detailColumns;
+            }
+
             function buildMonthlyDetailContainerHtml(monthKey, monthTitle) {
                 var safeKey = String(monthKey).replace(/[^a-zA-Z0-9_-]/g, '_');
                 var captionMode = (currentMode === 'operation') ? 'по дате платежа' : 'по месяцу абонемента';
+                var adminHead = canViewLocations ? '<th>Админ</th>' : '';
 
                 return '' +
                     '<div class="p-3 details-container bg-light border-start border-3 border-secondary" id="monthly-detail-wrap-' + safeKey + '">' +
@@ -587,6 +632,7 @@
                     '        <th>Дата и время платежа</th>' +
                     '        <th>ФИО</th>' +
                     '        <th>Группа</th>' +
+                    '        ' + adminHead +
                     '        <th class="text-end">Сумма</th>' +
                     '        <th>Месяц абонемента</th>' +
                     '        <th>Провайдер</th>' +
@@ -683,6 +729,7 @@
                     $('#pay-monthly-filter-user-status').val(defaultFilterUserStatus);
                     if (canViewLocations) {
                         $('#pay-monthly-filter-location').val('');
+                        $('#pay-monthly-filter-admin').val('');
                     }
                     currentMode = 'subscription';
                     $('#payments-monthly-mode-hidden').val(currentMode);

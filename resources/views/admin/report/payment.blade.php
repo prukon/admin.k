@@ -15,7 +15,7 @@
     $canViewTrainers = $canViewTrainers ?? (auth()->user() && auth()->user()->can('trainers.view'));
     $filterTeams = $filterTeams ?? collect();
     $filterTrainers = $filterTrainers ?? collect();
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_source', 'payment_provider', 'payment_method', 'email_newsletter', 'payment_refund_status', 'bank_commission_acquiring_min', 'bank_commission_acquiring_max', 'bank_commission_payout_min', 'bank_commission_payout_max'];
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'filter_admin_user_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_source', 'payment_provider', 'payment_method', 'email_newsletter', 'payment_refund_status', 'bank_commission_acquiring_min', 'bank_commission_acquiring_max', 'bank_commission_payout_min', 'bank_commission_payout_max'];
     $payFilterSelected = function (string $key) use ($filters): array {
         $raw = $filters[$key] ?? null;
         $items = is_array($raw) ? $raw : ($raw === null || $raw === '' ? [] : [$raw]);
@@ -32,6 +32,8 @@
     $payFilterTeamIds = $payFilterSelected('filter_team_id');
     $payFilterTrainerIds = $payFilterSelected('filter_trainer_profile_id');
     $payFilterLocationIds = $payFilterSelected('filter_location_id');
+    $payFilterAdminIds = $payFilterSelected('filter_admin_user_id');
+    $adminOptions = $adminOptions ?? collect();
     $payFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
@@ -159,6 +161,14 @@
                        id="payColLocation"
                        checked>
                 <label class="form-check-label" for="payColLocation">Объект</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="location_admin"
+                       id="payColAdmin"
+                       checked>
+                <label class="form-check-label" for="payColAdmin">Админ</label>
             </div>
             @endif
 
@@ -380,6 +390,19 @@
                     @endforeach
                 </select>
             </div>
+            <div class="col-12 col-md-3 generic-multiselect-field">
+                <label class="form-label" for="pay-filter-admin">Админ</label>
+                <select class="form-select js-generic-multiselect-select"
+                        id="pay-filter-admin"
+                        name="filter_admin_user_id[]"
+                        multiple
+                        data-placeholder="Все администраторы">
+                    <option value="none" @selected(in_array('none', $payFilterAdminIds, true))>Без администратора</option>
+                    @foreach($adminOptions as $admin)
+                        <option value="{{ $admin->id }}" @selected(in_array((string) $admin->id, $payFilterAdminIds, true))>{{ $admin->full_name }}</option>
+                    @endforeach
+                </select>
+            </div>
             @endif
             <div class="col-12 col-md-2">
                 <label class="form-label" for="pay-filter-payment-month">Оплаченный месяц</label>
@@ -489,6 +512,7 @@
         <th>Группа</th>
         @if($canViewLocations)
             <th>Объект</th>
+            <th>Админ</th>
         @endif
         <th>Сумма платежа</th>
         <th>Оплаченный месяц</th>
@@ -756,6 +780,9 @@
                     filter_location_id: canViewLocations
                         ? paymentsReportMultiValues($('#pay-filter-location'))
                         : [],
+                    filter_admin_user_id: canViewLocations
+                        ? paymentsReportMultiValues($('#pay-filter-admin'))
+                        : [],
                     status: $payFiltersForm.find('[name="status"]').val() || '',
                     user_name: uid ? '' : (payReportLegacyFilters.user_name || ''),
                     team_title: teamIds.length ? '' : (payReportLegacyFilters.team_title || ''),
@@ -853,6 +880,7 @@
                 user_name: true,
                 team_title: true,
                 location: canViewLocations,
+                location_admin: canViewLocations,
                 summ: true,
                 payment_month: true,
                 operation_date: true,
@@ -906,6 +934,23 @@ if (canViewLocations) {
                 return data || '';
             }
             return data ? data : 'Без объекта';
+        }
+    });
+    columns.push({
+        data: 'location_admin',
+        name: 'location_admin',
+        searchable: false,
+        render: function (data, type, row) {
+            if (type !== 'display') {
+                return data || '';
+            }
+            if (!data) {
+                return '<span class="dt-cell-empty text-muted">—</span>';
+            }
+            if (window.KidsCrmTooltip) {
+                return window.KidsCrmTooltip.renderList(data, row.location_admin_names || []);
+            }
+            return $('<div/>').text(String(data)).html();
         }
     });
 }
@@ -1465,6 +1510,7 @@ columns.push(
                         }
                         if (canViewLocations) {
                             KidsCrmGenericMultiselectSelect2.reset($('#pay-filter-location'));
+                            KidsCrmGenericMultiselectSelect2.reset($('#pay-filter-admin'));
                         }
                     }
                     $('#pay-filter-user-status').val(defaultFilterUserStatus);
@@ -1665,7 +1711,7 @@ columns.push(
                 return;
             }
             var $filters = $('#payments-report-filters');
-            ['#pay-filter-team', '#pay-filter-trainer', '#pay-filter-location'].forEach(function (selector) {
+            ['#pay-filter-team', '#pay-filter-trainer', '#pay-filter-location', '#pay-filter-admin'].forEach(function (selector) {
                 var $el = $(selector);
                 if (!$el.length) {
                     return;

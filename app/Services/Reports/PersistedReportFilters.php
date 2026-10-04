@@ -161,7 +161,7 @@ final class PersistedReportFilters
     private function sanitizeValue(string $key, string $kind, mixed $raw): mixed
     {
         if ($kind === 'list') {
-            return $this->stringList($raw, $key === 'filter_location_id');
+            return $this->stringList($raw, $key === 'filter_location_id' || $key === 'filter_admin_user_id');
         }
 
         if ($key === 'status') {
@@ -202,7 +202,7 @@ final class PersistedReportFilters
             return $this->money($raw);
         }
 
-        if ($key === 'filter_location_id') {
+        if ($key === 'filter_location_id' || $key === 'filter_admin_user_id') {
             $list = $this->stringList($raw, true);
 
             return $list[0] ?? '';
@@ -348,6 +348,9 @@ final class PersistedReportFilters
         if (! $user?->can('locations.view') && array_key_exists('filter_location_id', $filters)) {
             $filters['filter_location_id'] = $this->fields($tableKey)['filter_location_id'] === 'list' ? [] : '';
         }
+        if (! $user?->can('locations.view') && array_key_exists('filter_admin_user_id', $filters)) {
+            $filters['filter_admin_user_id'] = $this->fields($tableKey)['filter_admin_user_id'] === 'list' ? [] : '';
+        }
         if ($tableKey === self::PAYMENTS && ! $user?->can('reports.additional.value.view')) {
             foreach ([
                 'bank_commission_acquiring_min',
@@ -386,6 +389,7 @@ final class PersistedReportFilters
                 'filter_team_id' => 'list',
                 'filter_trainer_profile_id' => 'list',
                 'filter_location_id' => 'list',
+                'filter_admin_user_id' => 'list',
                 'user_name' => 'scalar',
                 'team_title' => 'scalar',
                 'payment_month' => 'scalar',
@@ -407,18 +411,21 @@ final class PersistedReportFilters
                 'filter_team_id' => 'scalar',
                 'filter_trainer_profile_id' => 'scalar',
                 'filter_location_id' => 'scalar',
+                'filter_admin_user_id' => 'scalar',
             ] + $sharedDates,
             self::LTV, self::LTV_TEAMS, self::LTV_LOCATIONS => [
                 'filter_user_id' => 'scalar',
                 'filter_team_id' => 'list',
                 'filter_trainer_profile_id' => 'list',
                 'filter_location_id' => 'list',
+                'filter_admin_user_id' => 'list',
             ] + $sharedDates,
             self::DEBTS => [
                 'filter_user_id' => 'scalar',
                 'filter_team_id' => 'list',
                 'filter_trainer_profile_id' => 'list',
                 'filter_location_id' => 'list',
+                'filter_admin_user_id' => 'list',
                 'debt_month' => 'scalar',
                 'status' => 'scalar',
             ],

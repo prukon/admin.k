@@ -15,7 +15,9 @@ use App\Models\UserTableSetting;
 use App\Services\PartnerContext;
 use App\Services\Reports\TeamAverageAttendanceAggregator;
 use App\Services\TrainerOwnTeamsScope;
+use App\Support\LocationAdminReport;
 use App\Support\Money;
+use App\Support\PartnerAdminUserOptions;
 use App\Support\Reports\ReportFilterCatalog;
 use App\Support\UserTeamQuery;
 use Illuminate\Http\Request;
@@ -82,6 +84,9 @@ class LtvTeamsReportController extends AdminBaseController
             'canViewTrainers'    => $canViewTrainers,
             'canViewLocations'   => $canViewLocations,
             'activeLocations'    => $activeLocations,
+            'adminOptions'       => $canViewLocations
+                ? PartnerAdminUserOptions::forPartner($partnerId)
+                : collect(),
             'filterTeams'        => ReportFilterCatalog::activeTeams($partnerId, $authUser),
             'filterTrainers'     => ReportFilterCatalog::activeTrainers($partnerId, $canViewTrainers),
             'ltvTeamsPageLength' => UserTableSetting::pageLengthForUser(
@@ -165,10 +170,18 @@ class LtvTeamsReportController extends AdminBaseController
                 MIN(payments.operation_date) as first_payment_date,
                 MAX(payments.operation_date) as last_payment_date,
                 MAX(payment_paid_team.is_enabled) as is_enabled
-            ")
-            ->groupBy('payments.team_id');
+            ");
 
-        return DataTables::of($baseQuery)
+        $canViewLocations = Auth::user()?->can('locations.view') ?? false;
+        if ($canViewLocations) {
+            $baseQuery->selectRaw(
+                LocationAdminReport::stableTeamNamesSql($partnerId, 'payments.team_id').' as location_admin_names_raw'
+            );
+        }
+
+        $baseQuery->groupBy('payments.team_id');
+
+        $table = DataTables::of($baseQuery)
             ->addIndexColumn()
             ->addColumn('team_title', function ($row) {
                 return $row->team_title ?: 'Без группы';
@@ -216,8 +229,9 @@ class LtvTeamsReportController extends AdminBaseController
             })
             ->filter(function ($query) use ($request, $partnerId): void {
                 $this->applyLtvTeamsDataTableSearch($query, $request, $partnerId);
-            })
-            ->make(true);
+            });
+
+        return LocationAdminReport::decorate($table, $canViewLocations)->make(true);
     }
 
     /**
@@ -447,6 +461,12 @@ class LtvTeamsReportController extends AdminBaseController
         $filterActor = Auth::user();
         if ($filterActor?->can('locations.view')) {
             UserTeamQuery::applyPaymentLocationIdsFilter($paymentsQuery, $request->query('filter_location_id'));
+            LocationAdminReport::applyForTeamId(
+                $paymentsQuery,
+                'payments.team_id',
+                $request->query('filter_admin_user_id'),
+                $partnerId
+            );
         }
 
         if ($request->filled('payment_month')) {

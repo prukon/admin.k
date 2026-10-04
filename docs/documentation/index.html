@@ -856,7 +856,7 @@
     (<code>LocationAverageAttendanceAggregator</code>).
     Табы периода и фильтр «Оплаченный месяц» как у групп.
     У «Без объекта» и без занятий — «—».
-    Сортировка основной таблицы <code>order: [[4, 'desc']]</code> (сумма).
+    Сортировка основной таблицы — по сумме: индекс 5, если виден столбец «Админ», иначе 4.
     Тесты: <code>LtvLocationsReportFeatureTest</code>,
     <code>ReportsLtvLocationsAvgAttendanceDocumentationContractTest</code>.
     Подробно — <a href="/docs/documentation/reports-admin#ltv-locations">reports-admin §4.2</a>,
@@ -1111,7 +1111,7 @@
     колонку не сужают — только состав строк отчёта.
     У «Без группы» и если занятий не было — «—».
     Поиск DataTables по числу не ищет. Дефолт сортировки таблицы —
-    сумма (<code>order: [[4, 'desc']]</code>).
+    сумма (индекс 5, если виден столбец «Админ», иначе 4).
     <br><br>
     Реализация: <code>TeamAverageAttendanceAggregator</code>,
     <code>LtvTeamsReportController::getLtvTeams</code>.
@@ -1173,6 +1173,26 @@
     <code>ReportsLtvTeamsPermissionCatalogFeatureTest</code>,
     <code>ReportsLtvTeamsDocumentationContractTest</code>.
     Анонс: <a href="/doc#reports-ltv-teams-index">/doc#reports-ltv-teams-index</a>.
+  </div>
+
+    <h2 id="reports-location-admin-filter-index">Отчёты: фильтр и колонка «Админ» (2026‑10)</h2>
+  <div class="note">
+    В платежах, платежах по месяцам, LTV (ученики, группы, объекты) и задолженностях
+    можно отфильтровать строки по администратору объекта и увидеть его в колонке.
+    Администраторы берутся из <code>location_admin_user</code>.
+    У платежа, у платежа внутри раскрытого месяца и у LTV по ученикам и объектам это объект платежа (<code>payments.location_id</code>).
+    В сводке «Платежи по месяцам» столбца нет: администратор есть у платежа, не у месяца.
+    У группы LTV и у долга — объект группы (<code>teams.location_id</code>).
+    В задолженностях колонка «Админ» уже была, добавлен фильтр.
+    «Без администратора» — нет объекта или у объекта нет администраторов.
+    Колонка и фильтр только при <code>locations.view</code>.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/reports-admin#location-admin-filter">reports-admin §2.1.1</a>,
+    журнал —
+    <a href="/docs/documentation/reports-payments">reports-payments</a>.
+    Тест: <code>LocationAdminReportFeatureTest</code>.
+    Анонс: <a href="/doc#reports-location-admin-filter-index">/doc#reports-location-admin-filter-index</a>.
   </div>
 
     <h2 id="reports-debts-context-columns-index">Задолженности: админ, абонемент, группа и объект (2026‑10)</h2>

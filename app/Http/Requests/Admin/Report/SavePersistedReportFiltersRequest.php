@@ -8,6 +8,7 @@ use App\Models\Location;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\Reports\PersistedReportFilters;
+use App\Support\PartnerAdminUserOptions;
 use App\Support\Reports\ReportFilterCatalog;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
@@ -91,8 +92,11 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
             if ($this->usesTeamList()) {
                 $rules['filter_location_id'] = ['nullable', 'array'];
                 $rules['filter_location_id.*'] = [$this->locationIdRule()];
+                $rules['filter_admin_user_id'] = ['nullable', 'array'];
+                $rules['filter_admin_user_id.*'] = [$this->adminUserIdRule()];
             } else {
                 $rules['filter_location_id'] = ['nullable', $this->locationIdRule()];
+                $rules['filter_admin_user_id'] = ['nullable', $this->adminUserIdRule()];
             }
         }
 
@@ -135,6 +139,8 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
             'filter_trainer_profile_id.*' => 'Тренер',
             'filter_location_id' => 'Объект',
             'filter_location_id.*' => 'Объект',
+            'filter_admin_user_id' => 'Админ',
+            'filter_admin_user_id.*' => 'Админ',
             'user_name' => 'Ученик',
             'team_title' => 'Группа',
             'payment_month' => 'Оплаченный месяц',
@@ -167,6 +173,7 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
             'filter_team_id.array' => 'Выберите группу из списка.',
             'filter_trainer_profile_id.array' => 'Выберите тренера из списка.',
             'filter_location_id.array' => 'Выберите объект из списка.',
+            'filter_admin_user_id.array' => 'Выберите администратора из списка.',
             'user_name.max' => 'Имя ученика не длиннее 255 символов.',
             'team_title.max' => 'Название группы не длиннее 255 символов.',
             'payment_month.date_format' => 'Укажите оплаченный месяц в формате ГГГГ-ММ.',
@@ -223,6 +230,7 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
             'filter_team_id',
             'filter_trainer_profile_id',
             'filter_location_id',
+            'filter_admin_user_id',
         ];
     }
 
@@ -324,6 +332,29 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
 
             if (! $exists) {
                 $fail('Выберите объект из списка.');
+            }
+        };
+    }
+
+    private function adminUserIdRule(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            if ($value === null || $value === '' || $value === 'none') {
+                return;
+            }
+            if (! ctype_digit((string) $value)) {
+                $fail('Выберите администратора из списка.');
+
+                return;
+            }
+
+            $allowed = PartnerAdminUserOptions::forPartner($this->partnerId())
+                ->pluck('id')
+                ->map(static fn ($id) => (int) $id)
+                ->all();
+
+            if (! in_array((int) $value, $allowed, true)) {
+                $fail('Выберите администратора из списка.');
             }
         };
     }

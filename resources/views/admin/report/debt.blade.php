@@ -6,7 +6,7 @@
     $canViewTrainers = $canViewTrainers ?? (auth()->user() && auth()->user()->can('trainers.view'));
     $canViewLocations = $canViewLocations ?? (auth()->user() && auth()->user()->can('locations.view'));
     $activeLocations = $activeLocations ?? collect();
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'debt_month'];
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'filter_admin_user_id', 'user_name', 'team_title', 'debt_month'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
     $payFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $payHasActiveFilters = false;
@@ -142,6 +142,7 @@
                 'teamFieldId' => 'pay-debt-filter-team',
                 'trainerFieldId' => 'pay-debt-filter-trainer',
                 'locationFieldId' => 'pay-debt-filter-location',
+                'adminFieldId' => 'pay-debt-filter-admin',
             ])
             <div class="col-12 col-md-3">
                 <label class="form-label" for="pay-debt-filter-debt-month">Месяц задолженности</label>
@@ -328,6 +329,9 @@
                     filter_location_id: canViewLocations
                         ? reportMultiValues($('#pay-debt-filter-location'))
                         : [],
+                    filter_admin_user_id: canViewLocations
+                        ? reportMultiValues($('#pay-debt-filter-admin'))
+                        : [],
                     status: $debtFiltersForm.find('[name="status"]').val() || '',
                     user_name: '',
                     team_title: '',
@@ -472,6 +476,7 @@
                         }
                         if (canViewLocations) {
                             KidsCrmGenericMultiselectSelect2.reset($('#pay-debt-filter-location'));
+                            KidsCrmGenericMultiselectSelect2.reset($('#pay-debt-filter-admin'));
                         }
                     }
                     $('#pay-debt-filter-user-status').val(defaultFilterUserStatus);
@@ -495,7 +500,7 @@
             if (!window.KidsCrmGenericMultiselectSelect2) {
                 return;
             }
-            ['#pay-debt-filter-team', '#pay-debt-filter-trainer', '#pay-debt-filter-location'].forEach(function (selector) {
+            ['#pay-debt-filter-team', '#pay-debt-filter-trainer', '#pay-debt-filter-location', '#pay-debt-filter-admin'].forEach(function (selector) {
                 var $el = $(selector);
                 if (!$el.length) {
                     return;

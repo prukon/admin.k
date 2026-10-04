@@ -11,7 +11,9 @@ use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\PartnerContext;
+use App\Support\LocationAdminReport;
 use App\Support\Money;
+use App\Support\PartnerAdminUserOptions;
 use App\Support\Reports\ReportFilterCatalog;
 use App\Support\UserTeamQuery;
 use Illuminate\Http\Request;
@@ -78,6 +80,9 @@ class LtvReportController extends AdminBaseController
             'canViewTrainers'    => $canViewTrainers,
             'canViewLocations'   => $canViewLocations,
             'activeLocations'    => $activeLocations,
+            'adminOptions'       => $canViewLocations
+                ? PartnerAdminUserOptions::forPartner($partnerId)
+                : collect(),
             'filterTeams'        => ReportFilterCatalog::activeTeams($partnerId, $authUser),
             'filterTrainers'     => ReportFilterCatalog::activeTrainers($partnerId, $canViewTrainers),
             'ltvPageLength' => UserTableSetting::pageLengthForUser(
@@ -155,15 +160,23 @@ class LtvReportController extends AdminBaseController
                 MIN(payments.operation_date) as first_payment_date,
                 MAX(payments.operation_date) as last_payment_date,
                 users.is_enabled
-            ")
-            ->groupBy(
+            ");
+
+        $canViewLocations = Auth::user()?->can('locations.view') ?? false;
+        if ($canViewLocations) {
+            $baseQuery->selectRaw(
+                LocationAdminReport::groupedNamesSql($partnerId, 'payments.location_id').' as location_admin_names_raw'
+            );
+        }
+
+        $baseQuery->groupBy(
                 'users.id',
                 'users.lastname',
                 'users.name',
                 'users.is_enabled',
             );
 
-        return DataTables::of($baseQuery)
+        $table = DataTables::of($baseQuery)
             ->addIndexColumn()
             ->addColumn('user_name', function ($row) {
                 return $row->user_name ?: 'Без имени';
@@ -194,8 +207,9 @@ class LtvReportController extends AdminBaseController
             // SQL-поиск по колонкам DataTables (payment_count / даты → 42S22).
             ->filter(function ($query) use ($request, $partnerId): void {
                 $this->applyLtvDataTableSearch($query, $request, $partnerId);
-            })
-            ->make(true);
+            });
+
+        return LocationAdminReport::decorate($table, $canViewLocations)->make(true);
     }
 
     /**
@@ -460,6 +474,12 @@ class LtvReportController extends AdminBaseController
         $filterActor = Auth::user();
         if ($filterActor?->can('locations.view')) {
             UserTeamQuery::applyPaymentLocationIdsFilter($paymentsQuery, $request->query('filter_location_id'));
+            LocationAdminReport::apply(
+                $paymentsQuery,
+                'payments.location_id',
+                $request->query('filter_admin_user_id'),
+                $partnerId
+            );
         }
 
         if ($request->filled('payment_month')) {

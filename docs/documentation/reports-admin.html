@@ -325,6 +325,65 @@
     <li><b>Задолженности — конкретный объект L:</b> ученик попадает, если <b>хотя бы одна</b> его группа в pivot имеет <code>teams.location_id = L</code>; ученик без групп в выборку по L <b>не</b> входит.</li>
   </ul>
 
+  <h2 id="location-admin-filter">2.1.1) Фильтр и колонка «Админ»</h2>
+  <div class="note">
+    Параметр <code>filter_admin_user_id</code>. Источник — текущие строки <code>location_admin_user</code> (пользователь не soft-deleted) объекта строки.
+    Пусто — все записи. <code>none</code> — у объекта нет администраторов, в том числе если объекта нет.
+    Id — активный администратор школы (<code>roles.name = admin</code>, <code>is_enabled = 1</code>). Несколько id — ИЛИ, <code>none</code> можно вместе с id.
+    На «Платежи по месяцам» фильтр одиночный, как объект на этой странице. На остальных отчётах — мультиселект.
+    Колонка <code>location_admin</code> (ховер <code>location_admin_names</code>): до двух ФИО, дальше «Фамилия Имя, еще N шт.».
+    Без <code>locations.view</code> колонка и фильтр не показываются, параметр в запросе игнорируется.
+    Анонс — <a href="/doc#reports-location-admin-filter-index">/doc#reports-location-admin-filter-index</a>.
+  </div>
+  <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead>
+      <tr>
+        <th>Отчёт</th>
+        <th>Объект строки</th>
+        <th>Колонка</th>
+        <th>Фильтр</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Платежи</td>
+        <td><code>payments.location_id</code> (у ручной отметки — объект группы)</td>
+        <td>да, после «Объект»</td>
+        <td>мультиселект <code>#pay-filter-admin</code></td>
+      </tr>
+      <tr>
+        <td>Платежи по месяцам</td>
+        <td><code>payments.location_id</code> каждого платежа</td>
+        <td>во вложенной таблице раскрытого месяца, после «Группа». В сводке месяцев столбца нет</td>
+        <td>один селект <code>#pay-monthly-filter-admin</code></td>
+      </tr>
+      <tr>
+        <td>LTV по ученикам</td>
+        <td>объекты платежей ученика в строке</td>
+        <td>да, после «Группа»</td>
+        <td>мультиселект <code>#pay-ltv-filter-admin</code></td>
+      </tr>
+      <tr>
+        <td>LTV по группам</td>
+        <td><code>teams.location_id</code> группы <code>payments.team_id</code></td>
+        <td>да, после «Группа»</td>
+        <td>мультиселект <code>#pay-ltv-teams-filter-admin</code></td>
+      </tr>
+      <tr>
+        <td>LTV по объектам</td>
+        <td><code>payments.location_id</code></td>
+        <td>да, после «Объект»</td>
+        <td>мультиселект <code>#pay-ltv-locations-filter-admin</code></td>
+      </tr>
+      <tr>
+        <td>Задолженности</td>
+        <td><code>teams.location_id</code> группы долга</td>
+        <td>уже есть («Админ»)</td>
+        <td>мультиселект <code>#pay-debt-filter-admin</code></td>
+      </tr>
+    </tbody>
+  </table>
+
   <h2 id="trainer-filter">2.2) Фильтр по тренеру в отчётах</h2>
   <div class="note">
     Единый параметр запроса: <code>filter_trainer_profile_id</code> (id из <code>trainer_profiles</code> текущего партнёра).
@@ -780,6 +839,7 @@
     «Сброс» фильтров в UI возвращает группировку на <code>subscription</code>, в базу режим не кладётся.
     В запросы DataTables/детализации/total передаётся параметр <code>mode</code> (<code>subscription</code> по умолчанию).
     Фильтр локации — §2.1: <code>payments.location_id</code>; параметр <code>filter_location_id</code> уходит в <code>monthly/data</code>, <code>monthly/total</code> и <code>monthly/{yearMonth}/payments</code>.
+    Колонка «Админ» — только во вложенной таблице месяца (объект платежа), не в сводке месяцев. Фильтр <code>filter_admin_user_id</code> — §<a href="#location-admin-filter">2.1.1</a>.
     Фильтр «Активность ученика» — §2.3: <code>status</code> в тех же endpoints.
   </div>
   <div class="note">

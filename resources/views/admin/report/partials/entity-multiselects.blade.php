@@ -21,6 +21,9 @@
     $entityTeamIds = $entityFilterSelected('filter_team_id');
     $entityTrainerIds = $entityFilterSelected('filter_trainer_profile_id');
     $entityLocationIds = $entityFilterSelected('filter_location_id');
+    $entityAdminIds = $entityFilterSelected('filter_admin_user_id');
+    $adminOptions = $adminOptions ?? collect();
+    $adminFieldId = $adminFieldId ?? '';
 @endphp
 <div class="col-12 col-md-3 generic-multiselect-field">
     <label class="form-label" for="{{ $teamFieldId }}">Группа</label>
@@ -62,4 +65,19 @@
         @endforeach
     </select>
 </div>
+@if($adminFieldId !== '')
+<div class="col-12 col-md-3 generic-multiselect-field">
+    <label class="form-label" for="{{ $adminFieldId }}">Админ</label>
+    <select class="form-select js-generic-multiselect-select"
+            id="{{ $adminFieldId }}"
+            name="filter_admin_user_id[]"
+            multiple
+            data-placeholder="Все администраторы">
+        <option value="none" @selected(in_array('none', $entityAdminIds, true))>Без администратора</option>
+        @foreach($adminOptions as $admin)
+            <option value="{{ $admin->id }}" @selected(in_array((string) $admin->id, $entityAdminIds, true))>{{ $admin->full_name }}</option>
+        @endforeach
+    </select>
+</div>
+@endif
 @endif

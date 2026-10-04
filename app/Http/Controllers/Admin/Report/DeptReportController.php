@@ -18,7 +18,9 @@ use Carbon\Carbon;
 use App\Services\PartnerContext;
 use App\Services\TeamLocationAvailabilityService;
 use App\Models\UserCustomPayment;
+use App\Support\LocationAdminReport;
 use App\Support\Money;
+use App\Support\PartnerAdminUserOptions;
 use App\Support\Reports\ReportFilterCatalog;
 use App\Support\UserTeamQuery;
 use App\Models\UserTableSetting;
@@ -97,6 +99,9 @@ class DeptReportController extends AdminBaseController
             'canViewTrainers'    => $canViewTrainers,
             'canViewLocations'   => $canViewLocations,
             'activeLocations'    => $activeLocations,
+            'adminOptions'       => $canViewLocations
+                ? PartnerAdminUserOptions::forPartner($partnerId)
+                : collect(),
             'filterTeams'        => ReportFilterCatalog::activeTeams($partnerId, $authUser),
             'filterTrainers'     => ReportFilterCatalog::activeTrainers($partnerId, $canViewTrainers),
         ]);
@@ -462,6 +467,7 @@ SQL;
         $this->applyDebtReportNotDeletedUserFilter($query);
         $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
         $this->applyDebtReportLocationFilter($query, $request, $partnerId);
+        $this->applyDebtReportAdminFilter($query, $request, $partnerId);
         $this->applyDebtReportUserStatusFilter($query, $request);
 
         if ($request->filled('debt_month')) {
@@ -511,6 +517,7 @@ SQL;
         $this->applyDebtReportNotDeletedUserFilter($query);
         $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
         $this->applyDebtReportLocationFilter($query, $request, $partnerId);
+        $this->applyDebtReportAdminFilter($query, $request, $partnerId);
         $this->applyDebtReportUserStatusFilter($query, $request);
 
         // debt_month применяем по start/end месяцу
@@ -581,6 +588,28 @@ SQL;
             $query,
             $partnerId,
             is_array($filterTrainerProfileId) ? UserTeamQuery::positiveIntIds($filterTrainerProfileId) : $filterTrainerProfileId,
+        );
+    }
+
+    /**
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    /**
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function applyDebtReportAdminFilter($query, Request $request, int $partnerId): void
+    {
+        /** @var \App\Models\User|null $filterActor */
+        $filterActor = Auth::user();
+        if (! $filterActor?->can('locations.view')) {
+            return;
+        }
+
+        LocationAdminReport::apply(
+            $query,
+            'teams.location_id',
+            $request->query('filter_admin_user_id'),
+            $partnerId
         );
     }
 

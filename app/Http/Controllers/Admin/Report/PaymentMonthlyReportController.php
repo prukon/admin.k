@@ -11,7 +11,9 @@ use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\PartnerContext;
+use App\Support\LocationAdminReport;
 use App\Support\Money;
+use App\Support\PartnerAdminUserOptions;
 use App\Support\UserTeamQuery;
 use App\Models\UserTableSetting;
 use Carbon\Carbon;
@@ -82,6 +84,9 @@ class PaymentMonthlyReportController extends AdminBaseController
             'canViewTrainers'    => $canViewTrainers,
             'canViewLocations'   => $canViewLocations,
             'activeLocations'    => $activeLocations,
+            'adminOptions'       => $canViewLocations
+                ? PartnerAdminUserOptions::forPartner($partnerId)
+                : collect(),
             'paymentsMonthlyPageLength' => UserTableSetting::pageLengthForUser(
                 Auth::id() !== null ? (int) Auth::id() : null,
                 self::TABLE_KEY
@@ -164,7 +169,7 @@ class PaymentMonthlyReportController extends AdminBaseController
             $monthsQuery->orderBy('month_start', 'desc');
         }
 
-        return DataTables::of($monthsQuery)
+        $table = DataTables::of($monthsQuery)
             ->addIndexColumn()
             ->addColumn('month_title', function ($row) {
                 $date = Carbon::parse($row->month_start);
@@ -214,8 +219,9 @@ class PaymentMonthlyReportController extends AdminBaseController
             ->filter(function ($query) use ($request, $partnerId): void {
                 $this->applyMonthlyDataTableSearch($query, $request, $partnerId, true);
             })
-            ->removeColumn('total_sum_cents')
-            ->make(true);
+            ->removeColumn('total_sum_cents');
+
+        return $table->make(true);
     }
 
     /**
@@ -243,6 +249,7 @@ class PaymentMonthlyReportController extends AdminBaseController
         }
 
         $paymentsQuery = $this->buildMonthPaymentsQuery($request, $partnerId, $yearMonth, $mode);
+        $canViewLocations = Auth::user()?->can('locations.view') ?? false;
 
         if ($request->has('draw')) {
             $stats = DB::query()
@@ -250,7 +257,7 @@ class PaymentMonthlyReportController extends AdminBaseController
                 ->selectRaw('COUNT(*) as payments_count, COALESCE(SUM(summ_cents), 0) as sum_total_cents')
                 ->first();
 
-            return DataTables::of($paymentsQuery)
+            $table = DataTables::of($paymentsQuery)
                 ->addColumn('user_name', function ($row) {
                     $full = trim(($row->user_lastname ?? '').' '.($row->user_firstname ?? ''));
                     if ($full !== '') {
@@ -270,13 +277,14 @@ class PaymentMonthlyReportController extends AdminBaseController
                     $this->applyMonthlyDataTableSearch($query, $request, $partnerId, false);
                 })
                 ->with('meta_payments_count', (int) ($stats->payments_count ?? 0))
-                ->with('meta_sum_total', round(((int) ($stats->sum_total_cents ?? 0)) / 100, 2))
-                ->make(true);
+                ->with('meta_sum_total', round(((int) ($stats->sum_total_cents ?? 0)) / 100, 2));
+
+            return LocationAdminReport::decorate($table, $canViewLocations)->make(true);
         }
 
         $payments = (clone $paymentsQuery)->get();
 
-        $items = $payments->map(function ($row) {
+        $items = $payments->map(function ($row) use ($canViewLocations) {
             $userName = trim(($row->user_lastname ?? '').' '.($row->user_firstname ?? ''));
             if ($userName === '' && ! empty($row->payment_user_name)) {
                 $userName = (string) $row->payment_user_name;
@@ -285,7 +293,7 @@ class PaymentMonthlyReportController extends AdminBaseController
                 $userName = 'Без пользователя';
             }
 
-            return [
+            $item = [
                 'id'               => (int) $row->id,
                 'user_name'        => $userName,
                 'team_title'       => $row->team_title ?: 'Без команды',
@@ -294,6 +302,13 @@ class PaymentMonthlyReportController extends AdminBaseController
                 'operation_date'   => $row->operation_date,
                 'payment_provider' => $this->resolvePaymentProvider($row),
             ];
+            if ($canViewLocations) {
+                $names = LocationAdminReport::names($row->location_admin_names_raw ?? null);
+                $item['location_admin'] = LocationAdminReport::shortLabel($names);
+                $item['location_admin_names'] = $names;
+            }
+
+            return $item;
         })->all();
 
         return response()->json([
@@ -317,6 +332,8 @@ class PaymentMonthlyReportController extends AdminBaseController
             $columns = [];
         }
 
+        unset($columns['location_admin']);
+
         return response()->json($columns);
     }
 
@@ -332,6 +349,10 @@ class PaymentMonthlyReportController extends AdminBaseController
         $payload = $request->persistPayload();
         if ($payload === []) {
             return response()->json(['success' => true]);
+        }
+
+        if (isset($payload['columns']) && is_array($payload['columns'])) {
+            unset($payload['columns']['location_admin']);
         }
 
         UserTableSetting::updateOrCreate(
@@ -372,6 +393,12 @@ class PaymentMonthlyReportController extends AdminBaseController
                 'users.lastname as user_lastname',
             )
             ->selectRaw("{$teamTitleExpr} as team_title");
+
+        if (Auth::user()?->can('locations.view')) {
+            $paymentsQuery->addSelect(DB::raw(
+                LocationAdminReport::namesSql($partnerId, 'payments.location_id').' as location_admin_names_raw'
+            ));
+        }
 
         $this->applyMonthlyReportFilters($paymentsQuery, $request, $partnerId);
 
@@ -545,6 +572,12 @@ class PaymentMonthlyReportController extends AdminBaseController
                     }
                 }
             }
+            LocationAdminReport::apply(
+                $paymentsQuery,
+                'payments.location_id',
+                $request->query('filter_admin_user_id'),
+                $partnerId
+            );
         }
 
         if ($request->filled('payment_month')) {

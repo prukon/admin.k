@@ -102,7 +102,8 @@ final class LtvLocationsReportFeatureTest extends CrmTestCase
         $this->assertTrue(
             strpos($html, '<th>Ср. посещаемость</th>') < strpos($html, '<th>Сумма</th>')
         );
-        $this->assertStringContainsString("order: [[4, 'desc']]", $html);
+        $this->assertStringContainsString('var ltvLocationsSumOrderIndex = canViewLocations ? 5 : 4;', $html);
+        $this->assertStringContainsString('order: [[ltvLocationsSumOrderIndex, \'desc\']]', $html);
         $this->assertStringContainsString("name: 'avg_attendance'", $html);
         $this->assertStringContainsString("type: 'list'", $html);
         $this->assertStringContainsString("itemsKey: 'user_names_items'", $html);

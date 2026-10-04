@@ -28,6 +28,8 @@ use App\Services\PartnerContext;
 use App\Services\TeamUserSyncService;
 use App\Services\TrainerOwnTeamsScope;
 use App\Support\Money;
+use App\Support\LocationAdminReport;
+use App\Support\PartnerAdminUserOptions;
 use App\Support\UserTeamQuery;
 use App\Support\Payments\EmailNewsletterPaymentSource;
 use App\Support\Payments\PaymentTeamTitleDisplay;
@@ -123,6 +125,9 @@ class PaymentReportController extends AdminBaseController
                 'canViewTrainers' => $canViewTrainers,
                 'canViewLocations' => $canViewLocations,
                 'activeLocations' => $activeLocations,
+                'adminOptions' => $canViewLocations
+                    ? PartnerAdminUserOptions::forPartner($partnerId)
+                    : collect(),
                 'filterTeams' => $filterTeams,
                 'filterTrainers' => $filterTrainers,
                 'paymentsPageLength' => UserTableSetting::pageLengthForUser(
@@ -928,10 +933,15 @@ SQL;
         $canCommissionTotal = $authUser?->can('reports.payments.commission_total.view') ?? false;
         $canPayoutColumn = $authUser?->can('reports.payments.payout_amount.column.view') ?? false;
         $canViewLocations = $authUser?->can('locations.view') ?? false;
+        if ($canViewLocations) {
+            $paymentsQuery->addSelect(DB::raw(
+                LocationAdminReport::namesSql($partnerId, 'payments.location_id').' as location_admin_names_raw'
+            ));
+        }
         $refundActionMetaCache = [];
         $teamUserSync = app(TeamUserSyncService::class);
 
-        return DataTables::of($paymentsQuery)
+        $table = DataTables::of($paymentsQuery)
             ->addIndexColumn()
             ->addColumn('user_name', function (Payment $row) {
                 $user = $row->user;
@@ -1391,8 +1401,9 @@ SQL;
             // (payments.user_name вместо ФИО, несуществующие агрегаты).
             ->filter(function ($query) use ($request, $partnerId): void {
                 $this->applyPaymentsDataTableSearch($query, $request, $partnerId);
-            })
-            ->make(true);
+            });
+
+        return LocationAdminReport::decorate($table, $canViewLocations)->make(true);
     }
 
     /**
@@ -1542,6 +1553,12 @@ SQL;
         $filterActor = Auth::user();
         if ($filterActor?->can('locations.view')) {
             $this->applyPaymentsReportLocationFilter($paymentsQuery, $request->query('filter_location_id'));
+            LocationAdminReport::apply(
+                $paymentsQuery,
+                'payments.location_id',
+                $request->query('filter_admin_user_id'),
+                $partnerId
+            );
         }
 
         if ($request->filled('payment_month')) {
@@ -2067,7 +2084,7 @@ SQL;
         }
 
         if (! $canViewLocations) {
-            unset($columns['location']);
+            unset($columns['location'], $columns['location_admin']);
         }
 
         if (array_key_exists('bank_commission_total', $columns)) {
@@ -2120,7 +2137,7 @@ SQL;
             $normalized = $payload['columns'];
 
             if (! $canViewLocations) {
-                unset($normalized['location']);
+                unset($normalized['location'], $normalized['location_admin']);
             }
 
             if (! $canAdditional) {

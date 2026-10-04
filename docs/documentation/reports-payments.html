@@ -106,6 +106,7 @@
     <li>Старые платежи (до записи объекта в webhook) имеют <code>location_id = NULL</code> и отображаются как «Без локации».</li>
     <li>Без права <code>locations.view</code> колонка, фильтр и ключ <code>location</code> в columns-settings недоступны; переданный <code>filter_location_id</code> в запросе игнорируется.</li>
     <li>Тот же фильтр (без отдельной колонки) есть в отчётах «Платежи по месяцам», LTV и «Задолженности» — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1).</li>
+    <li><b>Админ</b> (<code>filter_admin_user_id[]</code>, колонка <code>location_admin</code>, <code>#pay-filter-admin</code>, <code>#payColAdmin</code>): текущие пользователи <code>location_admin_user</code> объекта строки (<code>payments.location_id</code>). Мультиселект: все / <code>none</code> («Без администратора» — нет объекта или у объекта нет администраторов) / id. Несколько значений — ИЛИ. До двух ФИО, дальше «Фамилия Имя, еще N шт.», полный список в <code>location_admin_names</code>. Только при <code>locations.view</code>. Подробно — <a href="/docs/documentation/reports-admin#location-admin-filter">reports-admin §2.1.1</a>.</li>
   </ul>
 
   <h2>2.1) Фильтр «Тренер» (при праве <code>trainers.view</code>)</h2>

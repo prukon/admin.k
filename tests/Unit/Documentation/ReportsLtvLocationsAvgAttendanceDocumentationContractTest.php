@@ -33,7 +33,7 @@ final class ReportsLtvLocationsAvgAttendanceDocumentationContractTest extends Te
         $this->assertStringContainsString('ROUND(SUM(headcount) / COUNT(*), 0)', $chunk);
         $this->assertStringContainsString('Оплаченный месяц', $chunk);
         $this->assertStringContainsString('Без объекта', $chunk);
-        $this->assertStringContainsString("order: [[4, 'desc']]", $chunk);
+        $this->assertStringContainsString('индекс 5, если виден столбец «Админ», иначе 4', $chunk);
         $this->assertStringContainsString('LocationAverageAttendanceAggregator', $chunk);
         $this->assertStringContainsString('teams.location_id', $chunk);
         $this->assertStringContainsString('LtvLocationsReportFeatureTest', $chunk);
@@ -74,7 +74,8 @@ final class ReportsLtvLocationsAvgAttendanceDocumentationContractTest extends Te
         $this->assertStringContainsString('<th>Ср. посещаемость</th>', $blade);
         $this->assertStringContainsString("key: 'avg_attendance'", $blade);
         $this->assertStringContainsString("name: 'avg_attendance', searchable: false", $blade);
-        $this->assertStringContainsString("order: [[4, 'desc']]", $blade);
+        $this->assertStringContainsString('var ltvLocationsSumOrderIndex = canViewLocations ? 5 : 4;', $blade);
+        $this->assertStringContainsString('order: [[ltvLocationsSumOrderIndex, \'desc\']]', $blade);
         $this->assertTrue(
             strpos($blade, "name: 'user_names'") < strpos($blade, "key: 'avg_attendance'")
         );

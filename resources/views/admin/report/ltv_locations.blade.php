@@ -17,7 +17,7 @@
     $ltvLocationsMode = in_array(($ltvLocationsMode ?? 'operation'), ['operation', 'subscription'], true)
         ? ($ltvLocationsMode ?? 'operation')
         : 'operation';
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'filter_admin_user_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
     $payFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $payHasActiveFilters = false;
@@ -118,6 +118,12 @@
                                 <input class="form-check-input ltv-locations-column-toggle" type="checkbox" id="ltvLocationsColLocation" data-column-key="location_name" checked>
                                 <label class="form-check-label" for="ltvLocationsColLocation">Объект</label>
                             </div>
+                            @if($canViewLocations)
+                            <div class="form-check">
+                                <input class="form-check-input ltv-locations-column-toggle" type="checkbox" id="ltvLocationsColAdmin" data-column-key="location_admin" checked>
+                                <label class="form-check-label" for="ltvLocationsColAdmin">Админ</label>
+                            </div>
+                            @endif
                             <div class="form-check">
                                 <input class="form-check-input ltv-locations-column-toggle" type="checkbox" id="ltvLocationsColName" data-column-key="user_names" checked>
                                 <label class="form-check-label" for="ltvLocationsColName">Ученики</label>
@@ -178,6 +184,7 @@
                 'teamFieldId' => 'pay-ltv-locations-filter-team',
                 'trainerFieldId' => 'pay-ltv-locations-filter-trainer',
                 'locationFieldId' => 'pay-ltv-locations-filter-location',
+                'adminFieldId' => 'pay-ltv-locations-filter-admin',
             ])
             <div class="col-12 col-md-2">
                 <label class="form-label" for="pay-ltv-locations-filter-payment-month">Оплаченный месяц</label>
@@ -224,6 +231,9 @@
         <tr>
             <th style="width: 60px;"></th>
             <th>Объект</th>
+            @if($canViewLocations)
+            <th>Админ</th>
+            @endif
             <th>Ученики</th>
             <th>Ср. посещаемость</th>
             <th>Сумма</th>
@@ -356,6 +366,9 @@
                     filter_trainer_profile_id: trainerIds,
                     filter_location_id: canViewLocations
                         ? reportMultiValues($('#pay-ltv-locations-filter-location'))
+                        : [],
+                    filter_admin_user_id: canViewLocations
+                        ? reportMultiValues($('#pay-ltv-locations-filter-admin'))
                         : [],
                     status: $ltvFiltersForm.find('[name="status"]').val() || '',
                     user_name: '',
@@ -633,11 +646,14 @@
                     '</div>';
             }
 
+            var ltvLocationsSumOrderIndex = canViewLocations ? 5 : 4;
+
             var dtApi = KidsCrmDataTable.create('#ltv-locations-table', {
                 columnsSettings: {
                     persistPageLength: true,
                     defaults: {
                         location_name: true,
+                        location_admin: canViewLocations,
                         user_names: true,
                         avg_attendance: true,
                         total_price: true,
@@ -666,7 +682,7 @@
                             });
                         }
                     },
-                    order: [[4, 'desc']],
+                    order: [[ltvLocationsSumOrderIndex, 'desc']],
                     language: @include('partials.datatables.ru'),
                     fixedHeader: ($.fn.dataTable && $.fn.dataTable.FixedHeader)
                         ? { header: true, footer: false }
@@ -689,6 +705,15 @@
                         }
                     },
                     { key: 'location_name', type: 'text', data: 'location_name', name: 'location_name' },
+                    {
+                        key: 'location_admin',
+                        type: 'list',
+                        data: 'location_admin',
+                        name: 'location_admin',
+                        itemsKey: 'location_admin_names',
+                        searchable: false,
+                        when: canViewLocations
+                    },
                     {
                         key: 'user_names',
                         type: 'list',
@@ -850,6 +875,7 @@
                         }
                         if (canViewLocations) {
                             KidsCrmGenericMultiselectSelect2.reset($('#pay-ltv-locations-filter-location'));
+                            KidsCrmGenericMultiselectSelect2.reset($('#pay-ltv-locations-filter-admin'));
                         }
                     }
                     $('#pay-ltv-locations-filter-user-status').val(defaultFilterUserStatus);
@@ -906,7 +932,7 @@
             if (!window.KidsCrmGenericMultiselectSelect2) {
                 return;
             }
-            ['#pay-ltv-locations-filter-team', '#pay-ltv-locations-filter-trainer', '#pay-ltv-locations-filter-location'].forEach(function (selector) {
+            ['#pay-ltv-locations-filter-team', '#pay-ltv-locations-filter-trainer', '#pay-ltv-locations-filter-location', '#pay-ltv-locations-filter-admin'].forEach(function (selector) {
                 var $el = $(selector);
                 if (!$el.length) {
                     return;
