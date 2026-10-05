@@ -654,7 +654,6 @@
             const canPayoutColumn = @json($canPayoutColumn);
             const canViewLocations = @json($canViewLocations);
             const defaultFilterUserStatus = 'active';
-            const paymentsReportDefaultOrderColumnIndex = canViewLocations ? 6 : 5;
             const paymentsToolbarFlags = {
                 net: @json($canPaymentsToolbarNetToPartner),
                 payout: @json($canPaymentsToolbarPayoutAmount),
@@ -1435,6 +1434,10 @@ columns.push(
                     window.KidsCrmReportTableSticky.bind('#payments-table');
                 }
             }
+
+            const paymentsReportDefaultOrderColumnIndex = columns.findIndex(function (col) {
+                return col && col.name === 'operation_date';
+            });
 
             var dtApi = KidsCrmDataTable.create('#payments-table', {
                 columnsSettings: {

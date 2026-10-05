@@ -35,7 +35,7 @@ final class ScheduleJournalSearchAccessFeatureTest extends ScheduleJournalTestCa
     {
         Auth::logout();
 
-        $response = $this->get(route('schedule.index', self::SEARCH_PARAMS));
+        $response = $this->journalIndex( self::SEARCH_PARAMS);
         $this->assertNotSame(500, $response->getStatusCode());
         $this->assertNotSame(200, $response->getStatusCode());
         $response->assertStatus(302);
@@ -55,7 +55,7 @@ final class ScheduleJournalSearchAccessFeatureTest extends ScheduleJournalTestCa
         Auth::logout();
 
         $response = $this->withHeaders($this->ajaxHeaders())
-            ->get(route('schedule.index', self::SEARCH_PARAMS));
+            ->journalIndex( self::SEARCH_PARAMS);
         $this->assertNotSame(500, $response->getStatusCode());
         $this->assertContains($response->getStatusCode(), [302, 401]);
     }
@@ -66,7 +66,7 @@ final class ScheduleJournalSearchAccessFeatureTest extends ScheduleJournalTestCa
         $session = ['current_partner' => $this->partner->id, '2fa:passed' => true];
 
         $web = $this->actingAs($actor)->withSession($session)
-            ->get(route('schedule.index', self::SEARCH_PARAMS));
+            ->journalIndex( self::SEARCH_PARAMS);
         $this->assertNotSame(500, $web->getStatusCode());
         $web->assertStatus(403);
 
@@ -77,7 +77,7 @@ final class ScheduleJournalSearchAccessFeatureTest extends ScheduleJournalTestCa
 
         $ajax = $this->actingAs($actor)->withSession($session)
             ->withHeaders($this->ajaxHeaders())
-            ->get(route('schedule.index', self::SEARCH_PARAMS));
+            ->journalIndex( self::SEARCH_PARAMS);
         $this->assertNotSame(500, $ajax->getStatusCode());
         $ajax->assertStatus(403);
     }
@@ -92,7 +92,7 @@ final class ScheduleJournalSearchAccessFeatureTest extends ScheduleJournalTestCa
         $student = $this->makeStudent();
         $student->update(['lastname' => 'ЖурналДоступ', 'name' => 'Viewer']);
 
-        $page = $this->get(route('schedule.index', self::SEARCH_PARAMS));
+        $page = $this->journalIndex( self::SEARCH_PARAMS);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -108,7 +108,7 @@ final class ScheduleJournalSearchAccessFeatureTest extends ScheduleJournalTestCa
         $student = $this->makeStudent();
         $student->update(['lastname' => 'ЖурналДоступ', 'name' => 'Admin']);
 
-        $page = $this->get(route('schedule.index', self::SEARCH_PARAMS));
+        $page = $this->journalIndex( self::SEARCH_PARAMS);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -133,17 +133,17 @@ final class ScheduleJournalSearchAccessFeatureTest extends ScheduleJournalTestCa
         $this->grantScheduleView();
 
         $this->from(route('schedule.index'))
-            ->get(route('schedule.index', array_merge(self::SEARCH_PARAMS, [
+            ->journalIndex( array_merge(self::SEARCH_PARAMS, [
                 'q' => str_repeat('я', 192),
-            ])))
+            ]))
             ->assertRedirect(route('schedule.index'))
             ->assertSessionHasErrors(['q' => 'Поисковый запрос слишком длинный.']);
 
         $html = (string) $this->from(route('schedule.index'))
             ->followingRedirects()
-            ->get(route('schedule.index', array_merge(self::SEARCH_PARAMS, [
+            ->journalIndex( array_merge(self::SEARCH_PARAMS, [
                 'q' => str_repeat('я', 192),
-            ])))
+            ]))
             ->assertOk()
             ->getContent();
 
@@ -175,7 +175,7 @@ final class ScheduleJournalSearchAccessFeatureTest extends ScheduleJournalTestCa
         $actor = User::factory()->create(['partner_id' => null]);
         $this->actingAs($actor)->withSession([]);
 
-        $this->get(route('schedule.index', self::SEARCH_PARAMS))
+        $this->journalIndex( self::SEARCH_PARAMS)
             ->assertRedirect()
             ->assertSessionHasErrors([
                 'email' => 'Ваша организация недоступна.',
@@ -196,7 +196,7 @@ final class ScheduleJournalSearchAccessFeatureTest extends ScheduleJournalTestCa
             'role_id' => $this->studentRoleId(),
         ]);
 
-        $html = (string) $this->get(route('schedule.index', self::SEARCH_PARAMS))
+        $html = (string) $this->journalIndex( self::SEARCH_PARAMS)
             ->assertOk()
             ->getContent();
 

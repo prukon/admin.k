@@ -143,7 +143,7 @@ final class ScheduleJournalAttendanceNonAjaxSafetyNetFeatureTest extends Schedul
     public function test_invalid_journal_month_redirects_with_field_error(): void
     {
         $response = $this->from(route('schedule.index'))
-            ->get(route('schedule.index', ['year' => 'нет', 'month' => '13']));
+            ->journalIndex( ['year' => 'нет', 'month' => '13']);
 
         $this->assertNotSame(500, $response->getStatusCode());
         $this->assertNotSame(200, $response->getStatusCode());
@@ -153,11 +153,11 @@ final class ScheduleJournalAttendanceNonAjaxSafetyNetFeatureTest extends Schedul
 
     private function journalPage(int $year, string $month, int|string $team): string
     {
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => $year,
             'month' => $month,
             'team' => $team,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertStringNotContainsString('Whoops', $html);
 
         return $html;

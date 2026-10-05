@@ -57,7 +57,7 @@ final class ScheduleJournalFlexiblePlacementFeatureTest extends ScheduleJournalT
         $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 2);
         $packageName = (string) $ulp->lessonPackage?->name;
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
             ->assertSee(">2/2\nПредоплата<", false)
@@ -83,7 +83,7 @@ final class ScheduleJournalFlexiblePlacementFeatureTest extends ScheduleJournalT
         $nameA = (string) $ulpA->lessonPackage?->name;
         $nameB = (string) $ulpB->lessonPackage?->name;
 
-        $all = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => 'all']));
+        $all = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => 'all']);
         $all->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
             ->assertDontSee('journal-flexible-hint--multi', false)
@@ -92,7 +92,7 @@ final class ScheduleJournalFlexiblePlacementFeatureTest extends ScheduleJournalT
             ->assertSee('Остаток занятий в текущем месяце по абонементу &quot;'.$nameA.'&quot; за 5 000 руб', false)
             ->assertSee('Остаток занятий в текущем месяце по абонементу &quot;'.$nameB.'&quot; за 5 000 руб', false);
 
-        $filtered = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $teamA->id]));
+        $filtered = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $teamA->id]);
         $filtered->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
             ->assertSee(">10/10\nПредоплата<", false)
@@ -110,7 +110,7 @@ final class ScheduleJournalFlexiblePlacementFeatureTest extends ScheduleJournalT
         $scheduledId = LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id);
         $this->assertNotNull($scheduledId);
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('flexiblePlaceModal', false)

@@ -232,16 +232,41 @@
         <td>По месяцам</td>
         <td><code>/admin/setting-prices/monthly</code></td>
         <td><code>admin.settingPrices.indexMenu</code></td>
-        <td>Слева группы + тариф месяца; справа ученики выбранной группы за выбранный месяц</td>
+        <td>Слева группы + тариф месяца; справа ученики выбранной группы за выбранный месяц. Порядок списков — <a href="#list-sort">§2.0</a></td>
       </tr>
       <tr>
         <td>По ученикам</td>
         <td><code>/admin/setting-prices/users</code></td>
         <td><code>admin.settingPrices.users</code></td>
-        <td>Слева ученики (+ фильтр группы); справа 12 месяцев выбранного <b>календарного</b> года для пары ученик+группа</td>
+        <td>Слева ученики и селект группы; справа 12 месяцев выбранного <b>календарного</b> года для пары ученик+группа. Порядок списков — <a href="#list-sort">§2.0</a></td>
       </tr>
     </tbody>
   </table>
+
+  <h2 id="list-sort">2.0) Порядок списков</h2>
+  <div class="note">
+    Поле группы «Сортировка» — это <code>teams.order_by</code>. Если его не задали
+    (<code>NULL</code>), на обеих вкладках группы идут по названию.
+    Если число задано и у групп оно разное, оно важнее названия.
+    <code>NULL</code> стоит выше чисел. Одинаковое число (в том числе десятка,
+    которую форма подставляет в пустое поле при создании группы) — снова по названию.
+    <br><br>
+    <b>«По месяцам»</b> (<code>/admin/setting-prices/monthly</code>).
+    Слева группы: <code>order_by</code>, при равном значении — название.
+    Справа ученики выбранной группы (<code>POST get-team-price</code>): по фамилии,
+    затем по имени. Текущие и бывшие участники в одном списке.
+    <br><br>
+    <b>«По ученикам»</b> (<code>/admin/setting-prices/users</code>).
+    Селект группы — тот же порядок, что слева на «По месяцам».
+    Список учеников слева — по фамилии, затем по имени. У ученика своего
+    <code>order_by</code> нет, поэтому фамилия — единственный порядок.
+    <br><br>
+    Алфавит без учёта регистра. «Ё» стоит рядом с «Е».
+    Совпавшие название или фамилия и имя дальше идут по id, чтобы порядок не прыгал.
+    Тесты: <code>SettingPricesAlphabetSortFeatureTest</code>,
+    <code>SettingPricesAlphabetSortDocumentationContractTest</code>.
+    Анонс: <a href="/doc#setting-prices-alphabet-sort-index">/doc#setting-prices-alphabet-sort-index</a>.
+  </div>
 
   <div class="note" id="cabinet-academic-year">
     <b>Консоль родителя — другой календарь.</b>
@@ -953,6 +978,8 @@
       вкладка «По ученикам»: <code>errors.price</code> под строкой месяца (<code>setting-prices-monthly-price-error</code>)</li>
     <li><code>SettingPricesMonthlyUserCardFeatureTest</code> — модалка на «По месяцам», JSON карточки по <code>setPrices.view</code>, чужой партнёр 403, нет ученика 404, гость и без права 403</li>
     <li><code>SettingPricesMonthlyUserCardDocumentationContractTest</code> — §monthly-user-card и анонс <code>/doc#setting-prices-monthly-user-card-index</code></li>
+    <li><code>SettingPricesAlphabetSortFeatureTest</code> — пустой <code>order_by</code> (<code>NULL</code>): группы по названию на «По месяцам» и в селекте «По ученикам»; ученики по фамилии на обеих вкладках; «Ё» рядом с «Е», регистр не важен</li>
+    <li><code>SettingPricesAlphabetSortDocumentationContractTest</code> — §2.0 и анонс <code>/doc#setting-prices-alphabet-sort-index</code></li>
     <li><code>BladeInlineJsSyntaxTest::test_setting_prices_monthly_prolong_vite_module_ux_contract</code> —
       <code>node --check</code> + UX: <code>getSelectedMonthLabel</code> в теле POST, превью на
       <code>show.bs.modal</code>, confirm disabled пока нет <code>can_apply</code>, после успеха
@@ -1009,13 +1036,16 @@
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyTeamSelectJsContractTest.php \
   tests/Unit/Documentation/SettingPricesMonthlyTeamSelectDocumentationContractTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyUserCardFeatureTest.php \
-  tests/Unit/Documentation/SettingPricesMonthlyUserCardDocumentationContractTest.php
+  tests/Unit/Documentation/SettingPricesMonthlyUserCardDocumentationContractTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesAlphabetSortFeatureTest.php \
+  tests/Unit/Documentation/SettingPricesAlphabetSortDocumentationContractTest.php
 php artisan test --env=testing \
   tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php \
   --filter='test_setting_prices_require_package_for_price_ux_contract|test_setting_prices_monthly_manual_paid_sends_card_package_and_price_ux_contract|test_setting_prices_monthly_manual_paid_zero_price_error_under_price_field_ux_contract|test_setting_prices_users_tab_manual_paid_zero_price_error_under_price_field_ux_contract|test_setting_prices_monthly_prolong_vite_module_ux_contract|test_setting_prices_monthly_team_select_loading_ux_contract'</code></pre>
 
   <h2 id="related">7) Связанные страницы</h2>
   <p class="small">
+    <a href="/doc#setting-prices-alphabet-sort-index">/doc#setting-prices-alphabet-sort-index</a> ·
     <a href="/doc#setting-prices-monthly-team-select-index">/doc#setting-prices-monthly-team-select-index</a> ·
     <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a> ·
     <a href="/docs/documentation/reports-admin#debts-effective-is-paid">reports-admin §3.1 (задолженности + effective_is_paid)</a> ·

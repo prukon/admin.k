@@ -32,11 +32,11 @@ final class ScheduleJournalTeamFilterSelect2NonAjaxSafetyNetFeatureTest extends 
         $studentB = $this->makeStudent($teamB->id);
         $studentB->update(['lastname' => 'НативОр', 'name' => 'Б']);
 
-        $response = $this->get(route('schedule.index', [
+        $response = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id, $teamB->id],
-        ]));
+        ]);
 
         $response->assertOk();
         $html = (string) $response->getContent();
@@ -57,12 +57,12 @@ final class ScheduleJournalTeamFilterSelect2NonAjaxSafetyNetFeatureTest extends 
         $other = $this->makeStudent($teamB->id);
         $other->update(['lastname' => 'НативПоискГруппа', 'name' => 'Б']);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id],
             'q' => 'НативПоискГруппа',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertStringContainsString($match->full_name, $html);
         $this->assertStringNotContainsString($other->full_name, $html);
@@ -84,11 +84,11 @@ final class ScheduleJournalTeamFilterSelect2NonAjaxSafetyNetFeatureTest extends 
         $student->update(['lastname' => 'НативЧужая', 'name' => 'Ученик']);
 
         $response = $this->from(route('schedule.index'))
-            ->get(route('schedule.index', [
+            ->journalIndex( [
                 'year' => 2026,
                 'month' => '08',
                 'team_ids' => [999999],
-            ]));
+            ]);
 
         $this->assertNotSame(500, $response->getStatusCode());
         $this->assertNotSame(200, $response->getStatusCode(), 'Невалидный team_ids не должен открывать журнал');

@@ -16,12 +16,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
+use Tests\Feature\Crm\Payments\Concerns\SignsPaymentCheckout;
 
 /**
  * HTTP-init оплат с team_id: клубный взнос, абонемент (T‑Bank / Robokassa).
  */
 final class PayableTeamPaymentInitFeatureTest extends CrmTestCase
 {
+    use SignsPaymentCheckout;
     protected function setUp(): void
     {
         parent::setUp();
@@ -130,6 +132,7 @@ final class PayableTeamPaymentInitFeatureTest extends CrmTestCase
     {
         [$teamA] = $this->attachStudentToTwoTeams();
         $this->grantAllPaymentInitPermissions();
+        $this->grantClubFeeAccess();
         $this->seedGlobalTbank();
         $this->seedRegisteredLegalEntityForPartner(shopCode: 'SHOP-MULTI-A');
         PartnerLegalEntity::factory()
@@ -141,6 +144,7 @@ final class PayableTeamPaymentInitFeatureTest extends CrmTestCase
             'outSum' => '500.00',
             'paymentDate' => 'Клубный взнос',
             'team_id' => (int) $teamA->id,
+            'checkout_intent' => $this->signClubCheckout($this->user),
         ]);
 
         $response->assertRedirect();
@@ -154,10 +158,12 @@ final class PayableTeamPaymentInitFeatureTest extends CrmTestCase
         app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $team->id);
 
         $this->grantAllPaymentInitPermissions();
+        $this->grantClubFeeAccess();
         $this->seedRobokassa();
 
         $response = $this->post(route('payment.pay'), [
             'outSum' => '1500.00',
+            'checkout_intent' => $this->signClubCheckout($this->user),
         ]);
 
         $response->assertStatus(302);
@@ -178,10 +184,12 @@ final class PayableTeamPaymentInitFeatureTest extends CrmTestCase
     {
         $this->attachStudentToTwoTeams();
         $this->grantAllPaymentInitPermissions();
+        $this->grantClubFeeAccess();
         $this->seedRobokassa();
 
         $this->post(route('payment.pay'), [
             'outSum' => '2000.00',
+            'checkout_intent' => $this->signClubCheckout($this->user),
         ])->assertStatus(422);
 
         $this->assertSame(0, Payable::query()->where('type', 'club_fee')->count());
@@ -191,11 +199,13 @@ final class PayableTeamPaymentInitFeatureTest extends CrmTestCase
     {
         [$teamA, $teamB] = $this->attachStudentToTwoTeams();
         $this->grantAllPaymentInitPermissions();
+        $this->grantClubFeeAccess();
         $this->seedRobokassa();
 
         $response = $this->post(route('payment.pay'), [
             'outSum' => '2200.00',
             'team_id' => (int) $teamB->id,
+            'checkout_intent' => $this->signClubCheckout($this->user),
         ]);
 
         $response->assertStatus(302);
@@ -253,6 +263,7 @@ final class PayableTeamPaymentInitFeatureTest extends CrmTestCase
             'payment_kind' => 'lesson_package',
             'user_lesson_package_id' => $ulp->id,
             'paymentDate' => 'ignored',
+            'checkout_intent' => $this->signLessonCheckout($this->user, (int) $ulp->id),
         ]);
 
         $response->assertRedirect('https://example.test/pay-team-ulp');

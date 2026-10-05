@@ -2,11 +2,13 @@
 
 namespace App\Http\Requests\Tinkoff;
 
+use App\Http\Requests\Tinkoff\Concerns\ResolvesSignedCheckoutKind;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class CreateSbpPaymentRequest extends FormRequest
 {
+    use ResolvesSignedCheckoutKind;
     public function authorize(): bool
     {
         return true;
@@ -17,12 +19,7 @@ class CreateSbpPaymentRequest extends FormRequest
         return [
             'outSum' => [
                 Rule::requiredIf(function () {
-                    $kind = (string) $this->input('payment_kind', '');
-                    if ($kind === 'custom_payment' || $kind === 'lesson_package') {
-                        return false;
-                    }
-
-                    return ! $this->filled('formatedPaymentDate');
+                    return $this->clientOutSumIsRequired();
                 }),
                 'nullable',
                 'string',
@@ -34,6 +31,7 @@ class CreateSbpPaymentRequest extends FormRequest
             'payment_kind' => ['nullable', 'string', 'in:custom_payment,lesson_package'],
             'custom_payment_id' => ['required_if:payment_kind,custom_payment', 'nullable', 'integer', 'min:1'],
             'user_lesson_package_id' => ['required_if:payment_kind,lesson_package', 'nullable', 'integer', 'min:1'],
+            'checkout_intent' => ['required', 'string', 'max:8000'],
         ];
     }
 
@@ -45,12 +43,14 @@ class CreateSbpPaymentRequest extends FormRequest
             'payment_kind' => 'тип оплаты',
             'custom_payment_id' => 'дополнительный платеж',
             'user_lesson_package_id' => 'назначение абонемента',
+            'checkout_intent' => 'страница оплаты',
         ];
     }
 
     public function messages(): array
     {
         return [
+            'checkout_intent.required' => 'Откройте страницу оплаты заново.',
             'outSum.required' => 'Укажите сумму оплаты.',
             'custom_payment_id.required_if' => 'Выберите дополнительный платеж для оплаты.',
             'user_lesson_package_id.required_if' => 'Выберите абонемент для оплаты.',

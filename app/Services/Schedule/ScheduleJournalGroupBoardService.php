@@ -18,12 +18,13 @@ use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Журнал /schedule: группы с вложенными учениками и страницей по 20.
+ * Журнал /schedule: группы с вложенными учениками.
+ * Размер страницы — ScheduleJournalPageLength (по умолчанию 50), один на все группы.
  * Ячейки строки ученика считаются только по группе этой строки.
  */
 final class ScheduleJournalGroupBoardService
 {
-    public const PER_PAGE = 20;
+    public const PER_PAGE = ScheduleJournalPageLength::DEFAULT;
 
     /** Сколько учеников за один раз отмечает галочка дня в строке группы. */
     public const BULK_CANDIDATE_LIMIT = 100;
@@ -41,6 +42,8 @@ final class ScheduleJournalGroupBoardService
     }
 
     /**
+     * Шапки всех групп. Ученики и ячейки — только у групп из group_pages (запасной полный GET).
+     *
      * @param  array<string|int, mixed>  $groupPages
      * @return list<array<string, mixed>>
      */
@@ -52,11 +55,74 @@ final class ScheduleJournalGroupBoardService
         Carbon $startOfMonth,
         Carbon $endOfMonth,
         array $groupPages,
-        int $legacyPage,
+        int $perPage = self::PER_PAGE,
     ): array {
-        $buckets = $this->buckets($actor, $partnerId, $filter, $searchQ, $groupPages, $legacyPage);
+        $perPage = ScheduleJournalPageLength::normalize($perPage);
+        $shells = $this->shells($actor, $partnerId, $filter, $searchQ);
+        $teamIds = [];
+        foreach ($shells as $shell) {
+            if ($shell['team_id'] !== null) {
+                $teamIds[] = (int) $shell['team_id'];
+            }
+        }
+        $weekdaysByTeam = $this->weekdaysByTeam($teamIds);
 
-        return $this->hydrate($actor, $partnerId, $filter, $startOfMonth, $endOfMonth, $buckets);
+        $pages = [];
+        foreach ($groupPages as $key => $page) {
+            $pageNumber = (int) $page;
+            if ($pageNumber > 0) {
+                $pages[(string) $key] = $pageNumber;
+            }
+        }
+
+        $buckets = [];
+        foreach ($shells as $shell) {
+            if (! array_key_exists($shell['key'], $pages)) {
+                continue;
+            }
+            $bucket = $this->oneBucket(
+                $actor,
+                $partnerId,
+                $filter,
+                $searchQ,
+                $shell['key'],
+                $pages[$shell['key']],
+                $perPage,
+            );
+            if ($bucket !== null) {
+                $buckets[] = $bucket;
+            }
+        }
+
+        $hydrated = [];
+        foreach ($this->hydrate($actor, $partnerId, $filter, $startOfMonth, $endOfMonth, $buckets) as $group) {
+            $hydrated[(string) $group['key']] = $group;
+        }
+
+        $groups = [];
+        foreach ($shells as $shell) {
+            $key = $shell['key'];
+            if (isset($hydrated[$key])) {
+                $group = $hydrated[$key];
+                $group['loaded'] = true;
+                $group['users_total'] = (int) $group['users']->total();
+                $groups[] = $group;
+
+                continue;
+            }
+
+            $teamId = $shell['team_id'];
+            $groups[] = [
+                'key' => $key,
+                'team_id' => $teamId,
+                'title' => $shell['title'],
+                'weekdays' => $teamId === null ? [] : ($weekdaysByTeam[(int) $teamId] ?? []),
+                'users_total' => $shell['total'],
+                'loaded' => false,
+            ];
+        }
+
+        return $groups;
     }
 
     /**
@@ -73,8 +139,10 @@ final class ScheduleJournalGroupBoardService
         Carbon $endOfMonth,
         string $groupKey,
         int $page,
+        int $perPage = self::PER_PAGE,
     ): ?array {
-        $bucket = $this->oneBucket($actor, $partnerId, $filter, $searchQ, $groupKey, $page);
+        $perPage = ScheduleJournalPageLength::normalize($perPage);
+        $bucket = $this->oneBucket($actor, $partnerId, $filter, $searchQ, $groupKey, $page, $perPage);
         if ($bucket === null) {
             return null;
         }
@@ -203,52 +271,46 @@ final class ScheduleJournalGroupBoardService
     }
 
     /**
-     * @param  array<string|int, mixed>  $groupPages
-     * @return list<array{key: string, team_id: ?int, title: string, users: LengthAwarePaginator}>
+     * @return list<array{key: string, team_id: ?int, title: string, total: int}>
      */
-    private function buckets(
+    private function shells(
         ?User $actor,
         int $partnerId,
         ScheduleJournalTeamFilter $filter,
         string $searchQ,
-        array $groupPages,
-        int $legacyPage,
     ): array {
-        $buckets = [];
+        $shells = [];
 
         foreach ($this->candidateTeams($actor, $partnerId, $filter) as $team) {
-            $key = (string) $team->id;
-            $query = $this->studentsForTeam($actor, $partnerId, $filter, $searchQ, (int) $team->id);
-            $users = $this->paginate($query, $key, $this->resolvePage($key, $groupPages, $legacyPage));
-            if ($filter->isAll() && $users->total() < 1) {
+            $total = $this->countStudents(
+                $this->studentsForTeam($actor, $partnerId, $filter, $searchQ, (int) $team->id)
+            );
+            if ($filter->isAll() && $total < 1) {
                 continue;
             }
-            $buckets[] = [
-                'key' => $key,
+            $shells[] = [
+                'key' => (string) $team->id,
                 'team_id' => (int) $team->id,
                 'title' => (string) $team->title,
-                'users' => $users,
+                'total' => $total,
             ];
         }
 
         if ($filter->isAll() || $filter->includeNone) {
-            $query = $this->studentsWithoutTeam($actor, $partnerId, $filter, $searchQ);
-            $users = $this->paginate(
-                $query,
-                self::NONE_KEY,
-                $this->resolvePage(self::NONE_KEY, $groupPages, $legacyPage),
+            $total = $this->countStudents(
+                $this->studentsWithoutTeam($actor, $partnerId, $filter, $searchQ)
             );
-            if ($users->total() > 0 || $filter->includeNone) {
-                $buckets[] = [
+            if ($total > 0 || $filter->includeNone) {
+                $shells[] = [
                     'key' => self::NONE_KEY,
                     'team_id' => null,
                     'title' => self::NONE_TITLE,
-                    'users' => $users,
+                    'total' => $total,
                 ];
             }
         }
 
-        return $buckets;
+        return $shells;
     }
 
     /**
@@ -261,8 +323,10 @@ final class ScheduleJournalGroupBoardService
         string $searchQ,
         string $groupKey,
         int $page,
+        int $perPage,
     ): ?array {
         $page = max(1, $page);
+        $perPage = ScheduleJournalPageLength::normalize($perPage);
 
         if ($groupKey === self::NONE_KEY) {
             if (! $filter->isAll() && ! $filter->includeNone) {
@@ -277,6 +341,7 @@ final class ScheduleJournalGroupBoardService
                     $this->studentsWithoutTeam($actor, $partnerId, $filter, $searchQ),
                     self::NONE_KEY,
                     $page,
+                    $perPage,
                 ),
             ];
         }
@@ -312,6 +377,7 @@ final class ScheduleJournalGroupBoardService
                 $this->studentsForTeam($actor, $partnerId, $filter, $searchQ, $teamId),
                 (string) $team->id,
                 $page,
+                $perPage,
             ),
         ];
     }
@@ -684,21 +750,14 @@ final class ScheduleJournalGroupBoardService
         });
     }
 
-    /**
-     * @param  array<string|int, mixed>  $groupPages
-     */
-    private function resolvePage(string $key, array $groupPages, int $legacyPage): int
+    private function countStudents(Builder $query): int
     {
-        if (array_key_exists($key, $groupPages) && (int) $groupPages[$key] > 0) {
-            return (int) $groupPages[$key];
-        }
-
-        return max(1, $legacyPage);
+        return (int) (clone $query)->count();
     }
 
-    private function paginate(Builder $query, string $key, int $page): LengthAwarePaginator
+    private function paginate(Builder $query, string $key, int $page, int $perPage): LengthAwarePaginator
     {
-        $perPage = self::PER_PAGE;
+        $perPage = ScheduleJournalPageLength::normalize($perPage);
         $page = max(1, $page);
         $total = (clone $query)->count();
         $items = (clone $query)->forPage($page, $perPage)->get();

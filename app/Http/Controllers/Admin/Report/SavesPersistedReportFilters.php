@@ -37,6 +37,7 @@ trait SavesPersistedReportFilters
             PersistedReportFilters::LTV => route('reports.ltv'),
             PersistedReportFilters::LTV_TEAMS => route('reports.ltv.teams'),
             PersistedReportFilters::LTV_LOCATIONS => route('reports.ltv.locations'),
+            PersistedReportFilters::LTV_ADMINS => route('reports.ltv.admins'),
             PersistedReportFilters::DEBTS => route('debts'),
             default => route('payments'),
         };

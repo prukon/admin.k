@@ -72,7 +72,7 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
             ['year' => 2026, 'month' => '08', 'team' => 'all'],
             ['year' => 2026, 'month' => '08', 'team_ids' => ['all']],
         ] as $query) {
-            $html = (string) $this->get(route('schedule.index', $query))->assertOk()->getContent();
+            $html = (string) $this->journalIndex( $query)->assertOk()->getContent();
             $this->assertNotSame('', trim($html));
             $this->assertStringContainsString($inA->full_name, $html);
             $this->assertStringContainsString($inB->full_name, $html);
@@ -97,11 +97,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $studentC = $this->makeStudent($teamC->id);
         $studentC->update(['lastname' => 'ОрФильтр', 'name' => 'В']);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id, $teamB->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertStringContainsString($studentA->full_name, $html);
         $this->assertStringContainsString($studentB->full_name, $html);
@@ -130,11 +130,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $onlyA = $this->makeStudent($teamA->id);
         $onlyA->update(['lastname' => 'ТолькоОднаИзДвух', 'name' => 'Ученик']);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id, $teamB->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertStringContainsString($onlyA->full_name, $html);
         $this->assertSame(1, substr_count($html, '>'.$onlyA->full_name.'<'));
@@ -151,11 +151,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $otherStudent = $this->makeStudent($other->id);
         $otherStudent->update(['lastname' => 'ЧужаяОр', 'name' => 'Ученик']);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => ['none', $team->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertStringContainsString($ungrouped->full_name, $html);
         $this->assertStringContainsString($inTeam->full_name, $html);
@@ -176,11 +176,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $studentB = $this->makeStudent($teamB->id);
         $studentB->update(['lastname' => 'ЛегасиБ', 'name' => 'Ученик']);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $teamA->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertStringContainsString($studentA->full_name, $html);
         $this->assertStringNotContainsString($studentB->full_name, $html);
@@ -200,11 +200,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $studentB = $this->makeStudent($teamB->id);
         $studentB->update(['lastname' => 'СкалярБ', 'name' => 'Ученик']);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => (string) $teamA->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertStringContainsString($studentA->full_name, $html);
         $this->assertStringNotContainsString($studentB->full_name, $html);
@@ -218,11 +218,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $student->update(['lastname' => 'ДвеГруппы', 'name' => 'Ученик']);
         app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $teamA->id, (int) $teamB->id]);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id, $teamB->id, $teamA->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertSame(2, substr_count($html, '>'.$student->full_name.'<'));
     }
@@ -241,22 +241,22 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $student->update(['lastname' => 'ПодписиГрупп', 'name' => 'Ученик']);
         app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $teamA->id, (int) $teamB->id]);
 
-        $one = (string) $this->get(route('schedule.index', [
+        $one = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $rowOne = $this->studentRowHtml($one, (int) $student->id);
         $this->assertNotNull($rowOne);
         $this->assertStringNotContainsString('ПодписьГруппаА', $rowOne);
         $this->assertStringNotContainsString('ПодписьГруппаБ', $rowOne);
         $this->assertStringContainsString('ПодписьГруппаА', $one);
 
-        $many = (string) $this->get(route('schedule.index', [
+        $many = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id, $teamB->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $rowMany = $this->studentRowHtml($many, (int) $student->id);
         $this->assertNotNull($rowMany);
         $this->assertStringNotContainsString('ПодписьГруппаА', $rowMany);
@@ -276,11 +276,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $utssA = $this->createTrialUtss($student, $teamA, '2026-08-03');
         $utssB = $this->createTrialUtss($student, $teamB, '2026-08-04');
 
-        $one = (string) $this->get(route('schedule.index', [
+        $one = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $cellA = $this->cellOpenTag($one, (int) $student->id, '2026-08-03');
         $cellB = $this->cellOpenTag($one, (int) $student->id, '2026-08-04');
         $this->assertStringContainsString('data-utss-id="'.$utssA->id.'"', $cellA);
@@ -288,11 +288,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $this->assertStringContainsString('data-occurrence-count="0"', $cellB);
         $this->assertStringNotContainsString('data-utss-id="'.$utssB->id.'"', $cellB);
 
-        $both = (string) $this->get(route('schedule.index', [
+        $both = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id, $teamB->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertStringContainsString(
             'data-utss-id="'.$utssA->id.'"',
             $this->cellOpenTag($both, (int) $student->id, '2026-08-03', (int) $teamA->id)
@@ -337,11 +337,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
             'is_paid' => 0,
         ]);
 
-        $both = (string) $this->get(route('schedule.index', [
+        $both = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id, $teamB->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $paidCell = $this->paymentCellHtml($both, (int) $student->id, (int) $teamA->id);
         $unpaidCell = $this->paymentCellHtml($both, (int) $student->id, (int) $teamB->id);
         $this->assertStringContainsString('data-journal-payment-status="paid"', $paidCell);
@@ -350,11 +350,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $this->assertStringContainsString($teamA->title, $both);
         $this->assertStringContainsString($teamB->title, $both);
 
-        $one = (string) $this->get(route('schedule.index', [
+        $one = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $oneCell = $this->paymentCellHtml($one, (int) $student->id);
         $this->assertStringContainsString('data-journal-payment-status="paid"', $oneCell);
         $this->assertStringNotContainsString('data-journal-payment-status="partial"', $oneCell);
@@ -369,24 +369,24 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $this->attachWeekdays($teamB, [3]);
         $this->makeStudent($teamA->id);
 
-        $empty = (string) $this->get(route('schedule.index', [
+        $empty = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame(0, $this->theadHighlightCount($empty));
 
-        $one = (string) $this->get(route('schedule.index', [
+        $one = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame(5, $this->theadHighlightCount($one));
 
-        $both = (string) $this->get(route('schedule.index', [
+        $both = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id, $teamB->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame(9, $this->theadHighlightCount($both));
     }
 
@@ -398,31 +398,31 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $student->update(['lastname' => 'КонтекстГруппы', 'name' => 'Ученик']);
         app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $teamA->id, (int) $teamB->id]);
 
-        $onlyB = (string) $this->get(route('schedule.index', [
+        $onlyB = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamB->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertStringContainsString(
             'data-context-team-id="'.$teamB->id.'"',
             $this->cellOpenTag($onlyB, (int) $student->id, '2026-08-03')
         );
 
-        $both = (string) $this->get(route('schedule.index', [
+        $both = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id, $teamB->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $open = $this->cellOpenTag($both, (int) $student->id, '2026-08-03');
         $this->assertMatchesRegularExpression(
             '/data-context-team-id="('.preg_quote((string) $teamA->id, '/').'|'.preg_quote((string) $teamB->id, '/').')"/',
             $open
         );
 
-        $all = (string) $this->get(route('schedule.index', [
+        $all = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $allOpen = $this->cellOpenTag($all, (int) $student->id, '2026-08-03');
         $this->assertMatchesRegularExpression(
             '/data-context-team-id="('.preg_quote((string) $teamA->id, '/').'|'.preg_quote((string) $teamB->id, '/').')"/',
@@ -435,11 +435,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
         $teamA = Team::factory()->create(['partner_id' => $this->partner->id]);
         $teamB = Team::factory()->create(['partner_id' => $this->partner->id]);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$teamA->id, $teamB->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertTrue(
             (bool) preg_match('/id="scheduleSectionTabs"[\s\S]*?<\/ul>/', $html, $tabs),
@@ -464,12 +464,12 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
             $students[] = $student;
         }
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$team->id],
             'page' => 2,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertStringContainsString('class="schedule-journal-pagination', $html);
         $this->assertStringContainsString('team_ids', $html);
@@ -522,11 +522,11 @@ final class ScheduleJournalTeamFilterSelect2FeatureTest extends ScheduleJournalT
     {
         $html = (string) $this->from(route('schedule.index'))
             ->followingRedirects()
-            ->get(route('schedule.index', [
+            ->journalIndex( [
                 'year' => 2026,
                 'month' => '08',
                 'team_ids' => [999999],
-            ]))
+            ])
             ->assertOk()
             ->getContent();
 

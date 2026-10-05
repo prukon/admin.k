@@ -10,6 +10,8 @@ use App\Models\Team;
 use App\Models\TinkoffPayment;
 use App\Models\User;
 use App\Models\UserPrice;
+use App\Services\Payments\PaymentCheckoutIntent;
+use App\Services\Payments\PaymentCheckoutIntentSigner;
 use App\Services\Payments\PaymentLedgerTeamResolver;
 use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\DB;
@@ -114,6 +116,14 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
             'formatedPaymentDate' => '2027-03-01',
             'team_id' => $teamId,
             'outSum' => '1.00',
+            'checkout_intent' => app(PaymentCheckoutIntentSigner::class)->issue(
+                PaymentCheckoutIntent::KIND_MONTHLY,
+                (int) $this->partner->id,
+                (int) $this->user->id,
+                (int) $this->user->id,
+                month: '2027-03-01',
+                teamId: $teamId,
+            ),
         ];
     }
 

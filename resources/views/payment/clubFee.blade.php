@@ -237,6 +237,10 @@
     <div class="main-content text-start payment-page">
         <h4 class="payment-title">Оплата клубного взноса</h4>
 
+        @if ($errors->has('checkout_intent'))
+            <div class="alert alert-danger" role="alert" id="checkout-intent-error">{{ $errors->first('checkout_intent') }}</div>
+        @endif
+
         @if(!empty($clubFeeBlocked))
             <div class="alert alert-warning">
                 Оплата недоступна: вы не состоите ни в одной группе. Обратитесь в школу.
@@ -324,6 +328,7 @@
                     <img class="img-fluid d-block mb-3 tbank-logo" src="{{ asset('/img/partners/tbank.png') }}" alt="Tinkoff">
                     <form class="payment-form" action="{{ route('payment.tinkoff.sbp') }}" method="POST" onsubmit="return validateAndSetAmount(this);">
                         @csrf
+                        <input type="hidden" name="checkout_intent" value="{{ $checkoutIntent }}">
                         <input type="hidden" name="partner_id" value="{{ $partnerId }}">
                         <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
                         <input type="hidden" name="outSum" class="outSum-field" value="">
@@ -344,6 +349,7 @@
                             <img class="img-fluid d-block tbank-logo" src="{{ asset('/img/partners/tbank.png') }}" alt="Tinkoff">
                             <form class="payment-form" action="{{ route('payment.tinkoff.pay') }}" method="POST" onsubmit="return validateAndSetAmount(this);">
                                 @csrf
+                                <input type="hidden" name="checkout_intent" value="{{ $checkoutIntent }}">
                                 <input type="hidden" name="partner_id" value="{{ $partnerId }}">
                                 <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
                                 <input type="hidden" name="outSum" class="outSum-field" value="">
@@ -360,6 +366,7 @@
                             <img class="img-fluid d-block" src="{{ asset('/img/partners/robokassa.png') }}" alt="Робокасса">
                             <form class="payment-form" action="{{ route('payment.pay') }}" method="POST" onsubmit="return validateAndSetAmount(this);">
                                 @csrf
+                                <input type="hidden" name="checkout_intent" value="{{ $checkoutIntent }}">
                                 <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
                                 <input type="hidden" name="userId" value="{{ auth()->user()->id }}">
                                 <input type="hidden" name="outSum" class="outSum-field" value="">

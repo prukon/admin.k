@@ -842,21 +842,26 @@
             });
 
             $('.js-ltv-teams-group-mode-btn').on('click', function () {
-                var mode = $(this).data('mode');
+                var btn = $(this);
+                var mode = btn.data('mode');
                 if (mode !== 'operation' && mode !== 'subscription') {
                     return;
                 }
                 if (mode === currentMode) {
                     return;
                 }
-                currentMode = mode;
-                $('.js-ltv-teams-group-mode-btn').removeClass('active');
-                $(this).addClass('active');
-                Object.keys(ltvTeamsDetailTables).forEach(function (teamId) {
-                    destroyLtvTeamsDetailTable(teamId);
+                var payload = ltvTeamsReportFilterParams();
+                payload.mode = mode;
+                kidsCrmPersistReportFilters($ltvFiltersForm, ltvTeamsFiltersSaveUrl, payload, function () {
+                    currentMode = mode;
+                    $('.js-ltv-teams-group-mode-btn').removeClass('active');
+                    btn.addClass('active');
+                    Object.keys(ltvTeamsDetailTables).forEach(function (teamId) {
+                        destroyLtvTeamsDetailTable(teamId);
+                    });
+                    refreshLtvTeamsReportTotal();
+                    dtApi.reload();
                 });
-                refreshLtvTeamsReportTotal();
-                dtApi.reload();
             });
 
             $('#ltvTeamsReportFiltersResetBtn').on('click', function () {
@@ -874,6 +879,9 @@
                         }
                     }
                     $('#pay-ltv-teams-filter-user-status').val(defaultFilterUserStatus);
+                    currentMode = 'operation';
+                    $('.js-ltv-teams-group-mode-btn').removeClass('active');
+                    $('.js-ltv-teams-group-mode-btn[data-mode="operation"]').addClass('active');
                     Object.keys(ltvTeamsDetailTables).forEach(function (teamId) {
                         destroyLtvTeamsDetailTable(teamId);
                     });

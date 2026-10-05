@@ -35,7 +35,7 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
         $disabledStudent = $this->makeStudent();
         $disabledStudent->update(['is_enabled' => 0]);
 
-        $this->get(route('schedule.index'))
+        $this->journalIndex([])
             ->assertOk()
             ->assertSee($student->full_name, false)
             ->assertSee('data-user-id="' . $student->id . '"', false)
@@ -54,11 +54,11 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
 
         $this->createVisitedScheduleEntry($trainer->user_id, $trainer->id, '2026-05-10');
 
-        $this->get(route('schedule.index', [
+        $this->journalIndex( [
             'year' => 2026,
             'month' => '05',
             'team' => $team->id,
-        ]))
+        ])
             ->assertOk()
             ->assertSee($student->full_name, false)
             ->assertDontSee($trainer->user->full_name, false);
@@ -88,11 +88,11 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
             'is_enabled' => 1,
         ]);
 
-        $this->get(route('schedule.index', [
+        $this->journalIndex( [
             'year' => 2026,
             'month' => '05',
             'team' => $teamA->id,
-        ]))
+        ])
             ->assertOk()
             ->assertSee($studentA->full_name, false)
             ->assertDontSee($studentB->full_name, false)
@@ -109,11 +109,11 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
         $studentWithTeam = $this->makeStudent($team->id);
         $studentWithTeam->update(['name' => 'СГруппой', 'lastname' => 'Ученик']);
 
-        $this->get(route('schedule.index', [
+        $this->journalIndex( [
             'year' => 2026,
             'month' => '05',
             'team' => 'none',
-        ]))
+        ])
             ->assertOk()
             ->assertSee($studentWithoutTeam->full_name, false)
             ->assertDontSee($studentWithTeam->full_name, false);
@@ -126,10 +126,10 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
 
         $this->createVisitedScheduleEntry($trainer->user_id, $trainer->id, $date);
 
-        $html = $this->get(route('schedule.index', [
+        $html = $this->journalIndex( [
             'year' => 2026,
             'month' => '05',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertStringNotContainsString('data-user-id="' . $trainer->user_id . '"', $html);
     }
@@ -144,7 +144,7 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
             ['name' => 'Псевдо', 'lastname' => 'UserРоль'],
         );
 
-        $this->get(route('schedule.index'))
+        $this->journalIndex([])
             ->assertOk()
             ->assertSee($student->full_name, false)
             ->assertDontSee($fakeUserRole->full_name, false);

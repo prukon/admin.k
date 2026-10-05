@@ -97,7 +97,7 @@
 
   <div class="ok">
     <strong>Пагинация списка и поиск <code>q</code> (2026‑08).</strong>
-    Таблица журнала сгруппирована по группам. Внутри группы — страница по 20 учеников, не все сразу.
+    Таблица журнала сгруппирована по группам. Внутри группы — страница по сохранённому «Показывать по» (по умолчанию 50 учеников), не все сразу.
     Занятия и абонементы грузятся только для страницы.     «Найти» и Enter в поле — серверный GET без hidden <code>page</code>; автопоиска при вводе нет.
     Смена года/месяца/группы сбрасывает страницу и сохраняет <code>q</code>.
     Подробно — <a href="#journal-pagination">§2.2</a>;
@@ -169,8 +169,9 @@
       <tr><th>Метод</th><th>URL</th><th>Имя</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/schedule</code></td><td><code>schedule.index</code></td><td>HTML: группы, внутри ученики × дни месяца (по 20 на группу, поиск <code>q</code> — §2.2); ячейки строки — только эта группа</td></tr>
-      <tr><td>GET</td><td><code>/schedule/group-rows</code></td><td><code>schedule.group-rows</code></td><td>HTML-фрагмент строк учеников одной группы (<code>group_key</code>, <code>group_page</code>)</td></tr>
+      <tr><td>GET</td><td><code>/schedule</code></td><td><code>schedule.index</code></td><td>HTML: шапки групп (название, число учеников, дни недели). Строки учеников в ответе нет, пока в URL нет <code>group_pages</code> (§2.2)</td></tr>
+      <tr><td>GET</td><td><code>/schedule/group-rows</code></td><td><code>schedule.group-rows</code></td><td>HTML-фрагмент строк учеников одной группы (<code>group_key</code>, <code>group_page</code>). Размер страницы — сохранённый «Показывать по»</td></tr>
+      <tr><td>POST</td><td><code>/schedule/journal-page-length</code></td><td><code>schedule.journal-page-length</code></td><td>«Показывать по» текущего пользователя: <code>page_length</code> 20 / 50 / 100 в <code>user_table_settings</code> (<code>table_key = schedule_journal</code>)</td></tr>
       <tr><td>GET</td><td><code>/schedule/cell-context</code></td><td><code>schedule.cell-context</code></td><td>JSON: занятия ученика на дату (список), выбранное <code>utss_id</code>, тренеры</td></tr>
       <tr><td>POST</td><td><code>/schedule/update</code></td><td><code>schedule.update</code></td><td>Статус конкретного занятия (<code>utss_id</code> + дата) через <code>UserLessonOccurrenceStatusService</code>; тренер/комментарий на событии статуса</td></tr>
       <tr><td>DELETE</td><td><code>/schedule/occurrence/{utss}</code></td><td><code>schedule.occurrence.destroy</code></td><td>Аннуляция занятия в журнале (events + UTSS); AJAX без reload</td></tr>
@@ -225,7 +226,7 @@
   <ul>
     <li>Scope модели <code>User::scopeWithSystemRoleUser()</code> — <code>whereHas('role')</code> с <code>name = user</code> и <code>is_sistem = true</code>.</li>
     <li><b>Клик по ФИО</b> слева (<code>button.schedule-user-card-name.js-user-card</code>, <code>data-user-id</code>) открывает ту же модалку, что отчёт «Платежи»: <code>#paymentUserCardModal</code> из <code>partials.ui.user-card-modal</code>. Данные — <code>GET /schedule/users/{user}</code> (<code>schedule.view</code>). Подробно — <a href="/docs/documentation/reports-payments#user-card">reports-payments §1.3</a>.</li>
-    <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>team_ids[]</code>: пусто = все, <code>none</code>, один или несколько id — OR; legacy <code>team=all|none|id</code>) и поиск <code>q</code> — по pivot <code>team_user</code> (<code>UserTeamQuery::applyJournalTeamFilter</code>) и ФИО. Список учеников пагинируется, занятия и абонементы грузятся только для текущей страницы — см. <a href="#journal-pagination">§2.2</a>, фильтр групп — <a href="#journal-team-filter">§2.2.1</a>.</li>
+    <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>team_ids[]</code>: пусто = все, <code>none</code>, один или несколько id — OR; legacy <code>team=all|none|id</code>) и поиск <code>q</code> — по pivot <code>team_user</code> (<code>UserTeamQuery::applyJournalTeamFilter</code>) и ФИО. На первой загрузке считаются только шапки групп. Занятия и абонементы — при раскрытии группы (<code>GET /schedule/group-rows</code>) или если в URL есть <code>group_pages</code> — см. <a href="#journal-pagination">§2.2</a>, фильтр групп — <a href="#journal-team-filter">§2.2.1</a>.</li>
     <li>API: <code>findScheduleStudentForPartner()</code> и <code>assertScheduleStudent()</code> — те же условия; иначе <b>404</b>.</li>
   </ul>
   <p>
@@ -250,26 +251,48 @@
 
   <h2 id="journal-pagination">2.2) Пагинация списка и поиск <code>q</code></h2>
   <p>
-    Общего пейджера списка нет. Строки групп по умолчанию свёрнуты (шеврон и название группы раскрывают блок без запроса).
-    Ученики внутри группы режутся на сервере:
-    <code>ScheduleJournalGroupBoardService::PER_PAGE = 20</code>
-    (<code>ScheduleController::JOURNAL_GROUP_STUDENTS_PER_PAGE</code>).
+    Общего пейджера списка нет. <code>GET /schedule</code> без <code>group_pages</code> отдаёт только шапки групп:
+    название, число учеников (<code>.schedule-group-count</code>), подсветка дней недели. Строк <code>tr.schedule-group-user</code> в этом HTML нет.
+    Пустая группа при «все группы» по-прежнему скрыта. Строка «Итого» и средняя посещаемость считаются на этой же загрузке.
+    Первое раскрытие (шеврон или название) запрашивает <code>GET /schedule/group-rows</code> с <code>group_page=1</code> и вставляет фрагмент.
+    Пока фрагмент едет, под шапкой строка <code>tr.schedule-group-users-loading</code>. Повторный клик в это время не шлёт второй запрос.
+    Повторное раскрытие берёт уже вставленные строки. Ошибка запроса — переход на <code>/schedule</code> с <code>group_pages[ключ]=1</code>.
+    Если в URL уже есть <code>group_pages[id|none]</code>, на сервере гидратируется только эта группа (строки в HTML, <code>data-users-loaded="1"</code>, блок свёрнут). Остальные группы остаются пустыми до раскрытия.
+    Параметр <code>page</code> сам по себе строки учеников не включает.
+    Размер страницы один на всю вкладку «Журнал» и на пользователя.
+    Хранится в <code>user_table_settings.page_length</code> при <code>table_key = schedule_journal</code>
+    (та же колонка, что «Показать N» в отчётах). Допустимы <b>20 / 50 / 100</b>.
+    Нет строки или значение вне набора → <b>50</b>
+    (<code>ScheduleJournalPageLength::DEFAULT</code>,
+    <code>ScheduleJournalGroupBoardService::PER_PAGE</code>,
+    <code>ScheduleController::JOURNAL_GROUP_STUDENTS_PER_PAGE</code>).
+    Сохранённые <b>20</b>, <b>50</b> и <b>100</b> дефолт не подменяет.
+    <code>GET /schedule</code> и <code>GET /schedule/group-rows</code> читают это число и режут все группы одинаково.
+    Смена — <code>POST /schedule/journal-page-length</code> только с <code>page_length</code>:
+    <code>columns</code> и <code>filters</code> той же строки не затираются.
+    Успех (AJAX и обычный POST) → 200 <code>{success:true, page_length}</code>.
+    Ошибка AJAX → 422 <code>errors.page_length</code> (текст под переключателем).
+    Обычный POST с ошибкой → 302 и session <code>errors.page_length</code>.
+    После успеха открытые группы запрашиваются заново с первой страницы; свёрнутые уже загруженные
+    при следующем раскрытии тоже берутся с новым размером.
     Ученик в нескольких группах — отдельная строка в каждой. Без групп — строка «Без группы» в конце.
     В строке ученика дни, оплата, посещения и абонемент только этой группы; у «Без группы» дни пустые.
-    Занятия и абонементы грузятся для учеников <b>текущей страницы каждой группы</b>.
-    Смена страницы группы — <code>GET /schedule/group-rows</code> (фрагмент строк) или полный GET с <code>group_pages[id|none]</code>.
+    Занятия и абонементы грузятся для учеников <b>текущей страницы раскрытой группы</b>, не для всех групп сразу.
+    Смена страницы группы — тот же <code>GET /schedule/group-rows</code> или полный GET с <code>group_pages[id|none]</code>.
   </p>
   <table>
     <thead>
       <tr><th>Правило</th><th>Поведение</th></tr>
     </thead>
     <tbody>
-      <tr><td>Больше 20 учеников в группе</td><td>Пейджер <code>.schedule-journal-pagination</code> в одной ячейке строки группы (<code>td.schedule-group-pager-cell</code> с <code>colspan</code> на всю таблицу): короткая подпись «N–M из K» и номера страниц в одну линию. Блок прилипает к левому краю при горизонтальной прокрутке дней. Номера строк — <code>firstItem + index</code> внутри группы, цвет спокойный (<code>td.number-line</code>). Ссылки <code>group_pages[ключ]</code>, ключ — id группы или <code>none</code>. DataTables не видит эту строку: перед инициализацией её снимают и возвращают после, иначе <code>colspan</code> ломает колонки.</td></tr>
-      <tr><td>20 и меньше в группе</td><td>Пейджера у этой группы нет.</td></tr>
+      <tr><td>В раскрытой группе есть ученики</td><td>Строка <code>.schedule-journal-pagination</code> в одной ячейке (<code>td.schedule-group-pager-cell</code> с <code>colspan</code> на всю таблицу): «N–M из K», переключатель «Показывать по» (<code>.schedule-journal-per-page__select</code>, 20 / 50 / 100) и, если страниц больше одной, номера страниц в одну линию. Блок прилипает к левому краю при горизонтальной прокрутке дней. Номера строк — <code>firstItem + index</code> внутри группы. Ссылки <code>group_pages[ключ]</code>, ключ — id группы или <code>none</code>. DataTables не видит эту строку: перед инициализацией её снимают и возвращают после, иначе <code>colspan</code> ломает колонки. Ошибка сохранения выводится в <code>[data-error-for="page_length"]</code> под переключателем той группы, где его меняли.</td></tr>
+      <tr><td>Одна страница</td><td>Номеров страниц нет. Диапазон и «Показывать по» остаются, чтобы размер можно было сменить и когда ученики уже помещаются на одну страницу.</td></tr>
+      <tr><td>В группе 0 учеников</td><td>Строки пагинации нет. Раскрытие без запроса <code>group-rows</code>.</td></tr>
       <tr><td>Поиск</td><td>GET-форма «Найти» и Enter в поле <code>q</code> — серверный поиск по всей выборке (фамилия / имя / склейка ФИО; max 191, trim). Скрытые <code>year</code> / <code>month</code> / <code>team_ids[]</code> (и <code>fullscreen=1</code>, если уже в URL). Пустой фильтр групп — hidden <code>team_ids[]</code> нет. <b>Нет</b> hidden <code>page</code>: поиск со 2-й страницы открывает 1-ю страницу совпадений. Автопоиска при вводе нет. DataTables (<code>paging: false</code>, <code>ordering: false</code>) не переставляет строки групп.</td></tr>
       <tr><td>Смена года / месяца / группы</td><td>Полный GET (<code>window.location.href</code>). Год и месяц — по <code>change</code>. Группы — после <code>select2:close</code> / <code>select2:clear</code>, если набор изменился (не по каждому чекбоксу). <code>resources/js/schedule.js</code> (Vite) пишут <code>team_ids[]</code>, делают <code>searchParams.delete('page')</code>, удаляют <code>group_pages</code> / <code>group_pages[…]</code> и <b>не</b> удаляют <code>q</code>.</td></tr>
-      <tr><td>Клик по странице группы</td><td>Шеврон только прячет строки (<code>preventDefault</code>, без запроса). Ссылка <code>.schedule-group-page-link</code> — <code>preventDefault</code> и <code>GET /schedule/group-rows</code> (<code>Accept: text/html</code>, <code>group_key</code>, <code>group_page</code>, год, месяц, <code>q</code>, выбранные <code>team_ids</code>). Перед подстановкой строк DataTable <b>снимается</b> (<code>destroy()</code>): иначе он возвращает tbody с первой отрисовки, и на экране остаётся предыдущая страница. Свёрнутые группы запоминаются до <code>destroy()</code> и скрываются снова после вставки. Потом таблица инициализируется заново. Ошибка запроса — переход по <code>href</code> на полный журнал <code>/schedule</code> с <code>group_pages[ключ]</code>, не на фрагмент <code>/schedule/group-rows</code>. Обновление ячейки ищет строку по <code>data-context-team-id</code> текущей ячейки, а не первую копию того же ученика.</td></tr>
-      <tr><td>Валидация</td><td><code>GetScheduleJournalIndexRequest</code>: HTML GET → 302 + session <code>errors[field]</code> под фильтром; JSON (<code>Accept: application/json</code>) → <b>422</b> <code>errors.year|month|team|team_ids.*|q|page|group_pages.*</code>. Пустой <code>team</code> / пустой <code>team_ids[]</code> → все группы. <code>GET /schedule/group-rows</code>: JSON → <b>422</b> <code>errors.group_key</code> / <code>errors.group_page</code>; HTML без AJAX → 302 + session <code>errors[field]</code>. Группа вне выбранного фильтра и выключенная группа при «все группы» → <b>404</b>. Чужой id (нет у партнёра) → <b>422</b> <code>errors.group_key</code>. Гость → 302 / JSON 401; без <code>schedule.view</code> → 403. <code>POST/PATCH/DELETE</code> на <code>/schedule</code> и <code>/schedule/group-rows</code> → 405, не 500.</td></tr>
+      <tr><td>Первое раскрытие группы</td><td>Шеврон и название: если <code>data-users-loaded="0"</code> и число учеников больше 0 — <code>GET /schedule/group-rows</code> (<code>group_page=1</code>, год, месяц, <code>q</code>, <code>team_ids</code>). На время запроса <code>data-users-loading="1"</code>, повторный клик игнорируется, под шапкой спиннер. Успех помечает <code>data-users-loaded="1"</code>. Число 0 раскрывается без запроса. Уже загруженная группа только показывается и прячется.</td></tr>
+      <tr><td>Клик по странице группы</td><td>Ссылка <code>.schedule-group-page-link</code> — <code>preventDefault</code> и <code>GET /schedule/group-rows</code> (<code>Accept: text/html</code>, <code>group_key</code>, <code>group_page</code>, год, месяц, <code>q</code>, выбранные <code>team_ids</code>). Перед подстановкой строк DataTable <b>снимается</b> (<code>destroy()</code>): иначе он возвращает tbody с первой отрисовки, и на экране остаётся предыдущая страница. Свёрнутые группы запоминаются до <code>destroy()</code> и скрываются снова после вставки. Потом таблица инициализируется заново. Ошибка запроса — переход по <code>href</code> на полный журнал <code>/schedule</code> с <code>group_pages[ключ]</code>, не на фрагмент <code>/schedule/group-rows</code>. Ошибка первого раскрытия — тот же полный журнал с <code>group_pages[ключ]=1</code>. Обновление ячейки ищет строку по <code>data-context-team-id</code> текущей ячейки, а не первую копию того же ученика.</td></tr>
+      <tr><td>Валидация</td><td><code>GetScheduleJournalIndexRequest</code>: HTML GET → 302 + session <code>errors[field]</code> под фильтром; JSON (<code>Accept: application/json</code>) → <b>422</b> <code>errors.year|month|team|team_ids.*|q|page|group_pages.*</code>. Пустой <code>team</code> / пустой <code>team_ids[]</code> → все группы. <code>GET /schedule/group-rows</code>: JSON → <b>422</b> <code>errors.group_key</code> / <code>errors.group_page</code>; HTML без AJAX → 302 + session <code>errors[field]</code>. Группа вне выбранного фильтра и выключенная группа при «все группы» → <b>404</b>. Чужой id (нет у партнёра) → <b>422</b> <code>errors.group_key</code>. <code>POST /schedule/journal-page-length</code>: JSON → <b>422</b> <code>errors.page_length</code> («Укажите, сколько учеников показывать.», «Количество учеников должно быть целым числом.», «Можно показать 20, 50 или 100 учеников.»); обычный POST → 302 + session <code>errors.page_length</code>. Гость → 302 / JSON 401; без <code>schedule.view</code> → 403. <code>GET /schedule/journal-page-length</code> → <b>404</b> (fallback). <code>PATCH/PUT/DELETE</code> → 405, не 500. <code>POST/PATCH/DELETE</code> на <code>/schedule</code> и <code>/schedule/group-rows</code> → 405, не 500.</td></tr>
     </tbody>
   </table>
   <p class="small">
@@ -277,7 +300,11 @@
     «Ваша организация недоступна.».
     Тесты: <code>ScheduleJournalPaginationFeatureTest</code>
     (HTTP 200/403/401/302/405/422, UX-баг «все ученики на стр. 1», форма поиска без <code>page</code>,
-    пейджер группы только при &gt;20, пакетная загрузка ULP),
+    пейджер группы и «Показывать по», пакетная загрузка ULP),
+    <code>ScheduleJournalPageLengthFeatureTest</code>
+    (дефолт 50, сохранённые 20/50/100 на всех группах, 422 под <code>page_length</code>,
+    чужая строка и <code>columns</code>/<code>filters</code> не затираются, non-AJAX успех — JSON 200),
+    <code>ScheduleJournalPageLengthDocumentationContractTest</code>,
     <code>ScheduleJournalSearchFeatureTest</code>,
     <code>ScheduleJournalSearchAccessFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest::test_schedule_journal_pagination_and_search_js_contract</code>
@@ -528,7 +555,7 @@
       <tr><th>Вкладка</th><th>URL</th><th>Право</th><th>Содержание</th></tr>
     </thead>
     <tbody>
-      <tr><td>Журнал расписания</td><td><code>/schedule</code></td><td><code>schedule.view</code></td><td>Группы и ученики × дни месяца; по 20 учеников в группе, поиск <code>q</code> (§2.2)</td></tr>
+      <tr><td>Журнал расписания</td><td><code>/schedule</code></td><td><code>schedule.view</code></td><td>Группы и ученики × дни месяца; по умолчанию 50 учеников в группе («Показывать по» 20 / 50 / 100), поиск <code>q</code> (§2.2)</td></tr>
       <tr><td>Нагрузка тренеров</td><td><code>/schedule/trainer-workload</code></td><td><code>schedule.view</code></td><td><a href="/docs/documentation/schedule-trainer-workload">Нагрузка</a></td></tr>
       <tr><td>Статусы занятий</td><td><code>/schedule/occurrence-statuses</code></td><td><code>lessonOccurrenceStatuses.manage</code></td><td>CRUD справочника: toolbar / DataTable / история (см. <a href="#occurrence-statuses">§8</a>)</td></tr>
       <tr><td>ЗП тренеров</td><td><code>/schedule/trainer-salary</code></td><td><code>schedule.trainerSalary.view</code> + схема партнёра</td><td><a href="/docs/documentation/schedule-trainer-salary">ЗП</a></td></tr>
@@ -811,7 +838,7 @@
     и <code>ScheduleController::journalAttendanceStudentIds</code>:
     год и месяц страницы, фильтр групп как у дней таблицы
     (одна группа, несколько id, «Все группы», «Без группы»),
-    ограничение «свои группы». Поиск <code>q</code> и пагинация (100 учеников)
+    ограничение «свои группы». Поиск <code>q</code> и пагинация («Показывать по»)
     на сумму и среднее <b>не влияют</b>: в «Итого» входят ученики других страниц и те,
     кого поиск скрыл. Смена статуса в ячейке без reload: ответы
     <code>POST /schedule/update</code>, удаления занятия и постановок
@@ -1179,9 +1206,13 @@
     <li>Предоплата с <code>lessons_remaining &gt; 0</code>, либо иначе незалоченная постоплата
       → ячейка отмечается для массовой постановки (<a href="#bulk-empty-lessons">§7.6</a>).
       Предоплата с остатком важнее постоплаты. Модалка одного ученика при этом не открывается.</li>
-    <li>Предоплата на лимите и живой постоплаты нет → тост
+    <li>Предоплата на лимите (<code>0/N</code>) и живой постоплаты нет.
+      Выбор не начат и есть <code>lessonPackages.view</code>
+      (<code>data-empty-lesson="1"</code>) → <code>#emptyCellPlaceModal</code>
+      (пробное / разовое / предоплата в выборе недоступна).
+      Выбор уже начат, либо права на пробное/разовое нет → тост
       «Нельзя выбрать: в абонементе не осталось занятий.»
-      <code>#flexiblePlaceModal</code> и chooser пробного/разового с этой ячейки не открываются.</li>
+      <code>#flexiblePlaceModal</code> с этой ячейки не открывается.</li>
     <li>Постоплата месяца уже оплачена, остатка предоплаты нет → тост
       «Нельзя выбрать: месяц уже оплачен.»</li>
     <li>Выбор уже начат, у ученика только фиксированный абонемент → тост
@@ -1655,8 +1686,13 @@
       <li><code>ScheduleJournalWorkflowFeatureTest</code> — [P2] HTTP E2E: страница → модалка →
         update / destroy → данные видны без F5</li>
       <li><code>ScheduleJournalPaginationFeatureTest</code> —
-        пагинация 100, поиск <code>q</code>, UX-баг «все ученики на стр. 1»,
+        «Показывать по» (по умолчанию 50), поиск <code>q</code>, UX-баг «все ученики на стр. 1»,
         200/403/401/302/405/422 <code>errors[field]</code>, GET-форма без hidden <code>page</code></li>
+      <li><code>ScheduleJournalPageLengthFeatureTest</code> —
+        <code>POST /schedule/journal-page-length</code>, <code>table_key = schedule_journal</code>,
+        дефолт 50, сохранённое 20 на всех группах, 422 <code>errors.page_length</code>, guest/403/404/405</li>
+      <li><code>ScheduleJournalPageLengthDocumentationContractTest</code> —
+        анонс <code>/doc#journal-pagination-index</code> и §2.2 совпадают с кодом</li>
       <li><code>ScheduleJournalTablePreloaderFeatureTest</code> /
         <code>ScheduleJournalTablePreloaderFullAccessFeatureTest</code> —
         локальный прелоадер журнала §<a href="#journal-table-preloader">2.3</a>: первый кадр без <code>is-ready</code>,

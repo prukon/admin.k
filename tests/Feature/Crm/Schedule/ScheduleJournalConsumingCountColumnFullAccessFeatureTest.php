@@ -28,7 +28,7 @@ final class ScheduleJournalConsumingCountColumnFullAccessFeatureTest extends Sch
     {
         Auth::logout();
 
-        $web = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']));
+        $web = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all']);
         $this->assertNotSame(500, $web->getStatusCode());
         $this->assertNotSame(200, $web->getStatusCode());
         $web->assertStatus(302);
@@ -38,7 +38,7 @@ final class ScheduleJournalConsumingCountColumnFullAccessFeatureTest extends Sch
         $json->assertStatus(401);
 
         $ajax = $this->withHeaders($this->ajaxHeaders())
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']));
+            ->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all']);
         $this->assertNotSame(500, $ajax->getStatusCode());
         $this->assertContains($ajax->getStatusCode(), [302, 401]);
     }
@@ -82,7 +82,7 @@ final class ScheduleJournalConsumingCountColumnFullAccessFeatureTest extends Sch
         $utss = $this->createTrialUtss($student, $team, '2026-08-03');
 
         $web = $this->actingAs($actor)->withSession($session)
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']));
+            ->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all']);
         $this->assertNotSame(500, $web->getStatusCode());
         $web->assertStatus(403);
 
@@ -119,11 +119,11 @@ final class ScheduleJournalConsumingCountColumnFullAccessFeatureTest extends Sch
         $utss = $this->createTrialUtss($student, $team, '2026-08-03');
         $this->markUtssOccurrenceStatus($utss, (int) $this->visitedStatusId);
 
-        $page = $this->get(route('schedule.index', [
+        $page = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]));
+        ]);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -137,7 +137,7 @@ final class ScheduleJournalConsumingCountColumnFullAccessFeatureTest extends Sch
         $this->grantScheduleView();
         $this->makeStudentWithTeam();
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '08']);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -153,7 +153,7 @@ final class ScheduleJournalConsumingCountColumnFullAccessFeatureTest extends Sch
         $this->markUtssOccurrenceStatus($utss, (int) $this->visitedStatusId);
 
         $page = $this->withHeaders($this->ajaxHeaders())
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']));
+            ->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all']);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -317,7 +317,7 @@ final class ScheduleJournalConsumingCountColumnFullAccessFeatureTest extends Sch
         $actor = User::factory()->create(['partner_id' => null]);
         $this->actingAs($actor)->withSession([]);
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']))
+        $this->journalIndex( ['year' => 2026, 'month' => '08'])
             ->assertRedirect()
             ->assertSessionHasErrors([
                 'email' => 'Ваша организация недоступна.',

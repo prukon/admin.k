@@ -138,11 +138,11 @@ final class ScheduleJournalTeamPivotFeatureTest extends ScheduleJournalTestCase
         ]);
 
         foreach ([$teamA->id, $teamB->id] as $filterTeamId) {
-            $this->get(route('schedule.index', [
+            $this->journalIndex( [
                 'year' => 2026,
                 'month' => '05',
                 'team' => $filterTeamId,
-            ]))
+            ])
                 ->assertOk()
                 ->assertSee($student->full_name, false);
         }

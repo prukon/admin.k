@@ -25,7 +25,7 @@ final class ScheduleJournalAttendanceAccessFeatureTest extends ScheduleJournalTe
     {
         Auth::logout();
 
-        $web = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']));
+        $web = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all']);
         $this->assertNotSame(500, $web->getStatusCode());
         $this->assertNotSame(200, $web->getStatusCode());
         $web->assertStatus(302);
@@ -77,7 +77,7 @@ final class ScheduleJournalAttendanceAccessFeatureTest extends ScheduleJournalTe
         $utss = $this->createTrialUtss($student, $team, '2026-08-03');
 
         $web = $this->actingAs($actor)->withSession($session)
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => $team->id]));
+            ->journalIndex( ['year' => 2026, 'month' => '08', 'team' => $team->id]);
         $this->assertNotSame(500, $web->getStatusCode());
         $web->assertForbidden();
         $this->assertStringNotContainsString('Средняя посещаемость:', (string) $web->getContent());
@@ -115,11 +115,11 @@ final class ScheduleJournalAttendanceAccessFeatureTest extends ScheduleJournalTe
             (int) $this->visitedStatusId
         );
 
-        $page = $this->get(route('schedule.index', [
+        $page = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]));
+        ]);
 
         $page->assertOk();
         $html = (string) $page->getContent();

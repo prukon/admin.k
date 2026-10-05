@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Http\Requests\Partner\CreatePartnerServicePaymentRequest;
+use App\Http\Requests\Partner\CreatePartnerWalletInvoiceRequest;
 use App\Http\Requests\Partner\CreatePartnerWalletTopupRequest;
 use App\Http\Requests\Partner\ShowPartnerWalletCheckoutRequest;
 use App\Http\Requests\Partner\WalletTransactionsFilterRequest;
@@ -12,7 +13,9 @@ use App\Models\Partner;
 use App\Models\PartnerAccess;
 use App\Models\PartnerLegalEntity;
 use App\Models\PartnerPayment;
+use App\Models\PartnerWalletInvoice;
 use App\Models\PartnerWalletTransaction;
+use App\Services\PartnerWallet\PartnerWalletInvoiceService;
 use App\Models\UserTableSetting;
 use App\Services\Tinkoff\TbankAcquiringTerminalConfig;
 use App\Services\Tinkoff\TinkoffAcquiringPaymentsService;
@@ -29,6 +32,8 @@ use Yajra\DataTables\Facades\DataTables;
 
 use YooKassa\Client;
 
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -350,12 +355,56 @@ class PartnerPaymentController extends AdminBaseController
         ], PlatformPaymentMethods::viewState(auth()->user())));
     }
 
-    public function showWalletCheckout(ShowPartnerWalletCheckoutRequest $request)
+    public function showWalletCheckout(ShowPartnerWalletCheckoutRequest $request, PartnerWalletInvoiceService $invoices)
     {
+        $partner = $this->currentUserPartnerOrFail();
+
         return view('payment.partnerWalletCheckout', array_merge([
-            'partner' => $this->currentUserPartnerOrFail(),
+            'partner' => $partner,
             'amount' => (float) $request->validated()['amount'],
+            'walletInvoiceBuyer' => $invoices->buyer($partner),
         ], PlatformPaymentMethods::viewState(auth()->user())));
+    }
+
+    public function createWalletInvoice(CreatePartnerWalletInvoiceRequest $request, PartnerWalletInvoiceService $invoices)
+    {
+        $data = $request->validated();
+        $partner = $this->currentUserPartnerOrFail();
+        $this->guardPartnerAccess((int) $data['partner_id']);
+
+        $user = auth()->user();
+        if ($user === null) {
+            return response()->json(['ok' => false, 'message' => 'Не авторизован'], 401);
+        }
+
+        $invoice = $invoices->issue($partner, $user, (float) $data['amount']);
+
+        return $this->walletInvoicePdfResponse($invoice, $invoices);
+    }
+
+    private function walletInvoicePdfResponse(PartnerWalletInvoice $invoice, PartnerWalletInvoiceService $invoices)
+    {
+        $html = view('payment.partnerWalletInvoicePdf', [
+            'invoice' => $invoice,
+            'amountInWords' => $invoices->amountInWords($invoice),
+        ])->render();
+
+        $options = new Options();
+        $options->set('defaultFont', (string) config('contracts.dompdf_font', 'DejaVu Sans'));
+        $options->set('isRemoteEnabled', false);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->render();
+
+        $filename = 'schet-'.$invoice->number.'.pdf';
+
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
     }
 
     // Создать платёж на пополнение кошелька (эквайринг СБП / карта или ЮKassa)

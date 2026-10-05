@@ -27,7 +27,7 @@ final class ScheduleJournalTablePreloaderFullAccessFeatureTest extends ScheduleJ
     {
         Auth::logout();
 
-        $web = $this->get(route('schedule.index', ['year' => 2026, 'month' => '05']));
+        $web = $this->journalIndex( ['year' => 2026, 'month' => '05']);
         $this->assertNotSame(500, $web->getStatusCode());
         $this->assertNotSame(200, $web->getStatusCode());
         $web->assertStatus(302);
@@ -37,7 +37,7 @@ final class ScheduleJournalTablePreloaderFullAccessFeatureTest extends ScheduleJ
         $json->assertStatus(401);
 
         $ajax = $this->withHeaders($this->ajaxHeaders())
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '05']));
+            ->journalIndex( ['year' => 2026, 'month' => '05']);
         $this->assertNotSame(500, $ajax->getStatusCode());
         $this->assertContains($ajax->getStatusCode(), [302, 401]);
     }
@@ -48,7 +48,7 @@ final class ScheduleJournalTablePreloaderFullAccessFeatureTest extends ScheduleJ
         $session = ['current_partner' => $this->partner->id, '2fa:passed' => true];
 
         $web = $this->actingAs($actor)->withSession($session)
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '05']));
+            ->journalIndex( ['year' => 2026, 'month' => '05']);
         $this->assertNotSame(500, $web->getStatusCode());
         $web->assertStatus(403);
 
@@ -66,11 +66,11 @@ final class ScheduleJournalTablePreloaderFullAccessFeatureTest extends ScheduleJ
         $this->grantScheduleView($actor);
         $this->makeStudentTeamAndTrainer();
 
-        $page = $this->get(route('schedule.index', [
+        $page = $this->journalIndex( [
             'year' => 2026,
             'month' => '05',
             'team' => 'all',
-        ]));
+        ]);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -116,7 +116,7 @@ final class ScheduleJournalTablePreloaderFullAccessFeatureTest extends ScheduleJ
         $actor = User::factory()->create(['partner_id' => null]);
         $this->actingAs($actor)->withSession([]);
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '05']))
+        $this->journalIndex( ['year' => 2026, 'month' => '05'])
             ->assertRedirect()
             ->assertSessionHasErrors([
                 'email' => 'Ваша организация недоступна.',

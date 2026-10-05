@@ -42,8 +42,9 @@ final class TrainerOwnTeamsMarkupFeatureTest extends TrainerOwnTeamsScopeTestCas
         $this->assertTrue((bool) preg_match('/<select[^>]*id="filter-team"[^>]*>(.*?)<\/select>/s', $html, $teamSelect));
         $this->assertStringNotContainsString('value="all"', $teamSelect[1]);
         $this->assertStringNotContainsString('selected', $teamSelect[1]);
-        $this->assertStringContainsString($ownStudent->lastname, $html);
-        $this->assertStringNotContainsString($otherStudent->lastname, $html);
+        $rows = $this->scheduleGroupRowsHtml((int) $ownTeam->id);
+        $this->assertStringContainsString($ownStudent->lastname, $rows);
+        $this->assertStringNotContainsString($otherStudent->lastname, $rows);
         $this->assertStringContainsString('value="none"', $teamSelect[1]);
         $this->assertStringContainsString('value="'.$ownTeam->id.'"', $teamSelect[1]);
         $this->assertStringContainsString($ownTeam->title, $teamSelect[1]);
@@ -76,8 +77,11 @@ final class TrainerOwnTeamsMarkupFeatureTest extends TrainerOwnTeamsScopeTestCas
             '/<option value="'.$ownTeam->id.'"\s+selected/s',
             $html
         );
-        $this->assertStringContainsString($ownStudent->lastname, $html);
-        $this->assertStringNotContainsString($otherStudent->lastname, $html);
+        $rows = $this->scheduleGroupRowsHtml((int) $ownTeam->id, [
+            'team_ids' => [(string) $ownTeam->id],
+        ]);
+        $this->assertStringContainsString($ownStudent->lastname, $rows);
+        $this->assertStringNotContainsString($otherStudent->lastname, $rows);
         $this->assertStringNotContainsString($otherTeam->title, $html);
         $this->assertTrue((bool) preg_match('/<select[^>]*id="filter-team"[^>]*>(.*?)<\/select>/s', $html, $teamSelect));
         $this->assertStringContainsString('value="none"', $teamSelect[1]);
@@ -92,9 +96,10 @@ final class TrainerOwnTeamsMarkupFeatureTest extends TrainerOwnTeamsScopeTestCas
 
         $html = $this->get(route('schedule.index', ['team' => 'none']))->assertOk()->getContent();
         $this->assertMatchesRegularExpression('/<option value="none"\s+selected/s', $html);
-        $this->assertStringContainsString($ungrouped->lastname, $html);
-        $this->assertStringNotContainsString($ownStudent->lastname, $html);
-        $this->assertStringNotContainsString($otherStudent->lastname, $html);
+        $rows = $this->scheduleGroupRowsHtml('none', ['team' => 'none']);
+        $this->assertStringContainsString($ungrouped->lastname, $rows);
+        $this->assertStringNotContainsString($ownStudent->lastname, $rows);
+        $this->assertStringNotContainsString($otherStudent->lastname, $rows);
     }
 
     public function test_chat_both_team_filters_hide_foreign_group_and_default_to_all(): void
@@ -160,8 +165,8 @@ final class TrainerOwnTeamsMarkupFeatureTest extends TrainerOwnTeamsScopeTestCas
 
         $journal = $this->get('/schedule')->assertOk()->getContent();
         $this->assertStringContainsString($otherTeam->title, $journal);
-        $this->assertStringContainsString($otherStudent->lastname, $journal);
-        $this->assertStringContainsString($ownStudent->lastname, $journal);
+        $this->assertStringContainsString($otherStudent->lastname, $this->scheduleGroupRowsHtml((int) $otherTeam->id));
+        $this->assertStringContainsString($ownStudent->lastname, $this->scheduleGroupRowsHtml((int) $ownTeam->id));
 
         $chat = $this->get('/chat')->assertOk()->getContent();
         $this->assertStringContainsString($otherTeam->title, $chat);

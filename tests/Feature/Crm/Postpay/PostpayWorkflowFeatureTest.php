@@ -105,7 +105,14 @@ final class PostpayWorkflowFeatureTest extends PostpayTestCase
     {
         $this->ensureUserPriceRow(price: 500, paid: true);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']))
+        $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']))
+            ->assertOk();
+
+        $html = $this->get(route('schedule.group-rows', [
+            'year' => 2026,
+            'month' => '08',
+            'group_key' => $this->team->id,
+        ]))
             ->assertOk()
             ->getContent();
 
@@ -237,10 +244,11 @@ final class PostpayWorkflowFeatureTest extends PostpayTestCase
             ->assertJsonPath('result.payment_status.amount_cents', 50000)
             ->assertJsonPath('result.payment_status.amount_label', '500₽');
 
-        $html = $this->get(route('schedule.index', [
+        $html = $this->get(route('schedule.group-rows', [
             'year' => 2026,
             'month' => '08',
             'team' => $this->team->id,
+            'group_key' => $this->team->id,
         ]))->assertOk()->getContent();
         $this->assertMatchesRegularExpression(
             '/<td[^>]*schedule-payment-status[^>]*>[\s\S]*data-journal-payment-status="due"[\s\S]*500₽/',
@@ -248,10 +256,11 @@ final class PostpayWorkflowFeatureTest extends PostpayTestCase
         );
 
         $this->ensureUserPriceRow(price: 500, paid: true);
-        $paidHtml = $this->get(route('schedule.index', [
+        $paidHtml = $this->get(route('schedule.group-rows', [
             'year' => 2026,
             'month' => '08',
             'team' => $this->team->id,
+            'group_key' => $this->team->id,
         ]))->assertOk()->getContent();
         $this->assertMatchesRegularExpression(
             '/<td[^>]*schedule-payment-status[^>]*>[\s\S]*data-journal-payment-status="paid"/',

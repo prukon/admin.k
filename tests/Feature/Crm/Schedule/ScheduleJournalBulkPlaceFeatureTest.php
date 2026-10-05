@@ -252,11 +252,11 @@ final class ScheduleJournalBulkPlaceFeatureTest extends ScheduleJournalTestCase
         $this->assertSame('Постоплата', $postpayRow['abonement_name']);
         $this->assertSame('500 ₽/занятие', $postpayRow['price_label']);
 
-        $html = $this->get(route('schedule.index', [
+        $html = $this->journalIndex( [
             'year' => 2026,
             'month' => '10',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertStringContainsString('schedule-group-pager-cell', $html);
         $this->assertStringContainsString('colspan="36"', $html);
         $this->assertStringNotContainsString('schedule-group-pager-host', $html);
@@ -364,7 +364,7 @@ final class ScheduleJournalBulkPlaceFeatureTest extends ScheduleJournalTestCase
         [$student, $team] = $this->makeStudentWithTeam();
         $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-10-01', lessons: 2);
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '10', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '10', 'team' => $team->id])
             ->assertOk()
             ->assertSee('id="bulkPlaceModal"', false)
             ->assertSee('id="schedule-bulk-add"', false)

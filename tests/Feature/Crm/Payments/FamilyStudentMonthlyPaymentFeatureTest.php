@@ -235,6 +235,7 @@ final class FamilyStudentMonthlyPaymentFeatureTest extends CrmTestCase
     public function test_club_fee_init_after_switch_stays_on_login_account(): void
     {
         $this->grantPermission($this->brother1, 'payment.method.robokassa');
+        $this->grantPermission($this->brother1, 'payment.clubfee');
         PaymentSystem::factory()->robokassa()->create(['partner_id' => $this->partner->id]);
 
         $team = $this->makeTeam('Общая группа');
@@ -247,6 +248,12 @@ final class FamilyStudentMonthlyPaymentFeatureTest extends CrmTestCase
         $this->post(route('payment.pay'), [
             'outSum' => '500.00',
             'team_id' => $team->id,
+            'checkout_intent' => app(\App\Services\Payments\PaymentCheckoutIntentSigner::class)->issue(
+                \App\Services\Payments\PaymentCheckoutIntent::KIND_CLUB,
+                (int) $this->partner->id,
+                (int) $this->brother1->id,
+                (int) $this->brother1->id,
+            ),
         ])->assertRedirect();
 
         $payable = Payable::query()->latest('id')->first();
@@ -282,16 +289,13 @@ final class FamilyStudentMonthlyPaymentFeatureTest extends CrmTestCase
             ->assertDontSee('Доступ запрещён', false);
     }
 
-    public function test_get_payment_after_switch_is_not_server_error(): void
+    public function test_opening_payment_by_link_after_switch_returns_to_cabinet(): void
     {
         $this->actingAs($this->brother1);
         $this->switchTo($this->brother2);
 
-        $response = $this->get('/payment');
-
-        $this->assertNotSame(500, $response->getStatusCode());
-        $this->assertNotSame(200, $response->getStatusCode());
-        $this->assertContains($response->getStatusCode(), [403, 404, 405]);
+        $this->get('/payment')
+            ->assertRedirect(route('dashboard'));
     }
 
     public function test_viewing_brother2_cannot_pay_brother1_other_team(): void

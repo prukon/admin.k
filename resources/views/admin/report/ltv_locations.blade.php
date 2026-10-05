@@ -847,21 +847,26 @@
             });
 
             $('.js-ltv-locations-group-mode-btn').on('click', function () {
-                var mode = $(this).data('mode');
+                var btn = $(this);
+                var mode = btn.data('mode');
                 if (mode !== 'operation' && mode !== 'subscription') {
                     return;
                 }
                 if (mode === currentMode) {
                     return;
                 }
-                currentMode = mode;
-                $('.js-ltv-locations-group-mode-btn').removeClass('active');
-                $(this).addClass('active');
-                Object.keys(ltvLocationsDetailTables).forEach(function (locationId) {
-                    destroyLtvLocationsDetailTable(locationId);
+                var payload = ltvLocationsReportFilterParams();
+                payload.mode = mode;
+                kidsCrmPersistReportFilters($ltvFiltersForm, ltvLocationsFiltersSaveUrl, payload, function () {
+                    currentMode = mode;
+                    $('.js-ltv-locations-group-mode-btn').removeClass('active');
+                    btn.addClass('active');
+                    Object.keys(ltvLocationsDetailTables).forEach(function (locationId) {
+                        destroyLtvLocationsDetailTable(locationId);
+                    });
+                    refreshLtvLocationsReportTotal();
+                    dtApi.reload();
                 });
-                refreshLtvLocationsReportTotal();
-                dtApi.reload();
             });
 
             $('#ltvLocationsReportFiltersResetBtn').on('click', function () {
@@ -879,6 +884,9 @@
                         }
                     }
                     $('#pay-ltv-locations-filter-user-status').val(defaultFilterUserStatus);
+                    currentMode = 'operation';
+                    $('.js-ltv-locations-group-mode-btn').removeClass('active');
+                    $('.js-ltv-locations-group-mode-btn[data-mode="operation"]').addClass('active');
                     Object.keys(ltvLocationsDetailTables).forEach(function (locationId) {
                         destroyLtvLocationsDetailTable(locationId);
                     });

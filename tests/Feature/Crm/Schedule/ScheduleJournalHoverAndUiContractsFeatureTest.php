@@ -295,7 +295,7 @@ final class ScheduleJournalHoverAndUiContractsFeatureTest extends ScheduleJourna
             'is_paid' => false,
         ]);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => $team->id]))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => $team->id])
             ->assertOk()
             ->assertSee('journal-postpay-hint', false)
             ->assertSee('1200₽', false)
@@ -317,7 +317,7 @@ final class ScheduleJournalHoverAndUiContractsFeatureTest extends ScheduleJourna
         $utss = $this->createTrialUtss($student, $team, '2026-08-17');
         Auth::logout();
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']))->assertStatus(302);
+        $this->journalIndex( ['year' => 2026, 'month' => '08'])->assertStatus(302);
         $this->getJson(route('schedule.cell-context', [
             'user_id' => $student->id,
             'date' => '2026-08-17',
@@ -384,7 +384,7 @@ final class ScheduleJournalHoverAndUiContractsFeatureTest extends ScheduleJourna
         $date = '2026-08-19';
         $utss = $this->createTrialUtss($student, $team, $date);
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => $team->id]));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => $team->id]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('cellEditModal', false)

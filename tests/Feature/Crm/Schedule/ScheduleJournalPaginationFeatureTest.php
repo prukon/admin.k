@@ -75,7 +75,8 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $this->assertNotSame('', trim($html));
         $page->assertSee('id="filter-team"', false);
         $page->assertSee('id="table-search"', false);
-        $page->assertSee($student->full_name, false);
+        $page->assertSee('data-users-loaded="0"', false);
+        $page->assertDontSee($student->full_name, false);
         $this->assertStringNotContainsString('Whoops', $html);
         $this->assertStringNotContainsString('Undefined variable', $html);
     }
@@ -215,7 +216,8 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         ]))->assertOk()->getContent();
 
         $this->assertNotSame('', trim($html));
-        $this->assertStringContainsString($student->full_name, $html);
+        $this->assertStringContainsString('class="schedule-group-row"', $html);
+        $this->assertStringNotContainsString($student->full_name, $html);
         $this->assertJournalTeamFilterIsAll($html);
     }
 
@@ -254,24 +256,31 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
 
         $this->assertNotSame('', trim($html));
         $this->assertStringNotContainsString('Whoops', $html);
-        $this->assertSame($perPage, $this->journalRowUserIds($html)->count());
-        $this->assertTrue($this->journalRowUserIds($html)->contains((int) $first->id));
+        $this->assertSame(0, $this->journalRowUserIds($html)->count());
+        $this->assertStringNotContainsString($overflow->full_name, $html);
+        $this->assertStringNotContainsString($first->full_name, $html);
+        $this->assertStringContainsString('schedule-group-count">'.($perPage + 1), $html);
+        $this->assertJournalPagerRendered($html, false);
+
+        $rows = $this->groupRowsHtml((string) $team->id, 1);
+        $this->assertSame($perPage, $this->journalRowUserIds($rows)->count());
+        $this->assertTrue($this->journalRowUserIds($rows)->contains((int) $first->id));
         $this->assertFalse(
-            $this->journalRowUserIds($html)->contains((int) $overflow->id),
+            $this->journalRowUserIds($rows)->contains((int) $overflow->id),
             'Первая страница не должна рендерить учеников второй — иначе снова OOM на большом списке'
         );
-        $this->assertStringNotContainsString($overflow->full_name, $html);
-        $this->assertStringContainsString($first->full_name, $html);
-        $this->assertJournalPagerRendered($html, true);
+        $this->assertStringNotContainsString($overflow->full_name, $rows);
+        $this->assertStringContainsString($first->full_name, $rows);
+        $this->assertJournalPagerRendered($rows, true);
         $this->assertStringContainsString(
             '1–'.$perPage.'</span> <span class="schedule-journal-pagination__of">из '.($perPage + 1),
-            $html
+            $rows
         );
-        $this->assertStringContainsString('group_pages', $html);
-        $this->assertStringContainsString('schedule-group-page-link', $html);
+        $this->assertStringContainsString('group_pages', $rows);
+        $this->assertStringContainsString('schedule-group-page-link', $rows);
         $this->assertMatchesRegularExpression(
             '#number-line">1</td#',
-            $this->studentRowHtml($html, (int) $first->id) ?? ''
+            $this->studentRowHtml($rows, (int) $first->id) ?? ''
         );
     }
 
@@ -282,11 +291,19 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $first = $students[0];
         $overflow = $students[$perPage];
 
-        $html = (string) $this->get(route('schedule.index', [
+        $bare = (string) $this->get(route('schedule.index', [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
             'page' => 2,
+        ]))->assertOk()->getContent();
+        $this->assertSame(0, $this->journalRowUserIds($bare)->count());
+
+        $html = (string) $this->get(route('schedule.index', [
+            'year' => 2026,
+            'month' => '08',
+            'team' => 'all',
+            'group_pages' => ['none' => 2],
         ]))->assertOk()->getContent();
 
         $ids = $this->journalRowUserIds($html);
@@ -313,10 +330,19 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
             'team' => 'all',
         ]))->assertOk()->getContent();
 
-        $this->assertSame(3, $this->journalRowUserIds($html)->count());
+        $this->assertSame(0, $this->journalRowUserIds($html)->count());
+        $this->assertStringContainsString('schedule-group-count">3', $html);
         $this->assertJournalPagerRendered($html, false);
         $this->assertStringNotContainsString('page=2', $html);
-        $this->assertStringNotContainsString('schedule-journal-pagination__of">из 3', $html);
+
+        $rows = $this->groupRowsHtml('none');
+        $this->assertSame(3, $this->journalRowUserIds($rows)->count());
+        $this->assertJournalPerPageControl($rows, 50);
+        $this->assertStringNotContainsString('schedule-group-page-link', $rows);
+        $this->assertStringContainsString(
+            '1–3</span> <span class="schedule-journal-pagination__of">из 3',
+            $rows
+        );
     }
 
     public function test_exact_page_size_does_not_show_pager(): void
@@ -330,8 +356,14 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
             'team' => 'all',
         ]))->assertOk()->getContent();
 
-        $this->assertSame($perPage, $this->journalRowUserIds($html)->count());
+        $this->assertSame(0, $this->journalRowUserIds($html)->count());
+        $this->assertStringContainsString('schedule-group-count">'.$perPage, $html);
         $this->assertJournalPagerRendered($html, false);
+
+        $rows = $this->groupRowsHtml('none');
+        $this->assertSame($perPage, $this->journalRowUserIds($rows)->count());
+        $this->assertJournalPerPageControl($rows, 50);
+        $this->assertStringNotContainsString('schedule-group-page-link', $rows);
         $this->assertStringNotContainsString('page=2', $html);
     }
 
@@ -348,11 +380,17 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         ]))->assertOk()->getContent();
 
         $this->assertFilterOptionSelected($html, (string) $team->id);
-        $this->assertTrue($this->journalRowUserIds($html)->contains((int) $inTeam->id));
-        $this->assertSame(1, $this->journalRowUserIds($html)->count());
+        $this->assertSame(0, $this->journalRowUserIds($html)->count());
+        $this->assertStringContainsString('schedule-group-count">1', $html);
         $this->assertJournalPagerRendered($html, false);
-        $this->assertStringContainsString($inTeam->full_name, $html);
         $this->assertStringNotContainsString('ЖурналВнеГруппы000', $html);
+
+        $rows = $this->groupRowsHtml((string) $team->id, 1, ['team' => $team->id]);
+        $this->assertTrue($this->journalRowUserIds($rows)->contains((int) $inTeam->id));
+        $this->assertSame(1, $this->journalRowUserIds($rows)->count());
+        $this->assertStringContainsString($inTeam->full_name, $rows);
+        $this->assertJournalPerPageControl($rows, 50);
+        $this->assertStringNotContainsString('schedule-group-page-link', $rows);
     }
 
     public function test_search_form_get_filters_by_name_and_does_not_keep_page(): void
@@ -369,11 +407,17 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
             'q' => $overflow->lastname,
         ]))->assertOk()->getContent();
 
-        $this->assertStringContainsString($overflow->full_name, $html);
         $this->assertStringNotContainsString($first->full_name, $html);
-        $this->assertTrue($this->journalRowUserIds($html)->contains((int) $overflow->id));
-        $this->assertFalse($this->journalRowUserIds($html)->contains((int) $first->id));
+        $this->assertStringContainsString('schedule-group-count">1', $html);
         $this->assertJournalPagerRendered($html, false);
+
+        $rows = $this->groupRowsHtml('none', 1, ['q' => $overflow->lastname]);
+        $this->assertStringContainsString($overflow->full_name, $rows);
+        $this->assertStringNotContainsString($first->full_name, $rows);
+        $this->assertTrue($this->journalRowUserIds($rows)->contains((int) $overflow->id));
+        $this->assertFalse($this->journalRowUserIds($rows)->contains((int) $first->id));
+        $this->assertJournalPerPageControl($rows, 50);
+        $this->assertStringNotContainsString('schedule-group-page-link', $rows);
 
         $form = $this->searchFormHtml($html);
         $this->assertStringNotContainsString('name="page"', $form);
@@ -410,9 +454,13 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $this->assertNotSame('', trim($html));
         $this->assertStringNotContainsString('Whoops', $html);
         $this->assertStringContainsString('id="schedule-table"', $html);
-        $this->assertStringContainsString($overflow->full_name, $html);
-        $this->assertSame(1, $this->journalRowUserIds($html)->count());
+        $this->assertStringContainsString('schedule-group-count">1', $html);
+        $this->assertSame(0, $this->journalRowUserIds($html)->count());
         $this->assertJournalPagerRendered($html, false);
+
+        $rows = $this->groupRowsHtml('none', 1, ['q' => $overflow->lastname]);
+        $this->assertStringContainsString($overflow->full_name, $rows);
+        $this->assertSame(1, $this->journalRowUserIds($rows)->count());
     }
 
     public function test_changing_filters_without_page_opens_first_page_and_keeps_search(): void
@@ -431,8 +479,12 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
 
         $this->assertFilterOptionSelected($html, '07');
         $this->assertJournalTeamFilterIsAll($html);
-        $this->assertTrue($this->journalRowUserIds($html)->contains((int) $first->id));
-        $this->assertFalse($this->journalRowUserIds($html)->contains((int) $overflow->id));
+        $this->assertSame(0, $this->journalRowUserIds($html)->count());
+        $this->assertStringContainsString('schedule-group-count">1', $html);
+
+        $rows = $this->groupRowsHtml('none', 1, ['month' => '07', 'q' => $first->lastname]);
+        $this->assertTrue($this->journalRowUserIds($rows)->contains((int) $first->id));
+        $this->assertFalse($this->journalRowUserIds($rows)->contains((int) $overflow->id));
         $this->assertStringContainsString('value="'.$first->lastname.'"', $this->searchFormHtml($html));
         $this->assertStringNotContainsString('name="page"', $this->searchFormHtml($html));
     }
@@ -488,12 +540,7 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $perPage = ScheduleController::JOURNAL_STUDENTS_PER_PAGE;
         $this->seedJournalStudents($perPage + 1, 'ЖурналСсылка');
 
-        $html = (string) $this->get(route('schedule.index', [
-            'year' => 2026,
-            'month' => '08',
-            'team' => 'all',
-            'q' => 'ЖурналСсылка',
-        ]))->assertOk()->getContent();
+        $html = $this->groupRowsHtml('none', 1, ['q' => 'ЖурналСсылка']);
 
         $this->assertJournalPagerRendered($html, true);
         $this->assertTrue(
@@ -513,7 +560,6 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
             }
         }
         $this->assertTrue($foundPage2, 'Ссылка на страницу 2 должна сохранять q, year и month');
-        $this->assertStringNotContainsString('name="page"', $this->searchFormHtml($html));
     }
 
     public function test_foreign_partner_student_is_not_shown_on_paginated_journal(): void
@@ -535,7 +581,11 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
 
         $this->assertFalse($this->journalRowUserIds($html)->contains((int) $foreign->id));
         $this->assertStringNotContainsString('ЧужойПагин', $html);
-        $this->assertStringContainsString('ЖурналСвои000', $html);
+        $this->assertStringContainsString('schedule-group-count">2', $html);
+
+        $rows = $this->groupRowsHtml('none');
+        $this->assertStringContainsString('ЖурналСвои000', $rows);
+        $this->assertStringNotContainsString('ЧужойПагин', $rows);
     }
 
     public function test_fixed_assignments_are_loaded_in_batch_not_per_student(): void
@@ -552,6 +602,19 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
             'month' => '08',
             'team' => 'all',
         ]))->assertOk();
+        $indexLog = DB::getQueryLog();
+        DB::disableQueryLog();
+        foreach ($indexLog as $item) {
+            $this->assertStringNotContainsString(
+                'user_lesson_packages',
+                strtolower((string) ($item['query'] ?? '')),
+                'Первая загрузка журнала не должна читать абонементы учеников'
+            );
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->groupRowsHtml('none');
         $log = DB::getQueryLog();
         DB::disableQueryLog();
 
@@ -611,6 +674,22 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
     }
 
     /**
+     * @param  array<string, mixed>  $extra
+     */
+    private function groupRowsHtml(string $groupKey, int $page = 1, array $extra = []): string
+    {
+        return (string) $this->withHeaders([
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'text/html',
+        ])->get(route('schedule.group-rows', array_merge([
+            'year' => 2026,
+            'month' => '08',
+            'group_key' => $groupKey,
+            'group_page' => $page,
+        ], $extra)))->assertOk()->getContent();
+    }
+
+    /**
      * @return \Illuminate\Support\Collection<int, int>
      */
     private function journalRowUserIds(string $html): \Illuminate\Support\Collection
@@ -642,6 +721,18 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         }
 
         $this->assertStringNotContainsString('class="schedule-journal-pagination', $html);
+    }
+
+    private function assertJournalPerPageControl(string $html, int $selected): void
+    {
+        $this->assertStringContainsString('class="schedule-journal-pagination', $html);
+        $this->assertStringContainsString('Показывать по', $html);
+        $this->assertStringContainsString('schedule-journal-per-page__select', $html);
+        $this->assertStringContainsString('data-error-for="page_length"', $html);
+        $this->assertMatchesRegularExpression(
+            '/<option value="'.$selected.'"[^>]*\bselected\b/',
+            $html
+        );
     }
 
     private function assertJournalTeamFilterIsAll(string $html): void

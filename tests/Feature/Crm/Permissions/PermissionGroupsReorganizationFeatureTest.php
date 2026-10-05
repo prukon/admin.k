@@ -43,7 +43,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
     {
         return [
             'mainMenu'        => 18,
-            'reports'         => 12,
+            'reports'         => 13,
             'schedule'        => 5,
             'schoolSchedule'  => 6,
             'directories'     => 8,
@@ -55,7 +55,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             'account'         => 13,
             'users'           => 17,
             'settings'        => 8,
-            'platformPayments' => 3,
+            'platformPayments' => 4,
             'paymentMethods'  => 6,
             'inAppNotifications' => 2,
             'misc'            => 1,
@@ -107,6 +107,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             'reports' => [
                 'reports.ltv.teams.view',
                 'reports.ltv.locations.view',
+                'reports.ltv.admins.view',
                 'reports.payment.intents.view',
                 'reports.fiscal.receipts.view',
                 'reports.emails.view',
@@ -228,6 +229,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'platformPayments.method.acquiringSbp',
                 'platformPayments.method.acquiringCard',
                 'platformPayments.method.yookassa',
+                'platformPayments.method.invoiceIp',
             ],
             'paymentMethods' => [
                 'payment.method.robokassa',

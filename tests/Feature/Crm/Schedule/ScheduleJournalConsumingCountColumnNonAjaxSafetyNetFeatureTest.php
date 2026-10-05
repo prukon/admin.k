@@ -48,11 +48,11 @@ final class ScheduleJournalConsumingCountColumnNonAjaxSafetyNetFeatureTest exten
             'lesson_occurrence_status_id' => $this->visitedStatusId,
         ]);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('1', $this->journalConsumingCellText($html, (int) $student->id));
     }
 
@@ -95,11 +95,11 @@ final class ScheduleJournalConsumingCountColumnNonAjaxSafetyNetFeatureTest exten
         $this->assertNotSame(200, $response->getStatusCode());
         $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $utss->id]);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('', $this->journalConsumingCellText($html, (int) $student->id));
     }
 
@@ -122,11 +122,11 @@ final class ScheduleJournalConsumingCountColumnNonAjaxSafetyNetFeatureTest exten
         $this->assertNotSame(200, $response->getStatusCode());
         $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulp->id)->count());
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('1', $this->journalConsumingCellText($html, (int) $student->id));
     }
 
@@ -150,11 +150,11 @@ final class ScheduleJournalConsumingCountColumnNonAjaxSafetyNetFeatureTest exten
         $response->assertSessionHas('status', 'Пробное занятие записано в журнал.');
         $this->assertNotSame(200, $response->getStatusCode());
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('1', $this->journalConsumingCellText($html, (int) $student->id));
     }
 
@@ -179,11 +179,11 @@ final class ScheduleJournalConsumingCountColumnNonAjaxSafetyNetFeatureTest exten
         $response->assertSessionHas('status', 'Разовое занятие записано в журнал.');
         $this->assertNotSame(200, $response->getStatusCode());
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('1', $this->journalConsumingCellText($html, (int) $student->id));
     }
 

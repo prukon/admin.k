@@ -39,7 +39,7 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
             (int) $ulp->fee_amount_cents,
         );
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '08']);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('abonementPlaceModal', false)
@@ -89,7 +89,7 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
         $this->assertSame(2, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulp->id)->count());
 
         // Как после window.location.reload() в schedule.js — страница не пустая, маркеры занятий видны.
-        $pageAfter = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']));
+        $pageAfter = $this->journalIndex( ['year' => 2026, 'month' => '08']);
         $pageAfter->assertOk();
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));
         $pageAfter->assertSee($student->full_name, false)
@@ -123,7 +123,7 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
         $date = '2026-08-03';
         $utss = $this->createTrialUtss($student, $team, $date);
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '08']);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('cellEditModal', false)
@@ -174,7 +174,7 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
             ->assertJsonPath('trainer_profile_id_for_select', (string) $trainer->id);
 
         // Повторная загрузка страницы — smoke, что index не пустой после мутации (UI больше не делает F5).
-        $pageAfter = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']));
+        $pageAfter = $this->journalIndex( ['year' => 2026, 'month' => '08']);
         $pageAfter->assertOk();
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));
         $pageAfter->assertSee($student->full_name, false)
@@ -198,7 +198,7 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
         $date = '2026-08-04';
         $utss = $this->createTrialUtss($student, $team, $date);
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '08']);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('cellEditModal', false)
@@ -240,7 +240,7 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
         $this->assertSame([], $cellAfter->json('occurrences') ?? []);
         $this->assertNull($cellAfter->json('selected'));
 
-        $pageAfter = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']));
+        $pageAfter = $this->journalIndex( ['year' => 2026, 'month' => '08']);
         $pageAfter->assertOk();
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));
         $pageAfter->assertSee($student->full_name, false)
@@ -265,7 +265,7 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
         $this->assertNotSame('', trim((string) $fail->getContent()));
 
         // Страница раздела по-прежнему отдаёт полноценный HTML.
-        $page = $this->get(route('schedule.index'));
+        $page = $this->journalIndex([]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('abonementPlaceForm', false)

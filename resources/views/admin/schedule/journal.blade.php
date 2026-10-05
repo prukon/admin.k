@@ -119,7 +119,8 @@
             <table id="schedule-table" class="table table-bordered schedule-table"
                    data-group-rows-url="{{ route('schedule.group-rows') }}"
                    data-group-bulk-url="{{ route('schedule.group-bulk-candidates') }}"
-                   data-group-per-page="{{ \App\Services\Schedule\ScheduleJournalGroupBoardService::PER_PAGE }}">
+                   data-page-length-url="{{ route('schedule.journal-page-length') }}"
+                   data-group-per-page="{{ (int) ($journalGroupPerPage ?? \App\Services\Schedule\ScheduleJournalPageLength::DEFAULT) }}">
                 <thead>
                 <tr>
                     <th class="text-center align-middle sticky-col-1 zi-50 col-number">№</th>
@@ -174,7 +175,7 @@
                 </thead>
                 <tbody>
                 @forelse($journalGroups as $group)
-                    <tr class="schedule-group-row" data-group-key="{{ $group['key'] }}" @if($group['team_id']) data-team-id="{{ $group['team_id'] }}" @endif>
+                    <tr class="schedule-group-row" data-group-key="{{ $group['key'] }}" data-users-loaded="{{ !empty($group['loaded']) ? '1' : '0' }}" @if($group['team_id']) data-team-id="{{ $group['team_id'] }}" @endif>
                         <td class="sticky-col-1"></td>
                         <td class="schedule-user-name sticky-col-2 schedule-group-head-cell">
                             <div class="schedule-group-head">
@@ -182,7 +183,7 @@
                                     <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
                                 </button>
                                 <span class="schedule-group-title" title="{{ $group['title'] }}">{{ $group['title'] }}</span>
-                                <span class="schedule-group-count">{{ $group['users']->total() }}</span>
+                                <span class="schedule-group-count">{{ (int) ($group['users_total'] ?? 0) }}</span>
                             </div>
                         </td>
                         <td class="schedule-payment-status"></td>
@@ -193,7 +194,9 @@
                                 data-date="{{ $day->format('Y-m-d') }}"><span class="schedule-group-day-check" aria-hidden="true"></span></td>
                         @endforeach
                     </tr>
-                    @include('admin.schedule._journal_group_users', ['journalGroupCollapsed' => true])
+                    @if(!empty($group['loaded']))
+                        @include('admin.schedule._journal_group_users', ['journalGroupCollapsed' => true])
+                    @endif
                 @empty
                     <tr class="schedule-journal-empty">
                         <td class="sticky-col-1"></td>

@@ -24,7 +24,7 @@ final class SettingPricesFlexibleReplaceJsContractTest extends TestCase
         $this->assertStringContainsString("packageSelectDisabled = ''", $render);
         $this->assertStringNotContainsString("packageSelectDisabled = eff ? 'disabled' : ''", $render);
         $this->assertStringContainsString("if (!isFormer)", $render);
-        $this->assertStringContainsString("} else if (\$card.attr('data-effective-paid') === '1')", $js);
+        $this->assertStringContainsString("} else if (acquiringPaidForInput || \$card.attr('data-effective-paid') === '1')", $js);
         $this->assertStringContainsString('setting-prices-monthly-package-error', $render);
         $this->assertStringContainsString('data-effective-paid', $render);
 
@@ -52,7 +52,7 @@ final class SettingPricesFlexibleReplaceJsContractTest extends TestCase
         $this->assertNotFalse($valPos);
         $this->assertLessThan($valPos, $paidGuardPos, 'Каталожная цена должна писаться только внутри !isPaid');
 
-        $this->assertStringContainsString("} else if (\$card.attr('data-effective-paid') === '1')", $handler);
+        $this->assertStringContainsString("} else if (acquiringPaidForInput || \$card.attr('data-effective-paid') === '1')", $handler);
         $this->assertStringContainsString("\$priceInput.prop('disabled', true)", $handler);
         $this->assertStringContainsString("data-is-former-member') === '1'", $handler);
     }

@@ -20,11 +20,15 @@ final class PlatformPaymentMethods
 
     public const PERM_YOOKASSA = 'platformPayments.method.yookassa';
 
+    public const PERM_INVOICE_IP = 'platformPayments.method.invoiceIp';
+
     public const METHOD_ACQUIRING_SBP = 'acquiring_sbp';
 
     public const METHOD_ACQUIRING_CARD = 'acquiring_card';
 
     public const METHOD_YOOKASSA = 'yookassa';
+
+    public const METHOD_INVOICE_IP = 'invoice_ip';
 
     /** Старое значение радио СБП. Принимаем и приводим к acquiring_sbp. */
     public const LEGACY_METHOD_SBP = 'tinkoff_sbp';
@@ -113,6 +117,7 @@ final class PlatformPaymentMethods
      *     canPayAcquiringSbp: bool,
      *     canPayAcquiringCard: bool,
      *     canPayYookassa: bool,
+     *     canPayInvoiceIp: bool,
      *     canPayTbankSbp: bool,
      *     platformPaymentDefaultMethod: ?string,
      *     platformServiceDefaultMethod: ?string
@@ -128,6 +133,7 @@ final class PlatformPaymentMethods
             'canPayAcquiringSbp' => $canSbp,
             'canPayAcquiringCard' => in_array(self::METHOD_ACQUIRING_CARD, $allowed, true),
             'canPayYookassa' => in_array(self::METHOD_YOOKASSA, $allowed, true),
+            'canPayInvoiceIp' => $user !== null && $user->can(self::PERM_INVOICE_IP),
             'canPayTbankSbp' => $canSbp,
             'platformPaymentDefaultMethod' => self::defaultServiceMethod($user),
             'platformServiceDefaultMethod' => self::defaultServiceMethod($user),

@@ -47,8 +47,12 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
         $this->assertStringContainsString('<button type="submit"', $form);
         $this->assertStringContainsString('Найти', $form);
         $this->assertStringNotContainsString('name="page"', $form);
-        $this->assertTrue($this->journalRowUserIds($html)->contains((int) $target->id));
-        $this->assertStringContainsString($target->full_name, $html);
+        $this->assertSame(0, $this->journalRowUserIds($html)->count());
+        $this->assertStringContainsString('schedule-group-count">1', $html);
+
+        $rows = $this->groupRowsHtml('none', 1, ['q' => $target->lastname]);
+        $this->assertTrue($this->journalRowUserIds($rows)->contains((int) $target->id));
+        $this->assertStringContainsString($target->full_name, $rows);
     }
 
     public function test_search_finds_student_on_second_page_without_opening_page_two(): void
@@ -65,9 +69,11 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
             'team' => 'all',
         ]))->assertOk()->getContent();
 
-        $this->assertFalse($this->journalRowUserIds($page1Html)->contains((int) $onSecondPage->id));
-        $this->assertTrue($this->journalRowUserIds($page1Html)->contains((int) $first->id));
+        $this->assertSame(0, $this->journalRowUserIds($page1Html)->count());
         $this->assertStringNotContainsString($onSecondPage->full_name, $page1Html);
+        $page1Rows = $this->groupRowsHtml('none');
+        $this->assertFalse($this->journalRowUserIds($page1Rows)->contains((int) $onSecondPage->id));
+        $this->assertTrue($this->journalRowUserIds($page1Rows)->contains((int) $first->id));
 
         $searchHtml = (string) $this->get(route('schedule.index', [
             'year' => 2026,
@@ -79,11 +85,14 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
         $this->assertNotSame('', trim($searchHtml));
         $this->assertStringNotContainsString('Whoops', $searchHtml);
         $this->assertStringContainsString('id="schedule-table"', $searchHtml);
-        $this->assertSame(1, $this->journalRowUserIds($searchHtml)->count());
-        $this->assertTrue($this->journalRowUserIds($searchHtml)->contains((int) $onSecondPage->id));
-        $this->assertFalse($this->journalRowUserIds($searchHtml)->contains((int) $first->id));
-        $this->assertStringContainsString($onSecondPage->full_name, $searchHtml);
+        $this->assertSame(0, $this->journalRowUserIds($searchHtml)->count());
+        $this->assertStringContainsString('schedule-group-count">1', $searchHtml);
         $this->assertJournalPagerRendered($searchHtml, false);
+        $searchRows = $this->groupRowsHtml('none', 1, ['q' => 'ВторСтр']);
+        $this->assertSame(1, $this->journalRowUserIds($searchRows)->count());
+        $this->assertTrue($this->journalRowUserIds($searchRows)->contains((int) $onSecondPage->id));
+        $this->assertFalse($this->journalRowUserIds($searchRows)->contains((int) $first->id));
+        $this->assertStringContainsString($onSecondPage->full_name, $searchRows);
         $this->assertStringContainsString('value="ВторСтр"', $this->searchFormHtml($searchHtml));
     }
 
@@ -101,9 +110,13 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
             'q' => 'УникальноеИмяПоиск',
         ]))->assertOk()->getContent();
 
-        $this->assertSame(1, $this->journalRowUserIds($html)->count());
-        $this->assertTrue($this->journalRowUserIds($html)->contains((int) $target->id));
+        $this->assertSame(0, $this->journalRowUserIds($html)->count());
+        $this->assertStringContainsString('schedule-group-count">1', $html);
         $this->assertStringContainsString('УникальноеИмяПоиск', $html);
+
+        $rows = $this->groupRowsHtml('none', 1, ['q' => 'УникальноеИмяПоиск']);
+        $this->assertSame(1, $this->journalRowUserIds($rows)->count());
+        $this->assertTrue($this->journalRowUserIds($rows)->contains((int) $target->id));
     }
 
     public function test_search_by_full_name_concatenation_finds_student(): void
@@ -118,8 +131,10 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
             'q' => 'СклейкаФам ПоискИмя',
         ]))->assertOk()->getContent();
 
-        $this->assertTrue($this->journalRowUserIds($html)->contains((int) $student->id));
-        $this->assertStringContainsString($student->full_name, $html);
+        $this->assertSame(0, $this->journalRowUserIds($html)->count());
+        $rows = $this->groupRowsHtml('none', 1, ['q' => 'СклейкаФам ПоискИмя']);
+        $this->assertTrue($this->journalRowUserIds($rows)->contains((int) $student->id));
+        $this->assertStringContainsString($student->full_name, $rows);
     }
 
     public function test_search_with_many_matches_paginates_search_results(): void
@@ -134,14 +149,19 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
             'q' => 'ЖурналМногоПоиск',
         ]))->assertOk()->getContent();
 
-        $this->assertSame($perPage, $this->journalRowUserIds($html)->count());
-        $this->assertJournalPagerRendered($html, true);
+        $this->assertSame(0, $this->journalRowUserIds($html)->count());
+        $this->assertStringContainsString('schedule-group-count">'.($perPage + 5), $html);
+        $this->assertJournalPagerRendered($html, false);
+
+        $rows = $this->groupRowsHtml('none', 1, ['q' => 'ЖурналМногоПоиск']);
+        $this->assertSame($perPage, $this->journalRowUserIds($rows)->count());
+        $this->assertJournalPagerRendered($rows, true);
         $this->assertStringContainsString(
             '1–'.$perPage.'</span> <span class="schedule-journal-pagination__of">из '.($perPage + 5),
-            $html
+            $rows
         );
-        $this->assertStringContainsString('group_pages', $html);
-        $this->assertStringContainsString('schedule-group-page-link', $html);
+        $this->assertStringContainsString('group_pages', $rows);
+        $this->assertStringContainsString('schedule-group-page-link', $rows);
         $this->assertStringContainsString('ЖурналМногоПоиск', $this->searchFormHtml($html));
     }
 
@@ -151,13 +171,7 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
         $students = $this->seedJournalStudents($perPage + 3, 'ЖурналПоискДве');
         $overflow = $students[$perPage];
 
-        $html = (string) $this->get(route('schedule.index', [
-            'year' => 2026,
-            'month' => '08',
-            'team' => 'all',
-            'q' => 'ЖурналПоискДве',
-            'page' => 2,
-        ]))->assertOk()->getContent();
+        $html = $this->groupRowsHtml('none', 2, ['q' => 'ЖурналПоискДве']);
 
         $ids = $this->journalRowUserIds($html);
         $this->assertSame(3, $ids->count());
@@ -178,6 +192,7 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
             'q' => 'ЖурналСбросQ999',
         ]))->assertOk()->getContent();
         $this->assertSame(0, $this->journalRowUserIds($filtered)->count());
+        $this->assertStringNotContainsString('schedule-group-count">', $filtered);
 
         $restored = (string) $this->get(route('schedule.index', [
             'year' => 2026,
@@ -186,8 +201,11 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
             'q' => '',
         ]))->assertOk()->getContent();
 
-        $this->assertSame($perPage, $this->journalRowUserIds($restored)->count());
-        $this->assertJournalPagerRendered($restored, true);
+        $this->assertSame(0, $this->journalRowUserIds($restored)->count());
+        $this->assertStringContainsString('schedule-group-count">'.($perPage + 1), $restored);
+        $restoredRows = $this->groupRowsHtml('none');
+        $this->assertSame($perPage, $this->journalRowUserIds($restoredRows)->count());
+        $this->assertJournalPagerRendered($restoredRows, true);
         $this->assertStringNotContainsString('name="q" value="', $this->searchFormHtml($restored));
     }
 
@@ -209,7 +227,13 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
             'q' => 'ОбщийПоиск',
         ]))->assertOk()->getContent();
 
-        $ids = $this->journalRowUserIds($html);
+        $this->assertSame(0, $this->journalRowUserIds($html)->count());
+        $this->assertStringContainsString('schedule-group-count">1', $html);
+        $rows = $this->groupRowsHtml((string) $teamA->id, 1, [
+            'team' => $teamA->id,
+            'q' => 'ОбщийПоиск',
+        ]);
+        $ids = $this->journalRowUserIds($rows);
         $this->assertSame(1, $ids->count());
         $this->assertTrue($ids->contains((int) $studentA->id));
         $this->assertFalse($ids->contains((int) $studentB->id));
@@ -253,7 +277,8 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
         $this->assertNotSame('', trim($html));
         $this->assertStringContainsString('id="schedule-table"', $html);
         $this->assertStringContainsString('id="table-search"', $html);
-        $this->assertStringContainsString($student->full_name, $html);
+        $this->assertStringContainsString('schedule-group-count">1', $html);
+        $this->assertStringNotContainsString($student->full_name, $html);
         $this->assertStringNotContainsString('"success":true', $html);
         $this->assertStringNotContainsString('Whoops', $html);
     }
@@ -279,13 +304,15 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
             'q' => $first->lastname,
         ]))->assertOk()->getContent();
 
-        $ids = $this->journalRowUserIds($searchHtml);
+        $this->assertSame(0, $this->journalRowUserIds($searchHtml)->count());
+        $this->assertJournalPagerRendered($searchHtml, false);
+        $rows = $this->groupRowsHtml('none', 1, ['q' => $first->lastname]);
+        $ids = $this->journalRowUserIds($rows);
         $this->assertTrue($ids->contains((int) $first->id));
         $this->assertFalse($ids->contains((int) $overflow->id));
-        $this->assertJournalPagerRendered($searchHtml, false);
         $this->assertMatchesRegularExpression(
             '#number-line">1</td#',
-            $this->studentRowHtml($searchHtml, (int) $first->id) ?? ''
+            $this->studentRowHtml($rows, (int) $first->id) ?? ''
         );
     }
 
@@ -306,6 +333,22 @@ final class ScheduleJournalSearchFeatureTest extends ScheduleJournalTestCase
             ])
             ->create()
             ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    private function groupRowsHtml(string $groupKey, int $page = 1, array $extra = []): string
+    {
+        return (string) $this->withHeaders([
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'text/html',
+        ])->get(route('schedule.group-rows', array_merge([
+            'year' => 2026,
+            'month' => '08',
+            'group_key' => $groupKey,
+            'group_page' => $page,
+        ], $extra)))->assertOk()->getContent();
     }
 
     private function searchFormHtml(string $html): string

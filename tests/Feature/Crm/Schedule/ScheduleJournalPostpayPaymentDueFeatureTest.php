@@ -31,11 +31,11 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
     {
         $this->makeStudentWithTeam();
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertNotSame('', trim($html));
         $this->assertStringContainsString('journal-col-header-hint', $html);
@@ -57,11 +57,11 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
     {
         [$student, $team] = $this->makeStudentWithPostpayMonth(0, false);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertSame('', $this->journalPaymentCellHtml($html, (int) $student->id));
         $this->assertNull($this->journalPaymentStatusInHtml($html, (int) $student->id));
@@ -89,20 +89,20 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
             'is_paid' => 0,
         ]);
 
-        $allHtml = (string) $this->get(route('schedule.index', [
+        $allHtml = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertStringContainsString('1800₽', $allHtml);
         $this->assertStringContainsString('1200₽', $allHtml);
         $this->assertStringNotContainsString('3000₽', $allHtml);
 
-        $teamHtml = (string) $this->get(route('schedule.index', [
+        $teamHtml = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $teamA->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $teamCell = $this->journalPaymentCellHtml($teamHtml, (int) $student->id);
         $this->assertSame('due', $this->journalPaymentStatusInHtml($teamHtml, (int) $student->id));
         $this->assertStringContainsString('1800₽', $teamCell);
@@ -129,11 +129,11 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
             ->assertJsonPath('result.payment_status.state', 'due')
             ->assertJsonPath('result.payment_status.amount_cents', 50000);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $cell = $this->journalPaymentCellHtml($html, (int) $student->id);
         $this->assertStringContainsString('data-journal-payment-status="due"', $cell);
         $this->assertStringContainsString('500₽', $cell);
@@ -158,11 +158,11 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
             ->assertJsonPath('result.payment_status.state', 'none')
             ->assertJsonPath('result.payment_status.amount_cents', 0);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('', $this->journalPaymentCellHtml($html, (int) $student->id));
     }
 
@@ -171,11 +171,11 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
         $payable = Money::payableAfterDiscountCents(150000, 10);
         [$student, $team] = $this->makeStudentWithPostpayMonth($payable, false, 10, 50000);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $expected = JournalMonthlyPaymentStatusService::dueAmountLabel($payable);
         $cell = $this->journalPaymentCellHtml($html, (int) $student->id);
@@ -194,11 +194,11 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
         [$student, $team] = $this->makeStudentWithPostpayMonth(0, false, 0, 50000);
         $student->update(['name' => 'Постоплата', 'lastname' => 'Workflow']);
 
-        $page = $this->get(route('schedule.index', [
+        $page = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]));
+        ]);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -229,11 +229,11 @@ final class ScheduleJournalPostpayPaymentDueFeatureTest extends ScheduleJournalT
             ->assertJsonPath('result.payment_status.amount_label', '500₽');
         $this->assertNotSame('', (string) $save->json('message'));
 
-        $pageAfter = $this->get(route('schedule.index', [
+        $pageAfter = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]));
+        ]);
         $pageAfter->assertOk();
         $afterHtml = (string) $pageAfter->getContent();
         $this->assertNotSame('', trim($afterHtml));

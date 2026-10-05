@@ -32,7 +32,7 @@ final class ScheduleJournalAbonementPlaceUiContractsFeatureTest extends Schedule
         [$student, $team] = $this->makeStudentWithTeam();
         $this->makeMonthlyFixedAssignment($student, (int) $team->id, '2026-08-01', lessons: 2);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => $team->id]))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => $team->id])
             ->assertOk()
             ->assertSee('abonementPlaceModal', false)
             ->assertSee('cell-edit-context__name', false)
@@ -59,7 +59,7 @@ final class ScheduleJournalAbonementPlaceUiContractsFeatureTest extends Schedule
         [$student, $team] = $this->makeStudentWithTeam();
         $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-08-01', lessons: 2);
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => $team->id])
             ->assertOk()
             ->assertSee('flexiblePlaceModal', false)
             ->assertSee('id="flexible-user-name"', false)
@@ -178,7 +178,7 @@ final class ScheduleJournalAbonementPlaceUiContractsFeatureTest extends Schedule
         $ulp = $this->makeMonthlyFixedAssignment($student, (int) $team->id, '2026-08-01', lessons: 2);
         Auth::logout();
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => $team->id])
             ->assertRedirect();
 
         $this->withHeaders($this->ajaxHeaders())
@@ -202,7 +202,7 @@ final class ScheduleJournalAbonementPlaceUiContractsFeatureTest extends Schedule
         $session = ['current_partner' => $this->partner->id, '2fa:passed' => true];
 
         $this->actingAs($actor)->withSession($session)
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => $team->id]))
+            ->journalIndex( ['year' => 2026, 'month' => '08', 'team' => $team->id])
             ->assertForbidden();
 
         $this->actingAs($actor)->withSession($session)
@@ -229,7 +229,7 @@ final class ScheduleJournalAbonementPlaceUiContractsFeatureTest extends Schedule
         $this->attachWeekdays($team, [1, 6, 7]);
         $ulp = $this->makeMonthlyFixedAssignment($student, (int) $team->id, '2026-08-01', lessons: 4);
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => $team->id]));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => $team->id]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('abonementPlaceModal', false)
@@ -264,7 +264,7 @@ final class ScheduleJournalAbonementPlaceUiContractsFeatureTest extends Schedule
             ->assertJsonPath('result.linked_count', 4);
         $this->assertNotSame('', (string) $place->json('message'));
 
-        $pageAfter = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => $team->id]));
+        $pageAfter = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => $team->id]);
         $pageAfter->assertOk();
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));
         $pageAfter->assertSee($student->full_name, false)

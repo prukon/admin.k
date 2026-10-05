@@ -320,10 +320,14 @@ class PaymentReportUserCardFeatureTest extends CrmTestCase
         ]);
 
         $html = $this->get(route('schedule.index'))->assertOk()->getContent();
-        $this->assertStringContainsString('class="schedule-user-card-name js-user-card"', $html);
-        $this->assertStringContainsString('data-user-id="'.$student->id.'"', $html);
         $this->assertStringContainsString('id="paymentUserCardModal"', $html);
         $this->assertStringContainsString('/schedule/users', $html);
+
+        $rows = $this->get(route('schedule.group-rows', [
+            'group_key' => 'none',
+        ]))->assertOk()->getContent();
+        $this->assertStringContainsString('class="schedule-user-card-name js-user-card"', $rows);
+        $this->assertStringContainsString('data-user-id="'.$student->id.'"', $rows);
 
         $this->getJson(route('schedule.users.show', $student))
             ->assertOk()

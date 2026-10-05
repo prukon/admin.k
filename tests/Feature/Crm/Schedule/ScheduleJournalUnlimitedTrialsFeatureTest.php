@@ -331,11 +331,11 @@ final class ScheduleJournalUnlimitedTrialsFeatureTest extends ScheduleJournalTes
 
     private function journalPage(int $teamId): \Illuminate\Testing\TestResponse
     {
-        $page = $this->get(route('schedule.index', [
+        $page = $this->journalIndex( [
             'year' => 2026,
             'month' => '09',
             'team' => $teamId,
-        ]));
+        ]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
 

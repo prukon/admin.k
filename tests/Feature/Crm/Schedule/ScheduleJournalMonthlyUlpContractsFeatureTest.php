@@ -215,7 +215,7 @@ final class ScheduleJournalMonthlyUlpContractsFeatureTest extends ScheduleJourna
         $this->attachWeekdays($team, [1]);
         $ulp = $this->makeMonthlyFixedAssignment($student, (int) $team->id, '2025-10-01', lessons: 2);
 
-        $page = $this->get(route('schedule.index', ['year' => 2025, 'month' => '10']));
+        $page = $this->journalIndex( ['year' => 2025, 'month' => '10']);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('abonementPlaceForm', false)
@@ -245,7 +245,7 @@ final class ScheduleJournalMonthlyUlpContractsFeatureTest extends ScheduleJourna
             ->assertOk()
             ->assertJsonPath('success', true);
 
-        $pageAfter = $this->get(route('schedule.index', ['year' => 2025, 'month' => '10']));
+        $pageAfter = $this->journalIndex( ['year' => 2025, 'month' => '10']);
         $pageAfter->assertOk();
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));
         $pageAfter->assertSee($student->full_name, false)

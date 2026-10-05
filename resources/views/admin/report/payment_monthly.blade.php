@@ -114,6 +114,7 @@
                     По дате платежа
                 </button>
             </div>
+            <div class="invalid-feedback" data-error-for="mode"></div>
         </div>
     </div>
 </div>
@@ -746,22 +747,26 @@
             $('.js-group-mode-btn').on('click', function() {
                 var btn = $(this);
                 var mode = btn.data('mode');
-
+                if (mode !== 'operation' && mode !== 'subscription') {
+                    return;
+                }
                 if (mode === currentMode) {
                     return;
                 }
 
-                currentMode = mode;
-                $('#payments-monthly-mode-hidden').val(currentMode);
-
-                $('.js-group-mode-btn').removeClass('active');
-                btn.addClass('active');
-
-                Object.keys(monthlyDetailTables).forEach(function (monthKey) {
-                    destroyMonthlyDetailTable(monthKey);
+                var payload = paymentsMonthlyFilterParams();
+                payload.mode = mode;
+                kidsCrmPersistReportFilters($payMonthlyFiltersForm, paymentsMonthlyFiltersSaveUrl, payload, function () {
+                    currentMode = mode;
+                    $('#payments-monthly-mode-hidden').val(currentMode);
+                    $('.js-group-mode-btn').removeClass('active');
+                    btn.addClass('active');
+                    Object.keys(monthlyDetailTables).forEach(function (monthKey) {
+                        destroyMonthlyDetailTable(monthKey);
+                    });
+                    refreshPaymentsMonthlyReportTotal();
+                    dtApi.reload();
                 });
-                refreshPaymentsMonthlyReportTotal();
-                dtApi.reload();
             });
 
             $('#payments-monthly-table tbody').on('click', 'td.details-control button', function(e) {

@@ -46,12 +46,14 @@ return [
             'messages.view',
             'reports.ltv.teams.view',
             'reports.ltv.locations.view',
+            // 'reports.ltv.admins.view', // Отчёт «По админам» — скрытое, по умолчанию выкл.
         ],
         'admin' => [
             'dashboard.view',
             'reports.view',
             'reports.ltv.teams.view',
             'reports.ltv.locations.view',
+            // 'reports.ltv.admins.view', // Отчёт «По админам» — скрытое, по умолчанию выкл.
             // 'reports.payments.commission_total.view',
             'reports.payments.payout_amount.column.view',
             'setPrices.view',
@@ -102,6 +104,7 @@ return [
             'partnerWallet.view',
             'platformPayments.method.acquiringSbp',
             'platformPayments.method.acquiringCard',
+            'platformPayments.method.invoiceIp',
             // 'platformPayments.method.yookassa',
             'schoolLeads.view',
             'schoolLeadLanding.view',

@@ -29,7 +29,7 @@ final class ScheduleJournalUnifiedFeatureTest extends ScheduleJournalTestCase
         [$student, $team] = $this->makeStudentWithTeam();
         $this->makeMonthlyFixedAssignment($student, (int) $team->id, '2026-08-01', lessons: 2);
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']))
+        $this->journalIndex( ['year' => 2026, 'month' => '08'])
             ->assertOk()
             ->assertSee('journal-abonement-btn', false)
             ->assertSee('abonementPlaceModal', false)
@@ -158,7 +158,7 @@ final class ScheduleJournalUnifiedFeatureTest extends ScheduleJournalTestCase
             'created_by' => $this->user->id,
         ]);
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']))
+        $this->journalIndex( ['year' => 2026, 'month' => '08'])
             ->assertOk()
             ->assertSee('data-occurrence-count="1"', false)
             ->assertSee('fa-solid fa-circle', false);

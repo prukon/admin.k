@@ -29,11 +29,11 @@ final class ScheduleJournalTablePreloaderFeatureTest extends ScheduleJournalTest
     {
         [$student] = $this->makeStudentTeamAndTrainer();
 
-        $page = $this->get(route('schedule.index', [
+        $page = $this->journalIndex( [
             'year' => 2026,
             'month' => '05',
             'team' => 'all',
-        ]));
+        ]);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -58,7 +58,7 @@ final class ScheduleJournalTablePreloaderFeatureTest extends ScheduleJournalTest
         ];
 
         foreach ($queries as $label => $query) {
-            $page = $this->get(route('schedule.index', $query));
+            $page = $this->journalIndex( $query);
             $this->assertSame(200, $page->status(), $label);
             $html = (string) $page->getContent();
             $this->assertNotSame('', trim($html), $label);
@@ -71,11 +71,11 @@ final class ScheduleJournalTablePreloaderFeatureTest extends ScheduleJournalTest
         $this->makeStudentTeamAndTrainer();
 
         $page = $this->withHeaders($this->ajaxHeaders())
-            ->get(route('schedule.index', [
+            ->journalIndex( [
                 'year' => 2026,
                 'month' => '05',
                 'team' => 'all',
-            ]));
+            ]);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));

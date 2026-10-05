@@ -42,7 +42,7 @@ final class ScheduleJournalFixedPlaceTeamContractsFeatureTest extends ScheduleJo
             (int) $ulp->fee_amount_cents,
         );
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => $team->id]))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => $team->id])
             ->assertOk()
             ->assertSee('journal-abonement-btn', false)
             ->assertSee('abonement-team-readonly', false)
@@ -62,7 +62,7 @@ final class ScheduleJournalFixedPlaceTeamContractsFeatureTest extends ScheduleJo
         [$student, $team] = $this->makeStudentWithTeam();
         $this->makeFixedAssignment($student, lessons: 4, durationDays: 30);
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => $team->id])
             ->assertOk()
             ->assertDontSee('journal-abonement-btn', false)
             ->assertSee('abonementPlaceModal', false);
@@ -360,11 +360,11 @@ final class ScheduleJournalFixedPlaceTeamContractsFeatureTest extends ScheduleJo
         // Placeable только в B — группа A в модалке не предлагается; фильтр B → team_locked.
         $ulpB = $this->makeMonthlyFixedAssignment($student, (int) $teamB->id, '2026-08-01', lessons: 2);
 
-        $page = $this->get(route('schedule.index', [
+        $page = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $teamB->id,
-        ]));
+        ]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('journal-abonement-btn', false)
@@ -393,11 +393,11 @@ final class ScheduleJournalFixedPlaceTeamContractsFeatureTest extends ScheduleJo
             ->assertJsonPath('result.linked_count', 2);
         $this->assertNotSame('', (string) $place->getContent());
 
-        $pageAfter = $this->get(route('schedule.index', [
+        $pageAfter = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $teamB->id,
-        ]));
+        ]);
         $pageAfter->assertOk();
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));
         $pageAfter->assertSee($student->full_name, false)

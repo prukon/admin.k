@@ -153,7 +153,15 @@ final class LessonPackageFlexibleUiLabelWorkflowFeatureTest extends ScheduleJour
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $this->assertNotSame(500, $page->getStatusCode());
-        $page->assertSee(">4/4\nПредоплата<", false)
+
+        $rows = $this->get(route('schedule.group-rows', [
+            'year' => 2026,
+            'month' => '09',
+            'team' => $team->id,
+            'group_key' => $team->id,
+        ]));
+        $rows->assertOk();
+        $rows->assertSee(">4/4\nПредоплата<", false)
             ->assertDontSee(">4/4\nГибкий<", false)
             ->assertSee($packageName, false)
             ->assertSee('Абонемент предоплаты: поставить занятие', false)

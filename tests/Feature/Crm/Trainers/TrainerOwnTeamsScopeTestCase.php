@@ -146,6 +146,21 @@ abstract class TrainerOwnTeamsScopeTestCase extends CrmTestCase
         ];
     }
 
+    /**
+     * Строки учеников одной группы. Первый HTML /schedule их не содержит.
+     *
+     * @param  array<string, mixed>  $query
+     */
+    protected function scheduleGroupRowsHtml(int|string $groupKey, array $query = []): string
+    {
+        $response = $this->get(route('schedule.group-rows', array_merge([
+            'group_key' => (string) $groupKey,
+        ], $query)));
+        $response->assertOk();
+
+        return (string) $response->getContent();
+    }
+
     protected function studentRoleId(): int
     {
         return $this->roleId('user');

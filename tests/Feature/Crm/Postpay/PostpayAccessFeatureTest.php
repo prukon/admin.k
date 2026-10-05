@@ -30,6 +30,13 @@ final class PostpayAccessFeatureTest extends PostpayTestCase
     public function test_authorized_with_permissions_can_use_postpay_endpoints(): void
     {
         $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']))
+            ->assertOk();
+
+        $this->get(route('schedule.group-rows', [
+            'year' => 2026,
+            'month' => '08',
+            'group_key' => $this->team->id,
+        ]))
             ->assertOk()
             ->assertSee('data-postpay="1"', false);
 

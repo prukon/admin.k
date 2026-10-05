@@ -61,6 +61,13 @@ final class PlatformPaymentsMethodPermissionCatalogFeatureTest extends CrmTestCa
         $this->assertSame($groupId, (int) $yookassa->permission_group_id);
         $this->assertSame(0, (int) $yookassa->is_visible);
         $this->assertSame(20, (int) $yookassa->sort_order);
+
+        $invoice = DB::table('permissions')->where('name', 'platformPayments.method.invoiceIp')->first();
+        $this->assertNotNull($invoice);
+        $this->assertSame('Счёт от ИП (кошелёк)', (string) $invoice->description);
+        $this->assertSame($groupId, (int) $invoice->permission_group_id);
+        $this->assertSame(0, (int) $invoice->is_visible);
+        $this->assertSame(25, (int) $invoice->sort_order);
     }
 
     public function test_superadmin_rules_page_shows_group_and_permissions(): void
@@ -82,6 +89,8 @@ final class PlatformPaymentsMethodPermissionCatalogFeatureTest extends CrmTestCa
         $this->assertStringContainsString(self::DESC_TBANK, $html);
         $this->assertStringContainsString(self::DESC_CARD, $html);
         $this->assertStringContainsString(self::DESC_YOOKASSA, $html);
+        $this->assertStringContainsString('platformPayments.method.invoiceIp', $html);
+        $this->assertStringContainsString('Счёт от ИП (кошелёк)', $html);
     }
 
     public function test_new_partner_admin_receives_tbank_not_yookassa(): void
@@ -121,6 +130,26 @@ final class PlatformPaymentsMethodPermissionCatalogFeatureTest extends CrmTestCa
             'Новый партнёр: admin должен получить карту · эквайринг из role_base_permissions'
         );
 
+        $invoiceId = $this->permissionId('platformPayments.method.invoiceIp');
+        $this->assertTrue(
+            DB::table('permission_role')
+                ->where('partner_id', $partner->id)
+                ->where('role_id', $adminRoleId)
+                ->where('permission_id', $invoiceId)
+                ->exists(),
+            'Новый партнёр: admin должен получить счёт от ИП из role_base_permissions'
+        );
+        foreach (['user', 'trainer'] as $roleName) {
+            $this->assertFalse(
+                DB::table('permission_role')
+                    ->where('partner_id', $partner->id)
+                    ->where('role_id', $this->roleId($roleName))
+                    ->where('permission_id', $invoiceId)
+                    ->exists(),
+                "Роль {$roleName} нового партнёра не должна иметь platformPayments.method.invoiceIp"
+            );
+        }
+
         foreach (['user', 'trainer'] as $roleName) {
             $this->assertFalse(
                 DB::table('permission_role')
@@ -142,5 +171,16 @@ final class PlatformPaymentsMethodPermissionCatalogFeatureTest extends CrmTestCa
         $this->assertStringContainsString("private const GROUP_SLUG = 'platformPayments'", $src);
         $this->assertStringNotContainsString('insertOrIgnore', $src);
         $this->assertStringNotContainsString("DB::table('permission_role')->insert", $src);
+    }
+
+    public function test_invoice_migration_grants_permission_to_existing_admin_roles(): void
+    {
+        $path = database_path('migrations/2026_10_05_235800_add_platform_invoice_ip_permission.php');
+        $this->assertFileExists($path);
+        $src = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("'platformPayments.method.invoiceIp'", $src);
+        $this->assertStringContainsString("where('name', 'admin')", $src);
+        $this->assertStringContainsString('insertOrIgnore', $src);
     }
 }

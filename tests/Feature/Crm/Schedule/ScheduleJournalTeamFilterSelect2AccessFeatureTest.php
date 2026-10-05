@@ -91,11 +91,11 @@ final class ScheduleJournalTeamFilterSelect2AccessFeatureTest extends ScheduleJo
         $student = $this->makeStudent($team->id);
         $student->update(['lastname' => 'ДоступФильтр', 'name' => 'Ученик']);
 
-        $page = $this->get(route('schedule.index', [
+        $page = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$team->id],
-        ]));
+        ]);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));

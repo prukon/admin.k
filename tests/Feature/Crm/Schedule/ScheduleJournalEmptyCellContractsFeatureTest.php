@@ -701,7 +701,7 @@ final class ScheduleJournalEmptyCellContractsFeatureTest extends ScheduleJournal
         $student->update(['name' => 'Пустая', 'lastname' => 'Ячейка']);
         $template = $this->makeSingleLessonTemplate('Workflow разовое', 110000);
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('emptyCellPlaceModal', false)
@@ -744,7 +744,7 @@ final class ScheduleJournalEmptyCellContractsFeatureTest extends ScheduleJournal
                 ],
             ]);
 
-        $pageAfter = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $pageAfter = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $pageAfter->assertOk();
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));
         $pageAfter->assertSee($student->full_name, false)

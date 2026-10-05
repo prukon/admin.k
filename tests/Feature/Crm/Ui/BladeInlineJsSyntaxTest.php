@@ -53,6 +53,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'ltv report tab' => ['admin/report/ltv.blade.php'];
         yield 'ltv teams report tab' => ['admin/report/ltv_teams.blade.php'];
         yield 'ltv locations report tab' => ['admin/report/ltv_locations.blade.php'];
+        yield 'ltv admins report tab' => ['admin/report/ltv_admins.blade.php'];
         yield 'payments monthly report tab' => ['admin/report/payment_monthly.blade.php'];
         yield 'generic multiselect partial' => ['partials/select2/generic-multiselect.blade.php'];
         yield 'schedule journal statuses settings' => ['admin/shared/occurrence_statuses_crud.blade.php'];
@@ -1712,6 +1713,12 @@ JS;
             $this->assertNotFalse($refuseFnPos, $label);
             $this->assertNotFalse($refuseFnEnd, $label);
             $refuseFn = substr($js, (int) $refuseFnPos, $refuseFnEnd - $refuseFnPos);
+            $this->assertStringContainsString(
+                "block === 'prepaid_empty' && (selectionActive || !allowEmptyLesson)",
+                $refuseFn,
+                $label
+            );
+            $this->assertStringContainsString('bulkRefuseMessage(block, !!bulkSelection, hasEmptyLesson)', $click, $label);
             $inactivePos = strpos($refuseFn, 'if (!selectionActive)');
             $fixedPos = strpos($refuseFn, "block === 'fixed_only'");
             $newcomerPos = strpos($refuseFn, "block === 'no_abonement'");
@@ -2326,6 +2333,7 @@ JS;
         $this->assertStringContainsString('name="team_ids[]"', $journal);
         $this->assertStringNotContainsString('name="team"', $journal);
         $this->assertStringNotContainsString('name="page"', $journal);
+        $this->assertStringContainsString('data-page-length-url="{{ route(\'schedule.journal-page-length\') }}"', $journal);
         $this->assertStringContainsString('id="table-search"', $journal);
         $this->assertStringContainsString('name="q"', $journal);
         $this->assertStringContainsString('value="{{ $searchQ ?? \'\' }}"', $journal);
@@ -2340,8 +2348,12 @@ JS;
             "@include('admin.schedule._journal_group_users', ['journalGroupCollapsed' => true])",
             $journal
         );
+        $this->assertStringContainsString('$users->total() > 0', $groupUsers);
         $this->assertStringContainsString('$users->lastPage() > 1', $groupUsers);
         $this->assertStringContainsString('schedule-journal-pagination', $groupUsers);
+        $this->assertStringContainsString('schedule-journal-per-page__select', $groupUsers);
+        $this->assertStringContainsString('Показывать по', $groupUsers);
+        $this->assertStringContainsString('data-error-for="page_length"', $groupUsers);
         $this->assertStringContainsString('($users->firstItem() ?? 1) + $index', $groupUsers);
 
         $yearPos = strpos($journal, 'id="filter-year"');
@@ -2389,6 +2401,12 @@ JS;
                 "{$jsPath}: смена фильтра не должна сбрасывать q"
             );
             $this->assertStringContainsString('paging: false', $js);
+            $this->assertStringContainsString("$(document).on('change', '.schedule-journal-per-page__select'", $js);
+            $this->assertStringContainsString('data-page-length-url', $js);
+            $this->assertStringContainsString('page_length: length', $js);
+            $this->assertStringContainsString('errors.page_length', $js);
+            $this->assertStringContainsString('data-error-for="page_length"', $js);
+            $this->assertStringContainsString('function reloadScheduleGroupsForPageLength()', $js);
             $this->assertStringNotContainsString('function scheduleJournalApplySearchQuery(', $js);
             $this->assertStringNotContainsString("$('#table-search').on('keyup'", $js);
             $this->assertStringNotContainsString('table.search(this.value).draw()', $js);
@@ -2427,6 +2445,7 @@ JS;
         $this->assertStringContainsString('aria-expanded="false"', $journal);
         $this->assertStringContainsString('aria-label="Развернуть"', $journal);
         $this->assertStringContainsString('fa-chevron-right', $journal);
+        $this->assertStringContainsString('data-users-loaded=', $journal);
         $this->assertStringContainsString('schedule-group-head-cell', $journal);
         $this->assertStringContainsString('schedule-group-day-check', $journal);
         $this->assertStringContainsString('journalGroupCollapsed', $journal);
@@ -3482,6 +3501,7 @@ JS;
             'admin/partners/tabs/payouts.blade.php',
             'admin/report/fiscal_receipts.blade.php',
             'admin/report/ltv.blade.php',
+            'admin/report/ltv_admins.blade.php',
             'admin/report/ltv_locations.blade.php',
             'admin/report/ltv_teams.blade.php',
             'admin/report/payment.blade.php',
@@ -3762,7 +3782,7 @@ JS;
     /**
      * P1: сохранённые фильтры отчётов. «Применить» и «Сброс» — два разных пути,
      * оба через kidsCrmPersistReportFilters. Ошибка 422 не вызывает reload.
-     * Смена периода и группировки не пишет фильтры и не пересоздаёт таблицу.
+     * Смена периода не пишет фильтры. Смена группировки пишет фильтры и не пересоздаёт таблицу.
      */
     public function test_persisted_report_filters_keep_values_until_save_succeeds(): void
     {
@@ -3883,11 +3903,15 @@ JS;
         $this->assertNotFalse($periodPos);
         $this->assertNotFalse($modePos);
         $periodChunk = substr($teams, $periodPos, 700);
-        $modeChunk = substr($teams, $modePos, 700);
+        $modeChunk = substr($teams, $modePos, 900);
         $this->assertStringNotContainsString('kidsCrmPersistReportFilters', $periodChunk);
-        $this->assertStringNotContainsString('kidsCrmPersistReportFilters', $modeChunk);
+        $this->assertStringContainsString('kidsCrmPersistReportFilters', $modeChunk);
+        $this->assertStringContainsString('payload.mode = mode', $modeChunk);
         $this->assertStringNotContainsString('KidsCrmDataTable.create', $periodChunk);
-        $this->assertStringNotContainsString('currentPeriod =', substr($teams, strpos($teams, '$(\'#ltvTeamsReportFiltersResetBtn\').on(\'click\''), 900));
+        $this->assertStringNotContainsString('KidsCrmDataTable.create', $modeChunk);
+        $teamsReset = substr($teams, strpos($teams, '$(\'#ltvTeamsReportFiltersResetBtn\').on(\'click\''), 1200);
+        $this->assertStringNotContainsString('currentPeriod =', $teamsReset);
+        $this->assertStringContainsString("currentMode = 'operation'", $teamsReset);
 
         $locations = (string) file_get_contents(resource_path('views/admin/report/ltv_locations.blade.php'));
         $locationsPeriod = strpos($locations, '$(\'.js-ltv-locations-period-btn\').on(\'click\'');
@@ -3900,8 +3924,9 @@ JS;
         $monthly = (string) file_get_contents(resource_path('views/admin/report/payment_monthly.blade.php'));
         $monthlyMode = strpos($monthly, '$(\'.js-group-mode-btn\').on(\'click\'');
         $this->assertNotFalse($monthlyMode);
-        $monthlyModeChunk = substr($monthly, $monthlyMode, 500);
-        $this->assertStringNotContainsString('kidsCrmPersistReportFilters', $monthlyModeChunk);
+        $monthlyModeChunk = substr($monthly, $monthlyMode, 900);
+        $this->assertStringContainsString('kidsCrmPersistReportFilters', $monthlyModeChunk);
+        $this->assertStringContainsString('payload.mode = mode', $monthlyModeChunk);
         $this->assertStringNotContainsString('KidsCrmDataTable.create', $monthlyModeChunk);
         $monthlyReset = substr($monthly, strpos($monthly, '$(\'#paymentsMonthlyFiltersResetBtn\').on(\'click\''), 900);
         $this->assertStringContainsString("currentMode = 'subscription'", $monthlyReset);
@@ -6802,9 +6827,11 @@ JS;
         $this->assertStringContainsString('id="walletCheckoutSbp"', $checkout);
         $this->assertStringContainsString('id="walletCheckoutCard"', $checkout);
         $this->assertStringContainsString('id="walletCheckoutYookassa"', $checkout);
+        $this->assertStringContainsString('id="walletCheckoutInvoiceIp"', $checkout);
         $this->assertStringContainsString('value="acquiring_sbp"', $checkout);
         $this->assertStringContainsString('value="acquiring_card"', $checkout);
         $this->assertStringContainsString('value="yookassa"', $checkout);
+        $this->assertStringContainsString('value="invoice_ip"', $checkout);
         $this->assertStringContainsString('СБП · эквайринг', $checkout);
         $this->assertStringContainsString('Карта · эквайринг', $checkout);
         $this->assertStringContainsString("route('partner.wallet.topup')", $checkout);
@@ -6813,11 +6840,14 @@ JS;
         $sbpPos = strpos($checkout, 'id="walletCheckoutSbp"');
         $cardPos = strpos($checkout, 'id="walletCheckoutCard"');
         $ykPos = strpos($checkout, 'id="walletCheckoutYookassa"');
+        $invoicePos = strpos($checkout, 'id="walletCheckoutInvoiceIp"');
         $this->assertNotFalse($sbpPos);
         $this->assertNotFalse($cardPos);
         $this->assertNotFalse($ykPos);
+        $this->assertNotFalse($invoicePos);
         $this->assertTrue($sbpPos < $cardPos);
         $this->assertTrue($cardPos < $ykPos);
+        $this->assertTrue($ykPos < $invoicePos);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $path,
@@ -6949,6 +6979,66 @@ JS;
             }
         }
         $this->assertTrue($found, 'Не найден script с updateClubFeeOtherMethodsVisibility');
+    }
+
+    /**
+     * Месяц подписывается на витрине и не должен теряться: все три формы несут checkout_intent.
+     * Клубный взнос при смене группы и суммы переписывает только team_id и outSum.
+     */
+    public function test_payment_forms_keep_signed_month_context_when_scripts_rebuild_fields(): void
+    {
+        $payment = (string) file_get_contents(resource_path('views/payment/paymentUser.blade.php'));
+        $this->assertSame(3, substr_count($payment, 'name="checkout_intent"'));
+        $this->assertStringContainsString('id="checkout-intent-error"', $payment);
+        $this->assertStringContainsString('id="checkout-unavailable"', $payment);
+
+        foreach ([
+            "route('payment.tinkoff.sbp')",
+            "route('payment.tinkoff.pay')",
+            "route('payment.pay')",
+        ] as $action) {
+            $pos = strpos($payment, $action);
+            $this->assertNotFalse($pos, $action);
+            $chunk = substr($payment, $pos, 900);
+            $this->assertStringContainsString('name="checkout_intent" value="{{ $checkoutIntent }}"', $chunk);
+            $this->assertStringContainsString('name="formatedPaymentDate" value="{{ $formatedPaymentDate }}"', $chunk);
+            $this->assertStringContainsString('name="team_id" value="{{ $monthlyTeamId }}"', $chunk);
+        }
+
+        $dashboard = (string) file_get_contents(resource_path('views/dashboard.blade.php'));
+        $this->assertStringContainsString("paymentUrl: '{{ route('payment') }}'", $dashboard);
+        $this->assertSame(
+            3,
+            substr_count($dashboard, 'name="formatedPaymentDate"'),
+            'Шаблон ячейки и обе пересборки «Оплатить» должны сохранять месяц'
+        );
+        $this->assertStringNotContainsString('name="checkout_intent"', $dashboard);
+        $this->assertStringNotContainsString('club_fee', $dashboard);
+
+        $club = (string) file_get_contents(resource_path('views/payment/clubFee.blade.php'));
+        $this->assertSame(3, substr_count($club, 'name="checkout_intent"'));
+        $this->assertStringContainsString('id="checkout-intent-error"', $club);
+        $teamFn = strpos($club, 'function appendClubFeeTeamField');
+        $amountFn = strpos($club, 'function validateAndSetAmount');
+        $this->assertNotFalse($teamFn);
+        $this->assertNotFalse($amountFn);
+        $afterAmount = strpos($club, '</script>', $amountFn);
+        $this->assertNotFalse($afterAmount);
+        $rebuild = substr($club, $teamFn, $afterAmount - $teamFn);
+        $this->assertStringContainsString("querySelector('input[name=\"team_id\"]')", $rebuild);
+        $this->assertStringContainsString('outSumField.value = paymentAmount', $rebuild);
+        $this->assertStringNotContainsString('checkout_intent', $rebuild);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            resource_path('views/payment/clubFee.blade.php'),
+            'function validateAndSetAmount',
+            'blade-js-club-fee-keep-checkout-intent'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            resource_path('views/dashboard.blade.php'),
+            'function apendPrice',
+            'blade-js-dashboard-month-not-reset'
+        );
     }
 
     /**
@@ -11643,6 +11733,13 @@ JS;
 
         $errorBody = substr($js, $errorPos, 180);
         $this->assertStringContainsString("window.location.href = \$link.attr('href')", $errorBody, $jsPath);
+
+        $this->assertStringContainsString('function loadScheduleGroupUsers(', $js, $jsPath);
+        $this->assertStringContainsString('data-users-loading', $js, $jsPath);
+        $this->assertStringContainsString('data-users-loaded', $js, $jsPath);
+        $this->assertStringContainsString('schedule-group-users-loading', $js, $jsPath);
+        $this->assertStringContainsString('scheduleGroupUsersFallbackUrl(', $js, $jsPath);
+        $this->assertStringContainsString("url.searchParams.set('group_pages[' + groupKey + ']'", $js, $jsPath);
 
         $fnPos = strpos($js, 'function toggleScheduleGroupRow');
         $this->assertNotFalse($fnPos, $jsPath);

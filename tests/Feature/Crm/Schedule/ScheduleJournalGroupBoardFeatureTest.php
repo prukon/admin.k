@@ -138,7 +138,8 @@ final class ScheduleJournalGroupBoardFeatureTest extends ScheduleJournalTestCase
         $this->assertStringContainsString('data-group-key="'.$team->id.'"', $html);
         $this->assertStringContainsString('data-team-id="'.$team->id.'"', $html);
         $this->assertStringNotContainsString('data-group-key="'.$otherTeam->id.'"', $html);
-        $this->assertStringNotContainsString('class="schedule-journal-pagination', $html);
+        $this->assertStringContainsString('schedule-journal-per-page__select', $html);
+        $this->assertStringNotContainsString('schedule-group-page-link', $html);
     }
 
     public function test_second_page_of_a_group_lists_the_remaining_students(): void
@@ -355,7 +356,8 @@ final class ScheduleJournalGroupBoardFeatureTest extends ScheduleJournalTestCase
         $this->assertStringContainsString('data-group-rows-url="'.route('schedule.group-rows').'"', $table);
         $this->assertStringContainsString('class="schedule-group-row"', $table);
         $this->assertStringNotContainsString('schedule-group-row is-open', $table);
-        $this->assertStringContainsString('schedule-group-collapsed', $table);
+        $this->assertStringNotContainsString('class="schedule-group-user"', $table);
+        $this->assertStringContainsString('data-users-loaded="0"', $table);
         $this->assertStringContainsString('schedule-group-day-check', $table);
         $this->assertStringContainsString('schedule-group-head-cell', $table);
         $this->assertStringContainsString('aria-expanded="false"', $table);
@@ -366,9 +368,13 @@ final class ScheduleJournalGroupBoardFeatureTest extends ScheduleJournalTestCase
         $this->assertStringNotContainsString('fa-chevron-up', $table);
         $this->assertStringContainsString('schedule-group-title" title="РаскрытаяГруппаЖурнала"', $table);
         $this->assertStringContainsString('schedule-attendance-total-label">Итого', $table);
-        $this->assertStringContainsString($student->full_name, $html);
+        $this->assertStringNotContainsString($student->full_name, $table);
 
-        $row = $this->groupUserRow($html, (int) $student->id, (string) $team->id);
+        $fragment = (string) $this->withHeaders([
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'text/html',
+        ])->get($this->groupRowsUrl($team, 1))->assertOk()->getContent();
+        $row = $this->groupUserRow($fragment, (int) $student->id, (string) $team->id);
         $this->assertStringNotContainsString('РаскрытаяГруппаЖурнала', $row);
     }
 
@@ -392,12 +398,21 @@ final class ScheduleJournalGroupBoardFeatureTest extends ScheduleJournalTestCase
             'month' => '08',
             'team' => 'all',
         ]))->assertOk()->getContent();
+        $this->assertStringContainsString('schedule-group-title" title="ГруппаАльфаЖурнал"', $html);
+        $this->assertStringContainsString('schedule-group-title" title="ГруппаБетаЖурнал"', $html);
+        $this->assertStringNotContainsString('class="schedule-group-user"', $html);
 
-        $rows = $this->groupUserRows($html, (int) $student->id);
-        $this->assertCount(2, $rows);
+        $fragmentA = (string) $this->withHeaders([
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'text/html',
+        ])->get($this->groupRowsUrl($teamA, 1))->assertOk()->getContent();
+        $fragmentB = (string) $this->withHeaders([
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'text/html',
+        ])->get($this->groupRowsUrl($teamB, 1))->assertOk()->getContent();
 
-        $rowA = $this->groupUserRow($html, (int) $student->id, (string) $teamA->id);
-        $rowB = $this->groupUserRow($html, (int) $student->id, (string) $teamB->id);
+        $rowA = $this->groupUserRow($fragmentA, (int) $student->id, (string) $teamA->id);
+        $rowB = $this->groupUserRow($fragmentB, (int) $student->id, (string) $teamB->id);
         $cellA = $this->dayCellOpeningTag($rowA, '2026-08-04');
         $cellB = $this->dayCellOpeningTag($rowB, '2026-08-04');
 
@@ -434,15 +449,8 @@ final class ScheduleJournalGroupBoardFeatureTest extends ScheduleJournalTestCase
         $this->assertNotFalse($noneHeader);
         $this->assertLessThan($noneHeader, $teamHeader);
         $this->assertStringContainsString('schedule-group-title" title="Без группы"', $html);
-        $this->assertStringContainsString($inTeam->full_name, $html);
-
-        $row = $this->groupUserRow($html, (int) $lonely->id, 'none');
-        $this->assertStringNotContainsString('data-team-id=', $row);
-        $cell = $this->dayCellOpeningTag($row, '2026-08-04');
-        $this->assertStringContainsString('data-context-team-id=""', $cell);
-        $this->assertStringContainsString('data-occurrence-count="0"', $cell);
-        $this->assertStringContainsString('data-empty-lesson="0"', $cell);
-        $this->assertStringNotContainsString('data-utss-id=', $cell);
+        $this->assertStringNotContainsString($inTeam->full_name, $html);
+        $this->assertStringNotContainsString($lonely->full_name, $html);
 
         $fragment = (string) $this->get(route('schedule.group-rows', [
             'year' => 2026,
@@ -451,11 +459,13 @@ final class ScheduleJournalGroupBoardFeatureTest extends ScheduleJournalTestCase
         ]))->assertOk()->getContent();
         $this->assertStringContainsString($lonely->full_name, $fragment);
         $this->assertStringNotContainsString($inTeam->full_name, $fragment);
-        $fragmentCell = $this->dayCellOpeningTag(
-            $this->groupUserRow($fragment, (int) $lonely->id, 'none'),
-            '2026-08-04'
-        );
+        $row = $this->groupUserRow($fragment, (int) $lonely->id, 'none');
+        $this->assertStringNotContainsString('data-team-id=', $row);
+        $fragmentCell = $this->dayCellOpeningTag($row, '2026-08-04');
+        $this->assertStringContainsString('data-context-team-id=""', $fragmentCell);
+        $this->assertStringContainsString('data-occurrence-count="0"', $fragmentCell);
         $this->assertStringContainsString('data-empty-lesson="0"', $fragmentCell);
+        $this->assertStringNotContainsString('data-utss-id=', $fragmentCell);
     }
 
     public function test_single_group_filter_still_nests_students_under_the_group(): void
@@ -473,11 +483,19 @@ final class ScheduleJournalGroupBoardFeatureTest extends ScheduleJournalTestCase
 
         $this->assertStringContainsString('class="schedule-group-row"', $html);
         $this->assertStringNotContainsString('schedule-group-row is-open', $html);
-        $this->assertStringContainsString('schedule-group-collapsed', $html);
+        $this->assertStringNotContainsString('class="schedule-group-user"', $html);
+        $this->assertStringContainsString('data-users-loaded="0"', $html);
+        $this->assertStringContainsString('schedule-group-count">1', $html);
         $this->assertStringContainsString('schedule-group-title" title="ОднаГруппаВФильтре"', $html);
-        $this->assertStringContainsString('data-group-key="'.$team->id.'"', $this->groupUserRow($html, (int) $student->id, (string) $team->id));
+        $this->assertStringNotContainsString($student->full_name, $html);
         $this->assertStringNotContainsString('ЧужаяДляФильтра', $html);
         $this->assertStringNotContainsString('data-group-key="none"', $html);
+
+        $fragment = (string) $this->withHeaders([
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'text/html',
+        ])->get($this->groupRowsUrl($team, 1))->assertOk()->getContent();
+        $this->assertStringContainsString('data-group-key="'.$team->id.'"', $this->groupUserRow($fragment, (int) $student->id, (string) $team->id));
     }
 
     public function test_empty_group_stays_hidden_until_it_is_explicitly_selected(): void
@@ -540,8 +558,11 @@ final class ScheduleJournalGroupBoardFeatureTest extends ScheduleJournalTestCase
         $this->assertStringNotContainsString('Whoops', $html);
         $this->assertStringContainsString($overflow->full_name, $html);
         $this->assertStringNotContainsString($first->full_name, $html);
-        $this->assertStringContainsString($alone->full_name, $html);
-        $this->assertStringContainsString('number-line">1</td', $this->groupUserRow($html, (int) $alone->id, (string) $small->id));
+        $this->assertStringNotContainsString($alone->full_name, $html);
+        $this->assertStringContainsString('data-users-loaded="1"', $html);
+        $this->assertStringContainsString('data-users-loaded="0"', $html);
+        $this->assertStringContainsString('schedule-group-title" title="МалоУчениковЖурнал"', $html);
+        $this->assertStringContainsString('schedule-group-count">1', $html);
         $this->assertJournalPageLinkPointsAtFullJournal($html, (string) $crowded->id, 1);
         $this->assertStringContainsString('data-group-rows-url="'.route('schedule.group-rows').'"', $html);
     }

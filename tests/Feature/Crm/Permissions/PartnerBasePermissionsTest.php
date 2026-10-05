@@ -112,6 +112,9 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('platformPayments.method.acquiringCard', $userPerms);
         $this->assertNotContains('platformPayments.method.acquiringCard', $trainerPerms);
         $this->assertContains('platformPayments.method.acquiringCard', $adminPerms);
+        $this->assertNotContains('platformPayments.method.invoiceIp', $userPerms);
+        $this->assertNotContains('platformPayments.method.invoiceIp', $trainerPerms);
+        $this->assertContains('platformPayments.method.invoiceIp', $adminPerms);
         $this->assertContains('inAppNotifications.view', $userPerms);
         $this->assertContains('inAppNotifications.view', $adminPerms);
         $this->assertContains('inAppNotifications.view', $trainerPerms);

@@ -8,9 +8,11 @@ use App\Models\UserPrice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
+use Tests\Feature\Crm\Payments\Concerns\SignsPaymentCheckout;
 
 class TbankQrSecurityTest extends CrmTestCase
 {
+    use SignsPaymentCheckout;
     private function grantTbankPaymentPermissionForCurrentUser(): void
     {
         $permId = $this->permissionId('payment.method.tbankSBP');
@@ -74,6 +76,7 @@ class TbankQrSecurityTest extends CrmTestCase
             'partner_id' => $this->foreignPartner->id,
             'outSum' => '10.00',
             'formatedPaymentDate' => '2024-01-01',
+            'checkout_intent' => $this->signMonthlyCheckout($this->user, '2024-01-01'),
         ]);
 
         $resp->assertRedirect(route('tinkoff.qr', 777));

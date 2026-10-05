@@ -32,7 +32,7 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
         [$student, $team] = $this->makeStudentWithTeam();
         $this->makeSingleLessonTemplate('Шаблон для affordance');
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('emptyCellPlaceModal', false)
@@ -56,7 +56,7 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
             ->where('permission_id', $this->permissionId('lessonPackages.view'))
             ->delete();
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertOk()
             ->assertSee($student->full_name, false)
             ->assertDontSee('data-empty-lesson="1"', false);
@@ -406,7 +406,7 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
             'trainer_profile_id' => $trainer->id,
         ], $this->ajaxHeaders())->assertOk()->assertJsonPath('result.slots_remaining', 0);
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $page->assertOk()
             ->assertSee('data-flexible="1"', false)
             ->assertSee('data-flexible-remaining="0"', false)
@@ -437,7 +437,7 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
             ->where('permission_id', $this->permissionId('lessonPackages.view'))
             ->delete();
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertOk()
             ->assertSee('data-flexible="1"', false)
             ->assertSee('data-flexible-remaining="0"', false)

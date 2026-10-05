@@ -56,11 +56,11 @@ final class ScheduleJournalPostpayPaymentDueNonAjaxSafetyNetFeatureTest extends 
         $this->assertNotNull($row);
         $this->assertSame(50000, (int) $row->price_cents);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('due', $this->journalPaymentStatusInHtml($html, (int) $student->id));
         $this->assertStringContainsString('500₽', $this->journalPaymentCellHtml($html, (int) $student->id));
     }
@@ -114,11 +114,11 @@ final class ScheduleJournalPostpayPaymentDueNonAjaxSafetyNetFeatureTest extends 
         $this->assertNotSame(200, $response->getStatusCode());
         $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $utssId]);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('', $this->journalPaymentCellHtml($html, (int) $student->id));
         $this->assertNull($this->journalPaymentStatusInHtml($html, (int) $student->id));
     }

@@ -89,6 +89,52 @@ final class SettingPricesMonthlyTeamSelectAjaxContractFeatureTest extends CrmTes
         ]);
     }
 
+    public function test_team_students_are_ordered_by_lastname_then_name(): void
+    {
+        $sync = app(TeamUserSyncService::class);
+        $yakovlev = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+            'lastname' => 'Яковлев',
+            'name' => 'Пётр',
+        ]);
+        $ivanovBoris = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+            'lastname' => 'Иванов',
+            'name' => 'Борис',
+        ]);
+        $almazova = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+            'lastname' => 'алмазова',
+            'name' => 'Анна',
+        ]);
+        $ivanovAnna = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+            'lastname' => 'Иванов',
+            'name' => 'Анна',
+        ]);
+        foreach ([$yakovlev, $ivanovBoris, $almazova, $ivanovAnna] as $student) {
+            $sync->syncTeamsForStudent($student, [(int) $this->team->id]);
+        }
+
+        $ids = $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('getTeamPrice'), [
+                'teamId' => $this->team->id,
+                'selectedDate' => 'Февраль 2026',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->json('usersTeam');
+
+        $this->assertSame(
+            [$almazova->id, $ivanovAnna->id, $ivanovBoris->id, $this->student->id, $yakovlev->id],
+            collect($ids)->pluck('id')->map(static fn ($id) => (int) $id)->all()
+        );
+    }
+
     public function test_empty_group_returns_200_without_users_not_empty_200(): void
     {
         $empty = Team::factory()->create([

@@ -19,6 +19,7 @@ use App\Http\Requests\Admin\PlaceScheduleJournalFixedAbonementRequest;
 use App\Http\Requests\Admin\PlaceScheduleJournalFlexibleAbonementRequest;
 use App\Http\Requests\Admin\PlaceScheduleJournalSingleLessonRequest;
 use App\Http\Requests\Admin\PlaceScheduleJournalTrialLessonRequest;
+use App\Http\Requests\Admin\SaveScheduleJournalPageLengthRequest;
 use App\Http\Requests\Admin\SyncScheduleUserTeamsRequest;
 use App\Http\Requests\Admin\UpdateScheduleJournalOccurrenceRequest;
 use App\Http\Requests\Team\FilterRequest;
@@ -42,6 +43,7 @@ use App\Services\Schedule\JournalOccurrenceAnnulmentService;
 use App\Services\Schedule\JournalSingleLessonPlacementService;
 use App\Services\Schedule\JournalTrialLessonPlacementService;
 use App\Services\Schedule\ScheduleJournalGroupBoardService;
+use App\Services\Schedule\ScheduleJournalPageLength;
 use App\Services\Schedule\ScheduleJournalMonthService;
 use App\Services\TeamUserSyncService;
 use App\Services\TrainerOwnTeamsScope;
@@ -133,6 +135,7 @@ class ScheduleController extends AdminBaseController
             $this->ownTeams->allowedTeamIds($actor, $partnerId),
         );
 
+        $journalGroupPerPage = ScheduleJournalPageLength::forUser($actor);
         $journalGroups = $this->journalGroupBoard->build(
             $actor,
             $partnerId,
@@ -141,7 +144,7 @@ class ScheduleController extends AdminBaseController
             $startOfMonth,
             $endOfMonth,
             (array) ($data['group_pages'] ?? []),
-            (int) ($data['page'] ?? 1),
+            $journalGroupPerPage,
         );
 
         $teams = Team::where('partner_id', $partnerId)
@@ -181,6 +184,7 @@ class ScheduleController extends AdminBaseController
             'statusesForDisplay',
             'visitedStatusId',
             'scheduledStatusId',
+            'journalGroupPerPage',
         ), [
             'activeTab' => 'journal',
             'canPlaceEmptyCellLesson' => auth()->user()?->can('lessonPackages.view') === true,
@@ -204,6 +208,7 @@ class ScheduleController extends AdminBaseController
         $startOfMonth = Carbon::createFromDate($year, (int) $month, 1);
         $endOfMonth = $startOfMonth->copy()->endOfMonth();
 
+        $journalGroupPerPage = ScheduleJournalPageLength::forUser($actor);
         $group = $this->journalGroupBoard->buildOne(
             $actor,
             $partnerId,
@@ -213,6 +218,7 @@ class ScheduleController extends AdminBaseController
             $endOfMonth,
             (string) $data['group_key'],
             (int) ($data['group_page'] ?? 1),
+            $journalGroupPerPage,
         );
         if ($group === null) {
             abort(404);
@@ -228,7 +234,19 @@ class ScheduleController extends AdminBaseController
         return view('admin.schedule._journal_group_users', [
             'group' => $group,
             'days' => $days,
+            'journalGroupPerPage' => $journalGroupPerPage,
             'canPlaceEmptyCellLesson' => auth()->user()?->can('lessonPackages.view') === true,
+        ]);
+    }
+
+    public function saveJournalPageLength(SaveScheduleJournalPageLengthRequest $request): JsonResponse
+    {
+        $length = (int) $request->validated('page_length');
+        ScheduleJournalPageLength::save((int) $request->user()->id, $length);
+
+        return response()->json([
+            'success' => true,
+            'page_length' => $length,
         ]);
     }
 

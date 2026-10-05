@@ -14,6 +14,7 @@ use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
+use Tests\Feature\Crm\Payments\Concerns\SignsPaymentCheckout;
 
 /**
  * Оплата занятий: страница /payment (POST), сумма из users_prices, права paying.classes,
@@ -21,6 +22,7 @@ use Tests\Feature\Crm\CrmTestCase;
  */
 class UserClassPaymentFlowTest extends CrmTestCase
 {
+    use SignsPaymentCheckout;
     protected function setUp(): void
     {
         parent::setUp();
@@ -239,6 +241,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $response = $this->post(route('payment.pay'), [
             'formatedPaymentDate' => '2026-07-01',
             'outSum' => '1.00',
+            'checkout_intent' => $this->signMonthlyCheckout($this->user, '2026-07-01'),
         ]);
 
         $response->assertRedirect();
@@ -283,6 +286,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
 
         $response = $this->post(route('payment.tinkoff.pay'), [
             'formatedPaymentDate' => '2025-06-01',
+            'checkout_intent' => $this->signMonthlyCheckout($this->user, '2025-06-01'),
         ]);
 
         $response->assertRedirect();
@@ -332,6 +336,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
             'payment_kind' => 'custom_payment',
             'custom_payment_id' => $upp->id,
             'paymentDate' => 'Дополнительный платеж',
+            'checkout_intent' => $this->signCustomCheckout($this->user, (int) $upp->id),
         ]);
 
         $response->assertRedirect();
@@ -430,6 +435,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
             'payment_kind' => 'lesson_package',
             'user_lesson_package_id' => $ulp->id,
             'paymentDate' => 'ignored',
+            'checkout_intent' => $this->signLessonCheckout($this->user, (int) $ulp->id),
         ]);
 
         $response->assertRedirect();
@@ -460,6 +466,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
             'user_lesson_package_id' => $ulp->id,
             'paymentDate' => 'ignored',
             'outSum' => '1.00',
+            'checkout_intent' => $this->signLessonCheckout($this->user, (int) $ulp->id),
         ]);
 
         $response->assertRedirect();

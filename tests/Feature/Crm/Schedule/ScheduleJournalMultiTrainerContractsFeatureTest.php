@@ -39,7 +39,7 @@ final class ScheduleJournalMultiTrainerContractsFeatureTest extends ScheduleJour
 
     public function test_journal_page_renders_multiselect_trainer_fields_for_cell_and_flexible_modals(): void
     {
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '05']));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '05']);
         $page->assertOk();
 
         $html = (string) $page->getContent();

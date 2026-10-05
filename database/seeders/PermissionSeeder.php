@@ -45,6 +45,7 @@ class PermissionSeeder extends Seeder
             // group_slug reports
             ['name' => 'reports.ltv.teams.view',         'description' => 'Отчёт «Платежи по группам»',                    'group_slug' => 'reports', 'is_visible' => 1, 'sort_order' => 15],
             ['name' => 'reports.ltv.locations.view',     'description' => 'Отчёт «Платежи по объектам»',                   'group_slug' => 'reports', 'is_visible' => 1, 'sort_order' => 16],
+            ['name' => 'reports.ltv.admins.view',        'description' => 'Отчёт «По админам»',                            'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'reports.payment.intents.view',   'description' => 'Страница "Платежные запросы"',                  'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'reports.fiscal.receipts.view',   'description' => 'Страница "Чеки"',                               'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'reports.emails.view',            'description' => 'Страница "Исходящие письма"',                  'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 16],
@@ -174,6 +175,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'platformPayments.method.acquiringSbp', 'description' => 'СБП · эквайринг (кошелёк и абонплата)',     'group_slug' => 'platformPayments', 'is_visible' => 0, 'sort_order' => 10],
             ['name' => 'platformPayments.method.acquiringCard', 'description' => 'Карта · эквайринг (кошелёк и абонплата)', 'group_slug' => 'platformPayments', 'is_visible' => 0, 'sort_order' => 15],
             ['name' => 'platformPayments.method.yookassa', 'description' => 'ЮKassa (кошелёк и абонплата)',                 'group_slug' => 'platformPayments', 'is_visible' => 0, 'sort_order' => 20],
+            ['name' => 'platformPayments.method.invoiceIp', 'description' => 'Счёт от ИП (кошелёк)',                        'group_slug' => 'platformPayments', 'is_visible' => 0, 'sort_order' => 25],
 
             // group_slug misc
             ['name' => 'paying.classes',                 'description' => 'Оплата учебных занятий',                         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 100],

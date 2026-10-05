@@ -100,6 +100,10 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
             }
         }
 
+        if ($this->storesGroupMode()) {
+            $rules['mode'] = ['required', 'string', Rule::in(['operation', 'subscription'])];
+        }
+
         if ($this->filterProfile() === PersistedReportFilters::PAYMENTS) {
             $rules['user_name'] = ['nullable', 'string', 'max:255'];
             $rules['team_title'] = ['nullable', 'string', 'max:255'];
@@ -157,6 +161,7 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
             'bank_commission_payout_min' => 'Комиссия выплаты от',
             'bank_commission_payout_max' => 'Комиссия выплаты до',
             'status' => 'Активность ученика',
+            'mode' => 'Группировка',
         ];
     }
 
@@ -186,6 +191,9 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
             'email_newsletter.in' => 'Выберите значение фильтра «Email рассылка».',
             'payment_refund_status.in' => 'Выберите статус платежа из списка.',
             'status.in' => 'Выберите активность ученика: все, только активные или только неактивные.',
+            'mode.required' => 'Выберите группировку: по месяцу абонемента или по дате платежа.',
+            'mode.string' => 'Выберите группировку: по месяцу абонемента или по дате платежа.',
+            'mode.in' => 'Выберите группировку: по месяцу абонемента или по дате платежа.',
             'bank_commission_acquiring_min.numeric' => 'Комиссия оплаты «от» должна быть числом.',
             'bank_commission_acquiring_min.min' => 'Комиссия оплаты «от» не меньше 0.',
             'bank_commission_acquiring_min.max' => 'Комиссия оплаты «от» слишком большая.',
@@ -237,6 +245,16 @@ abstract class SavePersistedReportFiltersRequest extends FormRequest
     private function usesTeamList(): bool
     {
         return $this->filterProfile() !== PersistedReportFilters::MONTHLY;
+    }
+
+    private function storesGroupMode(): bool
+    {
+        return in_array($this->filterProfile(), [
+            PersistedReportFilters::MONTHLY,
+            PersistedReportFilters::LTV_TEAMS,
+            PersistedReportFilters::LTV_LOCATIONS,
+            PersistedReportFilters::LTV_ADMINS,
+        ], true);
     }
 
     private function partnerId(): int

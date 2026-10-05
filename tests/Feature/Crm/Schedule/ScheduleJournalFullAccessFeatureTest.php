@@ -22,7 +22,7 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
     {
         [$student] = $this->makeStudentTeamAndTrainer();
 
-        $this->get(route('schedule.index'))
+        $this->journalIndex([])
             ->assertOk()
             ->assertSee('schedule-section', false)
             ->assertSee('id="filter-year"', false)
@@ -48,11 +48,11 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
     {
         [$student, $team] = $this->makeStudentTeamAndTrainer();
 
-        $this->get(route('schedule.index', [
+        $this->journalIndex( [
             'year' => 2026,
             'month' => '05',
             'team' => $team->id,
-        ]))
+        ])
             ->assertOk()
             ->assertSee($student->full_name, false)
             ->assertSee('value="2026"', false)
@@ -65,11 +65,11 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
         $student = $this->makeStudent(null);
         $student->update(['name' => 'БезГруппы', 'lastname' => 'Доступ']);
 
-        $this->get(route('schedule.index', [
+        $this->journalIndex( [
             'year' => 2026,
             'month' => '05',
             'team' => 'none',
-        ]))
+        ])
             ->assertOk()
             ->assertSee($student->full_name, false);
     }

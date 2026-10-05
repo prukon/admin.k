@@ -222,6 +222,7 @@
       <code>PlatformPaymentsMethodFullAccessFeatureTest</code>,
       <code>BladeInlineJsSyntaxTest::test_partner_wallet_topup_ajax_prevents_native_submit_and_shows_field_errors</code>,
       <code>PartnerWalletDocumentationContractTest</code>,
+      <code>PartnerWalletInvoiceFeatureTest</code>,
       <code>ContractBillingWalletLedgerFeatureTest</code>.</li>
   </ul>
 
@@ -235,8 +236,10 @@
     (миграция переименовала <code>platformPayments.method.tbankSbp</code>, выданные роли сохранились),
     <code>platformPayments.method.acquiringCard</code> — «Карта · эквайринг»
     (новым школам в роли <code>admin</code>, существующим миграция не выдаёт),
-    <code>platformPayments.method.yookassa</code>.
-    Значения запроса: <code>acquiring_sbp</code>, <code>acquiring_card</code>, <code>yookassa</code>.
+    <code>platformPayments.method.yookassa</code>,
+    <code>platformPayments.method.invoiceIp</code> — «Счёт от ИП (кошелёк)».
+    Значения запроса: <code>acquiring_sbp</code>, <code>acquiring_card</code>, <code>yookassa</code>,
+    <code>invoice_ip</code> (отдельный <code>POST /partner-wallet/invoice</code>, не topup).
     Старое <code>tinkoff_sbp</code> принимается и приводится к <code>acquiring_sbp</code>.
     СБП — QR. Карта — редирект на <code>PaymentURL</code> того же терминала
     <code>tbank_acquiring</code>. ЮKassa — как раньше.
@@ -270,6 +273,18 @@
     Новым школам T‑Bank СБП — только <code>admin</code> из
     <code>role_base_permissions</code>; существующим миграция не выдаёт.
     ЮKassa в базовых ролях нет.
+    Счёт от ИП — карточка <code>id="walletCheckoutInvoiceIp"</code> на checkout, только если у школы
+    есть включённое юрлицо (<code>partner_legal_entities.is_enabled</code>, не удалённое;
+    покупатель — основное, иначе самое раннее). Без юрлица карточки нет, POST 422
+    <code>errors.payment_method</code> «У школы нет включённого юрлица. Счёт выставить нельзя.»
+    Кнопка скачивает PDF и пишет строку <code>partner_wallet_invoices</code>
+    (номер, сумма в копейках, снимок покупателя и продавца). Позиция счёта —
+    «Пополнение баланса KidsCRM», пометка «НДС не облагается».
+    Баланс <code>wallet_balance_cents</code> и <code>partner_wallet_transactions</code> не меняются.
+    Право <code>platformPayments.method.invoiceIp</code> скрытое, в роли <code>admin</code>
+    у новых школ через <code>role_base_permissions</code> и у существующих — миграцией.
+    Ролям <code>user</code> и <code>trainer</code> не выдаётся. Абонплата этот способ не показывает.
+    Тест: <code>PartnerWalletInvoiceFeatureTest</code>.
   </div>
   <p class="small">Контекст партнёра: <a href="/docs/documentation/partner-context">partner-context</a>,
     руководство: <a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a>,

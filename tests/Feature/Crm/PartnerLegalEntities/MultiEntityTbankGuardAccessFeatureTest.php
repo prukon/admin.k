@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
+use Tests\Feature\Crm\Payments\Concerns\SignsPaymentCheckout;
 
 /**
  * Multi-entity T‑Bank guard: доступы, контракты endpoint'ов, non-AJAX safety-net (группы),
@@ -22,6 +23,7 @@ use Tests\Feature\Crm\CrmTestCase;
  */
 final class MultiEntityTbankGuardAccessFeatureTest extends CrmTestCase
 {
+    use SignsPaymentCheckout;
     private PartnerLegalEntity $entityA;
 
     private PartnerLegalEntity $entityB;
@@ -542,6 +544,7 @@ final class MultiEntityTbankGuardAccessFeatureTest extends CrmTestCase
             'formatedPaymentDate' => '2027-04-01',
             'team_id' => (int) $this->teamUnbound->id,
             'outSum' => '35.00',
+            'checkout_intent' => $this->signMonthlyCheckout($this->user, '2027-04-01', (int) $this->teamUnbound->id),
         ]);
 
         $response->assertRedirect()
@@ -570,6 +573,7 @@ final class MultiEntityTbankGuardAccessFeatureTest extends CrmTestCase
             'outSum' => '50.00',
             'paymentDate' => 'Клубный взнос',
             'team_id' => (int) $this->teamBound->id,
+            'checkout_intent' => $this->signClubCheckout($this->user),
         ])
             ->assertRedirect()
             ->assertStatus(302);
@@ -591,6 +595,7 @@ final class MultiEntityTbankGuardAccessFeatureTest extends CrmTestCase
             'outSum' => '500.00',
             'paymentDate' => 'Клубный взнос',
             'team_id' => (int) $this->teamUnbound->id,
+            'checkout_intent' => $this->signClubCheckout($this->user),
         ])
             ->assertRedirect()
             ->assertSessionHasErrors(['tinkoff' => 'Для выбранной группы не настроено юр. лицо']);
@@ -606,6 +611,7 @@ final class MultiEntityTbankGuardAccessFeatureTest extends CrmTestCase
             'outSum' => '50.00',
             'paymentDate' => 'Клубный взнос',
             'team_id' => (int) $this->teamUnbound->id,
+            'checkout_intent' => $this->signClubCheckout($this->user),
         ]);
 
         $response->assertRedirect()
@@ -646,6 +652,7 @@ final class MultiEntityTbankGuardAccessFeatureTest extends CrmTestCase
             'outSum' => '1500.00',
             'paymentDate' => 'Клубный взнос',
             'team_id' => (int) $this->teamBound->id,
+            'checkout_intent' => $this->signClubCheckout($this->user),
         ])
             ->assertRedirect()
             ->assertStatus(302);
@@ -696,6 +703,7 @@ final class MultiEntityTbankGuardAccessFeatureTest extends CrmTestCase
             'formatedPaymentDate' => '2027-04-01',
             'team_id' => (int) $this->teamUnbound->id,
             'outSum' => '35.00',
+            'checkout_intent' => $this->signMonthlyCheckout($this->user, '2027-04-01', (int) $this->teamUnbound->id),
         ])
             ->assertRedirect()
             ->assertSessionHasErrors(['tinkoff' => 'Для выбранной группы не настроено юр. лицо']);
@@ -721,6 +729,7 @@ final class MultiEntityTbankGuardAccessFeatureTest extends CrmTestCase
             'formatedPaymentDate' => '2027-04-01',
             'team_id' => (int) $this->teamBound->id,
             'outSum' => '35.00',
+            'checkout_intent' => $this->signMonthlyCheckout($this->user, '2027-04-01', (int) $this->teamBound->id),
         ])
             ->assertRedirect()
             ->assertStatus(302);

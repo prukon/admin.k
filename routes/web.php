@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\PartnerSettingController;
 use App\Http\Controllers\Admin\Report\DeptReportController;
 use App\Http\Controllers\Admin\Report\FiscalReceiptReportController;
 use App\Http\Controllers\Admin\Report\LtvReportController;
+use App\Http\Controllers\Admin\Report\LtvAdminsReportController;
 use App\Http\Controllers\Admin\Report\LtvLocationsReportController;
 use App\Http\Controllers\Admin\Report\LtvTeamsReportController;
 use App\Http\Controllers\Admin\Report\OutgoingEmailReportController;
@@ -358,6 +359,19 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/ltv/locations/{location}/payments', [LtvLocationsReportController::class, 'getLocationPayments'])->whereNumber('location')->name('reports.ltv.locations.payments');
     });
 
+    Route::middleware(['can:reports.ltv.admins.view'])->group(function () {
+        Route::get('/admin/reports/ltv/admins/users-search', [PaymentReportController::class, 'usersSearch'])->name('reports.ltv.admins.users.search');
+        Route::get('/admin/reports/ltv/admins/teams-search', [PaymentReportController::class, 'teamsSearch'])->name('reports.ltv.admins.teams.search');
+        Route::get('/admin/reports/ltv/admins/trainers-search', [PaymentReportController::class, 'trainersSearch'])->name('reports.ltv.admins.trainers.search');
+        Route::get('/admin/reports/ltv/admins', [LtvAdminsReportController::class, 'index'])->name('reports.ltv.admins');
+        Route::get('/admin/reports/ltv/admins/total', [LtvAdminsReportController::class, 'total'])->name('reports.ltv.admins.total');
+        Route::get('/admin/reports/ltv/admins/data', [LtvAdminsReportController::class, 'getLtvAdmins'])->name('reports.ltv.admins.data');
+        Route::get('/admin/reports/ltv/admins/columns-settings', [LtvAdminsReportController::class, 'getColumnsSettings'])->name('reports.ltv.admins.columns-settings.get');
+        Route::post('/admin/reports/ltv/admins/columns-settings', [LtvAdminsReportController::class, 'saveColumnsSettings'])->name('reports.ltv.admins.columns-settings.save');
+        Route::post('/admin/reports/ltv/admins/filters', [LtvAdminsReportController::class, 'saveFilters'])->name('reports.ltv.admins.filters.save');
+        Route::get('/admin/reports/ltv/admins/{admin}/payments', [LtvAdminsReportController::class, 'getAdminPayments'])->whereNumber('admin')->name('reports.ltv.admins.payments');
+    });
+
     // Отчёты -> "Платежные запросы"
     Route::middleware(['can:reports.payment.intents.view'])->group(function () {
         Route::get('/admin/reports/payment-intents', [PaymentIntentReportController::class, 'paymentIntents'])->name('reports.payment-intents.index');
@@ -502,6 +516,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:schedule.view')->group(function () {
         Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
         Route::get('/schedule/group-rows', [ScheduleController::class, 'groupRows'])->name('schedule.group-rows');
+        Route::post('/schedule/journal-page-length', [ScheduleController::class, 'saveJournalPageLength'])
+            ->name('schedule.journal-page-length');
         Route::get('/schedule/group-bulk-candidates', [ScheduleController::class, 'groupBulkCandidates'])
             ->name('schedule.group-bulk-candidates');
         Route::get('/schedule/trainer-workload', [ScheduleTrainerWorkloadController::class, 'index'])
@@ -1188,7 +1204,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     //Страница оплаты робокассы
     Route::middleware('can:paying.classes')->group(function () {
-        Route::post('payment', [TransactionController::class, 'index'])->name('payment');
+        Route::match(['get', 'post'], 'payment', [TransactionController::class, 'index'])->name('payment');
         Route::post('payment/pay', [TransactionController::class, 'pay'])->name('payment.pay');
     });
 
@@ -1302,6 +1318,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/partner-wallet/checkout', [PartnerPaymentController::class, 'showWalletCheckout'])->name('partner.wallet.checkout');
         // Создать платёж на пополнение кошелька
         Route::post('/partner-wallet/topup', [PartnerPaymentController::class, 'createWalletTopup'])->name('partner.wallet.topup');
+        Route::post('/partner-wallet/invoice', [PartnerPaymentController::class, 'createWalletInvoice'])->name('partner.wallet.invoice');
         // История транзакций кошелька (DataTables)
         Route::get('/partner-wallet/transactions', [PartnerPaymentController::class, 'getWalletTransactionsData'])->name('partner.wallet.transactions');
         Route::get('/partner-wallet/transactions/columns-settings', [PartnerPaymentController::class, 'getWalletHistoryColumnsSettings'])

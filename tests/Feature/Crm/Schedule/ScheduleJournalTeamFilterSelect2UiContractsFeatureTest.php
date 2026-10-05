@@ -62,21 +62,21 @@ final class ScheduleJournalTeamFilterSelect2UiContractsFeatureTest extends Sched
             'is_enabled' => 1,
         ]);
 
-        $selected = $this->get(route('schedule.index', [
+        $selected = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team_ids' => [$team->id],
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertMatchesRegularExpression(
             '/<option value="'.$team->id.'"\s+selected/s',
             $selected
         );
         $this->assertDoesNotMatchRegularExpression('/<option value="none"\s+selected/s', $selected);
 
-        $empty = $this->get(route('schedule.index', [
+        $empty = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertTrue((bool) preg_match('/<select[^>]*id="filter-team"[^>]*>(.*?)<\/select>/s', $empty, $select));
         $this->assertStringNotContainsString('selected', $select[1]);
         $this->assertDoesNotMatchRegularExpression('/<option value="none"\s+selected/s', $empty);

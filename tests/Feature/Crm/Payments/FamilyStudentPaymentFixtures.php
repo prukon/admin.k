@@ -8,6 +8,8 @@ use App\Models\ParentProfile;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\Payments\PaymentCheckoutIntent;
+use App\Services\Payments\PaymentCheckoutIntentSigner;
 use App\Services\TeamUserSyncService;
 use App\Services\Users\FamilyStudentContextService;
 use Illuminate\Support\Facades\DB;
@@ -77,12 +79,26 @@ trait FamilyStudentPaymentFixtures
      */
     private function monthlyPayload(int $teamId, string $month): array
     {
-        return [
+        $payload = [
             'paymentDate' => 'Сентябрь 2026',
             'formatedPaymentDate' => $month,
             'team_id' => $teamId,
             'outSum' => '1.00',
         ];
+        $actor = auth()->user();
+        if ($actor instanceof User) {
+            $student = app(FamilyStudentContextService::class)->activeStudent($actor);
+            $payload['checkout_intent'] = app(PaymentCheckoutIntentSigner::class)->issue(
+                PaymentCheckoutIntent::KIND_MONTHLY,
+                (int) $this->partner->id,
+                (int) $actor->id,
+                (int) $student->id,
+                month: $month,
+                teamId: $teamId,
+            );
+        }
+
+        return $payload;
     }
 
     private function grantPermission(User $actor, string $permissionName): void

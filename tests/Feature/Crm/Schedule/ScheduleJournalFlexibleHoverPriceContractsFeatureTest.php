@@ -39,7 +39,7 @@ final class ScheduleJournalFlexibleHoverPriceContractsFeatureTest extends Schedu
         );
         $hoverHtml = e($hover);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
             ->assertSee('data-fee-amount-cents="123400"', false)
@@ -60,7 +60,7 @@ final class ScheduleJournalFlexibleHoverPriceContractsFeatureTest extends Schedu
             0,
         ));
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertOk()
             ->assertSee('data-fee-amount-cents="0"', false)
             ->assertSee($hoverHtml, false)
@@ -76,7 +76,7 @@ final class ScheduleJournalFlexibleHoverPriceContractsFeatureTest extends Schedu
         $this->makeMonthlyFlexibleAssignment($student, (int) $teamA->id, '2026-09-01', lessons: 5, feeAmountCents: 100000);
         $this->makeMonthlyFlexibleAssignment($student, (int) $teamB->id, '2026-09-01', lessons: 4, feeAmountCents: 0);
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => 'all']))
+        $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => 'all'])
             ->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
             ->assertDontSee('journal-flexible-hint--multi', false)
@@ -158,7 +158,7 @@ final class ScheduleJournalFlexibleHoverPriceContractsFeatureTest extends Schedu
         $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 2);
         Auth::logout();
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertRedirect();
 
         $this->getJson(route('schedule.abonement.flexible-context', $student).'?'.http_build_query([
@@ -183,7 +183,7 @@ final class ScheduleJournalFlexibleHoverPriceContractsFeatureTest extends Schedu
         $session = ['current_partner' => $this->partner->id, '2fa:passed' => true];
 
         $this->actingAs($actor)->withSession($session)
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+            ->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertForbidden();
 
         $this->actingAs($actor)->withSession($session)
@@ -218,7 +218,7 @@ final class ScheduleJournalFlexibleHoverPriceContractsFeatureTest extends Schedu
             90000,
         ));
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('flexiblePlaceModal', false)
@@ -241,7 +241,7 @@ final class ScheduleJournalFlexibleHoverPriceContractsFeatureTest extends Schedu
             ->assertJsonPath('result.comment', 'Hover price workflow');
         $this->assertNotSame('', (string) $place->json('message'));
 
-        $pageAfter = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $pageAfter = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $pageAfter->assertOk();
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));
         $pageAfter->assertSee($student->full_name, false)

@@ -82,6 +82,11 @@ class LtvLocationsReportPeriodRequest extends FormRequest
 
     public function mode(): string
     {
+        $fromQuery = $this->query('mode');
+        if ($fromQuery === 'subscription' || $fromQuery === 'operation') {
+            return $fromQuery;
+        }
+
         $mode = $this->validated()['mode'] ?? null;
         if ($mode === 'subscription') {
             return 'subscription';

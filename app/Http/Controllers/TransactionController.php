@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 //use App\Models\ClientPayment;
 
+use App\Http\Controllers\Concerns\OpensPaymentCheckoutIntent;
 use App\Http\Controllers\Concerns\ResolvesPaymentCheckoutTeam;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
@@ -13,18 +14,24 @@ use App\Models\UserCustomPayment;
 use App\Models\UserLessonPackage;
 use App\Services\Payments\FamilyPaymentPayerResolver;
 use App\Services\Payments\PaymentCheckoutContextResolver;
+use App\Services\Payments\PaymentCheckoutIntent;
+use App\Services\Payments\PaymentCheckoutIntentSigner;
 use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\PaymentService;
 use App\Services\Payments\UserLessonPackageFeePaymentResolver;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
 use App\Support\Money;
 use App\Support\Payments\PaymentOutSumNormalizer;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\ViewErrorBag;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class TransactionController extends Controller
 {
+    use OpensPaymentCheckoutIntent;
     use ResolvesPaymentCheckoutTeam;
 
     public function __construct()
@@ -79,6 +86,10 @@ class TransactionController extends Controller
     public function index(Request $request, PaymentService $paymentService)
     {
         $this->authorize('paying.classes');
+
+        if ($request->isMethod('GET') && ! $this->sessionHasCheckoutIntentError($request)) {
+            return redirect()->route('dashboard');
+        }
 
         $paymentDate = (string) $request->input('paymentDate', '');
         $outSum = (string) $request->input('outSum', '');
@@ -181,6 +192,38 @@ class TransactionController extends Controller
         $serviceProviderLabel = $checkoutContext->serviceProviderLabel;
         $payerStudent = $user;
 
+        $checkoutIntent = null;
+        $checkoutUnavailableMessage = null;
+        $checkoutSigner = app(PaymentCheckoutIntentSigner::class);
+        if ($paymentKind === 'lesson_package' && $userLessonPackageId) {
+            $checkoutIntent = $checkoutSigner->issue(
+                PaymentCheckoutIntent::KIND_LESSON,
+                $partnerId,
+                (int) $actor->id,
+                (int) $user->id,
+                userLessonPackageId: $userLessonPackageId,
+            );
+        } elseif ($paymentKind === 'custom_payment' && $userPeriodPriceId) {
+            $checkoutIntent = $checkoutSigner->issue(
+                PaymentCheckoutIntent::KIND_CUSTOM,
+                $partnerId,
+                (int) $actor->id,
+                (int) $user->id,
+                customPaymentId: $userPeriodPriceId,
+            );
+        } elseif ($formatedPaymentDate !== null) {
+            $checkoutIntent = $checkoutSigner->issue(
+                PaymentCheckoutIntent::KIND_MONTHLY,
+                $partnerId,
+                (int) $actor->id,
+                (int) $user->id,
+                month: $formatedPaymentDate,
+                teamId: $monthlyTeamId,
+            );
+        } else {
+            $checkoutUnavailableMessage = 'Не удалось определить оплату. Вернитесь в кабинет и выберите месяц или абонемент.';
+        }
+
         return view('payment.paymentUser', compact(
             'paymentDate',
             'outSum',
@@ -197,6 +240,8 @@ class TransactionController extends Controller
             'showTbankLegalEntityBlock',
             'serviceProviderLabel',
             'payerStudent',
+            'checkoutIntent',
+            'checkoutUnavailableMessage',
         ));
     }
 
@@ -205,22 +250,28 @@ class TransactionController extends Controller
     {
         $this->authorize('payment.method.robokassa');
 
+        Validator::make($request->all(), [
+            'checkout_intent' => ['required', 'string', 'max:8000'],
+        ], [
+            'checkout_intent.required' => PaymentCheckoutIntentSigner::MESSAGE_REOPEN,
+        ], [
+            'checkout_intent' => 'страница оплаты',
+        ])->validate();
+
         $partnerId = (int) app('current_partner')->id;
 
-        $paymentKind = (string) $request->input('payment_kind', '');
-        $userPeriodPriceId = $request->filled('custom_payment_id') ? (int) $request->input('custom_payment_id') : null;
-        $userLessonPackageId = $request->filled('user_lesson_package_id') ? (int) $request->input('user_lesson_package_id') : null;
+        $opened = $this->beginPaymentCheckout($request, $partnerId);
+        if ($opened instanceof RedirectResponse) {
+            return $opened;
+        }
+        $intent = $opened['intent'];
+        $paymentKind = $opened['paymentKind'];
+        $userPeriodPriceId = $opened['userPeriodPriceId'];
+        $userLessonPackageId = $opened['userLessonPackageId'];
+        $rawFmt = $opened['rawFmt'];
+        $hasMonthly = $opened['hasMonthly'];
 
-        $rawFmt = $request->input('formatedPaymentDate');
-        $hasMonthly = $request->filled('formatedPaymentDate')
-            && is_string($rawFmt)
-            && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
-
-        $payer = app(FamilyPaymentPayerResolver::class)->forPayableType(
-            $request->user(),
-            $paymentKind,
-            $hasMonthly,
-        );
+        $payer = $opened['payer'];
         $user = $payer->student;
         $userId = $payer->studentId();
         $userName = (string) ($user->name ?? '');
@@ -260,7 +311,7 @@ class TransactionController extends Controller
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
         } elseif ($hasMonthly) {
-            $teamIdParam = $request->filled('team_id') ? (int) $request->input('team_id') : null;
+            $teamIdParam = $intent->teamId;
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 $partnerId,
@@ -272,6 +323,11 @@ class TransactionController extends Controller
             $paymentDate = $resolved['month_first_day'];
             $monthlyTeamId = $resolved['team_id'];
         } else {
+            if ($intent->kind !== PaymentCheckoutIntent::KIND_CLUB) {
+                return back()->withErrors([
+                    'checkout_intent' => PaymentCheckoutIntentSigner::MESSAGE_UNKNOWN,
+                ]);
+            }
             $outSumRaw = (string) $request->input('outSum', '');
             $outSum = PaymentOutSumNormalizer::normalize($outSumRaw);
             if ($outSum === null) {
@@ -280,9 +336,6 @@ class TransactionController extends Controller
             }
             $amountCents = Money::toCentsOrFail($outSum);
             $paymentDate = 'Клубный взнос';
-            if (! $request->has('formatedPaymentDate')) {
-                Log::warning('formatedPaymentDate отсутствует в запросе');
-            }
         }
 
         // Получаем настройки Робокассы из БД
@@ -471,6 +524,16 @@ class TransactionController extends Controller
         $showTbankLegalEntityBlock = ! $clubFeeBlocked && $checkoutContext->showTbankLegalEntityBlock;
         $serviceProviderLabel = $checkoutContext->serviceProviderLabel;
 
+        $checkoutIntent = null;
+        if (! $clubFeeBlocked && $user->can('payment.clubfee')) {
+            $checkoutIntent = app(PaymentCheckoutIntentSigner::class)->issue(
+                PaymentCheckoutIntent::KIND_CLUB,
+                $partnerId,
+                (int) $user->id,
+                (int) $user->id,
+            );
+        }
+
         return view('payment.clubFee', compact(
             'outSum',
             'partnerId',
@@ -487,6 +550,14 @@ class TransactionController extends Controller
             'clubFeeDefaultTeamId',
             'showTbankLegalEntityBlock',
             'serviceProviderLabel',
+            'checkoutIntent',
         ));
+    }
+
+    private function sessionHasCheckoutIntentError(Request $request): bool
+    {
+        $errors = $request->session()->get('errors');
+
+        return $errors instanceof ViewErrorBag && $errors->has('checkout_intent');
     }
 }

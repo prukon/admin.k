@@ -60,9 +60,9 @@ final class TrainerOwnTeamsScopeFeatureTest extends TrainerOwnTeamsScopeTestCase
         $this->getJson('/admin/users/data?draw=1&start=0&length=50&team_id='.$otherTeam->id)
             ->assertOk();
 
-        $journal = $this->get('/schedule')->assertOk();
-        $journal->assertSee($ownStudent->lastname, false);
-        $journal->assertSee($otherStudent->lastname, false);
+        $this->get('/schedule')->assertOk();
+        $this->assertStringContainsString($ownStudent->lastname, $this->scheduleGroupRowsHtml((int) $ownTeam->id));
+        $this->assertStringContainsString($otherStudent->lastname, $this->scheduleGroupRowsHtml((int) $otherTeam->id));
     }
 
     public function test_trainer_with_groups_own_sees_only_own_teams_and_students(): void
@@ -98,9 +98,10 @@ final class TrainerOwnTeamsScopeFeatureTest extends TrainerOwnTeamsScopeTestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['team']);
 
-        $journal = $this->get('/schedule')->assertOk();
-        $journal->assertSee($ownStudent->lastname, false);
-        $journal->assertDontSee($otherStudent->lastname, false);
+        $this->get('/schedule')->assertOk();
+        $rows = $this->scheduleGroupRowsHtml((int) $ownTeam->id);
+        $this->assertStringContainsString($ownStudent->lastname, $rows);
+        $this->assertStringNotContainsString($otherStudent->lastname, $rows);
 
         $this->getJson(route('admin.team.edit', $otherTeam->id))->assertForbidden();
         $this->patchJson('/admin/team/'.$otherTeam->id, [

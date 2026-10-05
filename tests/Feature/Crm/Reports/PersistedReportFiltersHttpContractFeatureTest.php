@@ -87,11 +87,11 @@ final class PersistedReportFiltersHttpContractFeatureTest extends CrmTestCase
     {
         $cases = [
             ['reports.payments.filters.save', 'payments', 'reports_payments', ['payment_month' => '2026-03', 'status' => 'inactive']],
-            ['reports.payments.monthly.filters.save', 'reports.payments.monthly', 'reports_payments_monthly', ['payment_provider' => 'tbank']],
+            ['reports.payments.monthly.filters.save', 'reports.payments.monthly', 'reports_payments_monthly', ['payment_provider' => 'tbank', 'mode' => 'operation']],
             ['reports.ltv.filters.save', 'reports.ltv', 'reports_ltv', ['operation_date_from' => '2026-02-01']],
             ['reports.debts.filters.save', 'debts', 'reports_debts', ['debt_month' => '2026-06']],
-            ['reports.ltv.teams.filters.save', 'reports.ltv.teams', 'reports_ltv_teams', ['payment_month' => '2026-07']],
-            ['reports.ltv.locations.filters.save', 'reports.ltv.locations', 'reports_ltv_locations', ['payment_provider' => 'robokassa']],
+            ['reports.ltv.teams.filters.save', 'reports.ltv.teams', 'reports_ltv_teams', ['payment_month' => '2026-07', 'mode' => 'subscription']],
+            ['reports.ltv.locations.filters.save', 'reports.ltv.locations', 'reports_ltv_locations', ['payment_provider' => 'robokassa', 'mode' => 'operation']],
         ];
 
         foreach ($cases as [$save, $page, $tableKey, $payload]) {
@@ -476,20 +476,27 @@ final class PersistedReportFiltersHttpContractFeatureTest extends CrmTestCase
 
         $stored = $this->filtersRow('reports_ltv_teams');
         $this->assertSame('2026-07', $stored->filters['payment_month']);
+        $this->assertSame('subscription', $stored->filters['mode']);
         $this->assertArrayNotHasKey('period', $stored->filters);
-        $this->assertArrayNotHasKey('mode', $stored->filters);
 
         $html = $this->get(route('reports.ltv.teams'))->assertOk()->getContent();
         $this->assertStringContainsString('value="2026-07"', $html);
         $this->assertButtonActive($html, 'ltv-teams-period-btn-current', true);
         $this->assertButtonActive($html, 'ltv-teams-period-btn-all', false);
-        $this->assertButtonActive($html, 'ltv-teams-group-mode-btn-operation', true);
-        $this->assertButtonActive($html, 'ltv-teams-group-mode-btn-subscription', false);
+        $this->assertButtonActive($html, 'ltv-teams-group-mode-btn-subscription', true);
+        $this->assertButtonActive($html, 'ltv-teams-group-mode-btn-operation', false);
 
         $withPeriod = $this->get(route('reports.ltv.teams', ['period' => 'all']))->assertOk()->getContent();
         $this->assertStringContainsString('value="2026-07"', $withPeriod);
         $this->assertButtonActive($withPeriod, 'ltv-teams-period-btn-all', true);
         $this->assertButtonActive($withPeriod, 'ltv-teams-period-btn-current', false);
+        $this->assertSame('2026-07', $this->filtersRow('reports_ltv_teams')->filters['payment_month']);
+        $this->assertSame('subscription', $this->filtersRow('reports_ltv_teams')->filters['mode']);
+
+        $withMode = $this->get(route('reports.ltv.teams', ['mode' => 'operation']))->assertOk()->getContent();
+        $this->assertButtonActive($withMode, 'ltv-teams-group-mode-btn-operation', true);
+        $this->assertButtonActive($withMode, 'ltv-teams-group-mode-btn-subscription', false);
+        $this->assertSame('subscription', $this->filtersRow('reports_ltv_teams')->filters['mode']);
         $this->assertSame('2026-07', $this->filtersRow('reports_ltv_teams')->filters['payment_month']);
     }
 
@@ -502,18 +509,37 @@ final class PersistedReportFiltersHttpContractFeatureTest extends CrmTestCase
 
         $stored = $this->filtersRow('reports_payments_monthly');
         $this->assertSame('tbank', $stored->filters['payment_provider']);
-        $this->assertArrayNotHasKey('mode', $stored->filters);
+        $this->assertSame('operation', $stored->filters['mode']);
 
         $html = $this->get(route('reports.payments.monthly'))->assertOk()->getContent();
         $this->assertStringContainsString('value="tbank" selected', $html);
-        $this->assertModeButtonActive($html, 'subscription', true);
-        $this->assertModeButtonActive($html, 'operation', false);
+        $this->assertModeButtonActive($html, 'operation', true);
+        $this->assertModeButtonActive($html, 'subscription', false);
 
-        $operation = $this->get(route('reports.payments.monthly', ['mode' => 'operation']))->assertOk()->getContent();
-        $this->assertStringContainsString('value="tbank" selected', $operation);
-        $this->assertModeButtonActive($operation, 'operation', true);
-        $this->assertModeButtonActive($operation, 'subscription', false);
+        $subscription = $this->get(route('reports.payments.monthly', ['mode' => 'subscription']))->assertOk()->getContent();
+        $this->assertStringContainsString('value="tbank" selected', $subscription);
+        $this->assertModeButtonActive($subscription, 'subscription', true);
+        $this->assertModeButtonActive($subscription, 'operation', false);
         $this->assertSame('tbank', $this->filtersRow('reports_payments_monthly')->filters['payment_provider']);
+        $this->assertSame('operation', $this->filtersRow('reports_payments_monthly')->filters['mode']);
+
+        $this->get(route('reports.payments.monthly', ['payment_month' => '2026-03']))->assertOk();
+        $afterLink = $this->filtersRow('reports_payments_monthly');
+        $this->assertSame('2026-03', $afterLink->filters['payment_month']);
+        $this->assertSame('', $afterLink->filters['payment_provider']);
+        $this->assertSame('operation', $afterLink->filters['mode']);
+
+        $this->postJson(route('reports.payments.monthly.filters.save'), [
+            'mode' => 'year',
+        ])->assertStatus(422)->assertJsonValidationErrors([
+            'mode' => 'Выберите группировку: по месяцу абонемента или по дате платежа.',
+        ]);
+        $this->assertSame('operation', $this->filtersRow('reports_payments_monthly')->filters['mode']);
+
+        $this->postJson(route('reports.payments.monthly.filters.save'), [
+            'reset' => 1,
+        ])->assertOk();
+        $this->assertSame('subscription', $this->filtersRow('reports_payments_monthly')->filters['mode']);
     }
 
     public function test_null_filters_keep_the_active_default_and_the_saved_page_length(): void

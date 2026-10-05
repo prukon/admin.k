@@ -103,6 +103,10 @@ return [
         'Вкладка отчётов «Платежи по объектам»',
         'Пункт бокового меню «Отчеты», если нет reports.view и reports.ltv.teams.view',
     ],
+    'reports.ltv.admins.view' => [
+        'Вкладка отчётов «По админам»',
+        'Пункт бокового меню «Отчеты», если нет reports.view, reports.ltv.teams.view и reports.ltv.locations.view',
+    ],
     'reports.payment.intents.view' => [
         'Вкладка отчётов «Платежные запросы»',
     ],
@@ -321,6 +325,10 @@ return [
     'platformPayments.method.yookassa' => [
         'Радио ЮKassa на /partner-wallet и /partner-payment/recharge',
         'Создание платежа ЮKassa для кошелька и абонплаты',
+    ],
+    'platformPayments.method.invoiceIp' => [
+        'Карточка «Счёт от ИП» на /partner-wallet/checkout, если у школы есть включённое юрлицо',
+        'PDF счёта на оплату. Баланс кошелька не меняется',
     ],
 
     'account.user.view' => [

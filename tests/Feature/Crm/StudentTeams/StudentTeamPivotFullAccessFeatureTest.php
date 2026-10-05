@@ -243,7 +243,12 @@ final class StudentTeamPivotFullAccessFeatureTest extends StudentTeamPivotTestCa
 
         $this->get(route('schedule.index'))
             ->assertOk()
-            ->assertSee('id="abonementPlaceModal"', false)
+            ->assertSee('id="abonementPlaceModal"', false);
+
+        $this->get(route('schedule.group-rows', [
+            'group_key' => $this->team->id,
+        ]))
+            ->assertOk()
             ->assertSee('data-team-ids=', false)
             ->assertSee($this->student->full_name, false);
     }

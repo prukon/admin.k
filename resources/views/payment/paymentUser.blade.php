@@ -248,6 +248,12 @@
             <div class="payment-trust">Оплата защищена банковскими протоколами безопасности.</div>
         </div>
 
+        @if ($errors->has('checkout_intent'))
+            <div class="alert alert-danger" role="alert" id="checkout-intent-error">{{ $errors->first('checkout_intent') }}</div>
+        @endif
+        @if (!empty($checkoutUnavailableMessage))
+            <div class="alert alert-danger" role="alert" id="checkout-unavailable">{{ $checkoutUnavailableMessage }}</div>
+        @else
         @php
             $showOtherPaymentMethods = !empty($tbankAvailable) || !empty($robokassaAvailable);
         @endphp
@@ -271,6 +277,7 @@
                     <form action="{{ route('payment.tinkoff.sbp') }}" method="POST">
                         @csrf
                         <input type="hidden" name="partner_id" value="{{ $partnerId }}">
+                        <input type="hidden" name="checkout_intent" value="{{ $checkoutIntent }}">
                         <input type="hidden" name="userName" value="{{ $payerStudent->name }}">
                         <input type="hidden" name="outSum" value="{{ $outSum }}">
                         <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
@@ -298,6 +305,7 @@
                             <form action="{{ route('payment.tinkoff.pay') }}" method="POST">
                                 @csrf
                                 <input type="hidden" name="partner_id" value="{{ $partnerId }}">
+                                <input type="hidden" name="checkout_intent" value="{{ $checkoutIntent }}">
                                 <input type="hidden" name="userName" value="{{ $payerStudent->name }}">
                                 <input type="hidden" name="outSum" value="{{ $outSum }}">
                                 <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
@@ -320,6 +328,7 @@
                             <img class="img-fluid d-block" src="{{ asset('/img/partners/robokassa.png') }}" alt="Робокасса">
                             <form id="paymentForm" action="{{ route('payment.pay') }}" method="POST">
                                 @csrf
+                                <input type="hidden" name="checkout_intent" value="{{ $checkoutIntent }}">
                                 <input type="hidden" name="userName" value="{{ $payerStudent->name }}">
                                 <input type="hidden" name="userId" value="{{ $payerStudent->id }}">
                                 <input type="hidden" name="outSum" value="{{ $outSum }}">
@@ -340,6 +349,7 @@
             </div>
             @endif
         </div>
+        @endif
     </div>
 
 @endsection

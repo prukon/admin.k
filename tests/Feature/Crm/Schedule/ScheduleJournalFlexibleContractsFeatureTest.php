@@ -695,7 +695,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
         $student->update(['name' => 'Гибкий', 'lastname' => 'Workflow']);
         $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 2);
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('flexiblePlaceModal', false)
@@ -743,7 +743,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
                 ],
             ]);
 
-        $pageAfter = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $pageAfter = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $pageAfter->assertOk();
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));
         $pageAfter->assertSee($student->full_name, false)
@@ -771,7 +771,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
                 'lesson_occurrence_status_id' => LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
             ])->assertOk();
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
             ->assertSee(">2/2\nПредоплата<", false)
@@ -786,7 +786,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
                 'trainer_profile_id' => $trainer->id,
             ])->assertOk();
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
             ->assertSee(">1/2\nПредоплата<", false)
@@ -802,7 +802,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
             ])->assertOk();
 
         // При 0/2 hint и affordance остаются (статусы без списания без лимита).
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
             ->assertSee(">0/2\nПредоплата<", false)

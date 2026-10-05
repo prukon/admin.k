@@ -531,7 +531,7 @@ final class ScheduleJournalAttendanceSummaryFeatureTest extends ScheduleJournalT
      */
     private function journalHtml(array $query): string
     {
-        $html = (string) $this->get(route('schedule.index', $query))->assertOk()->getContent();
+        $html = (string) $this->journalIndex( $query)->assertOk()->getContent();
         $this->assertStringNotContainsString('Whoops', $html);
 
         return $html;

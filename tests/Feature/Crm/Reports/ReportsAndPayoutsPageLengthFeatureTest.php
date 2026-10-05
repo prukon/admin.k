@@ -87,6 +87,17 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
             'view_var'      => 'ltvLocationsPageLength',
             'sample_columns'=> ['location_name' => true, 'user_names' => false],
         ]];
+        yield 'ltv_admins' => [[
+            'auth'          => 'admin',
+            'permission'    => 'reports.ltv.admins.view',
+            'index_route'   => 'reports.ltv.admins',
+            'get_url'       => '/admin/reports/ltv/admins/columns-settings',
+            'save_url'      => '/admin/reports/ltv/admins/columns-settings',
+            'table_key'     => 'reports_ltv_admins',
+            'create'        => "KidsCrmDataTable.create('#ltv-admins-table'",
+            'view_var'      => 'ltvAdminsPageLength',
+            'sample_columns'=> ['admin_name' => true, 'user_names' => false],
+        ]];
         yield 'payment_intents' => [[
             'auth'          => 'superadmin',
             'permission'    => 'reports.payment.intents.view',
@@ -656,6 +667,9 @@ final class ReportsAndPayoutsPageLengthFeatureTest extends CrmTestCase
         }
 
         $this->asAdmin();
+        if (($case['permission'] ?? '') === 'reports.ltv.admins.view') {
+            $this->grantPermission($this->user, 'reports.ltv.admins.view');
+        }
         if ($case['auth'] === 'payouts') {
             $this->grantPermission($this->user, 'tbank.payouts.manage');
         }

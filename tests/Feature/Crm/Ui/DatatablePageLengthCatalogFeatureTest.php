@@ -180,6 +180,18 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
                 'permission'  => 'reports.ltv.locations.view',
             ],
             [
+                'label'       => 'По админам',
+                'url'         => '/admin/reports/ltv/admins',
+                'index_route' => 'reports.ltv.admins',
+                'save_url'    => '/admin/reports/ltv/admins/columns-settings',
+                'table_key'   => 'reports_ltv_admins',
+                'view_var'    => 'ltvAdminsPageLength',
+                'create'      => "KidsCrmDataTable.create('#ltv-admins-table'",
+                'blade'       => 'admin/report/ltv_admins.blade.php',
+                'auth'        => 'admin',
+                'permission'  => 'reports.ltv.admins.view',
+            ],
+            [
                 'label'       => 'Платежные запросы',
                 'url'         => '/admin/reports/payment-intents',
                 'index_route' => 'reports.payment-intents.index',
@@ -302,7 +314,7 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
         sort($expected);
 
         $this->assertSame($expected, $hits);
-        $this->assertCount(16, $hits);
+        $this->assertCount(17, $hits);
     }
 
     /**
@@ -394,6 +406,9 @@ final class DatatablePageLengthCatalogFeatureTest extends CrmTestCase
         }
 
         $this->asAdmin();
+        if (($case['permission'] ?? '') === 'reports.ltv.admins.view') {
+            $this->grantPermission($this->user, 'reports.ltv.admins.view');
+        }
         if ($case['auth'] === 'payouts') {
             $this->grantPermission($this->user, 'tbank.payouts.manage');
         }

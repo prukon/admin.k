@@ -39,9 +39,9 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
     {
         Auth::logout();
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertStatus(302);
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 1]))
+        $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 1])
             ->assertStatus(302);
     }
 
@@ -62,7 +62,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $session = ['current_partner' => $this->partner->id, '2fa:passed' => true];
 
         $this->actingAs($actor)->withSession($session)
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+            ->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertStatus(403);
 
         $this->actingAs($actor)->withSession($session)
@@ -74,7 +74,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
     {
         [$student] = $this->makeStudentWithTeam();
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all']);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -90,7 +90,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $this->makeStudentWithTeam();
 
         $page = $this->withHeaders($this->ajaxHeaders())
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']));
+            ->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all']);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -102,7 +102,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
     {
         [$student, $paidTeam, $unpaidTeam] = $this->makeStudentWithTwoPricedTeams(true, false);
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all']);
         $page->assertOk();
         $html = (string) $page->getContent();
 
@@ -136,11 +136,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
     {
         [$student, $paidTeam, $unpaidTeam] = $this->makeStudentWithTwoPricedTeams(true, false);
 
-        $page = $this->get(route('schedule.index', [
+        $page = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $unpaidTeam->id,
-        ]));
+        ]);
         $page->assertOk();
         $html = (string) $page->getContent();
 
@@ -154,11 +154,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $this->assertStringNotContainsString('data-journal-payment-status="partial"', $html);
         $this->assertStringNotContainsString('fa-circle-check', $this->studentRowHtml($html, (int) $student->id) ?? '');
 
-        $paidPage = $this->get(route('schedule.index', [
+        $paidPage = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $paidTeam->id,
-        ]));
+        ]);
         $paidPage->assertOk()->assertSee($student->full_name, false);
         $this->assertSame('paid', $this->paymentStatusInHtml((string) $paidPage->getContent(), (int) $student->id));
     }
@@ -167,11 +167,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
     {
         [$student, $paidTeam] = $this->makeStudentWithTwoPricedTeams(true, false);
 
-        $html = $this->get(route('schedule.index', [
+        $html = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $paidTeam->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertFilterOptionSelected($html, (string) $paidTeam->id);
         $cell = $this->paymentCellHtml($html, (int) $student->id);
@@ -188,7 +188,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
     {
         [$student, $teamA, $teamB] = $this->makeStudentWithTwoPricedTeams(true, true);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertOk()
             ->getContent();
 
@@ -207,7 +207,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         [$student, $team] = $this->makeStudentWithTeam();
         $this->createMonthPrice((int) $student->id, (int) $team->id, true, 500000);
 
-        $allHtml = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $allHtml = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertOk()
             ->getContent();
         $allCell = $this->paymentCellHtml($allHtml, (int) $student->id);
@@ -215,11 +215,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $this->assertStringNotContainsString(JournalMonthlyPaymentStatusService::HOVER_ALL_GROUPS_PAID, $allCell);
         $this->assertStringNotContainsString('journal-monthly-payment-hint', $allCell);
 
-        $teamHtml = $this->get(route('schedule.index', [
+        $teamHtml = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $teamCell = $this->paymentCellHtml($teamHtml, (int) $student->id);
         $this->assertStringContainsString('data-journal-payment-status="paid"', $teamCell);
         $this->assertStringNotContainsString(JournalMonthlyPaymentStatusService::HOVER_ALL_GROUPS_PAID, $teamCell);
@@ -229,7 +229,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
     {
         [$student] = $this->makeStudentWithTwoPricedTeams(false, false);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertOk()
             ->assertSee($student->full_name, false)
             ->getContent();
@@ -247,11 +247,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $team = Team::factory()->create(['partner_id' => $this->partner->id]);
         $this->createMonthPrice((int) $student->id, (int) $team->id, true, 500000);
 
-        $html = $this->get(route('schedule.index', [
+        $html = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'none',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertFilterOptionSelected($html, 'none');
         $this->assertStringContainsString($student->full_name, $html);
@@ -271,7 +271,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $this->createMonthPrice((int) $student->id, (int) $teamA->id, true, 0);
         $this->createMonthPrice((int) $student->id, (int) $teamB->id, false, 400000);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertOk()
             ->assertSee($student->full_name, false)
             ->getContent();
@@ -300,7 +300,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $this->createMonthPrice((int) $student->id, (int) $teamA->id, true, 500000);
         $this->createMonthPrice((int) $student->id, (int) $teamB->id, true, 0);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertOk()
             ->getContent();
 
@@ -320,7 +320,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
             ->whereDate('new_month', '2026-08-01')
             ->update(['is_paid' => 1, 'is_manual_paid' => 0]);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertOk()
             ->getContent();
 
@@ -330,11 +330,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $this->assertStringNotContainsString('data-journal-payment-status="partial"', $paidCell);
         $this->assertSame('', $unpaidCell);
 
-        $unpaidFilter = $this->get(route('schedule.index', [
+        $unpaidFilter = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $unpaidTeam->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('', $this->paymentCellHtml($unpaidFilter, (int) $student->id));
     }
 
@@ -347,7 +347,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
             ->whereDate('new_month', '2026-08-01')
             ->update(['is_paid' => 0, 'is_manual_paid' => 1]);
 
-        $allHtml = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $allHtml = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertOk()
             ->getContent();
         $paidCell = $this->paymentCellHtml($allHtml, (int) $student->id, (int) $teamA->id);
@@ -356,11 +356,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $this->assertStringNotContainsString('data-journal-payment-status="partial"', $paidCell);
         $this->assertSame('', $unpaidCell);
 
-        $paidFilter = $this->get(route('schedule.index', [
+        $paidFilter = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $teamA->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('paid', $this->paymentStatusInHtml($paidFilter, (int) $student->id));
     }
 
@@ -368,11 +368,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
     {
         [$student, $team] = $this->makeStudentWithPostpayPrice(360000, false, 0);
 
-        $html = $this->get(route('schedule.index', [
+        $html = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $cell = $this->paymentCellHtml($html, (int) $student->id);
         $this->assertStringContainsString('data-journal-payment-status="due"', $cell);
@@ -397,11 +397,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
     {
         [$student, $team] = $this->makeStudentWithPostpayPrice(360000, true, 0);
 
-        $html = $this->get(route('schedule.index', [
+        $html = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $cell = $this->paymentCellHtml($html, (int) $student->id);
         $this->assertStringContainsString('data-journal-payment-status="paid"', $cell);
@@ -417,11 +417,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $payable = Money::payableAfterDiscountCents($gross, 10);
         [$student, $team] = $this->makeStudentWithPostpayPrice($payable, false, 10);
 
-        $html = $this->get(route('schedule.index', [
+        $html = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $expected = JournalMonthlyPaymentStatusService::dueAmountLabel($payable);
         $cell = $this->paymentCellHtml($html, (int) $student->id);
@@ -436,11 +436,11 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         [$student, $team] = $this->makeStudentWithTeam();
         $this->createMonthPrice((int) $student->id, (int) $team->id, false, 500000);
 
-        $html = $this->get(route('schedule.index', [
+        $html = $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $team->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertSame('', $this->paymentCellHtml($html, (int) $student->id));
         $this->assertNull($this->paymentStatusInHtml($html, (int) $student->id));
@@ -461,7 +461,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $this->createMonthPrice((int) $student->id, (int) $paidTeam->id, true, 500000);
         $this->createPostpayMonthPrice((int) $student->id, (int) $postpayTeam->id, 180000, false, 0);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertOk()
             ->getContent();
 
@@ -479,7 +479,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         [$student, $team] = $this->makeStudentWithTeam();
         $this->createMonthPrice((int) $student->id, (int) $team->id, true, 500000, '2026-07-01');
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertOk()
             ->assertSee($student->full_name, false)
             ->getContent();
@@ -493,7 +493,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $foreign->update(['lastname' => 'ЧужойОпл', 'name' => 'Студент'.uniqid()]);
         $foreign = $foreign->fresh();
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertOk()
             ->getContent();
 
@@ -508,7 +508,7 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $student = $student->fresh();
         $this->createMonthPrice((int) $student->id, (int) $team->id, true, 500000);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all'])
             ->assertOk()
             ->getContent();
 

@@ -22,11 +22,61 @@ final class LocationAverageAttendanceAggregator
      */
     public function locationAveragesSubquery(int $partnerId, ?string $yearMonth): Builder
     {
-        $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
-        if ($visitedStatusId === null) {
+        $sessions = $this->sessionHeadcounts($partnerId, $yearMonth);
+        if ($sessions === null) {
             return DB::table('locations')
                 ->selectRaw('id as location_id, CAST(NULL AS SIGNED) as avg_attendance')
                 ->whereRaw('1 = 0');
+        }
+
+        return DB::query()
+            ->fromSub($sessions, 'ltv_location_att_sessions')
+            ->selectRaw('location_id, ROUND(SUM(headcount) / COUNT(*), 0) as avg_attendance')
+            ->groupBy('location_id');
+    }
+
+    /**
+     * Средняя посещаемость админа: занятия групп всех его объектов, одна формула с объектом.
+     * $yearMonth = YYYY-MM; null — за всё время.
+     */
+    public function adminAveragesSubquery(int $partnerId, ?string $yearMonth): Builder
+    {
+        $sessions = $this->sessionHeadcounts($partnerId, $yearMonth);
+        if ($sessions === null) {
+            return DB::table('users')
+                ->selectRaw('id as admin_user_id, CAST(NULL AS SIGNED) as avg_attendance')
+                ->whereRaw('1 = 0');
+        }
+
+        $livingAdmins = DB::table('location_admin_user as att_location_admins')
+            ->join('users as att_admin_users', function ($join): void {
+                $join->on('att_admin_users.id', '=', 'att_location_admins.user_id')
+                    ->whereNull('att_admin_users.deleted_at');
+            })
+            ->where('att_location_admins.partner_id', $partnerId)
+            ->select([
+                'att_location_admins.location_id',
+                'att_location_admins.user_id',
+            ]);
+
+        return DB::query()
+            ->fromSub($sessions, 'ltv_admin_att_sessions')
+            ->joinSub($livingAdmins, 'ltv_admin_att_living', function ($join): void {
+                $join->on('ltv_admin_att_living.location_id', '=', 'ltv_admin_att_sessions.location_id');
+            })
+            ->selectRaw('ltv_admin_att_living.user_id as admin_user_id, ROUND(SUM(ltv_admin_att_sessions.headcount) / COUNT(*), 0) as avg_attendance')
+            ->groupBy('ltv_admin_att_living.user_id');
+    }
+
+    /**
+     * Занятие объекта: (слот × дата) с численностью «Посетил».
+     * null — у партнёра нет системного статуса «Посетил».
+     */
+    private function sessionHeadcounts(int $partnerId, ?string $yearMonth): ?Builder
+    {
+        $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
+        if ($visitedStatusId === null) {
+            return null;
         }
 
         $dateFrom = null;
@@ -78,9 +128,6 @@ final class LocationAverageAttendanceAggregator
             ->groupByRaw('att_team.location_id, e.team_schedule_slot_id, e.occurrence_date')
             ->havingRaw('COUNT(DISTINCT e.user_id) > 0');
 
-        return DB::query()
-            ->fromSub($sessions, 'ltv_location_att_sessions')
-            ->selectRaw('location_id, ROUND(SUM(headcount) / COUNT(*), 0) as avg_attendance')
-            ->groupBy('location_id');
+        return $sessions;
     }
 }

@@ -77,6 +77,15 @@ final class ReportsAndPayoutsPageLengthFullAccessFeatureTest extends CrmTestCase
             'view_var'    => 'ltvLocationsPageLength',
             'create'      => "KidsCrmDataTable.create('#ltv-locations-table'",
         ]];
+        yield 'ltv_admins' => [[
+            'permission'  => 'reports.ltv.admins.view',
+            'index_route' => 'reports.ltv.admins',
+            'get_url'     => '/admin/reports/ltv/admins/columns-settings',
+            'save_url'    => '/admin/reports/ltv/admins/columns-settings',
+            'table_key'   => 'reports_ltv_admins',
+            'view_var'    => 'ltvAdminsPageLength',
+            'create'      => "KidsCrmDataTable.create('#ltv-admins-table'",
+        ]];
         yield 'payment_intents' => [[
             'permission'  => 'reports.payment.intents.view',
             'index_route' => 'reports.payment-intents.index',

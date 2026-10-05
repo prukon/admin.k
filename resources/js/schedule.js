@@ -30,8 +30,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     var scheduleGroupPagerHtml = {};
+    var scheduleGroupLoadingHtml = {};
 
     function captureScheduleGroupPagers() {
+        scheduleGroupLoadingHtml = {};
         $('#schedule-table tbody tr.schedule-group-pager').each(function () {
             if (this.children.length !== 1) {
                 return;
@@ -42,10 +44,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             scheduleGroupPagerHtml[key] = this.outerHTML;
         });
+        $('#schedule-table tbody tr.schedule-group-users-loading').each(function () {
+            var key = String(this.getAttribute('data-group-key') || '');
+            if (key === '') {
+                return;
+            }
+            scheduleGroupLoadingHtml[key] = this.outerHTML;
+        });
     }
 
     function detachScheduleGroupPagers() {
-        $('#schedule-table tbody tr.schedule-group-pager').remove();
+        $('#schedule-table tbody tr.schedule-group-pager, #schedule-table tbody tr.schedule-group-users-loading').remove();
     }
 
     function restoreScheduleGroupPagers() {
@@ -63,6 +72,16 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 $header.after(scheduleGroupPagerHtml[key]);
             }
+        });
+        Object.keys(scheduleGroupLoadingHtml).forEach(function (key) {
+            var $header = $('#schedule-table tbody tr.schedule-group-row').filter(function () {
+                return String($(this).attr('data-group-key')) === key;
+            }).first();
+            if (!$header.length) {
+                return;
+            }
+            $header.nextUntil('tr.schedule-group-row').filter('tr.schedule-group-users-loading').remove();
+            $header.after(scheduleGroupLoadingHtml[key]);
         });
     }
 
@@ -162,8 +181,265 @@ document.addEventListener('DOMContentLoaded', function () {
         collapseClosedScheduleGroups();
     }
 
+    function scheduleGroupRowByKey(groupKey) {
+        return $('#schedule-table tbody tr.schedule-group-row').filter(function () {
+            return String($(this).attr('data-group-key')) === String(groupKey);
+        }).first();
+    }
+
+    function scheduleGroupUsersFallbackUrl(groupKey, page) {
+        var url = new URL(window.location.href);
+        url.searchParams.set('year', $('#filter-year').val());
+        url.searchParams.set('month', $('#filter-month').val());
+        var q = $('#table-search').val() || '';
+        if (q) {
+            url.searchParams.set('q', q);
+        } else {
+            url.searchParams.delete('q');
+        }
+        scheduleJournalApplyTeamIdsToUrl(url);
+        url.searchParams.delete('page');
+        Array.from(url.searchParams.keys()).forEach(function (key) {
+            if (key === 'group_pages' || key.indexOf('group_pages[') === 0) {
+                url.searchParams.delete(key);
+            }
+        });
+        url.searchParams.set('group_pages[' + groupKey + ']', String(page));
+        if ($('.schedule-fullscreen-wrapper').hasClass('fullscreen')) {
+            url.searchParams.set('fullscreen', '1');
+        } else {
+            url.searchParams.delete('fullscreen');
+        }
+        return url.toString();
+    }
+
+    function scheduleGroupUsersRequestParams(groupKey, page) {
+        var params = {
+            year: $('#filter-year').val(),
+            month: $('#filter-month').val(),
+            q: $('#table-search').val() || '',
+            group_key: groupKey,
+            group_page: page
+        };
+        var teams = scheduleJournalSelectedTeamTokens();
+        if (teams.length) {
+            params.team_ids = teams;
+        }
+        return params;
+    }
+
+    function scheduleGroupLoadingRow(groupKey) {
+        var cols = $('#schedule-table thead th').length || 1;
+        return '<tr class="schedule-group-users-loading" data-group-key="' + groupKey + '">'
+            + '<td class="schedule-group-users-loading-cell" colspan="' + cols + '">'
+            + '<div class="schedule-group-users-loading__inner">'
+            + '<span class="spinner-border spinner-border-sm text-secondary" role="status" aria-label="Загрузка"></span>'
+            + '<span>Загрузка</span>'
+            + '</div></td></tr>';
+    }
+
+    function loadScheduleGroupUsers($row, page, done) {
+        var finish = function () {
+            if (typeof done === 'function') {
+                done();
+            }
+        };
+        var groupKey = String($row.attr('data-group-key') || '');
+        if (groupKey === '' || String($row.attr('data-users-loading')) === '1') {
+            finish();
+            return;
+        }
+        var closedKeys = [];
+        $('#schedule-table tbody tr.schedule-group-row').each(function () {
+            var key = String($(this).attr('data-group-key'));
+            if (key !== groupKey && !$(this).hasClass('is-open')) {
+                closedKeys.push(key);
+            }
+        });
+        if ($.fn.DataTable.isDataTable('#schedule-table')) {
+            $('#schedule-table').DataTable().destroy();
+        }
+        $row = scheduleGroupRowByKey(groupKey);
+        if (!$row.length) {
+            reinitScheduleJournalDataTable();
+            finish();
+            return;
+        }
+        $row.attr('data-users-loading', '1').addClass('is-open');
+        $row.find('.schedule-group-toggle').first()
+            .attr('aria-expanded', 'true')
+            .attr('aria-label', 'Свернуть');
+        $row.nextUntil('tr.schedule-group-row').remove();
+        $row.after(scheduleGroupLoadingRow(groupKey));
+        closedKeys.forEach(function (key) {
+            var $closed = scheduleGroupRowByKey(key);
+            if (!$closed.length) {
+                return;
+            }
+            $closed.removeClass('is-open');
+            $closed.nextUntil('tr.schedule-group-row').addClass('schedule-group-collapsed').hide();
+        });
+        reinitScheduleJournalDataTable();
+
+        $.ajax({
+            url: $('#schedule-table').attr('data-group-rows-url'),
+            method: 'GET',
+            data: scheduleGroupUsersRequestParams(groupKey, page),
+            headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html'},
+            success: function (html) {
+                var stillClosed = [];
+                $('#schedule-table tbody tr.schedule-group-row').each(function () {
+                    if (!$(this).hasClass('is-open')) {
+                        stillClosed.push(String($(this).attr('data-group-key')));
+                    }
+                });
+                if ($.fn.DataTable.isDataTable('#schedule-table')) {
+                    $('#schedule-table').DataTable().destroy();
+                }
+                var $header = scheduleGroupRowByKey(groupKey);
+                if (!$header.length) {
+                    reinitScheduleJournalDataTable();
+                    finish();
+                    return;
+                }
+                $header.nextUntil('tr.schedule-group-row').remove();
+                $header.after(html);
+                $header.attr('data-users-loaded', '1').attr('data-users-loading', '0').addClass('is-open');
+                $header.find('.schedule-group-toggle').first()
+                    .attr('aria-expanded', 'true')
+                    .attr('aria-label', 'Свернуть');
+                stillClosed.forEach(function (key) {
+                    var $closed = scheduleGroupRowByKey(key);
+                    if (!$closed.length) {
+                        return;
+                    }
+                    $closed.removeClass('is-open');
+                    $closed.nextUntil('tr.schedule-group-row').addClass('schedule-group-collapsed');
+                    $closed.nextUntil('tr.schedule-group-row').hide();
+                    $closed.find('.schedule-group-toggle')
+                        .attr('aria-expanded', 'false')
+                        .attr('aria-label', 'Развернуть');
+                });
+                reinitScheduleJournalDataTable();
+                paintBulkSelection();
+                finish();
+            },
+            error: function () {
+                window.location.href = scheduleGroupUsersFallbackUrl(groupKey, page);
+            }
+        });
+    }
+
+    var schedulePageLengthBusy = false;
+
+    function scheduleJournalPageLengthError($select, message) {
+        var $error = $select.closest('.schedule-journal-per-page').find('[data-error-for="page_length"]');
+        $error.text(message || '').removeAttr('hidden');
+    }
+
+    function reloadScheduleGroupsForPageLength() {
+        if ($.fn.DataTable.isDataTable('#schedule-table')) {
+            $('#schedule-table').DataTable().destroy();
+        }
+        var openKeys = [];
+        $('#schedule-table tbody tr.schedule-group-row').each(function () {
+            var $row = $(this);
+            var key = String($row.attr('data-group-key') || '');
+            if (key === '') {
+                return;
+            }
+            if ($row.hasClass('is-open')) {
+                var count = parseInt($.trim($row.find('.schedule-group-count').first().text()), 10);
+                if (count !== 0) {
+                    openKeys.push(key);
+                }
+                return;
+            }
+            if (String($row.attr('data-users-loaded')) === '1') {
+                $row.attr('data-users-loaded', '0').attr('data-users-loading', '0');
+                $row.nextUntil('tr.schedule-group-row').remove();
+                delete scheduleGroupPagerHtml[key];
+            }
+        });
+        function finish() {
+            schedulePageLengthBusy = false;
+            $('.schedule-journal-per-page__select').prop('disabled', false);
+        }
+        function loadNext() {
+            if (!openKeys.length) {
+                if (!$.fn.DataTable.isDataTable('#schedule-table')) {
+                    reinitScheduleJournalDataTable();
+                }
+                finish();
+                return;
+            }
+            var key = openKeys.shift();
+            var $row = scheduleGroupRowByKey(key);
+            if (!$row.length) {
+                loadNext();
+                return;
+            }
+            $row.attr('data-users-loaded', '0');
+            loadScheduleGroupUsers($row, 1, function () {
+                $('.schedule-journal-per-page__select').prop('disabled', true);
+                loadNext();
+            });
+        }
+        loadNext();
+    }
+
+    $(document).on('change', '.schedule-journal-per-page__select', function () {
+        var $select = $(this);
+        var length = String($select.val() || '');
+        var previous = String($('#schedule-table').attr('data-group-per-page') || '50');
+        $('.schedule-journal-per-page [data-error-for="page_length"]').text('').attr('hidden', 'hidden');
+        if (schedulePageLengthBusy || length === '' || length === previous) {
+            $select.val(previous);
+            return;
+        }
+        var url = $('#schedule-table').attr('data-page-length-url');
+        if (!url) {
+            $select.val(previous);
+            scheduleJournalPageLengthError($select, 'Не удалось сохранить количество учеников.');
+            return;
+        }
+        schedulePageLengthBusy = true;
+        $('.schedule-journal-per-page__select').prop('disabled', true);
+        $.ajax({
+            url: url,
+            method: 'POST',
+            data: {page_length: length},
+            headers: {
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            success: function (payload) {
+                var saved = parseInt(payload && payload.page_length, 10);
+                if (isNaN(saved)) {
+                    saved = parseInt(length, 10);
+                }
+                $('#schedule-table').attr('data-group-per-page', String(saved));
+                $('.schedule-journal-per-page__select').val(String(saved));
+                reloadScheduleGroupsForPageLength();
+            },
+            error: function (xhr) {
+                schedulePageLengthBusy = false;
+                $('.schedule-journal-per-page__select').prop('disabled', false).val(previous);
+                var message = 'Не удалось сохранить количество учеников.';
+                if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.page_length && xhr.responseJSON.errors.page_length[0]) {
+                    message = String(xhr.responseJSON.errors.page_length[0]);
+                }
+                scheduleJournalPageLengthError($select, message);
+            }
+        });
+    });
+
     function toggleScheduleGroupRow($row) {
         if (!$row || !$row.length) {
+            return;
+        }
+        if (String($row.attr('data-users-loading')) === '1') {
             return;
         }
         var $btn = $row.find('.schedule-group-toggle').first();
@@ -173,6 +449,14 @@ document.addEventListener('DOMContentLoaded', function () {
             $body.addClass('schedule-group-collapsed').hide();
             $btn.attr('aria-expanded', 'false').attr('aria-label', 'Развернуть');
             return;
+        }
+        if (String($row.attr('data-users-loaded')) !== '1') {
+            var count = parseInt($.trim($row.find('.schedule-group-count').first().text()), 10);
+            if (count !== 0) {
+                loadScheduleGroupUsers($row, 1);
+                return;
+            }
+            $row.attr('data-users-loaded', '1');
         }
         $row.addClass('is-open');
         $body.removeClass('schedule-group-collapsed').show();
@@ -2703,8 +2987,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return 'Можно выбрать только ' + formatDateHumanYmd(bulkSelection.date) + ', группа ' + bulkSelection.groupTitle + '.';
     }
 
-    function bulkRefuseMessage(block, selectionActive) {
-        if (block === 'prepaid_empty') {
+    function bulkRefuseMessage(block, selectionActive, allowEmptyLesson) {
+        if (block === 'prepaid_empty' && (selectionActive || !allowEmptyLesson)) {
             return 'Нельзя выбрать: в абонементе не осталось занятий.';
         }
         if (block === 'postpay_paid') {
@@ -3216,9 +3500,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function scheduleGroupPerPage() {
-        var n = parseInt($('#schedule-table').attr('data-group-per-page') || '20', 10);
+        var n = parseInt($('#schedule-table').attr('data-group-per-page') || '50', 10);
         if (isNaN(n) || n < 1) {
-            return 20;
+            return 50;
         }
         return n;
     }
@@ -3399,7 +3683,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 bulkToggleUser($(this));
                 return;
             }
-            var refuse = bulkRefuseMessage(block, !!bulkSelection);
+            var hasEmptyLesson = $(this).attr('data-empty-lesson') === '1';
+            var refuse = bulkRefuseMessage(block, !!bulkSelection, hasEmptyLesson);
             if (refuse) {
                 bulkToast(refuse);
                 return;
@@ -3408,7 +3693,6 @@ document.addEventListener('DOMContentLoaded', function () {
             if (isNaN(flexibleRemaining)) {
                 flexibleRemaining = 0;
             }
-            var hasEmptyLesson = $(this).attr('data-empty-lesson') === '1';
             if (hasEmptyLesson) {
                 openEmptyCellPlaceModal(userId, date, userName);
             }

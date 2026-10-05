@@ -10,6 +10,7 @@ use App\Models\Team;
 use App\Models\TeamPrice;
 use App\Models\User;
 use App\Models\UserPrice;
+use App\Services\TeamUserSyncService;
 use Illuminate\Support\Carbon;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -183,7 +184,7 @@ class SettingPricesTest extends CrmTestCase
             ->assertStatus(200)
             ->assertViewIs('admin.SettingPrices.index');
 
-        // Команды в представлении — только текущего партнёра, отсортированы по order_by
+        // Команды в представлении — только текущего партнёра, сначала по order_by
         $viewTeams = $response->viewData('allTeams');
         $this->assertCount(2, $viewTeams);
         $this->assertEquals([$team2->id, $team1->id], $viewTeams->pluck('id')->all());
@@ -202,7 +203,127 @@ class SettingPricesTest extends CrmTestCase
             'team_id'   => $team2->id,
             'new_month' => $currentMonthDate,
         ]);
-    }    
+    }
+
+    /** @test */
+    public function monthly_lists_teams_alphabetically_when_order_by_is_the_same(): void
+    {
+        $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
+
+        $later = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Янтарь',
+            'order_by' => 10,
+            'deleted_at' => null,
+        ]);
+        $first = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'алмаз',
+            'order_by' => 10,
+            'deleted_at' => null,
+        ]);
+        $middle = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Буревестник',
+            'order_by' => 10,
+            'deleted_at' => null,
+        ]);
+        $nullLater = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Сокол',
+            'order_by' => null,
+            'deleted_at' => null,
+        ]);
+        $nullFirst = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Альфа',
+            'order_by' => null,
+            'deleted_at' => null,
+        ]);
+        $ordered = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Абрикос',
+            'order_by' => 1,
+            'deleted_at' => null,
+        ]);
+
+        $viewTeams = $this->get(route('admin.settingPrices.indexMenu'))
+            ->assertOk()
+            ->viewData('allTeams');
+
+        $this->assertSame(
+            [$nullFirst->id, $nullLater->id, $ordered->id, $first->id, $middle->id, $later->id],
+            $viewTeams->pluck('id')->all()
+        );
+    }
+
+    /** @test */
+    public function users_tab_lists_students_by_lastname_and_teams_by_order_then_title(): void
+    {
+        $this->asAdmin();
+        $this->grantLessonPackageTypePermissions();
+
+        $teamLater = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Янтарь',
+            'order_by' => 10,
+            'deleted_at' => null,
+        ]);
+        $teamFirst = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Алмаз',
+            'order_by' => 10,
+            'deleted_at' => null,
+        ]);
+
+        $sync = app(TeamUserSyncService::class);
+        $later = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+            'lastname' => 'Яковлев',
+            'name' => 'Пётр',
+        ]);
+        $sameLastLater = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+            'lastname' => 'Иванов',
+            'name' => 'Борис',
+        ]);
+        $first = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+            'lastname' => 'алмазова',
+            'name' => 'Анна',
+        ]);
+        $sameLastFirst = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+            'lastname' => 'Иванов',
+            'name' => 'Анна',
+        ]);
+        $yo = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+            'lastname' => 'Ёлкин',
+            'name' => 'Илья',
+        ]);
+
+        foreach ([$later, $sameLastLater, $first, $sameLastFirst, $yo] as $student) {
+            $sync->syncTeamsForStudent($student, [(int) $teamFirst->id]);
+        }
+
+        $response = $this->get(route('admin.settingPrices.users'))->assertOk();
+
+        $this->assertSame(
+            [$teamFirst->id, $teamLater->id],
+            $response->viewData('allTeams')->pluck('id')->all()
+        );
+        $this->assertSame(
+            [$first->id, $yo->id, $sameLastFirst->id, $sameLastLater->id, $later->id],
+            $response->viewData('users')->pluck('id')->all()
+        );
+    }
 
     /** @test */
     public function update_date_changes_month_and_initializes_team_prices_for_current_partner()

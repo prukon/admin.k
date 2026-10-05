@@ -35,7 +35,7 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
             $this->occurrenceStatusIdByCode(LessonOccurrenceStatus::CODE_SCHEDULED)
         );
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all']);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -60,11 +60,11 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
         [$student, $team] = $this->makeStudentWithTeam();
         $this->createTrialUtss($student, $team, '2026-08-03');
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertSame('', $this->journalConsumingCellText($html, (int) $student->id));
         $this->assertStringContainsString(
@@ -81,11 +81,11 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
         $this->markUtssOccurrenceStatus($cancelled, $this->occurrenceStatusIdByCode('cancelled'));
         $this->markUtssOccurrenceStatus($frozen, $this->occurrenceStatusIdByCode('frozen'));
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertSame('', $this->journalConsumingCellText($html, (int) $student->id));
     }
@@ -104,11 +104,11 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
             $this->occurrenceStatusIdByCode(LessonOccurrenceStatus::CODE_SCHEDULED)
         );
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $cell = $this->journalConsumingCellHtml($html, (int) $student->id);
         $this->assertStringContainsString('data-journal-consuming-count="2"', $cell);
@@ -125,11 +125,11 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
         $utss = $this->createTrialUtss($student, $team, '2026-08-10');
         $this->markUtssOccurrenceStatus($utss, (int) $custom->id);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertSame('1', $this->journalConsumingCellText($html, (int) $student->id));
     }
@@ -142,11 +142,11 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
         $this->markUtssOccurrenceStatus($july, (int) $this->visitedStatusId);
         $this->markUtssOccurrenceStatus($august, (int) $this->visitedStatusId);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertSame('1', $this->journalConsumingCellText($html, (int) $student->id));
     }
@@ -181,11 +181,11 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
         $this->markUtssOccurrenceStatus($first, (int) $this->visitedStatusId);
         $this->markUtssOccurrenceStatus($second, (int) $this->visitedStatusId);
 
-        $html = (string) $this->get(route('schedule.index', [
+        $html = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
 
         $this->assertSame('2', $this->journalConsumingCellText($html, (int) $student->id));
     }
@@ -201,19 +201,19 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
         $this->markUtssOccurrenceStatus($utssA, (int) $this->visitedStatusId);
         $this->markUtssOccurrenceStatus($utssB, (int) $this->visitedStatusId);
 
-        $allHtml = (string) $this->get(route('schedule.index', [
+        $allHtml = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => 'all',
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('1', $this->journalConsumingCellText($allHtml, (int) $student->id, (int) $teamA->id));
         $this->assertSame('1', $this->journalConsumingCellText($allHtml, (int) $student->id, (int) $teamB->id));
 
-        $teamHtml = (string) $this->get(route('schedule.index', [
+        $teamHtml = (string) $this->journalIndex( [
             'year' => 2026,
             'month' => '08',
             'team' => $teamA->id,
-        ]))->assertOk()->getContent();
+        ])->assertOk()->getContent();
         $this->assertSame('1', $this->journalConsumingCellText($teamHtml, (int) $student->id));
     }
 
@@ -244,7 +244,7 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
         $student->update(['name' => 'Счётчик', 'lastname' => 'Workflow']);
         $utss = $this->createTrialUtss($student, $team, '2026-08-03');
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all']);
         $page->assertOk();
         $html = (string) $page->getContent();
         $this->assertNotSame('', trim($html));
@@ -272,7 +272,7 @@ final class ScheduleJournalConsumingCountColumnFeatureTest extends ScheduleJourn
             ->assertJsonPath('result.utss_id', (int) $utss->id);
         $this->assertNotSame('', (string) $save->json('message'));
 
-        $pageAfter = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']));
+        $pageAfter = $this->journalIndex( ['year' => 2026, 'month' => '08', 'team' => 'all']);
         $pageAfter->assertOk();
         $afterHtml = (string) $pageAfter->getContent();
         $this->assertNotSame('', trim($afterHtml));

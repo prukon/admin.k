@@ -349,11 +349,12 @@
   <div class="note">
     <b>Маршрут</b>: имя <code>payment</code>, метод <code>POST</code> (открывается из кабинета, не через прямой GET).
     <br><b>Доступ</b>: middleware <code>can:paying.classes</code> (плюс общие <code>auth</code> и <code>2fa</code> для кабинета). Без права у <b>залогиненного</b> — <b>403</b>.
-    <br><b>Семейный кабинет</b>: сумма, группа и строка «Плательщик» — <code>FamilyPaymentPayerResolver</code> / <code>activeStudent()</code> (выбранный ребёнок, в шаблон как <code>$payerStudent</code>). Hidden <code>userName</code> / <code>userId</code> на витрине — тот же ученик. Init (Робокасса, T‑Bank) пишет <code>payables.user_id</code> и <code>payment_intents.user_id</code> на него же; в <code>intent.meta.actor_user_id</code> — учётка входа. Клубный взнос (<code>/payment/club-fee</code> и ветка Init без месяца) семейный контекст пока не использует.
+    <br><b>Семейный кабинет</b>: сумма, группа и строка «Плательщик» — <code>FamilyPaymentPayerResolver</code> / <code>activeStudent()</code> (выбранный ребёнок, в шаблон как <code>$payerStudent</code>). Hidden <code>userName</code> / <code>userId</code> на витрине — тот же ученик. Init (Робокасса, T‑Bank) пишет <code>payables.user_id</code> и <code>payment_intents.user_id</code> на ученика из подписанного <code>checkout_intent</code>; в <code>intent.meta.actor_user_id</code> — учётка входа. Клубный взнос (<code>/payment/club-fee</code>) семейный контекст не использует: ученик в контексте — учётка входа.
     Анонс: <a href="/doc#family-student-payment-index">/doc</a>.
     <br><b>Шаблон</b>: <code>resources/views/payment/paymentUser.blade.php</code>.
   </div>
-  <p><b>Назначение:</b> показать период, итоговую сумму и кнопки Робокассы / T‑Bank (карта и СБП) для <b>месячного абонемента</b> или ввода суммы для сценариев без привязки к месяцу из календаря (если так передаётся форма).</p>
+  <p><b>Назначение:</b> показать период, итоговую сумму и кнопки Робокассы / T‑Bank (карта и СБП) для месячного абонемента, назначенного абонемента или дополнительного платежа. Если вид оплаты не распознан, кнопки не показываются и платёж не создаётся.</p>
+  <p>В каждую форму Init (СБП, карта, Робокасса) кладётся одно и то же скрытое поле <code>checkout_intent</code> (<code>PaymentCheckoutIntentSigner</code>, шифрование <code>APP_KEY</code>, срок 12 часов). Init определяет тип только по нему: <code>monthly_fee</code>, <code>lesson_package</code>, <code>custom_payment</code>. Месяц, группа и сумма месяца берутся из этой подписи и <code>users_prices</code>. Повторная отправка без <code>formatedPaymentDate</code> / <code>payment_kind</code> или с подменёнными месяцем, группой, видом и <code>outSum</code> остаётся тем месяцем, который открыли. Сумма с клиента для месяца, абонемента и дополнительного платежа не обязательна. Нет поля, битая или чужая подпись — платёж не создаётся. Ошибка поля <code>checkout_intent</code> («Откройте страницу оплаты заново.») в JSON — <b>422</b> <code>errors.checkout_intent</code>; в обычной форме — редирект. Если браузер возвращает на <code>POST /payment</code>, <code>GET /payment</code> показывает <code>#checkout-intent-error</code> и прячет кнопки. Пустой <code>GET /payment</code> без этой ошибки уводит в кабинет (<b>302</b>, не пустой 200). Кабинет в кнопке «Оплатить» месяц не подписывает: подпись выпускается при открытии витрины. Тесты: <code>PaymentCheckoutIntentFeatureTest</code>, <code>PaymentCheckoutIntentMonthlyFeatureTest</code>, <code>BladeInlineJsSyntaxTest::test_payment_forms_keep_signed_month_context_when_scripts_rebuild_fields</code>.</p>
   <ul>
     <li><b>Поля формы с дашборда</b> (генерируются в <code>resources/views/dashboard.blade.php</code>):
       <ul>
@@ -814,6 +815,7 @@
     <li><b>Ошибка Init</b> при группе без юр. лица в multi-entity: «Для выбранной группы не настроено юр. лицо» (<code>tbankAvailabilityError</code>).</li>
     <li><b>Формирование данных для оплаты</b>:
       <ul>
+        <li><code>checkout_intent</code> с видом <code>club_fee</code> выпускается на странице; Init принимает клубный взнос только с этой подписью и правом <code>payment.clubfee</code></li>
         <li><code>paymentDate</code> = "Клубный взнос" (строка, не дата)</li>
         <li><code>formatedPaymentDate</code> не передаётся (только для месячных оплат)</li>
         <li><code>outSum</code> берётся из поля ввода при отправке формы</li>
@@ -822,7 +824,7 @@
     </li>
     <li><b>Обработка оплаты</b>:
       <ul>
-        <li>При отправке формы вызывается тот же роут, что и для месячных оплат (<code>POST /payment/pay</code> для Робокассы, <code>POST /payments/tinkoff/create</code> и <code>POST /payments/tinkoff/sbp</code> для T‑Bank)</li>
+        <li>При отправке формы вызывается тот же роут, что и для месячных оплат (<code>POST /payment/pay</code> для Робокассы, <code>POST /payments/tinkoff/create</code> и <code>POST /payments/tinkoff/sbp</code> для T‑Bank). Без права <code>payment.clubfee</code> или без подписанного вида <code>club_fee</code> payable не создаётся</li>
         <li>Создаётся <code>payables</code> с <code>type=club_fee</code> и <code>meta.team_id</code></li>
         <li>В <code>users_prices</code> запись <b>не создаётся</b> (только для <code>monthly_fee</code>)</li>
       </ul>

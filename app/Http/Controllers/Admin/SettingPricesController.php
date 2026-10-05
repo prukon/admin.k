@@ -98,6 +98,150 @@ class SettingPricesController extends AdminBaseController
     }
 
     /**
+     * «По месяцам»: order_by по возрастанию (NULL раньше чисел),
+     * при равном order_by — название без учёта регистра.
+     *
+     * @param  \Illuminate\Support\Collection<int, Team>  $teams
+     * @return \Illuminate\Support\Collection<int, Team>
+     */
+    protected function sortMonthlyTeams($teams)
+    {
+        return $teams->sort(function (Team $left, Team $right) {
+            $orderCompare = $this->compareMonthlyTeamOrderBy($left->order_by, $right->order_by);
+            if ($orderCompare !== 0) {
+                return $orderCompare;
+            }
+
+            $titleCompare = strcmp(
+                $this->monthlyTeamTitleSortKey($left->title ?? null),
+                $this->monthlyTeamTitleSortKey($right->title ?? null)
+            );
+            if ($titleCompare !== 0) {
+                return $titleCompare;
+            }
+
+            return ((int) $left->id) <=> ((int) $right->id);
+        })->values();
+    }
+
+    protected function compareMonthlyTeamOrderBy(mixed $left, mixed $right): int
+    {
+        if ($left === null && $right === null) {
+            return 0;
+        }
+        if ($left === null) {
+            return -1;
+        }
+        if ($right === null) {
+            return 1;
+        }
+
+        return ((int) $left) <=> ((int) $right);
+    }
+
+    protected function monthlyTeamTitleSortKey(mixed $title): string
+    {
+        $normalized = str_replace(['Ё', 'ё'], ['Е', 'е'], trim((string) $title));
+
+        return mb_strtolower($normalized, 'UTF-8');
+    }
+
+    /**
+     * Ученики: фамилия, затем имя. «Ё» рядом с «Е», без учёта регистра.
+     *
+     * @param  \Illuminate\Support\Collection<int, User>  $users
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    protected function sortUsersByLastname($users)
+    {
+        return $users->sort(function ($left, $right) {
+            return $this->compareUsersByLastname(
+                $left instanceof User ? $left : null,
+                $right instanceof User ? $right : null
+            );
+        })->values();
+    }
+
+    /**
+     * Правая колонка «По месяцам»: usersTeam и usersPrice в одном порядке по фамилии.
+     *
+     * @param  list<User>  $usersTeam
+     * @param  list<UserPrice>  $usersPrice
+     * @return array{0: list<User>, 1: list<UserPrice>}
+     */
+    protected function sortSettingPricesStudentRows(array $usersTeam, array $usersPrice): array
+    {
+        $usersById = [];
+        foreach ($usersTeam as $user) {
+            if ($user instanceof User) {
+                $usersById[(int) $user->id] = $user;
+            }
+        }
+
+        $usersTeam = collect($usersTeam)
+            ->sort(function ($left, $right) {
+                return $this->compareUsersByLastname(
+                    $left instanceof User ? $left : null,
+                    $right instanceof User ? $right : null
+                );
+            })
+            ->values()
+            ->all();
+
+        $usersPrice = collect($usersPrice)
+            ->sort(function ($left, $right) use ($usersById) {
+                return $this->compareUsersByLastname(
+                    $this->userForPriceSort($left, $usersById),
+                    $this->userForPriceSort($right, $usersById)
+                );
+            })
+            ->values()
+            ->all();
+
+        return [$usersTeam, $usersPrice];
+    }
+
+    /**
+     * @param  array<int, User>  $usersById
+     */
+    protected function userForPriceSort(mixed $row, array $usersById): ?User
+    {
+        if (! $row instanceof UserPrice) {
+            return null;
+        }
+
+        $fromList = $usersById[(int) $row->user_id] ?? null;
+        if ($fromList instanceof User) {
+            return $fromList;
+        }
+
+        $related = $row->relationLoaded('user') ? $row->user : null;
+
+        return $related instanceof User ? $related : null;
+    }
+
+    protected function compareUsersByLastname(?User $left, ?User $right): int
+    {
+        $lastCompare = strcmp(
+            $this->monthlyTeamTitleSortKey($left?->lastname),
+            $this->monthlyTeamTitleSortKey($right?->lastname)
+        );
+        if ($lastCompare !== 0) {
+            return $lastCompare;
+        }
+
+        $nameCompare = strcmp(
+            $this->monthlyTeamTitleSortKey($left?->name),
+            $this->monthlyTeamTitleSortKey($right?->name)
+        );
+        if ($nameCompare !== 0) {
+            return $nameCompare;
+        }
+
+        return ((int) ($left->id ?? 0)) <=> ((int) ($right->id ?? 0));
+    }
+
+    /**
      * Русское название месяца по номеру.
      */
     protected function ruMonthName(int $month): string
@@ -265,7 +409,7 @@ class SettingPricesController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerId();
 
-        $allTeams = $this->getPartnerTeamsOrdered();
+        $allTeams = $this->sortMonthlyTeams($this->getPartnerTeamsOrdered());
         $allTeams->load(['location.adminUsers']);
 
         $selectWindow = $this->monthlySelectWindow();
@@ -332,8 +476,8 @@ class SettingPricesController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerId();
 
-        // Команды нужны для фильтра в левой колонке (селект "Все группы / Группа N")
-        $allTeams = $this->getPartnerTeamsOrdered();
+        // Селект групп: order_by, при равном значении — по названию.
+        $allTeams = $this->sortMonthlyTeams($this->getPartnerTeamsOrdered());
 
         // Месяц + цены по группам — пока оставляем, вдруг пригодится во вью
         $monthString = $this->getCurrentMonthString($partnerId);
@@ -432,7 +576,7 @@ class SettingPricesController extends AdminBaseController
             $user->setAttribute('former_teams', $formerTeams);
         }
 
-        return $users;
+        return $this->sortUsersByLastname($users);
     }
 
     public function customPayments()
@@ -998,6 +1142,7 @@ class SettingPricesController extends AdminBaseController
         }
 
         $usersPrice = $this->decorateUsersPricesForMonthlyUi($usersPrice);
+        [$usersTeam, $usersPrice] = $this->sortSettingPricesStudentRows($usersTeam, $usersPrice);
 
         $lessonPackages = $this->lessonPackagesForPartnerSelect($partnerId);
         $viewState = $this->monthlyViewStateForActor($lessonPackages);

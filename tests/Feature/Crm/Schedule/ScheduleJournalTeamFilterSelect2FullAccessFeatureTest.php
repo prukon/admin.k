@@ -43,10 +43,10 @@ final class ScheduleJournalTeamFilterSelect2FullAccessFeatureTest extends Schedu
         ];
 
         foreach ($queries as $query) {
-            $response = $this->get(route('schedule.index', array_merge(
+            $response = $this->journalIndex( array_merge(
                 ['year' => 2026, 'month' => '08'],
                 $query
-            )));
+            ));
             $response->assertOk();
             $html = (string) $response->getContent();
             $this->assertNotSame('', trim($html), 'query='.json_encode($query));

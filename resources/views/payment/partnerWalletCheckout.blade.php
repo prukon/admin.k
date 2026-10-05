@@ -9,7 +9,8 @@
         $showSbp = !empty($canPayAcquiringSbp);
         $showCard = !empty($canPayAcquiringCard);
         $showYookassa = !empty($canPayYookassa);
-        $showOther = $showCard || $showYookassa;
+        $showInvoice = !empty($canPayInvoiceIp) && ($walletInvoiceBuyer ?? null) !== null;
+        $showOther = $showCard || $showYookassa || $showInvoice;
         $singleColumn = !($showSbp && $showOther);
     @endphp
 
@@ -162,6 +163,19 @@
                                         <button type="submit" class="btn payment-btn-secondary" id="walletCheckoutYookassa">Оплатить</button>
                                     </form>
                                     <div class="pay-fee">От 1 ₽</div>
+                                </div>
+                            @endif
+                            @if($showInvoice)
+                                <div class="pay-card">
+                                    <div class="pay-card-name">Счёт от ИП</div>
+                                    <form action="{{ route('partner.wallet.invoice') }}" method="POST">
+                                        @csrf
+                                        <input type="hidden" name="partner_id" value="{{ $partner->id }}">
+                                        <input type="hidden" name="amount" value="{{ $amountValue }}">
+                                        <input type="hidden" name="payment_method" value="invoice_ip">
+                                        <button type="submit" class="btn payment-btn-secondary" id="walletCheckoutInvoiceIp">Выставить счёт</button>
+                                    </form>
+                                    <div class="pay-fee">Покупатель: {{ $walletInvoiceBuyer->displayTitle() }}. НДС не облагается.</div>
                                 </div>
                             @endif
                         </div>

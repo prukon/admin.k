@@ -171,6 +171,7 @@ final class PersistedReportFiltersFeatureTest extends CrmTestCase
             'payment_provider' => 'robokassa',
             'payment_month' => '2026-01',
             'status' => 'inactive',
+            'mode' => 'operation',
         ])->assertOk();
 
         $monthly = $this->get(route('reports.payments.monthly'))->assertOk()->getContent();
@@ -212,6 +213,7 @@ final class PersistedReportFiltersFeatureTest extends CrmTestCase
             'payment_month' => '2026-07',
             'payment_provider' => 'tbank',
             'status' => 'inactive',
+            'mode' => 'subscription',
         ])->assertOk();
 
         $teams = $this->get(route('reports.ltv.teams'))->assertOk()->getContent();
@@ -226,6 +228,7 @@ final class PersistedReportFiltersFeatureTest extends CrmTestCase
             ->first();
         $this->assertSame('robokassa', $teamsRow->filters['payment_provider']);
         $this->assertSame('', $teamsRow->filters['payment_month']);
+        $this->assertSame('subscription', $teamsRow->filters['mode']);
 
         $noLocations = $this->createUserWithoutPermission('reports.ltv.locations.view', $this->partner);
         $this->actingAs($noLocations);
@@ -237,6 +240,7 @@ final class PersistedReportFiltersFeatureTest extends CrmTestCase
         $this->postJson(route('reports.ltv.locations.filters.save'), [
             'operation_date_from' => '2026-08-01',
             'status' => 'inactive',
+            'mode' => 'subscription',
         ])->assertOk();
 
         $locations = $this->get(route('reports.ltv.locations'))->assertOk()->getContent();

@@ -36,6 +36,13 @@
                 </li>
                 @endcan
 
+                @can('reports.ltv.admins.view')
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link {{ $activeTab == 'ltv-admins' ? 'active' : '' }}" href="{{ route('reports.ltv.admins') }}"
+                        role="tab">По админам</a>
+                </li>
+                @endcan
+
                 @can('reports.view')
                 <li class="nav-item" role="presentation">
                     <a class="nav-link {{ $activeTab == 'debt' ? 'active' : '' }}" href="/admin/reports/debts"
@@ -148,6 +155,23 @@
                         ],
                         'ltvLocationsMode' => $ltvLocationsMode ?? 'operation',
                         'ltvLocationsPageLength' => $ltvLocationsPageLength ?? 10,
+                    ])
+                @elseif($activeTab === 'ltv-admins')
+                    @include('admin.report.ltv_admins', [
+                        'totalPaidPrice' => $totalPaidPrice,
+                        'filters' => $filters ?? [],
+                        'paymentsFilterUser' => $paymentsFilterUser ?? null,
+                        'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
+                        'canViewLocations' => $canViewLocations ?? false,
+                        'activeLocations' => $activeLocations ?? collect(),
+                        'ltvAdminsPeriod' => $ltvAdminsPeriod ?? 'current',
+                        'ltvAdminsPeriodLabels' => $ltvAdminsPeriodLabels ?? [
+                            'current' => '',
+                            'previous' => '',
+                            'all' => 'Все время',
+                        ],
+                        'ltvAdminsMode' => $ltvAdminsMode ?? 'operation',
+                        'ltvAdminsPageLength' => $ltvAdminsPageLength ?? 10,
                     ])
                 @elseif($activeTab === 'payment-intents')
                     <!-- Контент вкладки платежные запросы -->

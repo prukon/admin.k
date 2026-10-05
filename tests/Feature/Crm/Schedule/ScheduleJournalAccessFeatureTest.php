@@ -187,7 +187,7 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
         [$student, $team] = $this->makeStudentWithTeam();
         $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 2);
 
-        $index = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $index = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $index->assertOk();
         $this->assertNotSame('', trim((string) $index->getContent()));
         $index->assertSee('flexiblePlaceModal', false);

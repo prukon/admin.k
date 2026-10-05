@@ -77,7 +77,7 @@ final class ScheduleJournalBulkPlaceContractsFeatureTest extends ScheduleJournal
         $body = $this->payload($team->id, [$student->id], $this->scheduledStatusId());
 
         $this->actingAs($actor)->withSession($session)
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '10']))
+            ->journalIndex( ['year' => 2026, 'month' => '10'])
             ->assertForbidden();
 
         $this->actingAs($actor)->withSession($session)
@@ -410,7 +410,7 @@ final class ScheduleJournalBulkPlaceContractsFeatureTest extends ScheduleJournal
         $this->attachPostpay((int) $prepaidDespitePaidPostpay->id, (int) $team->id, '2026-10-01', paid: true);
         $this->makeMonthlyFixedAssignment($fixed, (int) $team->id, '2026-10-01', lessons: 4);
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '10', 'team' => $team->id]))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '10', 'team' => $team->id])
             ->assertOk()
             ->getContent();
 
@@ -454,7 +454,7 @@ final class ScheduleJournalBulkPlaceContractsFeatureTest extends ScheduleJournal
             'occurrence_date' => '2026-10-05',
         ]), $this->ajaxHeaders())->assertOk();
 
-        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '10', 'team' => $team->id]))
+        $html = $this->journalIndex( ['year' => 2026, 'month' => '10', 'team' => $team->id])
             ->assertOk()
             ->getContent();
 

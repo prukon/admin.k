@@ -80,7 +80,7 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
             ->assertJsonValidationErrors(['team_ids.0']);
     }
 
-    public function test_schedule_index_shows_comma_separated_teams_under_student_name(): void
+    public function test_schedule_groups_list_each_team_and_rows_show_the_student(): void
     {
         $this->withoutVite();
         $this->seedPartnerOccurrenceStatuses();
@@ -97,11 +97,22 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
             'lastname' => 'Ученик',
         ]);
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '06']))
+        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '06']))
             ->assertOk()
-            ->assertSee($student->full_name, false)
-            ->assertSee('Журнал-A', false)
-            ->assertSee('Журнал-B', false);
+            ->getContent();
+        $this->assertStringNotContainsString($student->full_name, $html);
+        $this->assertStringContainsString('schedule-group-title" title="Журнал-A"', $html);
+        $this->assertStringContainsString('schedule-group-title" title="Журнал-B"', $html);
+
+        foreach ([$teamA, $teamB] as $team) {
+            $rows = $this->get(route('schedule.group-rows', [
+                'year' => 2026,
+                'month' => '06',
+                'group_key' => $team->id,
+            ]))->assertOk()->getContent();
+            $this->assertStringContainsString($student->full_name, $rows);
+            $this->assertStringContainsString('data-team-ids="'.$team->id.'"', $rows);
+        }
     }
 
     public function test_abonement_context_returns_all_team_titles(): void

@@ -2,6 +2,9 @@
                 $form.find('.is-invalid').removeClass('is-invalid');
                 $form.find('.select2-selection').removeClass('is-invalid');
                 $form.find('.payments-report-filter-error').remove();
+                $('[data-error-for]').filter(function () {
+                    return $(this).closest('form').length === 0;
+                }).text('').css('display', '');
 
                 $.ajax({
                     url: url,
@@ -35,6 +38,9 @@
                             }
                             var $slot = $form.find('[data-error-for="' + base + '"]');
                             if (!$slot.length) {
+                                $slot = $('[data-error-for="' + base + '"]').first();
+                            }
+                            if (!$slot.length) {
                                 $slot = $('<div class="small text-danger mt-1 payments-report-filter-error" data-error-for="' + base + '"></div>');
                                 var $host = $input.length ? $input.closest('[class*="col-"]') : $();
                                 if (!$host.length && $input.length) {
@@ -44,8 +50,8 @@
                                     $host.append($slot);
                                 }
                             }
-                            if ($slot.length && !$slot.text()) {
-                                $slot.text(message);
+                            if ($slot.length) {
+                                $slot.text(message).css('display', 'block');
                             }
                         });
                     }

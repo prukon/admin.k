@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\OpensPaymentCheckoutIntent;
 use App\Http\Controllers\Concerns\ResolvesPaymentCheckoutTeam;
 use App\Http\Requests\Tinkoff\CreatePaymentRequest;
 use App\Http\Requests\Tinkoff\CreateSbpPaymentRequest;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\UserCustomPayment;
-use App\Services\Payments\FamilyPaymentPayer;
-use App\Services\Payments\FamilyPaymentPayerResolver;
+use App\Services\Payments\PaymentCheckoutIntent;
+use App\Services\Payments\PaymentCheckoutIntentSigner;
 use App\Services\Payments\PaymentService;
 use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\UserLessonPackageFeePaymentResolver;
@@ -19,12 +20,14 @@ use App\Services\Tinkoff\TinkoffPaymentsService;
 use App\Support\Money;
 use App\Support\Payments\PaymentOutSumNormalizer;
 use App\Models\UserLessonPackage;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class TinkoffPaymentController extends Controller
 {
+    use OpensPaymentCheckoutIntent;
     use ResolvesPaymentCheckoutTeam;
     public function create2(Request $r, TinkoffPaymentsService $svc)
     {
@@ -51,16 +54,18 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена на платформе']);
         }
 
-        $paymentKind = (string) $r->input('payment_kind', '');
-        $userPeriodPriceId = $r->filled('custom_payment_id') ? (int) $r->input('custom_payment_id') : null;
-        $userLessonPackageId = $r->filled('user_lesson_package_id') ? (int) $r->input('user_lesson_package_id') : null;
+        $opened = $this->beginPaymentCheckout($r, $partnerId);
+        if ($opened instanceof RedirectResponse) {
+            return $opened;
+        }
+        $intent = $opened['intent'];
+        $paymentKind = $opened['paymentKind'];
+        $userPeriodPriceId = $opened['userPeriodPriceId'];
+        $userLessonPackageId = $opened['userLessonPackageId'];
+        $rawFmt = $opened['rawFmt'];
+        $hasMonthly = $opened['hasMonthly'];
 
-        $rawFmt = $r->input('formatedPaymentDate');
-        $hasMonthly = $r->filled('formatedPaymentDate')
-            && is_string($rawFmt)
-            && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
-
-        $payer = $this->familyCheckoutPayer($r, $paymentKind, $hasMonthly);
+        $payer = $opened['payer'];
         $user = $payer->student;
         $userId = $payer->studentId();
         $userName = (string) ($user->name ?? '');
@@ -100,7 +105,7 @@ class TinkoffPaymentController extends Controller
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
         } elseif ($hasMonthly) {
-            $teamIdParam = $r->filled('team_id') ? (int) $r->input('team_id') : null;
+            $teamIdParam = $intent->teamId;
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 (int) $partnerId,
@@ -112,6 +117,11 @@ class TinkoffPaymentController extends Controller
             $paymentDate = $resolved['month_first_day'];
             $monthlyTeamId = $resolved['team_id'];
         } else {
+            if ($intent->kind !== PaymentCheckoutIntent::KIND_CLUB) {
+                return back()->withErrors([
+                    'checkout_intent' => PaymentCheckoutIntentSigner::MESSAGE_UNKNOWN,
+                ]);
+            }
             $outSumRaw = (string) $r->input('outSum', '0');
             $outSum = PaymentOutSumNormalizer::normalize($outSumRaw);
             if ($outSum === null) {
@@ -229,16 +239,18 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена на платформе']);
         }
 
-        $paymentKind = (string) $r->input('payment_kind', '');
-        $userPeriodPriceId = $r->filled('custom_payment_id') ? (int) $r->input('custom_payment_id') : null;
-        $userLessonPackageId = $r->filled('user_lesson_package_id') ? (int) $r->input('user_lesson_package_id') : null;
+        $opened = $this->beginPaymentCheckout($r, $partnerId);
+        if ($opened instanceof RedirectResponse) {
+            return $opened;
+        }
+        $intent = $opened['intent'];
+        $paymentKind = $opened['paymentKind'];
+        $userPeriodPriceId = $opened['userPeriodPriceId'];
+        $userLessonPackageId = $opened['userLessonPackageId'];
+        $rawFmt = $opened['rawFmt'];
+        $hasMonthly = $opened['hasMonthly'];
 
-        $rawFmt = $r->input('formatedPaymentDate');
-        $hasMonthly = $r->filled('formatedPaymentDate')
-            && is_string($rawFmt)
-            && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
-
-        $payer = $this->familyCheckoutPayer($r, $paymentKind, $hasMonthly);
+        $payer = $opened['payer'];
         $user = $payer->student;
         $userId = $payer->studentId();
         $userName = (string) ($user->name ?? '');
@@ -278,7 +290,7 @@ class TinkoffPaymentController extends Controller
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
         } elseif ($hasMonthly) {
-            $teamIdParam = $r->filled('team_id') ? (int) $r->input('team_id') : null;
+            $teamIdParam = $intent->teamId;
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 (int) $partnerId,
@@ -290,6 +302,11 @@ class TinkoffPaymentController extends Controller
             $paymentDate = $resolved['month_first_day'];
             $monthlyTeamId = $resolved['team_id'];
         } else {
+            if ($intent->kind !== PaymentCheckoutIntent::KIND_CLUB) {
+                return back()->withErrors([
+                    'checkout_intent' => PaymentCheckoutIntentSigner::MESSAGE_UNKNOWN,
+                ]);
+            }
             $outSumRaw = (string) $r->input('outSum', '0');
             $outSum = PaymentOutSumNormalizer::normalize($outSumRaw);
             if ($outSum === null) {
@@ -433,15 +450,6 @@ class TinkoffPaymentController extends Controller
             'cabinetUrl' => route('dashboard'),
             'homeUrl' => url('/'),
         ];
-    }
-
-    private function familyCheckoutPayer(Request $r, string $paymentKind, bool $hasMonthly): FamilyPaymentPayer
-    {
-        return app(FamilyPaymentPayerResolver::class)->forPayableType(
-            $r->user(),
-            $paymentKind,
-            $hasMonthly,
-        );
     }
 
     /**

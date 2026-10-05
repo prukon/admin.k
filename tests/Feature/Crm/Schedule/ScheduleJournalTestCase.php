@@ -697,6 +697,27 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
     }
 
     /**
+     * Журнал со строками учеников: group_pages для групп партнёра.
+     * Обычный GET /schedule эти строки не отдаёт.
+     *
+     * @param  array<string, mixed>  $query
+     */
+    protected function journalIndex(array $query = [])
+    {
+        if (! array_key_exists('group_pages', $query)) {
+            $page = max(1, (int) ($query['page'] ?? 1));
+            $pages = ['none' => $page];
+            $teamIds = Team::query()->where('partner_id', $this->partner->id)->pluck('id');
+            foreach ($teamIds as $teamId) {
+                $pages[(string) $teamId] = $page;
+            }
+            $query['group_pages'] = $pages;
+        }
+
+        return $this->get(route('schedule.index', $query));
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function ajaxHeaders(): array

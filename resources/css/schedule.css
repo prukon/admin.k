@@ -910,7 +910,7 @@ table.dataTable tbody th, table.dataTable tbody td {
 /* ----------------------------------------------- */
 /* === Закрепление первой строки (thead) ===       */
 /* ----------------------------------------------- */
-/* Только в полноэкранном режиме */
+/* Полноэкранный режим. Обычный десктоп — в конце файла, мобильный — в @media 768. */
 .schedule-fullscreen-wrapper.fullscreen .schedule-table thead th {
     position: sticky;
     top: 0;
@@ -2500,6 +2500,24 @@ table.dataTable tbody th, table.dataTable tbody td {
     font-variant-numeric: tabular-nums;
 }
 
+#schedule-table tr.schedule-group-users-loading td.schedule-group-users-loading-cell {
+    background: #fff;
+    text-align: left;
+    white-space: normal;
+    padding: 0.55rem 0.75rem;
+    vertical-align: middle;
+}
+
+#schedule-table tr.schedule-group-users-loading .schedule-group-users-loading__inner {
+    position: sticky;
+    left: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #868e96;
+    font-size: 13px;
+}
+
 .schedule-table td.schedule-group-pager-host,
 .schedule-fullscreen-wrapper.fullscreen td.schedule-group-pager-host,
 body.layout-wide td.schedule-group-pager-host {
@@ -2551,6 +2569,41 @@ body.layout-wide td.schedule-group-pager-host {
 
 #schedule-table tr.schedule-group-pager .schedule-journal-pagination__of {
     margin-left: 0.2rem;
+}
+
+.schedule-journal-per-page {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    flex: 0 0 auto;
+}
+
+.schedule-journal-per-page__row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 1;
+    color: #868e96;
+}
+
+.schedule-journal-per-page__select {
+    height: 1.35rem;
+    padding: 0 1.15rem 0 0.45rem;
+    border: 1px solid #dee2e6;
+    border-radius: 999px;
+    background-color: #fff;
+    color: #343a40;
+    font-size: 12px;
+    line-height: 1.35rem;
+}
+
+.schedule-journal-per-page__error {
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: normal;
 }
 
 .schedule-group-pages {
@@ -2997,5 +3050,43 @@ td.schedule-cell {
     #schedule-table tfoot td.sticky-col-1,
     #schedule-table tfoot td.schedule-attendance-total-label {
         background-color: #f8f9fa;
+    }
+}
+
+/* Десктоп: первая строка (№, ФИО, даты) закреплена при прокрутке журнала.
+   Скролл внутри контейнера: .kids-dt-scroll-x с overflow-x: auto сам становится
+   sticky-контейнером и не скроллится по вертикали, а прокрутка окна уводит
+   закреплённые столбцы под сайдбар. */
+@media (min-width: 769px) {
+    .schedule-fullscreen-wrapper:not(.fullscreen) .schedule-journal-table-stack {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .schedule-fullscreen-wrapper:not(.fullscreen) .schedule-table-container {
+        overflow: auto !important;
+        max-height: calc(100dvh - 14rem);
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .schedule-fullscreen-wrapper:not(.fullscreen) #schedule-table_wrapper > .kids-dt-scroll-x {
+        overflow: visible !important;
+        width: max-content;
+        max-width: none;
+    }
+
+    .schedule-fullscreen-wrapper:not(.fullscreen) #schedule-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 55;
+        background-color: #fff;
+        background-clip: padding-box;
+    }
+
+    .schedule-fullscreen-wrapper:not(.fullscreen) #schedule-table thead th.sticky-col-1,
+    .schedule-fullscreen-wrapper:not(.fullscreen) #schedule-table thead th.col-name {
+        z-index: 70 !important;
+        top: 0;
     }
 }

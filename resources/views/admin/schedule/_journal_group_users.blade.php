@@ -348,17 +348,30 @@
                     </tr>
                 @endforeach
 
-@if($users->lastPage() > 1)
+@if($users->total() > 0)
     @php
         $groupPageCurrent = $users->currentPage();
         $groupPageLast = $users->lastPage();
         $groupPageFrom = max(1, $groupPageCurrent - 1);
         $groupPageTo = min($groupPageLast, $groupPageCurrent + 1);
+        $journalGroupPerPage = (int) ($journalGroupPerPage ?? \App\Services\Schedule\ScheduleJournalPageLength::forUser(auth()->user()));
     @endphp
     <tr class="schedule-group-pager{{ $journalGroupCollapsed ? ' schedule-group-collapsed' : '' }}" data-group-key="{{ $groupKey }}">
         <td class="schedule-group-pager-cell" colspan="{{ 5 + count($days) }}">
             <div class="schedule-journal-pagination">
                 <div class="schedule-journal-pagination__meta"><span class="schedule-journal-pagination__range">{{ $users->firstItem() }}–{{ $users->lastItem() }}</span> <span class="schedule-journal-pagination__of">из {{ $users->total() }}</span></div>
+                <div class="schedule-journal-per-page">
+                    <div class="schedule-journal-per-page__row">
+                        <span class="schedule-journal-per-page__label">Показывать по</span>
+                        <select class="schedule-journal-per-page__select" aria-label="Показывать по" data-field="page_length">
+                            @foreach(\App\Services\Schedule\ScheduleJournalPageLength::LENGTHS as $journalPerPageOption)
+                                <option value="{{ $journalPerPageOption }}" @selected($journalPerPageOption === $journalGroupPerPage)>{{ $journalPerPageOption }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="schedule-journal-per-page__error text-danger" data-error-for="page_length" hidden></div>
+                </div>
+                @if($users->lastPage() > 1)
                 <div class="schedule-group-pages">
                     @if($groupPageCurrent > 1)
                         <a href="{{ $groupPageUrl($groupPageCurrent - 1) }}" class="schedule-group-page-link" data-group-key="{{ $groupKey }}" data-page="{{ $groupPageCurrent - 1 }}">‹</a>
@@ -374,6 +387,7 @@
                         <a href="{{ $groupPageUrl($groupPageCurrent + 1) }}" class="schedule-group-page-link" data-group-key="{{ $groupKey }}" data-page="{{ $groupPageCurrent + 1 }}">›</a>
                     @endif
                 </div>
+                @endif
             </div>
         </td>
     </tr>

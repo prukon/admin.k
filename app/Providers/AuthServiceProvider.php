@@ -93,6 +93,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('reports.ltv.locations.view');
         });
 
+        // Отчёты -> вкладка "По админам"
+        Gate::define('reports.ltv.admins.view', function (User $user) {
+            return $user->hasPermission('reports.ltv.admins.view');
+        });
+
         // Отчёты -> вкладка "Платежные запросы"
         Gate::define('reports.payment.intents.view', function (User $user) {
             return $user->hasPermission('reports.payment.intents.view');
@@ -508,6 +513,10 @@ class AuthServiceProvider extends ServiceProvider
 
         Gate::define('platformPayments.method.yookassa', function (User $user) {
             return $user->hasPermission('platformPayments.method.yookassa');
+        });
+
+        Gate::define('platformPayments.method.invoiceIp', function (User $user) {
+            return $user->hasPermission('platformPayments.method.invoiceIp');
         });
 
 

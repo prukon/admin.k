@@ -30,11 +30,11 @@ final class ScheduleJournalTeamFilterSelect2AjaxContractFeatureTest extends Sche
         $student->update(['lastname' => 'AjaxФильтр', 'name' => 'Ученик']);
 
         $response = $this->withHeaders($this->ajaxHeaders())
-            ->get(route('schedule.index', [
+            ->journalIndex( [
                 'year' => 2026,
                 'month' => '08',
                 'team_ids' => [$team->id],
-            ]));
+            ]);
 
         $response->assertOk();
         $html = (string) $response->getContent();

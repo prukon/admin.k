@@ -24,11 +24,14 @@ final class PersistedReportFilters
 
     public const LTV_LOCATIONS = 'reports_ltv_locations';
 
+    public const LTV_ADMINS = 'reports_ltv_admins';
+
     public const DEBTS = 'reports_debts';
 
     /**
      * Подставить сохранённые фильтры в запрос страницы.
      * Query-строка с фильтрами перезаписывает запись в БД.
+     * mode из адреса только показывает группировку на этот заход и запись не затирает.
      */
     public function hydrate(Request $request, string $tableKey): void
     {
@@ -38,20 +41,24 @@ final class PersistedReportFilters
             return;
         }
 
+        $explicitMode = $this->explicitMode($request, $tableKey);
+
         if ($this->queryCarries($request, $tableKey)) {
             $filters = $this->visibleFor($user, $tableKey, $this->fromQuery($request, $tableKey));
+            $filters = $this->preserveStoredMode($userId, $tableKey, $filters);
             $this->store($userId, $tableKey, $filters);
             $this->writeQuery($request, $filters);
+            $this->applyExplicitMode($request, $explicitMode);
 
             return;
         }
 
         $saved = $this->load($userId, $tableKey);
-        if ($saved === null) {
-            return;
+        if ($saved !== null) {
+            $this->writeQuery($request, $this->visibleFor($user, $tableKey, $saved));
         }
 
-        $this->writeQuery($request, $this->visibleFor($user, $tableKey, $saved));
+        $this->applyExplicitMode($request, $explicitMode);
     }
 
     /**
@@ -77,7 +84,15 @@ final class PersistedReportFilters
     {
         $filters = [];
         foreach ($this->fields($tableKey) as $key => $kind) {
-            $filters[$key] = $kind === 'list' ? [] : ($key === 'status' ? 'active' : '');
+            if ($kind === 'list') {
+                $filters[$key] = [];
+            } elseif ($key === 'status') {
+                $filters[$key] = 'active';
+            } elseif ($key === 'mode') {
+                $filters[$key] = $this->defaultMode($tableKey);
+            } else {
+                $filters[$key] = '';
+            }
         }
 
         return $filters;
@@ -126,7 +141,7 @@ final class PersistedReportFilters
         $query = $request->query->all();
         $filters = $this->defaults($tableKey);
         foreach ($this->fields($tableKey) as $key => $kind) {
-            if (! array_key_exists($key, $query)) {
+            if ($key === 'mode' || ! array_key_exists($key, $query)) {
                 continue;
             }
             $filters[$key] = $this->sanitizeValue($key, $kind, $query[$key]);
@@ -153,6 +168,9 @@ final class PersistedReportFilters
                 continue;
             }
             $filters[$key] = $this->sanitizeValue($key, $kind, $raw[$key]);
+            if ($key === 'mode' && ! in_array($filters[$key], ['operation', 'subscription'], true)) {
+                $filters[$key] = $this->defaultMode($tableKey);
+            }
         }
 
         return $filters;
@@ -196,6 +214,10 @@ final class PersistedReportFilters
 
         if ($key === 'payment_refund_status') {
             return $this->enum($raw, ['no_refund', 'refunded', 'refund_pending']);
+        }
+
+        if ($key === 'mode') {
+            return $this->enum($raw, ['operation', 'subscription']);
         }
 
         if (str_starts_with($key, 'bank_commission_')) {
@@ -318,9 +340,72 @@ final class PersistedReportFilters
         }
     }
 
+    private function defaultMode(string $tableKey): string
+    {
+        return $tableKey === self::MONTHLY ? 'subscription' : 'operation';
+    }
+
+    /**
+     * mode в адресе страницы. Пустое и кривое значение не считается выбором.
+     */
+    private function explicitMode(Request $request, string $tableKey): ?string
+    {
+        if (! array_key_exists('mode', $this->fields($tableKey))) {
+            return null;
+        }
+
+        $queryString = $request->getQueryString();
+        if ($queryString === null || $queryString === '') {
+            return null;
+        }
+
+        parse_str($queryString, $raw);
+        if (! array_key_exists('mode', $raw)) {
+            return null;
+        }
+
+        $mode = $this->enum($raw['mode'], ['operation', 'subscription']);
+
+        return $mode !== '' ? $mode : null;
+    }
+
+    private function applyExplicitMode(Request $request, ?string $explicitMode): void
+    {
+        if ($explicitMode === null) {
+            return;
+        }
+
+        $request->query->set('mode', $explicitMode);
+    }
+
+    /**
+     * Ссылка с другими фильтрами заменяет набор, но не сбрасывает уже сохранённую группировку.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function preserveStoredMode(int $userId, string $tableKey, array $filters): array
+    {
+        if (! array_key_exists('mode', $filters)) {
+            return $filters;
+        }
+
+        $saved = $this->load($userId, $tableKey);
+        if ($saved === null || ! array_key_exists('mode', $saved)) {
+            return $filters;
+        }
+
+        $filters['mode'] = $saved['mode'];
+
+        return $filters;
+    }
+
     private function queryCarries(Request $request, string $tableKey): bool
     {
-        $keys = array_keys($this->fields($tableKey));
+        $keys = array_values(array_filter(
+            array_keys($this->fields($tableKey)),
+            static fn (string $key): bool => $key !== 'mode'
+        ));
         foreach (['user_name', 'team_title'] as $legacy) {
             if (! in_array($legacy, $keys, true)) {
                 $keys[] = $legacy;
@@ -412,13 +497,22 @@ final class PersistedReportFilters
                 'filter_trainer_profile_id' => 'scalar',
                 'filter_location_id' => 'scalar',
                 'filter_admin_user_id' => 'scalar',
+                'mode' => 'scalar',
             ] + $sharedDates,
-            self::LTV, self::LTV_TEAMS, self::LTV_LOCATIONS => [
+            self::LTV => [
                 'filter_user_id' => 'scalar',
                 'filter_team_id' => 'list',
                 'filter_trainer_profile_id' => 'list',
                 'filter_location_id' => 'list',
                 'filter_admin_user_id' => 'list',
+            ] + $sharedDates,
+            self::LTV_TEAMS, self::LTV_LOCATIONS, self::LTV_ADMINS => [
+                'filter_user_id' => 'scalar',
+                'filter_team_id' => 'list',
+                'filter_trainer_profile_id' => 'list',
+                'filter_location_id' => 'list',
+                'filter_admin_user_id' => 'list',
+                'mode' => 'scalar',
             ] + $sharedDates,
             self::DEBTS => [
                 'filter_user_id' => 'scalar',

@@ -18,12 +18,14 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Tests\Feature\Crm\CrmTestCase;
+use Tests\Feature\Crm\Payments\Concerns\SignsPaymentCheckout;
 
 /**
  * Месячная оплата при нескольких группах: resolver, витрина, Init, webhook, журнал payments.
  */
 final class MultiTeamMonthlyPaymentFlowTest extends CrmTestCase
 {
+    use SignsPaymentCheckout;
     protected function setUp(): void
     {
         parent::setUp();
@@ -147,6 +149,7 @@ final class MultiTeamMonthlyPaymentFlowTest extends CrmTestCase
         $this->post(route('payment.tinkoff.pay'), [
             'formatedPaymentDate' => '2026-11-01',
             'team_id' => $teamA->id,
+            'checkout_intent' => $this->signMonthlyCheckout($this->user, '2026-11-01', (int) $teamA->id),
         ])->assertRedirect();
 
         $this->assertIsArray($capturedData);

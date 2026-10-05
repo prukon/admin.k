@@ -315,6 +315,12 @@ final class FilterChangeResetsDatatablePageFeatureTest extends TestCase
             "$('#ltvLocationsReportFiltersResetBtn')",
             'dtApi.reload();'
         )];
+        yield 'ltv admins apply' => [$reset(
+            'resources/views/admin/report/ltv_admins.blade.php',
+            "\$ltvFiltersForm.on('submit'",
+            "$('#ltvAdminsReportFiltersResetBtn')",
+            'dtApi.reload();'
+        )];
         yield 'payments monthly apply' => [$reset(
             'resources/views/admin/report/payment_monthly.blade.php',
             "\$payMonthlyFiltersForm.on('submit'",

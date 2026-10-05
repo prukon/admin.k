@@ -73,7 +73,7 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
         [$student, $team] = $this->studentWithFlexibleAtLimit();
         $this->makeSingleLessonTemplate('Доступ при лимите');
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('data-flexible="1"', false)
@@ -101,7 +101,7 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
         $template = $this->makeSingleLessonTemplate();
         Auth::logout();
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertRedirect();
 
         $this->getJson(route('schedule.empty-cell.context', $student).'?occurrence_date=2026-09-12')
@@ -152,7 +152,7 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
         ]);
 
         $this->actingAs($actor)->withSession($session)
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+            ->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertForbidden();
 
         $this->actingAs($actor)->withSession($session)
@@ -201,7 +201,7 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
         ]);
 
         $page = $this->actingAs($actor)->withSession($session)
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+            ->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $page->assertOk()
             ->assertSee('data-flexible="1"', false)
             ->assertSee('data-flexible-remaining="0"', false)
@@ -240,7 +240,7 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
         $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 3);
         $this->makeSingleLessonTemplate();
 
-        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+        $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id])
             ->assertOk()
             ->assertSee('data-flexible="1"', false)
             ->assertSee('data-flexible-remaining="3"', false)
@@ -632,7 +632,7 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
         $student->update(['name' => 'Лимит', 'lastname' => 'Гибкий']);
         $template = $this->makeSingleLessonTemplate('Smoke разовое', 130000);
 
-        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $page = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $page->assertOk();
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee($student->full_name, false)
@@ -675,7 +675,7 @@ final class ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest extends Sc
                 ],
             ]);
 
-        $pageAfter = $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]));
+        $pageAfter = $this->journalIndex( ['year' => 2026, 'month' => '09', 'team' => $team->id]);
         $pageAfter->assertOk();
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));
         $pageAfter->assertSee($student->full_name, false)
