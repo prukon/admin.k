@@ -47,6 +47,7 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
     public function test_lesson_packages_html_pages_return_200_with_lesson_packages_view(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
         $this->grantPermission('setPrices.packageAssignments.view');
         $this->grantPermission('scheduleSlots.table');
 
@@ -327,7 +328,7 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
             'columns' => ['student' => true],
         ])->assertForbidden();
         $this->get(route('admin.lesson-packages.school-schedule'))->assertForbidden();
-        // occurrence-statuses доступны также при schedule.view (OR-gate) — здесь не проверяем 403
+        $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertForbidden();
 
         $this->getJson(route('admin.lesson-packages.school-schedule.week', [
             'week' => self::WEEK_MONDAY,

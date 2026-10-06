@@ -922,7 +922,7 @@
     Справочник <code>lesson_occurrence_statuses</code> партнёра: системные (<code>attended</code>, <code>not_attended</code>, …) и кастомные.
     Тот же UI и API, что на <code>/schedule/occurrence-statuses</code>
     (общий partial <code>admin/shared/occurrence_statuses_crud.blade.php</code>).
-    Право: Gate <code>lessonOccurrenceStatuses.manage</code> (= <code>schedule.view</code> OR <code>lessonPackages.view</code>).
+    Право: <code>lessonOccurrenceStatuses.manage</code> (видимое, по умолчанию у роли admin; не следует из <code>lessonPackages.view</code>).
   </div>
   <h3>UI и API (кратко)</h3>
   <ul>

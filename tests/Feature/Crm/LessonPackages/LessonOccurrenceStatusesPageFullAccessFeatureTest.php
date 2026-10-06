@@ -16,7 +16,7 @@ use Tests\Feature\Crm\CrmTestCase;
  * Контроль доступа к /admin/lesson-packages/occurrence-statuses и /schedule/occurrence-statuses
  * и ко всем endpoint'ам раздела (data, columns-settings, logs-data, CRUD, reorder).
  *
- * Gate: lessonOccurrenceStatuses.manage = schedule.view OR lessonPackages.view.
+ * Право: lessonOccurrenceStatuses.manage (видимое, по умолчанию у admin).
  *
  * @see SportTypesPageFullAccessFeatureTest
  * @see TeamControllerTest::test_store_non_ajax_redirects_and_creates_team
@@ -80,7 +80,7 @@ final class LessonOccurrenceStatusesPageFullAccessFeatureTest extends CrmTestCas
 
     public function test_index_page_returns_200_with_lesson_packages_view_and_toolbar_markers(): void
     {
-        $this->grantPermissionForUser($this->user, 'lessonPackages.view');
+        $this->grantPermissionForUser($this->user, 'lessonOccurrenceStatuses.manage');
 
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))
             ->assertOk()
@@ -100,7 +100,7 @@ final class LessonOccurrenceStatusesPageFullAccessFeatureTest extends CrmTestCas
 
     public function test_schedule_tab_returns_200_with_schedule_view_and_toolbar_markers(): void
     {
-        $this->grantPermissionForUser($this->user, 'schedule.view');
+        $this->grantPermissionForUser($this->user, 'lessonOccurrenceStatuses.manage');
 
         $this->get(route('schedule.occurrence-statuses'))
             ->assertOk()
@@ -113,7 +113,7 @@ final class LessonOccurrenceStatusesPageFullAccessFeatureTest extends CrmTestCas
 
     public function test_all_section_endpoints_return_expected_status_for_admin_with_manage_gate(): void
     {
-        $this->grantPermissionForUser($this->user, 'lessonPackages.view');
+        $this->grantPermissionForUser($this->user, 'lessonOccurrenceStatuses.manage');
 
         $disposable = LessonOccurrenceStatus::query()->create([
             'partner_id' => $this->partner->id,
@@ -210,10 +210,10 @@ final class LessonOccurrenceStatusesPageFullAccessFeatureTest extends CrmTestCas
             ->assertJsonPath('message', 'Порядок сохранён');
     }
 
-    public function test_user_with_only_schedule_view_can_access_all_section_endpoints(): void
+    public function test_user_with_manage_permission_can_access_all_section_endpoints(): void
     {
         $actor = $this->makeCustomRoleUser();
-        $this->grantPermissionForUser($actor, 'schedule.view');
+        $this->grantPermissionForUser($actor, 'lessonOccurrenceStatuses.manage');
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
@@ -252,37 +252,25 @@ final class LessonOccurrenceStatusesPageFullAccessFeatureTest extends CrmTestCas
         ])->assertOk();
     }
 
-    public function test_user_with_only_lesson_packages_view_can_access_all_section_endpoints(): void
+    public function test_schedule_view_or_lesson_packages_view_alone_are_forbidden(): void
     {
-        $actor = $this->makeCustomRoleUser();
-        $this->grantPermissionForUser($actor, 'lessonPackages.view');
-        $this->actingAs($actor);
-        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        foreach (['schedule.view', 'lessonPackages.view'] as $permissionName) {
+            $actor = $this->makeCustomRoleUser();
+            $this->grantPermissionForUser($actor, $permissionName);
+            $this->actingAs($actor);
+            $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
-        $this->get(route('admin.lesson-packages.occurrence-statuses.index'))
-            ->assertOk()
-            ->assertSee('id="los-statuses-table"', false);
-
-        $this->getJson(route('admin.lesson-packages.occurrence-statuses.data', [
-            'draw' => 1,
-            'start' => 0,
-            'length' => 10,
-        ]))->assertOk();
-
-        $this->getJson(route('logs.data.lesson-occurrence-status', [
-            'draw' => 1,
-            'start' => 0,
-            'length' => 10,
-        ]))->assertOk();
-
-        $this->putJson(route('admin.lesson-packages.occurrence-statuses.update', $this->customStatus->id), [
-            'title' => 'LP view update',
-            'color' => '#654321',
-            'icon' => 'fa-solid fa-star',
-            'sort_order' => 52,
-            'consumes_lesson' => 0,
-            'is_active' => 1,
-        ])->assertOk();
+            $this->get(route('schedule.occurrence-statuses'))->assertForbidden();
+            $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertForbidden();
+            $this->putJson(route('admin.lesson-packages.occurrence-statuses.update', $this->customStatus->id), [
+                'title' => 'Не должно обновиться',
+                'color' => '#654321',
+                'icon' => 'fa-solid fa-star',
+                'sort_order' => 52,
+                'consumes_lesson' => 0,
+                'is_active' => 1,
+            ])->assertForbidden();
+        }
     }
 
     public function test_index_and_read_endpoints_return_403_without_manage_gate(): void

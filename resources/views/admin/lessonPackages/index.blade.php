@@ -17,11 +17,13 @@
                        role="tab">Таблица занятий</a>
                 </li>
             @endcan
+            @can('lessonOccurrenceStatuses.manage')
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ ($activeTab ?? '') === 'occurrence-statuses' ? 'active' : '' }}"
                    href="{{ route('admin.lesson-packages.occurrence-statuses.index') }}"
                    role="tab">Статусы занятий</a>
             </li>
+            @endcan
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ ($activeTab ?? 'packages') === 'packages' ? 'active' : '' }}"
                    href="{{ route('admin.lesson-packages.index') }}"

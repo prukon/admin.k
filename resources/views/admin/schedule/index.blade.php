@@ -327,6 +327,19 @@
                     flex: 0 0 auto;
                 }
 
+                .schedule-fullscreen-wrapper .schedule-controls {
+                    row-gap: 4px;
+                }
+
+                .schedule-fullscreen-wrapper .schedule-controls .form-select,
+                .schedule-fullscreen-wrapper .schedule-controls .form-control,
+                .schedule-fullscreen-wrapper .schedule-controls .btn {
+                    height: 32px;
+                    min-height: 32px;
+                    padding-top: 0;
+                    padding-bottom: 0;
+                }
+
                 .schedule-attendance-average {
                     display: none !important;
                 }
@@ -374,21 +387,44 @@
                     white-space: nowrap !important;
                 }
 
+                .schedule-fullscreen-wrapper .wrap-filter-team {
+                    min-height: 32px;
+                }
+
+                .schedule-fullscreen-wrapper .wrap-filter-team > select.schedule-filter-team:not(.select2-hidden-accessible) {
+                    height: 32px !important;
+                    min-height: 32px !important;
+                    max-height: 32px !important;
+                }
+
                 .schedule-fullscreen-wrapper .wrap-filter-team.generic-multiselect-field .select2-container--bootstrap-5 .select2-selection.select2-selection--multiple {
-                    max-height: 38px;
+                    height: 32px !important;
+                    min-height: 32px !important;
+                    max-height: 32px !important;
+                    padding: 0 0.35rem !important;
+                    font-size: 12px !important;
+                    line-height: 1.2 !important;
                     overflow: hidden !important;
                 }
 
                 .schedule-fullscreen-wrapper .schedule-controls__actions {
                     flex: 1 1 100%;
                     flex-wrap: wrap;
+                    align-items: center;
                     min-width: 0;
+                    gap: 4px;
                 }
 
                 .schedule-fullscreen-wrapper .wrap-filter-search {
-                    flex: 1 1 auto;
+                    flex: 1 1 0;
                     min-width: 0;
                     width: auto;
+                }
+
+                .schedule-fullscreen-wrapper .wrap-filter-fullscreen {
+                    flex: 0 0 auto;
+                    padding-left: 0;
+                    padding-right: 0;
                 }
 
                 .schedule-fullscreen-wrapper .schedule-controls .schedule-controls__search {
@@ -404,10 +440,13 @@
                     min-width: 0;
                 }
 
-                .schedule-fullscreen-wrapper .schedule-controls .schedule-search-submit {
-                    flex: 0 0 38px;
-                    width: 38px;
-                    min-width: 38px;
+                .schedule-fullscreen-wrapper .schedule-controls .schedule-search-submit,
+                .schedule-fullscreen-wrapper .schedule-controls .schedule-btn-fullscreen {
+                    flex: 0 0 32px;
+                    width: 32px;
+                    min-width: 32px;
+                    height: 32px;
+                    min-height: 32px;
                     padding: 0;
                 }
 

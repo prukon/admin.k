@@ -26,7 +26,7 @@ final class LessonOccurrenceStatusesAjaxContractFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->asAdmin();
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
     }
 

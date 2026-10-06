@@ -131,8 +131,8 @@
     Пункт меню «Журнал расписания» — <code>resources/views/includes/sidebar.blade.php</code>
     (<code>@can('schedule.view')</code> <strong>или</strong> доступ к модулю ЗП <code>TrainerSalaryAccess::canViewModule()</code>; ссылка на <code>/schedule</code> или <code>/schedule/trainer-salary</code>).<br>
     Маршруты вкладки «Журнал» / «Нагрузка» — <code>middleware('can:schedule.view')</code>.
-    Вкладка и CRUD «Статусы занятий» — Gate <code>lessonOccurrenceStatuses.manage</code>
-    (= <code>schedule.view</code> <strong>OR</strong> <code>lessonPackages.view</code>), см. <a href="#occurrence-statuses">§8</a>.
+    Вкладка и CRUD «Статусы занятий» — видимое право <code>lessonOccurrenceStatuses.manage</code>
+    (по умолчанию у роли <code>admin</code>), см. <a href="#occurrence-statuses">§8</a>.
     Вкладки «ЗП тренеров» / «Листы ЗП» — <code>schedule.trainerSalary.view</code> + включённая схема партнёра
     (<code>scheme.classic</code>, <code>scheme.kansas</code> или <code>scheme.sales</code>; superadmin — и без выдачи, fallback classic).
     Как включить и когда месяц переключается — <a href="/doc#trainer-salary-kansas-index">анонс схем</a>,
@@ -154,7 +154,7 @@
       <tr><td>Есть <code>schedule.view</code></td><td>Страница и API журнала / нагрузки (кроме empty-cell) → <b>200</b> при валидных данных; мутации — 200 (AJAX) / 302 (non-AJAX)</td></tr>
     </tbody>
   </table>
-  <p class="small">Вкладка «Статусы занятий» и CRUD справочника — отдельный Gate <code>lessonOccurrenceStatuses.manage</code> (достаточно <code>lessonPackages.view</code> без <code>schedule.view</code>), см. <a href="#occurrence-statuses">§8</a>.
+  <p class="small">Вкладка «Статусы занятий» и CRUD справочника — право <code>lessonOccurrenceStatuses.manage</code> (не следует из <code>schedule.view</code> и <code>lessonPackages.view</code>), см. <a href="#occurrence-statuses">§8</a>.
     Пробное/разовое на пустой ячейке — <strong>AND</strong> middleware <code>can:schedule.view</code> + <code>can:lessonPackages.view</code> (см. <a href="#place-empty-cell">§7.4</a>).</p>
   <div class="note">
     Право <code>groups.own</code> (не в базовых ролях): селект групп журнала — только <code>team_trainer</code> актора;
@@ -552,7 +552,7 @@
       <tr><td>GET</td><td><code>/schedule/occurrence-statuses</code></td><td><code>schedule.occurrence-statuses</code> (тот же UI, layout журнала)</td></tr>
     </tbody>
   </table>
-  <p>Право: Gate <code>lessonOccurrenceStatuses.manage</code> = <code>schedule.view</code> <strong>OR</strong> <code>lessonPackages.view</code> (см. <code>AuthServiceProvider</code>). UI: общий partial <code>resources/views/admin/shared/occurrence_statuses_crud.blade.php</code>. Аудит CRUD: <code>lesson_occurrence_status.created|updated|deleted</code>.</p>
+  <p>Право: <code>lessonOccurrenceStatuses.manage</code> (видимое, группа «Расписание»; по умолчанию включено у <code>admin</code>). UI: общий partial <code>resources/views/admin/shared/occurrence_statuses_crud.blade.php</code>. Аудит CRUD: <code>lesson_occurrence_status.created|updated|deleted</code>.</p>
   <h4>Ответы при изменении статусов</h4>
   <table>
     <thead>
@@ -1486,8 +1486,8 @@
     </thead>
     <tbody>
       <tr><td>Гость</td><td>HTML → redirect на логин; JSON → 401 / 302</td></tr>
-      <tr><td>Нет ни <code>schedule.view</code>, ни <code>lessonPackages.view</code></td><td><b>403</b> на страницы и все endpoint'ы раздела (data, columns, logs, CRUD, reorder)</td></tr>
-      <tr><td>Есть хотя бы одно из двух</td><td>страница, чтение и CRUD → <b>200</b> при валидных данных (Gate = OR; отдельного <code>*.manage</code> permission нет)</td></tr>
+      <tr><td>Нет права <code>lessonOccurrenceStatuses.manage</code> (в том числе если есть только <code>schedule.view</code> или только <code>lessonPackages.view</code>)</td><td><b>403</b> на страницы и все endpoint'ы раздела (data, columns, logs, CRUD, reorder)</td></tr>
+      <tr><td>Есть <code>lessonOccurrenceStatuses.manage</code></td><td>страница, чтение и CRUD → <b>200</b> при валидных данных. Право видимое (<code>is_visible = 1</code>), группа «Расписание». По умолчанию включено у роли <code>admin</code> (<code>config/role_base_permissions.php</code> и миграция для уже существующих школ). У <code>user</code> и <code>trainer</code> выключено</td></tr>
     </tbody>
   </table>
 

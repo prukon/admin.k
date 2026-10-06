@@ -164,7 +164,7 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
             ->postJson(route('user.sync.teams', $student), ['team_ids' => []])
             ->assertStatus(403);
 
-        // Без schedule.view и без lessonPackages.view вкладка/CRUD статусов недоступны
+        // Без lessonOccurrenceStatuses.manage вкладка и CRUD статусов недоступны
         $noStatuses = $this->makeCustomRoleUser();
         $this->actingAs($noStatuses)->withSession($session)
             ->get(route('schedule.occurrence-statuses'))

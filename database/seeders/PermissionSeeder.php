@@ -58,6 +58,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'reports.payments.payout_amount.column.view', 'description' => 'Отчёт «Платежи»: колонка «Выплата»', 'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 22],
 
             // group_slug schedule
+            ['name' => 'lessonOccurrenceStatuses.manage', 'description' => 'Страница "Статусы занятий"',                   'group_slug' => 'schedule', 'is_visible' => 1, 'sort_order' => 10],
             ['name' => 'schedule.trainerSalary.view',    'description' => 'ЗП тренеров: просмотр вкладки и черновика',     'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 31],
             ['name' => 'schedule.trainerSalary.manage',  'description' => 'ЗП тренеров: редактирование и формирование слепков', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 32],
             ['name' => 'schedule.trainerSalary.scheme.sales', 'description' => 'ЗП тренеров: схема «% от продаж» (оклад + процент от оплат учеников)', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 28],

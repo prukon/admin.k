@@ -55,7 +55,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_index_ok_and_seeds_system_statuses(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         LessonOccurrenceStatus::query()->where('partner_id', $this->partner->id)->delete();
 
@@ -133,7 +133,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_store_creates_custom_status(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
@@ -157,7 +157,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_update_system_status_rejects_title_change(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
@@ -183,7 +183,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_update_system_status_allows_color_icon_sort(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
@@ -211,7 +211,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_destroy_system_status_is_forbidden(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
@@ -229,7 +229,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_destroy_custom_status_ok(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
@@ -251,7 +251,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_reorder_updates_all_rows_and_requires_full_set(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
@@ -287,7 +287,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_cannot_update_status_of_another_partner(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         /** @var Partner $other */
         $other = Partner::factory()->create();
@@ -317,7 +317,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
             ->where('code', 'scheduled')
             ->firstOrFail();
 
-        // Роль без schedule.view и без lessonPackages.view
+        // Роль без lessonOccurrenceStatuses.manage
         $role = \App\Models\Role::query()->create([
             'name' => 'test_no_los_manage_'.uniqid(),
             'label' => 'No LOS manage',
@@ -361,7 +361,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_occurrence_statuses_all_actions_return_200_when_authorized(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))
@@ -420,7 +420,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
             ->assertOk();
     }
 
-    public function test_admin_role_can_access_occurrence_statuses_without_explicit_permission_row(): void
+    public function test_admin_role_can_access_occurrence_statuses_from_base_permissions(): void
     {
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
@@ -477,7 +477,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_store_validation_errors(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
         $this->postJson(route('admin.lesson-packages.occurrence-statuses.store'), [
@@ -510,7 +510,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_update_validation_errors(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
         /** @var LessonOccurrenceStatus $scheduled */
@@ -540,7 +540,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_store_sets_consumes_lesson_when_true(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
         $this->postJson(route('admin.lesson-packages.occurrence-statuses.store'), [
@@ -559,7 +559,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_cannot_destroy_status_of_another_partner(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         /** @var Partner $other */
         $other = Partner::factory()->create();
@@ -585,7 +585,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_store_json_returns_created_payload_shape(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
         $response = $this->postJson(route('admin.lesson-packages.occurrence-statuses.store'), [
@@ -612,7 +612,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
 
     public function test_update_json_returns_message_ok(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
         /** @var LessonOccurrenceStatus $scheduled */

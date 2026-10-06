@@ -258,10 +258,9 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('lessonPackages.type.postpay');
         });
 
-        // Единый справочник статусов занятий (CRUD): журнал /schedule или раздел абонементов
+        // Справочник статусов занятий: вкладка /schedule и тот же CRUD в абонементах
         Gate::define('lessonOccurrenceStatuses.manage', function (User $user) {
-            return $user->hasPermission('schedule.view')
-                || $user->hasPermission('lessonPackages.view');
+            return $user->hasPermission('lessonOccurrenceStatuses.manage');
         });
 
         // Справочники: пункт меню

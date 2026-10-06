@@ -48,7 +48,7 @@ final class LessonOccurrenceStatusesToolbarFeatureTest extends CrmTestCase
 
     public function test_index_renders_toolbar_history_filters_columns(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         $html = $this->get(route('admin.lesson-packages.occurrence-statuses.index'))
             ->assertOk()
@@ -77,7 +77,7 @@ final class LessonOccurrenceStatusesToolbarFeatureTest extends CrmTestCase
 
     public function test_data_endpoint_returns_statuses_and_supports_filters(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
         $response = $this->getJson(route('admin.lesson-packages.occurrence-statuses.data', [
@@ -124,7 +124,7 @@ final class LessonOccurrenceStatusesToolbarFeatureTest extends CrmTestCase
 
     public function test_columns_settings_get_and_save(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         $this->getJson(route('admin.lesson-packages.occurrence-statuses.columns-settings.get'))
             ->assertOk()
@@ -152,7 +152,7 @@ final class LessonOccurrenceStatusesToolbarFeatureTest extends CrmTestCase
 
     public function test_logs_data_returns_200_with_permission(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
 
         $this->getJson(route('logs.data.lesson-occurrence-status', [
             'draw' => 1,
@@ -181,7 +181,7 @@ final class LessonOccurrenceStatusesToolbarFeatureTest extends CrmTestCase
 
     public function test_store_update_destroy_write_audit_logs(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('lessonOccurrenceStatuses.manage');
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
         $this->postJson(route('admin.lesson-packages.occurrence-statuses.store'), [

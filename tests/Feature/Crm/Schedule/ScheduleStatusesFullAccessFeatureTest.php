@@ -8,12 +8,13 @@ use App\Models\LessonOccurrenceStatus;
 use App\Models\User;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Контроль доступа и smoke-200 для вкладки «Статусы занятий» на /schedule
  * и общего CRUD API lesson_occurrence_statuses.
  *
- * Gate: lessonOccurrenceStatuses.manage = schedule.view OR lessonPackages.view.
+ * Право: lessonOccurrenceStatuses.manage (видимое, по умолчанию у admin).
  */
 final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCase
 {
@@ -41,6 +42,16 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
     {
         $actor = $this->makeCustomRoleUser();
         $this->grantLessonPackagesView($actor);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+
+        return $actor;
+    }
+
+    private function actingWithOccurrenceStatusesManage(): User
+    {
+        $actor = $this->makeCustomRoleUser();
+        $this->grantPartnerRolePermission($actor, 'lessonOccurrenceStatuses.manage');
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
@@ -116,9 +127,9 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
             ->assertSee('los-statuses-table', false);
     }
 
-    public function test_admin_occurrence_statuses_page_ok_with_ui_markers_for_lesson_packages_view(): void
+    public function test_admin_occurrence_statuses_page_ok_with_ui_markers_for_manage_permission(): void
     {
-        $this->actingWithOnlyLessonPackagesView();
+        $this->actingWithOccurrenceStatusesManage();
 
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))
             ->assertOk()
@@ -129,9 +140,9 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
             ->assertSee('los-statuses-table', false);
     }
 
-    public function test_viewer_with_schedule_view_all_endpoints_return_expected_status(): void
+    public function test_viewer_with_manage_permission_all_endpoints_return_expected_status(): void
     {
-        $this->actingWithOnlyScheduleView();
+        $this->actingWithOccurrenceStatusesManage();
 
         $this->get(route('schedule.occurrence-statuses'))->assertOk();
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertOk();
@@ -149,7 +160,7 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
             $this->assertSame(
                 $item['expected'],
                 $response->getStatusCode(),
-                "schedule.view: {$item['method']} {$item['url']} → {$response->getStatusCode()}, body="
+                "lessonOccurrenceStatuses.manage: {$item['method']} {$item['url']} → {$response->getStatusCode()}, body="
                 .mb_substr((string) $response->getContent(), 0, 300)
             );
 
@@ -162,30 +173,21 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
         }
     }
 
-    public function test_viewer_with_lesson_packages_view_all_endpoints_return_expected_status(): void
+    public function test_schedule_view_or_lesson_packages_view_alone_do_not_open_statuses(): void
     {
+        $this->actingWithOnlyScheduleView();
+        $this->get(route('schedule.occurrence-statuses'))->assertForbidden();
+        $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertForbidden();
+        $this->postJson(route('admin.lesson-packages.occurrence-statuses.store'), [
+            'title' => 'Не должно создаться',
+            'color' => '#abcdef',
+            'consumes_lesson' => 0,
+            'is_active' => 1,
+        ])->assertForbidden();
+
         $this->actingWithOnlyLessonPackagesView();
-
-        $this->get(route('schedule.occurrence-statuses'))->assertOk();
-        $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertOk();
-
-        foreach ($this->allSectionEndpointsPayload() as $item) {
-            $response = $this->call(
-                $item['method'],
-                $item['url'],
-                $item['data'] ?? [],
-                [],
-                [],
-                $item['headers'] ?? ['HTTP_ACCEPT' => 'application/json']
-            );
-
-            $this->assertSame(
-                $item['expected'],
-                $response->getStatusCode(),
-                "lessonPackages.view: {$item['method']} {$item['url']} → {$response->getStatusCode()}"
-            );
-            $this->assertNotSame('', trim((string) $response->getContent()));
-        }
+        $this->get(route('schedule.occurrence-statuses'))->assertForbidden();
+        $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertForbidden();
     }
 
     public function test_admin_with_schedule_view_all_endpoints_return_ok_and_json_contracts(): void
@@ -243,9 +245,36 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
         $this->assertDatabaseMissing('lesson_occurrence_statuses', ['id' => $id]);
     }
 
-    public function test_reorder_endpoint_returns_ok_under_schedule_view(): void
+    public function test_permission_is_visible_and_granted_to_admin_by_default(): void
     {
-        $this->actingWithOnlyScheduleView();
+        $permission = DB::table('permissions')->where('name', 'lessonOccurrenceStatuses.manage')->first();
+        $this->assertNotNull($permission);
+        $this->assertSame(1, (int) $permission->is_visible);
+
+        $adminRoleId = (int) \App\Models\Role::query()->where('name', 'admin')->value('id');
+        $this->assertDatabaseHas('permission_role', [
+            'partner_id' => $this->partner->id,
+            'role_id' => $adminRoleId,
+            'permission_id' => (int) $permission->id,
+        ]);
+
+        $this->assertContains(
+            'lessonOccurrenceStatuses.manage',
+            config('role_base_permissions.roles.admin', [])
+        );
+        $this->assertNotContains(
+            'lessonOccurrenceStatuses.manage',
+            config('role_base_permissions.roles.user', [])
+        );
+        $this->assertNotContains(
+            'lessonOccurrenceStatuses.manage',
+            config('role_base_permissions.roles.trainer', [])
+        );
+    }
+
+    public function test_reorder_endpoint_returns_ok_under_manage_permission(): void
+    {
+        $this->actingWithOccurrenceStatusesManage();
 
         $rows = LessonOccurrenceStatus::query()
             ->forPartner((int) $this->partner->id)

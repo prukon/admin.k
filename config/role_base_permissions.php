@@ -66,6 +66,7 @@ return [
             // 'setPrices.cabinetPackages.single.view',
             // 'setPrices.cabinetPackages.postpay.view',
             'schedule.view',
+            'lessonOccurrenceStatuses.manage',
             // 'schedule.trainerSalary.scheme.classic',
             // 'schedule.trainerSalary.scheme.kansas',
             // 'schedule.trainerSalary.scheme.sales',

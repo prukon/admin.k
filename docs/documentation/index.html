@@ -11132,7 +11132,7 @@
     (категория <code>lesson_occurrence_status</code>: created / updated / deleted).
     Фильтры: название, тип (системный/свой), активен, списывает занятие.
     Один partial <code>admin/shared/occurrence_statuses_crud.blade.php</code> на обоих экранах.
-    Gate <code>lessonOccurrenceStatuses.manage</code> = <code>schedule.view</code> OR <code>lessonPackages.view</code>.
+    Право <code>lessonOccurrenceStatuses.manage</code> (видимое, по умолчанию у роли admin).
     AJAX CRUD перезагружает таблицу без F5; non-AJAX store/update/destroy → <code>302</code> на index.
     Подробно — <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>,
     обзор в абонементах — <a href="/docs/documentation/lesson-packages#occurrence-statuses-tab">lesson-packages §occurrence-statuses-tab</a>,

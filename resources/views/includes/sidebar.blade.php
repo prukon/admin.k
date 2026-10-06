@@ -60,9 +60,14 @@
         @endcan
 
         {{--Журнал расписания--}}
-        @if(auth()->user()?->can('schedule.view') || \App\Support\TrainerSalaryAccess::canViewModule())
+        @php
+            $canOpenScheduleJournal = auth()->user()?->can('schedule.view') ?? false;
+            $canOpenOccurrenceStatuses = auth()->user()?->can('lessonOccurrenceStatuses.manage') ?? false;
+            $canOpenTrainerSalary = \App\Support\TrainerSalaryAccess::canViewModule();
+        @endphp
+        @if($canOpenScheduleJournal || $canOpenOccurrenceStatuses || $canOpenTrainerSalary)
             <li class="nav-item">
-                <a href="{{ auth()->user()?->can('schedule.view') ? '/schedule' : route('schedule.trainer-salary') }}" class="nav-link">
+                <a href="{{ $canOpenScheduleJournal ? '/schedule' : ($canOpenOccurrenceStatuses ? route('schedule.occurrence-statuses') : route('schedule.trainer-salary')) }}" class="nav-link">
 {{--                    <i class="nav-icon fa-solid fa-receipt"></i>--}}
                     <i class="nav-icon fa-solid fa-calendar-days"></i>
                     <p>Журнал расписания</p>
