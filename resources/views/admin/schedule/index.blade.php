@@ -307,6 +307,11 @@
                     background-color: #f8f9fa;
                 }
             }
+
+            .schedule-group-day-check {
+                border-color: #0d6efd;
+                background: #e7f1ff;
+            }
         </style>
         <noscript>
             <style>

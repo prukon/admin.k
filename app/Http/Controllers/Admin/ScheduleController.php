@@ -1114,7 +1114,9 @@ class ScheduleController extends AdminBaseController
     }
 
     /**
-     * Массовая постановка занятия в пустые ячейки одной группы и одной даты.
+     * Массовая постановка занятий в пустые ячейки одной группы.
+     * Несколько дат — один статус и один набор тренеров. Даты ставятся по порядку,
+     * чтобы остаток предоплаты перечитывался между днями.
      */
     public function bulkPlaceEmptyLessons(PlaceScheduleJournalBulkLessonsRequest $request): JsonResponse|RedirectResponse
     {
@@ -1166,20 +1168,36 @@ class ScheduleController extends AdminBaseController
             $trainerProfileIds = $validIds;
         }
 
-        $occurrenceDate = (string) $data['occurrence_date'];
-        $userIds = array_map('intval', $data['user_ids']);
-        $outcome = $this->bulkEmptyLessonPlacementService->place(
-            $partnerId,
-            $team,
-            $occurrenceDate,
-            $userIds,
-            $status,
-            $trainerProfileIds,
-            auth()->id() !== null ? (int) auth()->id() : null,
-        );
+        $byDate = [];
+        foreach ($request->normalizedLessons() as $lesson) {
+            $byDate[$lesson['occurrence_date']][] = $lesson['user_id'];
+        }
+        ksort($byDate);
 
-        $placed = $this->withBulkJournalMetrics($request, $partnerId, $occurrenceDate, $outcome['placed']);
-        $failed = $outcome['failed'];
+        $placed = [];
+        $failed = [];
+        $authorId = auth()->id() !== null ? (int) auth()->id() : null;
+        foreach ($byDate as $occurrenceDate => $userIds) {
+            $outcome = $this->bulkEmptyLessonPlacementService->place(
+                $partnerId,
+                $team,
+                $occurrenceDate,
+                $userIds,
+                $status,
+                $trainerProfileIds,
+                $authorId,
+            );
+            foreach ($outcome['placed'] as $row) {
+                $row['occurrence_date'] = (string) ($row['occurrence_date'] ?? $occurrenceDate);
+                $placed[] = $row;
+            }
+            foreach ($outcome['failed'] as $row) {
+                $row['occurrence_date'] = $occurrenceDate;
+                $failed[] = $row;
+            }
+        }
+
+        $placed = $this->withBulkJournalMetricsForPlaced($request, $partnerId, $placed);
         $placedCount = count($placed);
         $failedCount = count($failed);
 
@@ -1263,6 +1281,32 @@ class ScheduleController extends AdminBaseController
         }
 
         return $placed;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $placed
+     * @return list<array<string, mixed>>
+     */
+    private function withBulkJournalMetricsForPlaced(Request $request, int $partnerId, array $placed): array
+    {
+        if ($placed === []) {
+            return [];
+        }
+
+        $byMonth = [];
+        foreach ($placed as $row) {
+            $month = Carbon::parse((string) $row['occurrence_date'])->startOfMonth()->toDateString();
+            $byMonth[$month][] = $row;
+        }
+
+        $result = [];
+        foreach ($byMonth as $month => $rows) {
+            foreach ($this->withBulkJournalMetrics($request, $partnerId, $month, $rows) as $row) {
+                $result[] = $row;
+            }
+        }
+
+        return $result;
     }
 
     /**

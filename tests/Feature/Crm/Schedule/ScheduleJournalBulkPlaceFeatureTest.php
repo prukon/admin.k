@@ -7,6 +7,7 @@ namespace Tests\Feature\Crm\Schedule;
 use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
 use App\Models\User;
+use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Models\UserTeamScheduleSlot;
@@ -15,7 +16,7 @@ use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Массовая постановка занятия в пустые ячейки одной группы и одной даты.
+ * Массовая постановка занятий в пустые ячейки одной группы, в том числе на несколько дат.
  */
 final class ScheduleJournalBulkPlaceFeatureTest extends ScheduleJournalTestCase
 {
@@ -59,6 +60,155 @@ final class ScheduleJournalBulkPlaceFeatureTest extends ScheduleJournalTestCase
             ->whereDate('starts_at', '2026-10-05')
             ->whereNull('user_lesson_package_id')
             ->count());
+    }
+
+    public function test_bulk_place_puts_different_students_on_two_days_with_one_status(): void
+    {
+        [$first, $team] = $this->makeStudentWithTeam();
+        $second = $this->makeStudent();
+        app(TeamUserSyncService::class)->syncTeamsForStudent($second, [(int) $team->id]);
+        $this->makeMonthlyFlexibleAssignment($first, (int) $team->id, '2026-10-01', lessons: 4);
+        $this->attachPostpay($second->id, (int) $team->id, '2026-10-01');
+        $statusId = (int) LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id);
+
+        $response = $this->postJson(route('schedule.bulk-place'), [
+            'team_id' => $team->id,
+            'lesson_occurrence_status_id' => $statusId,
+            'lessons' => [
+                ['user_id' => $second->id, 'occurrence_date' => '2026-10-04'],
+                ['user_id' => $first->id, 'occurrence_date' => '2026-10-03'],
+            ],
+        ], $this->ajaxHeaders());
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('result.failed', []);
+        $response->assertJsonPath('message', 'Занятие поставлено выбранным ученикам.');
+
+        $placed = collect($response->json('result.placed'));
+        $this->assertSame(['2026-10-03', '2026-10-04'], $placed->pluck('occurrence_date')->all());
+        $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_id', $first->id)->whereDate('starts_at', '2026-10-03')->count());
+        $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_id', $second->id)->whereDate('starts_at', '2026-10-04')->count());
+    }
+
+    public function test_bulk_place_keeps_the_earlier_day_when_prepaid_has_one_lesson_left(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-10-01', lessons: 1);
+        $statusId = (int) LessonOccurrenceStatus::attendedIdForPartner((int) $this->partner->id);
+
+        $response = $this->postJson(route('schedule.bulk-place'), [
+            'team_id' => $team->id,
+            'lesson_occurrence_status_id' => $statusId,
+            'lessons' => [
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-04'],
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-03'],
+            ],
+        ], $this->ajaxHeaders());
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('message', 'Занятие поставлено не всем ученикам.');
+        $response->assertJsonPath('result.placed.0.occurrence_date', '2026-10-03');
+        $response->assertJsonPath('result.failed.0.occurrence_date', '2026-10-04');
+        $response->assertJsonPath('result.failed.0.user_id', $student->id);
+        $response->assertJsonPath('result.failed.0.message', 'В абонементе не осталось занятий.');
+        $this->assertSame(0, (int) $ulp->fresh()->lessons_remaining);
+        $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_id', $student->id)->whereDate('starts_at', '2026-10-03')->count());
+        $this->assertSame(0, UserTeamScheduleSlot::query()->where('user_id', $student->id)->whereDate('starts_at', '2026-10-04')->count());
+    }
+
+    public function test_bulk_place_applies_one_trainer_set_to_every_selected_day(): void
+    {
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $team->id]);
+        $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-10-01', lessons: 4);
+        $statusId = (int) LessonOccurrenceStatus::attendedIdForPartner((int) $this->partner->id);
+
+        $response = $this->postJson(route('schedule.bulk-place'), [
+            'team_id' => $team->id,
+            'lesson_occurrence_status_id' => $statusId,
+            'trainer_profile_ids' => [$trainer->id],
+            'lessons' => [
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-04'],
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-03'],
+            ],
+        ], $this->ajaxHeaders());
+
+        $response->assertOk();
+        $response->assertJsonPath('result.failed', []);
+        $this->assertCount(2, $response->json('result.placed'));
+        $this->assertSame(2, (int) $ulp->fresh()->lessons_remaining);
+
+        $events = UserLessonOccurrenceStatusEvent::query()
+            ->where('user_id', $student->id)
+            ->orderBy('occurrence_date')
+            ->get();
+        $this->assertCount(2, $events);
+        $this->assertSame('2026-10-03', $events[0]->occurrence_date->toDateString());
+        $this->assertSame('2026-10-04', $events[1]->occurrence_date->toDateString());
+        foreach ($events as $event) {
+            $this->assertSame((int) $trainer->id, (int) $event->trainer_profile_id);
+            $this->assertTrue($event->trainerProfiles()->whereKey($trainer->id)->exists());
+        }
+    }
+
+    public function test_bulk_place_lessons_validation_errors_stay_on_fields(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-10-01', lessons: 4);
+        $statusId = (int) LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id);
+
+        $this->postJson(route('schedule.bulk-place'), [
+            'team_id' => $team->id,
+            'lesson_occurrence_status_id' => $statusId,
+            'lessons' => [],
+        ], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonPath('errors.lessons.0', 'Выберите занятия.');
+
+        $badDate = $this->postJson(route('schedule.bulk-place'), [
+            'team_id' => $team->id,
+            'lesson_occurrence_status_id' => $statusId,
+            'lessons' => [
+                ['user_id' => $student->id, 'occurrence_date' => '05.10.2026'],
+            ],
+        ], $this->ajaxHeaders());
+        $badDate->assertStatus(422);
+        $this->assertSame(
+            'Некорректный формат даты занятия.',
+            $badDate->json('errors')['lessons.0.occurrence_date'][0] ?? null
+        );
+
+        $tooManyOnOneDay = [];
+        for ($i = 1; $i <= 101; $i++) {
+            $tooManyOnOneDay[] = ['user_id' => $i, 'occurrence_date' => '2026-10-05'];
+        }
+        $this->postJson(route('schedule.bulk-place'), [
+            'team_id' => $team->id,
+            'lesson_occurrence_status_id' => $statusId,
+            'lessons' => $tooManyOnOneDay,
+        ], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonPath('errors.lessons.0', 'На одну дату можно поставить занятие не больше чем 100 ученикам.');
+
+        $tooManyTotal = [];
+        for ($i = 1; $i <= 401; $i++) {
+            $day = (($i - 1) % 20) + 1;
+            $tooManyTotal[] = [
+                'user_id' => $i,
+                'occurrence_date' => sprintf('2026-10-%02d', $day),
+            ];
+        }
+        $this->postJson(route('schedule.bulk-place'), [
+            'team_id' => $team->id,
+            'lesson_occurrence_status_id' => $statusId,
+            'lessons' => $tooManyTotal,
+        ], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonPath('errors.lessons.0', 'За один раз можно поставить не больше 400 занятий.');
+
+        $this->assertSame(0, UserTeamScheduleSlot::query()->where('user_id', $student->id)->count());
     }
 
     public function test_bulk_place_skips_empty_prepaid_and_newcomer_and_saves_postpay(): void

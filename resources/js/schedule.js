@@ -2960,6 +2960,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    var BULK_PLACE_LIMIT = 400;
     var bulkSelection = null;
     var bulkTrainerContext = null;
     var bulkPlaceModalEl = document.getElementById('bulkPlaceModal');
@@ -2980,11 +2981,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return title || 'группа';
     }
 
+    function bulkCellKey(userId, date) {
+        return String(userId) + '|' + String(date);
+    }
+
     function bulkLockMessage() {
         if (!bulkSelection) {
             return '';
         }
-        return 'Можно выбрать только ' + formatDateHumanYmd(bulkSelection.date) + ', группа ' + bulkSelection.groupTitle + '.';
+        return 'Можно выбрать только группу ' + bulkSelection.groupTitle + '.';
+    }
+
+    function bulkPlaceLimitMessage() {
+        return 'За один раз можно поставить не больше 400 занятий.';
     }
 
     function bulkRefuseMessage(block, selectionActive, allowEmptyLesson) {
@@ -3052,28 +3061,46 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function bulkUserCount() {
-        if (!bulkSelection || !bulkSelection.users) {
+        if (!bulkSelection || !bulkSelection.cells) {
             return 0;
         }
-        return Object.keys(bulkSelection.users).length;
+        return Object.keys(bulkSelection.cells).length;
     }
 
     function bulkUsersList() {
-        if (!bulkSelection) {
+        if (!bulkSelection || !bulkSelection.cells) {
             return [];
         }
-        return Object.keys(bulkSelection.users).map(function (id) {
-            var row = bulkSelection.users[id] || {};
+        return Object.keys(bulkSelection.cells).map(function (key) {
+            var row = bulkSelection.cells[key] || {};
             return {
-                id: id,
+                id: String(row.id || ''),
+                date: String(row.date || ''),
                 name: row.name || 'Без имени',
                 billing: row.billing || '',
                 abonementName: row.abonementName || '',
                 priceLabel: row.priceLabel || ''
             };
         }).sort(function (a, b) {
+            if (a.date !== b.date) {
+                return a.date < b.date ? -1 : 1;
+            }
             return String(a.name).localeCompare(String(b.name), 'ru');
         });
+    }
+
+    function bulkDatesLabel(users) {
+        var seen = {};
+        var dates = [];
+        (users || []).forEach(function (user) {
+            if (!user.date || seen[user.date]) {
+                return;
+            }
+            seen[user.date] = true;
+            dates.push(user.date);
+        });
+        dates.sort();
+        return dates.map(formatDateHumanYmd).join(', ');
     }
 
     function bulkEligibleCells(groupKey, date) {
@@ -3086,15 +3113,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function bulkFindCell(userId) {
-        if (!bulkSelection) {
+    function bulkFindCell(userId, date) {
+        if (!bulkSelection || !date) {
             return $();
         }
         return $('#schedule-table tbody tr.schedule-group-user').filter(function () {
             return String($(this).attr('data-group-key')) === String(bulkSelection.groupKey)
                 && String($(this).attr('data-user-id')) === String(userId);
         }).find('.schedule-cell').filter(function () {
-            return String($(this).attr('data-date')) === String(bulkSelection.date);
+            return String($(this).attr('data-date')) === String(date);
         }).first();
     }
 
@@ -3113,33 +3140,39 @@ document.addEventListener('DOMContentLoaded', function () {
         $table.addClass('is-bulk-lock');
         $('#schedule-bulk-count').text('Выбрано: ' + count);
         $('#schedule-bulk-bar').removeClass('d-none');
-        var date = String(bulkSelection.date);
         var groupKey = String(bulkSelection.groupKey);
-        $table.find('th.schedule-day-header').filter(function () {
-            return String($(this).attr('data-date')) === date;
-        }).addClass('schedule-day-header--bulk');
-        $table.find('tr.schedule-group-row').filter(function () {
-            return String($(this).attr('data-group-key')) === groupKey;
-        }).find('td.schedule-group-day').filter(function () {
-            return String($(this).attr('data-date')) === date;
-        }).addClass('schedule-group-day--bulk-target');
-        if (bulkGroupFullySelected(groupKey, date)) {
-            $table.find('tr.schedule-group-row').filter(function () {
+        var dates = {};
+        Object.keys(bulkSelection.cells).forEach(function (key) {
+            var cell = bulkSelection.cells[key];
+            if (cell && cell.date) {
+                dates[String(cell.date)] = true;
+            }
+        });
+        Object.keys(dates).forEach(function (date) {
+            $table.find('th.schedule-day-header').filter(function () {
+                return String($(this).attr('data-date')) === date;
+            }).addClass('schedule-day-header--bulk');
+            var $day = $table.find('tr.schedule-group-row').filter(function () {
                 return String($(this).attr('data-group-key')) === groupKey;
             }).find('td.schedule-group-day').filter(function () {
                 return String($(this).attr('data-date')) === date;
-            }).addClass('schedule-group-day--bulk-all');
-        }
+            });
+            $day.addClass('schedule-group-day--bulk-target');
+            if (bulkGroupFullySelected(groupKey, date)) {
+                $day.addClass('schedule-group-day--bulk-all');
+            }
+        });
         $table.find('tr.schedule-group-user .schedule-cell').each(function () {
             var $c = $(this);
-            var same = String($c.closest('tr').attr('data-group-key')) === groupKey
-                && String($c.attr('data-date')) === date;
+            var cellGroup = String($c.closest('tr').attr('data-group-key'));
+            var cellDate = String($c.attr('data-date') || '');
+            var userId = String($c.attr('data-user-id') || '');
             var occ = parseInt($c.attr('data-occurrence-count') || '0', 10);
-            if (same && bulkSelection.users[String($c.attr('data-user-id'))]) {
+            if (cellGroup === groupKey && bulkSelection.cells[bulkCellKey(userId, cellDate)]) {
                 $c.addClass('schedule-cell--bulk-selected');
                 return;
             }
-            if (same && $c.attr('data-bulk-block') === 'eligible' && occ === 0) {
+            if (cellGroup === groupKey && $c.attr('data-bulk-block') === 'eligible' && occ === 0) {
                 $c.addClass('schedule-cell--bulk-target');
                 return;
             }
@@ -3230,42 +3263,57 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function bulkRememberUser($cell) {
         var userId = String($cell.attr('data-user-id') || '');
-        if (!userId || !bulkSelection) {
-            return;
+        var date = String($cell.attr('data-date') || '');
+        if (!userId || !date || !bulkSelection) {
+            return false;
+        }
+        var key = bulkCellKey(userId, date);
+        if (bulkSelection.cells[key]) {
+            return true;
+        }
+        if (bulkUserCount() >= BULK_PLACE_LIMIT) {
+            bulkToast(bulkPlaceLimitMessage());
+            return false;
         }
         var parts = bulkAbonementParts($cell);
-        bulkSelection.users[userId] = {
+        bulkSelection.cells[key] = {
+            id: userId,
+            date: date,
             name: String($cell.attr('data-user-name') || 'Без имени'),
             billing: String($cell.attr('data-bulk-billing') || ''),
             abonementName: parts.abonementName,
             priceLabel: parts.priceLabel
         };
+        return true;
     }
 
-    function bulkDropUser(userId) {
-        if (!bulkSelection) {
+    function bulkDropCell(userId, date) {
+        if (!bulkSelection || !bulkSelection.cells) {
             return;
         }
-        delete bulkSelection.users[String(userId)];
-        if (!Object.keys(bulkSelection.users).length) {
+        delete bulkSelection.cells[bulkCellKey(userId, date)];
+        if (!Object.keys(bulkSelection.cells).length) {
             bulkSelection = null;
         }
     }
 
-    function ensureBulkLock(groupKey, teamId, date) {
+    function ensureBulkLock(groupKey, teamId) {
         if (!bulkSelection) {
             bulkSelection = {
                 groupKey: String(groupKey),
                 teamId: String(teamId || ''),
-                date: String(date),
                 groupTitle: bulkGroupTitle(groupKey),
-                users: {}
+                cells: {},
+                rosters: {}
             };
             return true;
         }
-        if (bulkSelection.groupKey !== String(groupKey) || bulkSelection.date !== String(date)) {
+        if (bulkSelection.groupKey !== String(groupKey)) {
             bulkToast(bulkLockMessage());
             return false;
+        }
+        if (!bulkSelection.teamId && teamId) {
+            bulkSelection.teamId = String(teamId);
         }
         return true;
     }
@@ -3278,33 +3326,37 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!groupKey || !date || !userId) {
             return;
         }
-        if (bulkSelection && bulkSelection.users[userId] && bulkSelection.groupKey === groupKey && bulkSelection.date === date) {
-            bulkDropUser(userId);
+        if (bulkSelection && bulkSelection.groupKey === groupKey && bulkSelection.cells[bulkCellKey(userId, date)]) {
+            bulkDropCell(userId, date);
             paintBulkSelection();
             return;
         }
-        if (!ensureBulkLock(groupKey, teamId, date)) {
+        if (!ensureBulkLock(groupKey, teamId)) {
             return;
         }
         bulkRememberUser($cell);
         paintBulkSelection();
     }
 
-    function renderBulkStudents(users, errorsById) {
+    function renderBulkStudents(users, errorsByKey) {
         var $box = $('#bulk-students').empty();
         users.forEach(function (user) {
             var studentName = user.name || 'Без имени';
+            var dateLabel = formatDateHumanYmd(user.date);
             var abonementName = user.abonementName || (user.billing === 'postpay'
                 ? 'Постоплата'
                 : 'Абонемент предоплаты');
             var priceLabel = user.priceLabel || '';
-            var $row = $('<div class="bulk-student">').attr('data-user-id', user.id);
+            var $row = $('<div class="bulk-student">')
+                .attr('data-user-id', user.id)
+                .attr('data-occurrence-date', user.date);
             var $line = $('<div class="bulk-student__line">');
             $line.append($('<span class="bulk-student__name">').attr('title', studentName).text(studentName));
+            $line.append($('<span class="bulk-student__date">').attr('title', dateLabel).text(dateLabel));
             $line.append($('<span class="bulk-student__abonement">').attr('title', abonementName).text(abonementName));
             $line.append($('<span class="bulk-student__price">').text(priceLabel));
             $row.append($line);
-            var err = errorsById && errorsById[String(user.id)];
+            var err = errorsByKey && (errorsByKey[bulkCellKey(user.id, user.date)] || (!user.date ? errorsByKey[String(user.id)] : ''));
             if (err) {
                 $row.append($('<div class="invalid-feedback d-block bulk-student-error">').text(err));
             }
@@ -3350,8 +3402,8 @@ document.addEventListener('DOMContentLoaded', function () {
         $('#bulk-status-error, #bulk-trainer-error').text('').hide();
         renderBulkStudents(users, null);
         $('#bulk-place-group').text(bulkSelection.groupTitle);
-        $('#bulk-place-date').text(formatDateHumanYmd(bulkSelection.date));
-        $('#bulk-place-count').text('Учеников: ' + users.length);
+        $('#bulk-place-date').text(bulkDatesLabel(users));
+        $('#bulk-place-count').text('Занятий: ' + users.length);
         var hasPostpay = users.some(function (user) { return user.billing === 'postpay'; });
         $('.bulk-postpay-hint').toggleClass('d-none', !hasPostpay);
         var $visited = $('#bulkPlaceForm input[data-is-visited="1"]');
@@ -3369,7 +3421,7 @@ document.addEventListener('DOMContentLoaded', function () {
             method: 'GET',
             data: {
                 user_id: users[0].id,
-                date: bulkSelection.date,
+                date: users[0].date,
                 context_team_id: bulkSelection.teamId
             },
             headers: {'Accept': 'application/json'},
@@ -3412,6 +3464,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (errors.occurrence_date) {
             $('#bulk-status-error').text(errors.occurrence_date[0]).show();
         }
+        Object.keys(errors).forEach(function (key) {
+            if (key !== 'lessons' && key.indexOf('lessons.') !== 0) {
+                return;
+            }
+            var list = errors[key];
+            if (list && list[0]) {
+                $('#bulk-status-error').text(list[0]).show();
+            }
+        });
     }
 
     $(document).on('change', '#bulkPlaceForm input[name="bulk_lesson_occurrence_status_id"]', syncBulkTrainerBlock);
@@ -3443,9 +3504,13 @@ document.addEventListener('DOMContentLoaded', function () {
         var users = bulkUsersList();
         var payload = {
             team_id: bulkSelection.teamId,
-            occurrence_date: bulkSelection.date,
             lesson_occurrence_status_id: statusId,
-            user_ids: users.map(function (user) { return user.id; })
+            lessons: users.map(function (user) {
+                return {
+                    user_id: user.id,
+                    occurrence_date: user.date
+                };
+            })
         };
         if (isVisitedStatusId(statusId)) {
             var trainerIds = $('#bulk-trainer-profile-ids').val() || [];
@@ -3466,11 +3531,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 var placed = result.placed || [];
                 var failed = result.failed || [];
                 placed.forEach(function (row) {
-                    var $cell = bulkFindCell(row.user_id);
+                    var date = String(row.occurrence_date || '');
+                    var $cell = bulkFindCell(row.user_id, date);
                     if ($cell.length) {
                         renderScheduleCellAfterStatusSave($cell, row);
                     }
-                    bulkDropUser(row.user_id);
+                    bulkDropCell(row.user_id, date);
                 });
                 paintBulkSelection();
                 if (!failed.length && response && response.success) {
@@ -3480,13 +3546,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     return;
                 }
-                var errorsById = {};
+                var errorsByKey = {};
                 failed.forEach(function (row) {
-                    errorsById[String(row.user_id)] = row.message || 'Не удалось поставить занятие.';
+                    var message = row.message || 'Не удалось поставить занятие.';
+                    errorsByKey[bulkCellKey(row.user_id, row.occurrence_date)] = message;
                 });
                 var left = bulkUsersList();
-                renderBulkStudents(left, errorsById);
-                $('#bulk-place-count').text('Учеников: ' + left.length);
+                renderBulkStudents(left, errorsByKey);
+                $('#bulk-place-count').text('Занятий: ' + left.length);
+                $('#bulk-place-date').text(bulkDatesLabel(left));
             },
             error: function (xhr) {
                 if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
@@ -3508,17 +3576,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function bulkGroupFullySelected(groupKey, date) {
-        if (!bulkSelection || String(bulkSelection.groupKey) !== String(groupKey) || String(bulkSelection.date) !== String(date)) {
+        if (!bulkSelection || !bulkSelection.cells || String(bulkSelection.groupKey) !== String(groupKey)) {
             return false;
         }
-        var roster = bulkSelection.rosterIds;
-        var total = parseInt(bulkSelection.eligibleTotal, 10);
-        if (roster && roster.length && total > 0) {
-            if (total !== roster.length || Object.keys(bulkSelection.users).length !== total) {
+        var roster = bulkSelection.rosters && bulkSelection.rosters[String(date)];
+        if (roster && roster.ids && roster.ids.length && roster.total > 0) {
+            if (roster.total !== roster.ids.length) {
                 return false;
             }
-            for (var i = 0; i < roster.length; i++) {
-                if (!bulkSelection.users[String(roster[i])]) {
+            for (var i = 0; i < roster.ids.length; i++) {
+                if (!bulkSelection.cells[bulkCellKey(roster.ids[i], date)]) {
                     return false;
                 }
             }
@@ -3537,7 +3604,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         var allOn = true;
         $eligible.each(function () {
-            if (!bulkSelection.users[String($(this).attr('data-user-id') || '')]) {
+            var userId = String($(this).attr('data-user-id') || '');
+            if (!bulkSelection.cells[bulkCellKey(userId, date)]) {
                 allOn = false;
             }
         });
@@ -3560,6 +3628,24 @@ document.addEventListener('DOMContentLoaded', function () {
         return fallback;
     }
 
+    function bulkClearDate(date) {
+        if (!bulkSelection || !bulkSelection.cells) {
+            return;
+        }
+        Object.keys(bulkSelection.cells).forEach(function (key) {
+            var cell = bulkSelection.cells[key];
+            if (cell && String(cell.date) === String(date)) {
+                delete bulkSelection.cells[key];
+            }
+        });
+        if (bulkSelection.rosters) {
+            delete bulkSelection.rosters[String(date)];
+        }
+        if (!Object.keys(bulkSelection.cells).length) {
+            bulkSelection = null;
+        }
+    }
+
     function applyBulkGroupRoster(groupKey, teamId, date, payload) {
         var users = payload && Array.isArray(payload.users) ? payload.users : [];
         var total = parseInt(payload && payload.total, 10);
@@ -3570,31 +3656,44 @@ document.addEventListener('DOMContentLoaded', function () {
             bulkToast('В этот день некого выбрать.');
             return;
         }
-        if (bulkSelection && (bulkSelection.date !== date || bulkSelection.groupKey !== groupKey)) {
+        if (bulkSelection && String(bulkSelection.groupKey) !== String(groupKey)) {
             bulkToast(bulkLockMessage());
             return;
         }
-        if (!ensureBulkLock(groupKey, teamId, date)) {
+        if (!ensureBulkLock(groupKey, teamId)) {
             return;
         }
         var allBatchOn = true;
         users.forEach(function (user) {
-            if (!bulkSelection.users[String(user.id)]) {
+            if (!bulkSelection.cells[bulkCellKey(user.id, date)]) {
                 allBatchOn = false;
             }
         });
         if (allBatchOn) {
-            bulkSelection = null;
+            bulkClearDate(date);
             paintBulkSelection();
             return;
         }
-        bulkSelection.users = {};
-        bulkSelection.eligibleTotal = total;
-        bulkSelection.rosterIds = [];
+        var adding = 0;
+        users.forEach(function (user) {
+            if (!bulkSelection.cells[bulkCellKey(user.id, date)]) {
+                adding++;
+            }
+        });
+        if (bulkUserCount() + adding > BULK_PLACE_LIMIT) {
+            bulkToast(bulkPlaceLimitMessage());
+            if (!Object.keys(bulkSelection.cells).length) {
+                bulkSelection = null;
+            }
+            return;
+        }
+        bulkSelection.rosters[String(date)] = {ids: [], total: total};
         users.forEach(function (user) {
             var id = String(user.id);
-            bulkSelection.rosterIds.push(id);
-            bulkSelection.users[id] = {
+            bulkSelection.rosters[String(date)].ids.push(id);
+            bulkSelection.cells[bulkCellKey(id, date)] = {
+                id: id,
+                date: String(date),
                 name: user.name || 'Без имени',
                 billing: user.billing || '',
                 abonementName: user.abonement_name || '',
@@ -3619,7 +3718,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!groupKey || !date) {
             return;
         }
-        if (bulkSelection && (bulkSelection.date !== date || bulkSelection.groupKey !== groupKey)) {
+        if (bulkSelection && String(bulkSelection.groupKey) !== groupKey) {
             bulkToast(bulkLockMessage());
             return;
         }
@@ -3675,7 +3774,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var block = String($(this).attr('data-bulk-block') || 'no_abonement');
             var groupKey = String($(this).closest('tr').attr('data-group-key') || '');
             var dateStr = String($(this).attr('data-date') || '');
-            if (bulkSelection && (bulkSelection.date !== dateStr || bulkSelection.groupKey !== groupKey)) {
+            if (bulkSelection && String(bulkSelection.groupKey) !== groupKey) {
                 bulkToast(bulkLockMessage());
                 return;
             }

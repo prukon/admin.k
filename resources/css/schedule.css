@@ -2681,9 +2681,9 @@ body.layout-wide td.schedule-group-pager-host {
     justify-content: center;
     width: 15px;
     height: 15px;
-    border: 1px solid #c5cdd6;
+    border: 1px solid #0d6efd;
     border-radius: 3px;
-    background: #fff;
+    background: #e7f1ff;
     box-sizing: border-box;
     vertical-align: middle;
     pointer-events: none;
@@ -2791,12 +2791,19 @@ body.layout-wide td.schedule-group-pager-host {
 }
 
 .bulk-student__name {
-    flex: 0 1 40%;
+    flex: 1 1 32%;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     font-weight: 500;
     color: #343a40;
+}
+
+.bulk-student__date {
+    flex: 0 0 auto;
+    color: #868e96;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .bulk-student__abonement {
