@@ -107,7 +107,7 @@
 
   <div class="ok">
     <strong>Пагинация списка и поиск <code>q</code> (2026‑08).</strong>
-    Таблица журнала сгруппирована по группам. Внутри группы — страница по сохранённому «Показывать по» (по умолчанию 50 учеников), не все сразу.
+    Таблица журнала сгруппирована по группам. В группе меньше 50 учеников пейджера нет: отдаются все. От 50 — страница по сохранённому «Показывать по» (по умолчанию 50), не все сразу.
     Занятия и абонементы грузятся только для страницы.     «Найти» и Enter в поле — серверный GET без hidden <code>page</code>; автопоиска при вводе нет.
     Смена года/месяца/группы сбрасывает страницу и сохраняет <code>q</code>.
     Подробно — <a href="#journal-pagination">§2.2</a>;
@@ -277,7 +277,8 @@
     <code>ScheduleJournalGroupBoardService::PER_PAGE</code>,
     <code>ScheduleController::JOURNAL_GROUP_STUDENTS_PER_PAGE</code>).
     Сохранённые <b>20</b>, <b>50</b> и <b>100</b> дефолт не подменяет.
-    <code>GET /schedule</code> и <code>GET /schedule/group-rows</code> читают это число и режут все группы одинаково.
+    <code>GET /schedule</code> и <code>GET /schedule/group-rows</code> читают это число и режут группы от 50 учеников одинаково.
+    Если в группе (с учётом поиска <code>q</code>) меньше 50 человек, страница не режется: в ответе все эти ученики, строки <code>.schedule-journal-pagination</code> нет.
     Смена — <code>POST /schedule/journal-page-length</code> только с <code>page_length</code>:
     <code>columns</code> и <code>filters</code> той же строки не затираются.
     Успех (AJAX и обычный POST) → 200 <code>{success:true, page_length}</code>.
@@ -295,7 +296,7 @@
       <tr><th>Правило</th><th>Поведение</th></tr>
     </thead>
     <tbody>
-      <tr><td>В раскрытой группе есть ученики</td><td>Строка <code>.schedule-journal-pagination</code> в одной ячейке (<code>td.schedule-group-pager-cell</code> с <code>colspan</code> на всю таблицу): «N–M из K», переключатель «Показывать по» (<code>.schedule-journal-per-page__select</code>, 20 / 50 / 100) и, если страниц больше одной, номера страниц в одну линию. Блок прилипает к левому краю при горизонтальной прокрутке дней. Номера строк — <code>firstItem + index</code> внутри группы. Ссылки <code>group_pages[ключ]</code>, ключ — id группы или <code>none</code>. DataTables не видит эту строку: перед инициализацией её снимают и возвращают после, иначе <code>colspan</code> ломает колонки. Ошибка сохранения выводится в <code>[data-error-for="page_length"]</code> под переключателем той группы, где его меняли.</td></tr>
+      <tr><td>В раскрытой группе 50 или больше учеников</td><td>Строка <code>.schedule-journal-pagination</code> в одной ячейке (<code>td.schedule-group-pager-cell</code> с <code>colspan</code> на всю таблицу): «N–M из K», переключатель «Показывать по» (<code>.schedule-journal-per-page__select</code>, 20 / 50 / 100) и, если страниц больше одной, номера страниц в одну линию. Блок прилипает к левому краю при горизонтальной прокрутке дней. Номера строк — <code>firstItem + index</code> внутри группы. Ссылки <code>group_pages[ключ]</code>, ключ — id группы или <code>none</code>. DataTables не видит эту строку: перед инициализацией её снимают и возвращают после, иначе <code>colspan</code> ломает колонки. Ошибка сохранения выводится в <code>[data-error-for="page_length"]</code> под переключателем той группы, где его меняли. Меньше 50 учеников — этой строки нет, в фрагменте все ученики группы.</td></tr>
       <tr><td>Одна страница</td><td>Номеров страниц нет. Диапазон и «Показывать по» остаются, чтобы размер можно было сменить и когда ученики уже помещаются на одну страницу.</td></tr>
       <tr><td>В группе 0 учеников</td><td>Строки пагинации нет. Раскрытие без запроса <code>group-rows</code>.</td></tr>
       <tr><td>Поиск</td><td>GET-форма «Найти» и Enter в поле <code>q</code> — серверный поиск по всей выборке (фамилия / имя / склейка ФИО; max 191, trim). Скрытые <code>year</code> / <code>month</code> / <code>team_ids[]</code> (и <code>fullscreen=1</code>, если уже в URL). Пустой фильтр групп — hidden <code>team_ids[]</code> нет. <b>Нет</b> hidden <code>page</code>: поиск со 2-й страницы открывает 1-ю страницу совпадений. Автопоиска при вводе нет. DataTables (<code>paging: false</code>, <code>ordering: false</code>) не переставляет строки групп.</td></tr>

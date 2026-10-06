@@ -198,13 +198,13 @@ final class ScheduleJournalPageLengthFeatureTest extends ScheduleJournalTestCase
         ]);
         $teamA = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'ГруппаА50']);
         $teamB = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'ГруппаБ50']);
-        $this->seedStudentsInTeam($teamA, 25, 'ГруппаАстр');
-        $this->seedStudentsInTeam($teamB, 25, 'ГруппаБстр');
+        $this->seedStudentsInTeam($teamA, 60, 'ГруппаАстр');
+        $this->seedStudentsInTeam($teamB, 60, 'ГруппаБстр');
 
         $rowsA = $this->groupRows((string) $teamA->id, 1);
         $rowsB = $this->groupRows((string) $teamB->id, 2);
         $this->assertSame(20, $this->rowCount($rowsA));
-        $this->assertSame(5, $this->rowCount($rowsB));
+        $this->assertSame(20, $this->rowCount($rowsB));
         $this->assertMatchesRegularExpression('/<option value="20"[^>]*\bselected\b/', $rowsA);
         $this->assertMatchesRegularExpression('/<option value="20"[^>]*\bselected\b/', $rowsB);
         $this->assertStringContainsString('data-group-per-page="20"', (string) $this->get(route('schedule.index', [

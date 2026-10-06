@@ -337,12 +337,9 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
 
         $rows = $this->groupRowsHtml('none');
         $this->assertSame(3, $this->journalRowUserIds($rows)->count());
-        $this->assertJournalPerPageControl($rows, 50);
+        $this->assertJournalPagerRendered($rows, false);
         $this->assertStringNotContainsString('schedule-group-page-link', $rows);
-        $this->assertStringContainsString(
-            '1–3</span> <span class="schedule-journal-pagination__of">из 3',
-            $rows
-        );
+        $this->assertStringNotContainsString('Показывать по', $rows);
     }
 
     public function test_exact_page_size_does_not_show_pager(): void
@@ -389,8 +386,9 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $this->assertTrue($this->journalRowUserIds($rows)->contains((int) $inTeam->id));
         $this->assertSame(1, $this->journalRowUserIds($rows)->count());
         $this->assertStringContainsString($inTeam->full_name, $rows);
-        $this->assertJournalPerPageControl($rows, 50);
+        $this->assertJournalPagerRendered($rows, false);
         $this->assertStringNotContainsString('schedule-group-page-link', $rows);
+        $this->assertStringNotContainsString('Показывать по', $rows);
     }
 
     public function test_search_form_get_filters_by_name_and_does_not_keep_page(): void
@@ -416,8 +414,9 @@ final class ScheduleJournalPaginationFeatureTest extends ScheduleJournalTestCase
         $this->assertStringNotContainsString($first->full_name, $rows);
         $this->assertTrue($this->journalRowUserIds($rows)->contains((int) $overflow->id));
         $this->assertFalse($this->journalRowUserIds($rows)->contains((int) $first->id));
-        $this->assertJournalPerPageControl($rows, 50);
+        $this->assertJournalPagerRendered($rows, false);
         $this->assertStringNotContainsString('schedule-group-page-link', $rows);
+        $this->assertStringNotContainsString('Показывать по', $rows);
 
         $form = $this->searchFormHtml($html);
         $this->assertStringNotContainsString('name="page"', $form);

@@ -138,7 +138,7 @@ final class ScheduleJournalGroupBoardFeatureTest extends ScheduleJournalTestCase
         $this->assertStringContainsString('data-group-key="'.$team->id.'"', $html);
         $this->assertStringContainsString('data-team-id="'.$team->id.'"', $html);
         $this->assertStringNotContainsString('data-group-key="'.$otherTeam->id.'"', $html);
-        $this->assertStringContainsString('schedule-journal-per-page__select', $html);
+        $this->assertStringNotContainsString('schedule-journal-per-page__select', $html);
         $this->assertStringNotContainsString('schedule-group-page-link', $html);
     }
 

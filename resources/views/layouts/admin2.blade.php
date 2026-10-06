@@ -169,6 +169,15 @@
             max-width: none;
             width: 100%;
         }
+
+        /* Мобильный кабинет: убираем боковой padding .container-fluid (половина --bs-gutter-x).
+           Саму переменную не трогаем — её наследуют .row и промежутки колонок. */
+        @media (max-width: 767.98px) {
+            .content-wrapper > .content > .container-fluid {
+                padding-left: 0;
+                padding-right: 0;
+            }
+        }
     </style>
 
 

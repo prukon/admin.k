@@ -85,11 +85,15 @@
                 max-width: 100%;
                 white-space: normal !important;
             }
+            .schedule-search-submit__icon {
+                display: none;
+            }
             @media only screen and (max-width: 768px) {
                 .schedule-fullscreen-wrapper .wrap-filter-team {
-                    min-width: 160px;
-                    width: 100%;
-                    max-width: 100%;
+                    flex: 1 1 auto;
+                    min-width: 0;
+                    width: auto;
+                    max-width: none;
                 }
             }
             #schedule-journal-stage {
@@ -266,15 +270,173 @@
             }
 
             @media (max-width: 768px) {
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) {
+                    overflow: hidden;
+                    height: 100dvh;
+                }
+
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper {
+                    display: flex;
+                    flex-direction: column;
+                    height: 100dvh;
+                    max-height: 100dvh;
+                    min-height: 0;
+                    overflow: hidden;
+                }
+
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .main-header {
+                    flex: 0 0 auto;
+                }
+
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .main-footer {
+                    display: none;
+                }
+
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content-wrapper {
+                    flex: 1 1 auto;
+                    display: flex;
+                    flex-direction: column;
+                    min-height: 0;
+                    height: auto;
+                    margin-bottom: 0;
+                    overflow: hidden;
+                }
+
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .content,
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .container-fluid,
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .schedule-section,
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .tab-content,
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .schedule-fullscreen-wrapper {
+                    flex: 1 1 auto;
+                    display: flex;
+                    flex-direction: column;
+                    min-height: 0;
+                    overflow: hidden;
+                }
+
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .schedule-section > .nav {
+                    flex: 0 0 auto;
+                }
+
+                body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .schedule-section,
+                .schedule-fullscreen-wrapper:not(.fullscreen) {
+                    margin-top: 0 !important;
+                }
+
+                .schedule-fullscreen-wrapper:not(.fullscreen) .schedule-controls {
+                    flex: 0 0 auto;
+                }
+
+                .schedule-attendance-average {
+                    display: none !important;
+                }
+
+                .schedule-search-submit__label {
+                    display: none;
+                }
+
+                .schedule-search-submit__icon {
+                    display: inline-block;
+                }
+
+                .schedule-fullscreen-wrapper .schedule-controls__filters {
+                    display: flex;
+                    flex-wrap: nowrap;
+                    align-items: center;
+                    width: 100%;
+                    min-width: 0;
+                    gap: 4px;
+                }
+
+                .schedule-fullscreen-wrapper .schedule-controls .wrap-filter-year,
+                .schedule-fullscreen-wrapper .schedule-controls .wrap-filter-month {
+                    flex: 0 0 auto;
+                    width: auto;
+                    max-width: none;
+                }
+
+                .schedule-fullscreen-wrapper .wrap-filter-team {
+                    flex: 1 1 auto;
+                    width: auto !important;
+                    min-width: 0 !important;
+                    max-width: none !important;
+                }
+
+                .schedule-fullscreen-wrapper .wrap-filter-team .select2-container .select2-selection__rendered {
+                    flex-wrap: nowrap !important;
+                    overflow: hidden !important;
+                }
+
+                .schedule-fullscreen-wrapper .wrap-filter-team .select2-selection__choice,
+                .schedule-fullscreen-wrapper .wrap-filter-team .select2-selection__placeholder {
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap !important;
+                }
+
+                .schedule-fullscreen-wrapper .wrap-filter-team.generic-multiselect-field .select2-container--bootstrap-5 .select2-selection.select2-selection--multiple {
+                    max-height: 38px;
+                    overflow: hidden !important;
+                }
+
+                .schedule-fullscreen-wrapper .schedule-controls__actions {
+                    flex: 1 1 100%;
+                    flex-wrap: wrap;
+                    min-width: 0;
+                }
+
+                .schedule-fullscreen-wrapper .wrap-filter-search {
+                    flex: 1 1 auto;
+                    min-width: 0;
+                    width: auto;
+                }
+
+                .schedule-fullscreen-wrapper .schedule-controls .schedule-controls__search {
+                    width: auto;
+                    flex: 1 1 auto;
+                    min-width: 0;
+                }
+
+                .schedule-fullscreen-wrapper .schedule-controls .table-search,
+                .schedule-fullscreen-wrapper .wrap-filter-search input {
+                    width: 1% !important;
+                    flex: 1 1 auto;
+                    min-width: 0;
+                }
+
+                .schedule-fullscreen-wrapper .schedule-controls .schedule-search-submit {
+                    flex: 0 0 38px;
+                    width: 38px;
+                    min-width: 38px;
+                    padding: 0;
+                }
+
+                .schedule-fullscreen-wrapper:not(.fullscreen) #schedule-journal-stage.is-ready {
+                    flex: 1 1 auto;
+                    display: flex;
+                    flex-direction: column;
+                    min-height: 0;
+                    height: auto;
+                    overflow: hidden;
+                }
+
                 .schedule-fullscreen-wrapper:not(.fullscreen) .schedule-journal-table-stack {
-                    display: block;
+                    display: flex;
+                    flex-direction: column;
+                    flex: 1 1 auto;
+                    min-height: 0;
                     width: 100% !important;
                     max-width: 100%;
+                    overflow: hidden;
                 }
 
                 .schedule-fullscreen-wrapper:not(.fullscreen) .schedule-table-container {
+                    flex: 1 1 auto;
+                    min-height: 0;
+                    height: auto;
+                    max-height: none;
                     overflow: auto !important;
-                    max-height: calc(100dvh - 24rem);
+                    background: #fff;
                     -webkit-overflow-scrolling: touch;
                 }
 
@@ -285,19 +447,88 @@
                 }
 
                 #schedule-table {
-                    --schedule-sticky-name-left: 2.5rem;
+                    --schedule-sticky-name-left: 0;
                 }
 
-                #schedule-table .sticky-col-1,
-                #schedule-table .col-number {
-                    position: sticky;
-                    left: 0;
-                    z-index: 5;
-                    width: 2.5rem !important;
-                    min-width: 2.5rem !important;
-                    max-width: 2.5rem !important;
-                    background-color: #fff;
-                    background-clip: padding-box;
+                #schedule-table tr > .col-number,
+                #schedule-table tr > td.sticky-col-1,
+                #schedule-table tr > td.number-line {
+                    width: 0 !important;
+                    min-width: 0 !important;
+                    max-width: 0 !important;
+                    padding: 0 !important;
+                    border-width: 0 !important;
+                    border-left-width: 0 !important;
+                    font-size: 0 !important;
+                    line-height: 0 !important;
+                    overflow: hidden !important;
+                    color: transparent !important;
+                    pointer-events: none;
+                }
+
+                #schedule-table tr > th.schedule-consuming-count,
+                #schedule-table tr > td.schedule-consuming-count {
+                    width: 0 !important;
+                    min-width: 0 !important;
+                    max-width: 0 !important;
+                    padding: 0 !important;
+                    border-width: 0 !important;
+                    font-size: 0 !important;
+                    line-height: 0 !important;
+                    overflow: hidden !important;
+                    color: transparent !important;
+                    pointer-events: none;
+                }
+
+                #schedule-table .schedule-consuming-count .journal-col-header-hint,
+                #schedule-table .schedule-consuming-count i {
+                    display: none !important;
+                }
+
+                .journal-flexible-hint--ratio {
+                    max-height: 1.2em;
+                    overflow: hidden;
+                }
+
+                #schedule-table th.col-name,
+                #schedule-table td.schedule-user-name,
+                #schedule-table tfoot td.schedule-attendance-total-label {
+                    width: 108px !important;
+                    max-width: 108px !important;
+                }
+
+                #schedule-table td.schedule-user-name {
+                    overflow: hidden;
+                }
+
+                #schedule-table button.schedule-user-card-name {
+                    display: block;
+                    max-width: 100%;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+
+                #schedule-table th.schedule-col-setup,
+                #schedule-table td.schedule-col-setup {
+                    width: 2.6rem !important;
+                    min-width: 2.6rem !important;
+                    max-width: 2.6rem !important;
+                    padding-left: 2px !important;
+                    padding-right: 2px !important;
+                    overflow: hidden;
+                }
+
+                #schedule-table td.schedule-col-setup .journal-abonement-cell {
+                    min-height: 0;
+                    max-width: 100%;
+                    gap: 0;
+                }
+
+                #schedule-table th.col-name,
+                #schedule-table td.schedule-user-name,
+                #schedule-table tfoot td.schedule-attendance-total-label {
+                    border-left-width: 1px !important;
                 }
 
                 .schedule-fullscreen-wrapper:not(.fullscreen) #schedule-table thead th {
@@ -318,7 +549,6 @@
                     box-shadow: 4px 0 6px -4px rgba(0, 0, 0, 0.45);
                 }
 
-                #schedule-table thead th.sticky-col-1,
                 #schedule-table thead th.col-name {
                     z-index: 6;
                     top: 0;
@@ -328,14 +558,68 @@
                     background-color: #fff;
                 }
 
-                #schedule-table tr.schedule-group-row td.sticky-col-1,
                 #schedule-table tr.schedule-group-row td.schedule-user-name {
                     background-color: #f4f6f9;
                 }
 
-                #schedule-table tfoot td.sticky-col-1,
                 #schedule-table tfoot td.schedule-attendance-total-label {
                     background-color: #f8f9fa;
+                }
+
+                .schedule-fullscreen-wrapper.fullscreen {
+                    display: flex;
+                    flex-direction: column;
+                    height: 100dvh;
+                    max-height: 100dvh;
+                    margin: 0 !important;
+                    padding-top: 0;
+                    overflow: hidden;
+                }
+
+                .schedule-fullscreen-wrapper.fullscreen .schedule-controls {
+                    position: relative;
+                    top: auto;
+                    left: auto;
+                    flex: 0 0 auto;
+                    width: 100%;
+                }
+
+                .schedule-fullscreen-wrapper.fullscreen .wrap-filter-year {
+                    display: block !important;
+                }
+
+                .schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready {
+                    flex: 1 1 auto;
+                    height: auto;
+                    min-height: 0;
+                }
+
+                .schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready .schedule-journal-table-stack {
+                    flex: 1 1 auto;
+                    min-height: 0;
+                    overflow: hidden;
+                }
+
+                .schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready .schedule-table-container {
+                    flex: 1 1 auto;
+                    min-height: 0;
+                    height: auto;
+                    max-height: none;
+                    overflow: auto;
+                }
+
+                .schedule-fullscreen-wrapper.fullscreen #schedule-table thead th {
+                    position: sticky;
+                    top: 0;
+                    z-index: 55;
+                    background-color: #fff;
+                    background-clip: padding-box;
+                }
+
+                .schedule-fullscreen-wrapper.fullscreen #schedule-table thead th.col-name {
+                    z-index: 70 !important;
+                    top: 0;
+                    background-color: #fff;
                 }
             }
 

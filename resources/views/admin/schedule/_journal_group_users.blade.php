@@ -348,7 +348,7 @@
                     </tr>
                 @endforeach
 
-@if($users->total() > 0)
+@if($users->total() >= \App\Services\Schedule\ScheduleJournalPageLength::DEFAULT)
     @php
         $groupPageCurrent = $users->currentPage();
         $groupPageLast = $users->lastPage();

@@ -2384,7 +2384,7 @@ JS;
             "@include('admin.schedule._journal_group_users', ['journalGroupCollapsed' => true])",
             $journal
         );
-        $this->assertStringContainsString('$users->total() > 0', $groupUsers);
+        $this->assertStringContainsString('$users->total() >= \\App\\Services\\Schedule\\ScheduleJournalPageLength::DEFAULT', $groupUsers);
         $this->assertStringContainsString('$users->lastPage() > 1', $groupUsers);
         $this->assertStringContainsString('schedule-journal-pagination', $groupUsers);
         $this->assertStringContainsString('schedule-journal-per-page__select', $groupUsers);

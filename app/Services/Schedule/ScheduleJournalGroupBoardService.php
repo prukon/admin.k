@@ -760,6 +760,10 @@ final class ScheduleJournalGroupBoardService
         $perPage = ScheduleJournalPageLength::normalize($perPage);
         $page = max(1, $page);
         $total = (clone $query)->count();
+        if ($total < ScheduleJournalPageLength::DEFAULT) {
+            $perPage = max($total, 1);
+            $page = 1;
+        }
         $items = (clone $query)->forPage($page, $perPage)->get();
         $paginator = new Paginator($items, $total, $perPage, $page, [
             'path' => request()->url(),

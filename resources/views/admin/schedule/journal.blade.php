@@ -88,7 +88,10 @@
                            class="form-control table-search"
                            placeholder="Поиск"
                            autocomplete="off">
-                    <button type="submit" class="btn btn-outline-secondary">Найти</button>
+                    <button type="submit" class="btn btn-outline-secondary schedule-search-submit" aria-label="Найти">
+                        <span class="schedule-search-submit__label">Найти</span>
+                        <i class="fas fa-search schedule-search-submit__icon" aria-hidden="true"></i>
+                    </button>
                 </form>
                 @error('q')
                     <div class="text-danger small mt-1">{{ $message }}</div>

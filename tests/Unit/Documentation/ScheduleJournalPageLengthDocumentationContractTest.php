@@ -70,7 +70,7 @@ final class ScheduleJournalPageLengthDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Показывать по', $blade);
         $this->assertStringContainsString('schedule-journal-per-page__select', $blade);
         $this->assertStringContainsString('data-error-for="page_length"', $blade);
-        $this->assertStringContainsString('$users->total() > 0', $blade);
+        $this->assertStringContainsString('$users->total() >= \\App\\Services\\Schedule\\ScheduleJournalPageLength::DEFAULT', $blade);
         $this->assertStringContainsString('$users->lastPage() > 1', $blade);
 
         $routes = (string) file_get_contents($root.'/routes/web.php');
