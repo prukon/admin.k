@@ -1943,8 +1943,8 @@ JS;
     }
 
     /**
-     * Журнал не резиновый в кабинете (в т.ч. #layout-wide-toggle).
-     * Кнопка .schedule-btn-fullscreen — наоборот, таблица 100% ширины.
+     * Журнал не резиновый в кабинете, в том числе при #layout-wide-toggle (дни 36px).
+     * Кнопка .schedule-btn-fullscreen — таблица 100% ширины, шапка дат sticky.
      */
     public function test_schedule_journal_table_content_width_contract(): void
     {
@@ -1965,8 +1965,15 @@ JS;
             $this->assertGreaterThan($blockPos, $fsPos, $path);
             $fsBlock = substr($chunk, $fsPos, 900);
             $this->assertStringContainsString('width: 100% !important', $fsBlock, $path);
-            $this->assertStringContainsString('body.layout-wide table.dataTable#schedule-table', $chunk, $path);
-            $this->assertStringContainsString('body.layout-wide td.schedule-cell', $chunk, $path);
+            $this->assertStringNotContainsString('body.layout-wide table.dataTable#schedule-table', $chunk, $path);
+            $this->assertStringNotContainsString('body.layout-wide td.schedule-cell', $chunk, $path);
+            $this->assertStringContainsString('.schedule-fullscreen-wrapper.fullscreen #schedule-table_wrapper > .kids-dt-scroll-x', $chunk, $path);
+            $stickyPos = strpos($chunk, '.schedule-fullscreen-wrapper.fullscreen #schedule-table_wrapper > .kids-dt-scroll-x');
+            $this->assertNotFalse($stickyPos, $path);
+            $stickyBlock = substr($chunk, $stickyPos, 700);
+            $this->assertStringContainsString('overflow: visible !important', $stickyBlock, $path);
+            $this->assertStringContainsString('position: sticky', $stickyBlock, $path);
+            $this->assertStringContainsString('z-index: 70 !important', $stickyBlock, $path);
         }
 
         $index = resource_path('views/admin/schedule/index.blade.php');
@@ -1983,8 +1990,11 @@ JS;
         $this->assertStringContainsString('table.dataTable#schedule-table', $stylesChunk);
         $this->assertStringContainsString('schedule-journal-table-stack', $stylesChunk);
         $this->assertStringContainsString('.schedule-journal-table-stack .schedule-journal-pagination', $stylesChunk);
-        $this->assertStringContainsString('body.layout-wide table.dataTable#schedule-table', $stylesChunk);
-        $this->assertStringContainsString('body.layout-wide td.schedule-cell', $stylesChunk);
+        $this->assertStringNotContainsString('body.layout-wide table.dataTable#schedule-table', $stylesChunk);
+        $this->assertStringContainsString('body.layout-wide:not(:has(.schedule-fullscreen-wrapper.fullscreen)) td.schedule-cell', $stylesChunk);
+        $this->assertStringContainsString('width: 36px !important', $stylesChunk);
+        $this->assertStringContainsString('.schedule-fullscreen-wrapper.fullscreen #schedule-table_wrapper > .kids-dt-scroll-x', $stylesChunk);
+        $this->assertStringContainsString('position: sticky', $stylesChunk);
         $this->assertStringContainsString('body:has(.schedule-fullscreen-wrapper:not(.fullscreen)) .wrapper', $stylesChunk);
         $this->assertStringContainsString('max-width: 1280px', $stylesChunk);
 

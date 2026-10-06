@@ -194,44 +194,75 @@
                 width: max-content !important;
                 margin: 0 !important;
             }
-            /* Overlay журнала и body.layout-wide: ячейки дней на всю ширину, ФИО не резинится. */
-            .schedule-fullscreen-wrapper.fullscreen .schedule-journal-table-stack,
-            body.layout-wide .schedule-journal-table-stack {
+            /* Overlay журнала: ячейки дней на всю ширину, ФИО не резинится.
+               body.layout-wide дни не растягивает — см. блок ниже. */
+            .schedule-fullscreen-wrapper.fullscreen .schedule-journal-table-stack {
                 width: 100% !important;
                 max-width: 100%;
             }
             .schedule-fullscreen-wrapper.fullscreen #schedule-table_wrapper.dataTables_wrapper,
-            .schedule-fullscreen-wrapper.fullscreen .schedule-table-container .dataTables_wrapper,
-            body.layout-wide #schedule-table_wrapper.dataTables_wrapper,
-            body.layout-wide .schedule-table-container .dataTables_wrapper {
+            .schedule-fullscreen-wrapper.fullscreen .schedule-table-container .dataTables_wrapper {
                 width: 100% !important;
                 min-width: 100% !important;
                 margin: 0 !important;
             }
             .schedule-fullscreen-wrapper.fullscreen #schedule-table,
             .schedule-fullscreen-wrapper.fullscreen #schedule-table.table,
-            .schedule-fullscreen-wrapper.fullscreen table.dataTable#schedule-table,
-            body.layout-wide #schedule-table,
-            body.layout-wide #schedule-table.table,
-            body.layout-wide table.dataTable#schedule-table {
+            .schedule-fullscreen-wrapper.fullscreen table.dataTable#schedule-table {
                 width: 100% !important;
                 margin: 0 !important;
             }
-            .schedule-fullscreen-wrapper.fullscreen .schedule-day-header,
-            body.layout-wide .schedule-day-header {
+            .schedule-fullscreen-wrapper.fullscreen .schedule-day-header {
                 width: auto !important;
             }
             .schedule-fullscreen-wrapper.fullscreen th.col-name,
-            .schedule-fullscreen-wrapper.fullscreen td.schedule-user-name,
-            body.layout-wide th.col-name,
-            body.layout-wide td.schedule-user-name {
+            .schedule-fullscreen-wrapper.fullscreen td.schedule-user-name {
                 width: 1% !important;
                 max-width: 140px !important;
                 white-space: nowrap;
             }
-            .schedule-fullscreen-wrapper.fullscreen td.schedule-cell,
-            body.layout-wide td.schedule-cell {
+            .schedule-fullscreen-wrapper.fullscreen td.schedule-cell {
                 width: auto !important;
+            }
+            /* Широкий кабинет: колонки как в обычной ширине (36px), таблица по содержимому.
+               !important бьёт width: auto из прежнего бандла schedule.css. */
+            body.layout-wide:not(:has(.schedule-fullscreen-wrapper.fullscreen)) .schedule-day-header,
+            body.layout-wide:not(:has(.schedule-fullscreen-wrapper.fullscreen)) #schedule-table td.schedule-group-day,
+            body.layout-wide:not(:has(.schedule-fullscreen-wrapper.fullscreen)) #schedule-table tfoot td.schedule-attendance-day,
+            body.layout-wide:not(:has(.schedule-fullscreen-wrapper.fullscreen)) td.schedule-cell {
+                width: 36px !important;
+                min-width: 36px !important;
+                max-width: 36px !important;
+            }
+            body.layout-wide:not(:has(.schedule-fullscreen-wrapper.fullscreen)) #schedule-table_wrapper.dataTables_wrapper,
+            body.layout-wide:not(:has(.schedule-fullscreen-wrapper.fullscreen)) .schedule-table-container .dataTables_wrapper,
+            body.layout-wide:not(:has(.schedule-fullscreen-wrapper.fullscreen)) #schedule-table,
+            body.layout-wide:not(:has(.schedule-fullscreen-wrapper.fullscreen)) table.dataTable#schedule-table {
+                width: max-content !important;
+                min-width: 0 !important;
+            }
+            body.layout-wide:not(:has(.schedule-fullscreen-wrapper.fullscreen)) th.col-name,
+            body.layout-wide:not(:has(.schedule-fullscreen-wrapper.fullscreen)) td.schedule-user-name {
+                width: auto !important;
+                max-width: none !important;
+            }
+            .schedule-fullscreen-wrapper.fullscreen #schedule-table_wrapper > .kids-dt-scroll-x {
+                overflow: visible !important;
+                width: 100%;
+                max-width: 100%;
+            }
+            .schedule-fullscreen-wrapper.fullscreen #schedule-table thead th {
+                position: sticky;
+                top: 0;
+                z-index: 55;
+                background-color: #fff;
+                background-clip: padding-box;
+            }
+            .schedule-fullscreen-wrapper.fullscreen #schedule-table thead th.sticky-col-1,
+            .schedule-fullscreen-wrapper.fullscreen #schedule-table thead th.col-name {
+                z-index: 70 !important;
+                top: 0;
+                background-color: #fff;
             }
 
             @media (max-width: 768px) {

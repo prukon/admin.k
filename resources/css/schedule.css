@@ -166,18 +166,16 @@ table.dataTable#schedule-table {
     white-space: nowrap;
 }
 
-/* Overlay журнала (.schedule-btn-fullscreen) и кабинет body.layout-wide (#layout-wide-toggle):
-   таблица на всю ширину, ячейки дней растягиваются, ФИО не резинится. */
-.schedule-fullscreen-wrapper.fullscreen .schedule-journal-table-stack,
-body.layout-wide .schedule-journal-table-stack {
+/* Overlay журнала (.schedule-btn-fullscreen): таблица на всю ширину,
+   ячейки дней растягиваются, ФИО не резинится.
+   Кабинет body.layout-wide только шире 1280px — дни остаются 36px. */
+.schedule-fullscreen-wrapper.fullscreen .schedule-journal-table-stack {
     width: 100% !important;
     max-width: 100%;
 }
 
 .schedule-fullscreen-wrapper.fullscreen #schedule-table_wrapper.dataTables_wrapper,
-.schedule-fullscreen-wrapper.fullscreen .schedule-table-container .dataTables_wrapper,
-body.layout-wide #schedule-table_wrapper.dataTables_wrapper,
-body.layout-wide .schedule-table-container .dataTables_wrapper {
+.schedule-fullscreen-wrapper.fullscreen .schedule-table-container .dataTables_wrapper {
     width: 100% !important;
     min-width: 100% !important;
     margin: 0 !important;
@@ -185,30 +183,23 @@ body.layout-wide .schedule-table-container .dataTables_wrapper {
 
 .schedule-fullscreen-wrapper.fullscreen #schedule-table,
 .schedule-fullscreen-wrapper.fullscreen #schedule-table.table,
-.schedule-fullscreen-wrapper.fullscreen table.dataTable#schedule-table,
-body.layout-wide #schedule-table,
-body.layout-wide #schedule-table.table,
-body.layout-wide table.dataTable#schedule-table {
+.schedule-fullscreen-wrapper.fullscreen table.dataTable#schedule-table {
     width: 100% !important;
     margin: 0 !important;
 }
 
-.schedule-fullscreen-wrapper.fullscreen .schedule-day-header,
-body.layout-wide .schedule-day-header {
+.schedule-fullscreen-wrapper.fullscreen .schedule-day-header {
     width: auto !important;
 }
 
 .schedule-fullscreen-wrapper.fullscreen th.col-name,
-.schedule-fullscreen-wrapper.fullscreen td.schedule-user-name,
-body.layout-wide th.col-name,
-body.layout-wide td.schedule-user-name {
+.schedule-fullscreen-wrapper.fullscreen td.schedule-user-name {
     width: 1% !important;
     max-width: 140px !important;
     white-space: nowrap;
 }
 
-.schedule-fullscreen-wrapper.fullscreen td.schedule-cell,
-body.layout-wide td.schedule-cell {
+.schedule-fullscreen-wrapper.fullscreen td.schedule-cell {
     width: auto !important;
 }
 
@@ -3096,4 +3087,27 @@ td.schedule-cell {
         z-index: 70 !important;
         top: 0;
     }
+}
+
+/* Полноэкран журнала: .kids-dt-scroll-x { overflow-x: auto } перехватывает sticky
+   и сам по вертикали не скроллится. Скролл — у .schedule-table-container. */
+.schedule-fullscreen-wrapper.fullscreen #schedule-table_wrapper > .kids-dt-scroll-x {
+    overflow: visible !important;
+    width: 100%;
+    max-width: 100%;
+}
+
+.schedule-fullscreen-wrapper.fullscreen #schedule-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 55;
+    background-color: #fff;
+    background-clip: padding-box;
+}
+
+.schedule-fullscreen-wrapper.fullscreen #schedule-table thead th.sticky-col-1,
+.schedule-fullscreen-wrapper.fullscreen #schedule-table thead th.col-name {
+    z-index: 70 !important;
+    top: 0;
+    background-color: #fff;
 }

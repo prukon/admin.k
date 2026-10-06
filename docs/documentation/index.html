@@ -8802,10 +8802,10 @@
 
   <h2 id="journal-table-content-width-index">Журнал: две кнопки «на весь экран» (2026‑08)</h2>
   <div class="note">
-    <code>#layout-wide-toggle</code> в шапке («На всю ширину экрана») и
-    <code>#btn-fullscreen.schedule-btn-fullscreen</code> в фильтрах журнала
-    растягивают ячейки дней на доступную ширину; ФИО не резинится.
-    В обычной ширине кабинета таблица — <code>max-content</code>.
+    <code>#layout-wide-toggle</code> в шапке («На всю ширину экрана») расширяет кабинет,
+    дни журнала остаются <code>36px</code>, таблица — <code>max-content</code>.
+    <code>#btn-fullscreen.schedule-btn-fullscreen</code> растягивает ячейки дней;
+    ФИО не резинится, шапка дат закреплена.
     Подробно — <a href="/docs/documentation/schedule-journal#journal-table-content-width">schedule-journal §2.4</a>.
     Тест: <code>BladeInlineJsSyntaxTest::test_schedule_journal_table_content_width_contract</code>.
   </div>

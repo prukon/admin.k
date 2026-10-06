@@ -421,23 +421,29 @@
   <ul>
     <li><b>Шапка кабинета</b> <code>#layout-wide-toggle</code> («На всю ширину экрана»,
       <code>fa-expand-alt</code>, <code>body.layout-wide</code> / <code>users.layout_wide</code>):
-      кабинет шире 1280px, таблица журнала <code>width: 100%</code>, ячейки дней
-      растягиваются, ФИО и абонементы не резинятся (как у кнопки журнала ниже).
-      В обычной ширине кабинета таблица — <code>max-content</code>, пейджер группы внутри <code>.schedule-journal-table-stack</code> по ширине таблицы.</li>
+      только <code>.wrapper</code> шире 1280px. Таблица журнала остаётся
+      <code>max-content</code>, дни — <code>36px</code> (как в обычной ширине).
+      Пейджер группы внутри <code>.schedule-journal-table-stack</code> по ширине таблицы.</li>
     <li><b>Журнал</b> <code>#btn-fullscreen.schedule-btn-fullscreen</code> (фильтры, класс
-      <code>fullscreen</code> на <code>.schedule-fullscreen-wrapper</code>): то же растягивание
-      ячеек дней на ширину экрана. Колонка ФИО не резинится (<code>th.col-name</code> /
-      <code>td.schedule-user-name</code> — <code>width: 1%</code>,
+      <code>fullscreen</code> на <code>.schedule-fullscreen-wrapper</code>): таблица
+      <code>width: 100%</code>, ячейки дней растягиваются. Колонка ФИО не резинится
+      (<code>th.col-name</code> / <code>td.schedule-user-name</code> — <code>width: 1%</code>,
       <code>max-width: 140px</code>). Колонка абонементов остаётся
-      <code>width: 1%</code> + nowrap.</li>
+      <code>width: 1%</code> + nowrap. Шапка дат закреплена
+      (<code>thead th { position: sticky; top: 0 }</code>): у
+      <code>#schedule-table_wrapper &gt; .kids-dt-scroll-x</code> стоит
+      <code>overflow: visible</code>, вертикальный скролл у
+      <code>.schedule-table-container</code>. Углы «№» и «ФИО» —
+      <code>z-index: 70</code>.</li>
   </ul>
   <ul>
     <li><b>CSS</b> в Vite <code>resources/css/schedule.css</code> и inline в
       <code>index.blade.php</code>: вне overlay — обёртка
       <code>#schedule-table_wrapper</code> <code>max-content; min-width: 0; margin: 0</code>;
-      в overlay и при <code>body.layout-wide</code> — те же селекторы с
+      в overlay — те же селекторы с
       <code>width: 100%</code>, <code>.schedule-day-header</code> / <code>td.schedule-cell</code>
-      <code>width: auto</code>.
+      <code>width: auto</code>. При <code>body.layout-wide</code> дни остаются
+      <code>width: 36px</code> (inline в <code>index.blade.php</code> перекрывает старый бандл).
       Кабинет на <code>/schedule</code> остаётся
       <code>.wrapper { max-width: 1280px }</code> (как остальные страницы).
       Правило лежит в <code>schedule.css</code>, чтобы колонка не растягивалась на ширину окна.</li>
