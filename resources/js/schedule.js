@@ -2981,15 +2981,12 @@ document.addEventListener('DOMContentLoaded', function () {
         return title || 'группа';
     }
 
-    function bulkCellKey(userId, date) {
-        return String(userId) + '|' + String(date);
+    function bulkCellKey(userId, date, groupKey) {
+        return String(userId) + '|' + String(date) + '|' + String(groupKey || '');
     }
 
-    function bulkLockMessage() {
-        if (!bulkSelection) {
-            return '';
-        }
-        return 'Можно выбрать только группу ' + bulkSelection.groupTitle + '.';
+    function bulkRosterKey(groupKey, date) {
+        return String(groupKey) + '|' + String(date);
     }
 
     function bulkPlaceLimitMessage() {
@@ -3076,17 +3073,57 @@ document.addEventListener('DOMContentLoaded', function () {
             return {
                 id: String(row.id || ''),
                 date: String(row.date || ''),
+                groupKey: String(row.groupKey || ''),
+                teamId: String(row.teamId || ''),
+                groupTitle: row.groupTitle || 'группа',
                 name: row.name || 'Без имени',
                 billing: row.billing || '',
                 abonementName: row.abonementName || '',
                 priceLabel: row.priceLabel || ''
             };
         }).sort(function (a, b) {
+            if (a.groupTitle !== b.groupTitle) {
+                return String(a.groupTitle).localeCompare(String(b.groupTitle), 'ru');
+            }
+            if (a.groupKey !== b.groupKey) {
+                return String(a.groupKey).localeCompare(String(b.groupKey), 'ru');
+            }
             if (a.date !== b.date) {
                 return a.date < b.date ? -1 : 1;
             }
             return String(a.name).localeCompare(String(b.name), 'ru');
         });
+    }
+
+    function bulkGroupsLabel(users) {
+        var seen = {};
+        var titles = [];
+        (users || []).forEach(function (user) {
+            var key = String(user.groupKey || '');
+            if (!key || seen[key]) {
+                return;
+            }
+            seen[key] = true;
+            titles.push(user.groupTitle || 'группа');
+        });
+        return titles.join(', ');
+    }
+
+    function bulkSelectedGroupCount() {
+        if (!bulkSelection || !bulkSelection.cells) {
+            return 0;
+        }
+        var seen = {};
+        var count = 0;
+        Object.keys(bulkSelection.cells).forEach(function (key) {
+            var groupKey = String((bulkSelection.cells[key] || {}).groupKey || '');
+            if (!groupKey || seen[groupKey]) {
+                return;
+            }
+            seen[groupKey] = true;
+            count++;
+        });
+        return count;
     }
 
     function bulkDatesLabel(users) {
@@ -3113,12 +3150,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function bulkFindCell(userId, date) {
-        if (!bulkSelection || !date) {
+    function bulkFindCell(userId, date, groupKey) {
+        if (!date) {
             return $();
         }
         return $('#schedule-table tbody tr.schedule-group-user').filter(function () {
-            return String($(this).attr('data-group-key')) === String(bulkSelection.groupKey)
+            return String($(this).attr('data-group-key')) === String(groupKey)
                 && String($(this).attr('data-user-id')) === String(userId);
         }).find('.schedule-cell').filter(function () {
             return String($(this).attr('data-date')) === String(date);
@@ -3140,15 +3177,19 @@ document.addEventListener('DOMContentLoaded', function () {
         $table.addClass('is-bulk-lock');
         $('#schedule-bulk-count').text('Выбрано: ' + count);
         $('#schedule-bulk-bar').removeClass('d-none');
-        var groupKey = String(bulkSelection.groupKey);
-        var dates = {};
+        var markedDays = {};
         Object.keys(bulkSelection.cells).forEach(function (key) {
             var cell = bulkSelection.cells[key];
-            if (cell && cell.date) {
-                dates[String(cell.date)] = true;
+            if (!cell || !cell.date || !cell.groupKey) {
+                return;
             }
-        });
-        Object.keys(dates).forEach(function (date) {
+            var date = String(cell.date);
+            var groupKey = String(cell.groupKey);
+            var dayKey = groupKey + '|' + date;
+            if (markedDays[dayKey]) {
+                return;
+            }
+            markedDays[dayKey] = true;
             $table.find('th.schedule-day-header').filter(function () {
                 return String($(this).attr('data-date')) === date;
             }).addClass('schedule-day-header--bulk');
@@ -3168,11 +3209,11 @@ document.addEventListener('DOMContentLoaded', function () {
             var cellDate = String($c.attr('data-date') || '');
             var userId = String($c.attr('data-user-id') || '');
             var occ = parseInt($c.attr('data-occurrence-count') || '0', 10);
-            if (cellGroup === groupKey && bulkSelection.cells[bulkCellKey(userId, cellDate)]) {
+            if (bulkSelection.cells[bulkCellKey(userId, cellDate, cellGroup)]) {
                 $c.addClass('schedule-cell--bulk-selected');
                 return;
             }
-            if (cellGroup === groupKey && $c.attr('data-bulk-block') === 'eligible' && occ === 0) {
+            if ($c.attr('data-bulk-block') === 'eligible' && occ === 0) {
                 $c.addClass('schedule-cell--bulk-target');
                 return;
             }
@@ -3262,12 +3303,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function bulkRememberUser($cell) {
+        var $row = $cell.closest('tr');
         var userId = String($cell.attr('data-user-id') || '');
         var date = String($cell.attr('data-date') || '');
-        if (!userId || !date || !bulkSelection) {
+        var groupKey = String($row.attr('data-group-key') || '');
+        var teamId = String($row.attr('data-team-id') || $cell.attr('data-context-team-id') || '');
+        if (!userId || !date || !groupKey || !teamId || !bulkSelection) {
             return false;
         }
-        var key = bulkCellKey(userId, date);
+        var key = bulkCellKey(userId, date, groupKey);
         if (bulkSelection.cells[key]) {
             return true;
         }
@@ -3279,6 +3323,9 @@ document.addEventListener('DOMContentLoaded', function () {
         bulkSelection.cells[key] = {
             id: userId,
             date: date,
+            groupKey: groupKey,
+            teamId: teamId,
+            groupTitle: bulkGroupTitle(groupKey),
             name: String($cell.attr('data-user-name') || 'Без имени'),
             billing: String($cell.attr('data-bulk-billing') || ''),
             abonementName: parts.abonementName,
@@ -3287,33 +3334,22 @@ document.addEventListener('DOMContentLoaded', function () {
         return true;
     }
 
-    function bulkDropCell(userId, date) {
+    function bulkDropCell(userId, date, groupKey) {
         if (!bulkSelection || !bulkSelection.cells) {
             return;
         }
-        delete bulkSelection.cells[bulkCellKey(userId, date)];
+        delete bulkSelection.cells[bulkCellKey(userId, date, groupKey)];
         if (!Object.keys(bulkSelection.cells).length) {
             bulkSelection = null;
         }
     }
 
-    function ensureBulkLock(groupKey, teamId) {
+    function ensureBulkLock() {
         if (!bulkSelection) {
             bulkSelection = {
-                groupKey: String(groupKey),
-                teamId: String(teamId || ''),
-                groupTitle: bulkGroupTitle(groupKey),
                 cells: {},
                 rosters: {}
             };
-            return true;
-        }
-        if (bulkSelection.groupKey !== String(groupKey)) {
-            bulkToast(bulkLockMessage());
-            return false;
-        }
-        if (!bulkSelection.teamId && teamId) {
-            bulkSelection.teamId = String(teamId);
         }
         return true;
     }
@@ -3323,15 +3359,15 @@ document.addEventListener('DOMContentLoaded', function () {
         var teamId = String($cell.closest('tr').attr('data-team-id') || $cell.attr('data-context-team-id') || '');
         var date = String($cell.attr('data-date') || '');
         var userId = String($cell.attr('data-user-id') || '');
-        if (!groupKey || !date || !userId) {
+        if (!groupKey || !teamId || !date || !userId) {
             return;
         }
-        if (bulkSelection && bulkSelection.groupKey === groupKey && bulkSelection.cells[bulkCellKey(userId, date)]) {
-            bulkDropCell(userId, date);
+        if (bulkSelection && bulkSelection.cells[bulkCellKey(userId, date, groupKey)]) {
+            bulkDropCell(userId, date, groupKey);
             paintBulkSelection();
             return;
         }
-        if (!ensureBulkLock(groupKey, teamId)) {
+        if (!ensureBulkLock()) {
             return;
         }
         bulkRememberUser($cell);
@@ -3340,7 +3376,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderBulkStudents(users, errorsByKey) {
         var $box = $('#bulk-students').empty();
+        var lastGroup = null;
         users.forEach(function (user) {
+            if (user.groupKey !== lastGroup) {
+                lastGroup = user.groupKey;
+                $box.append($('<div class="bulk-student-group">').text(user.groupTitle || 'группа'));
+            }
             var studentName = user.name || 'Без имени';
             var dateLabel = formatDateHumanYmd(user.date);
             var abonementName = user.abonementName || (user.billing === 'postpay'
@@ -3349,14 +3390,15 @@ document.addEventListener('DOMContentLoaded', function () {
             var priceLabel = user.priceLabel || '';
             var $row = $('<div class="bulk-student">')
                 .attr('data-user-id', user.id)
-                .attr('data-occurrence-date', user.date);
+                .attr('data-occurrence-date', user.date)
+                .attr('data-team-id', user.teamId);
             var $line = $('<div class="bulk-student__line">');
             $line.append($('<span class="bulk-student__name">').attr('title', studentName).text(studentName));
             $line.append($('<span class="bulk-student__date">').attr('title', dateLabel).text(dateLabel));
             $line.append($('<span class="bulk-student__abonement">').attr('title', abonementName).text(abonementName));
             $line.append($('<span class="bulk-student__price">').text(priceLabel));
             $row.append($line);
-            var err = errorsByKey && (errorsByKey[bulkCellKey(user.id, user.date)] || (!user.date ? errorsByKey[String(user.id)] : ''));
+            var err = errorsByKey && errorsByKey[bulkCellKey(user.id, user.date, user.groupKey)];
             if (err) {
                 $row.append($('<div class="invalid-feedback d-block bulk-student-error">').text(err));
             }
@@ -3365,6 +3407,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function syncBulkTrainerHint() {
+        if (bulkSelectedGroupCount() > 1) {
+            $('#bulk-trainer-hint').text('Тренеры запишутся во все выбранные группы.');
+            return;
+        }
         var defaultIds = defaultTrainerIdsFromContext(bulkTrainerContext);
         var selectIds = $('#bulk-trainer-profile-ids').val() || [];
         if (!Array.isArray(selectIds)) {
@@ -3401,7 +3447,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         $('#bulk-status-error, #bulk-trainer-error').text('').hide();
         renderBulkStudents(users, null);
-        $('#bulk-place-group').text(bulkSelection.groupTitle);
+        $('#bulk-place-group').text(bulkGroupsLabel(users));
         $('#bulk-place-date').text(bulkDatesLabel(users));
         $('#bulk-place-count').text('Занятий: ' + users.length);
         var hasPostpay = users.some(function (user) { return user.billing === 'postpay'; });
@@ -3422,7 +3468,7 @@ document.addEventListener('DOMContentLoaded', function () {
             data: {
                 user_id: users[0].id,
                 date: users[0].date,
-                context_team_id: bulkSelection.teamId
+                context_team_id: users[0].teamId
             },
             headers: {'Accept': 'application/json'},
             success: function (ctx) {
@@ -3503,12 +3549,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         var users = bulkUsersList();
         var payload = {
-            team_id: bulkSelection.teamId,
             lesson_occurrence_status_id: statusId,
             lessons: users.map(function (user) {
                 return {
                     user_id: user.id,
-                    occurrence_date: user.date
+                    occurrence_date: user.date,
+                    team_id: user.teamId
                 };
             })
         };
@@ -3532,11 +3578,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 var failed = result.failed || [];
                 placed.forEach(function (row) {
                     var date = String(row.occurrence_date || '');
-                    var $cell = bulkFindCell(row.user_id, date);
+                    var groupKey = String(row.team_id || '');
+                    var $cell = bulkFindCell(row.user_id, date, groupKey);
                     if ($cell.length) {
                         renderScheduleCellAfterStatusSave($cell, row);
                     }
-                    bulkDropCell(row.user_id, date);
+                    bulkDropCell(row.user_id, date, groupKey);
                 });
                 paintBulkSelection();
                 if (!failed.length && response && response.success) {
@@ -3549,10 +3596,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 var errorsByKey = {};
                 failed.forEach(function (row) {
                     var message = row.message || 'Не удалось поставить занятие.';
-                    errorsByKey[bulkCellKey(row.user_id, row.occurrence_date)] = message;
+                    errorsByKey[bulkCellKey(row.user_id, row.occurrence_date, row.team_id)] = message;
                 });
                 var left = bulkUsersList();
                 renderBulkStudents(left, errorsByKey);
+                $('#bulk-place-group').text(bulkGroupsLabel(left));
                 $('#bulk-place-count').text('Занятий: ' + left.length);
                 $('#bulk-place-date').text(bulkDatesLabel(left));
             },
@@ -3576,16 +3624,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function bulkGroupFullySelected(groupKey, date) {
-        if (!bulkSelection || !bulkSelection.cells || String(bulkSelection.groupKey) !== String(groupKey)) {
+        if (!bulkSelection || !bulkSelection.cells) {
             return false;
         }
-        var roster = bulkSelection.rosters && bulkSelection.rosters[String(date)];
+        var roster = bulkSelection.rosters && bulkSelection.rosters[bulkRosterKey(groupKey, date)];
         if (roster && roster.ids && roster.ids.length && roster.total > 0) {
             if (roster.total !== roster.ids.length) {
                 return false;
             }
             for (var i = 0; i < roster.ids.length; i++) {
-                if (!bulkSelection.cells[bulkCellKey(roster.ids[i], date)]) {
+                if (!bulkSelection.cells[bulkCellKey(roster.ids[i], date, groupKey)]) {
                     return false;
                 }
             }
@@ -3605,7 +3653,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var allOn = true;
         $eligible.each(function () {
             var userId = String($(this).attr('data-user-id') || '');
-            if (!bulkSelection.cells[bulkCellKey(userId, date)]) {
+            if (!bulkSelection.cells[bulkCellKey(userId, date, groupKey)]) {
                 allOn = false;
             }
         });
@@ -3628,18 +3676,18 @@ document.addEventListener('DOMContentLoaded', function () {
         return fallback;
     }
 
-    function bulkClearDate(date) {
+    function bulkClearGroupDate(groupKey, date) {
         if (!bulkSelection || !bulkSelection.cells) {
             return;
         }
         Object.keys(bulkSelection.cells).forEach(function (key) {
             var cell = bulkSelection.cells[key];
-            if (cell && String(cell.date) === String(date)) {
+            if (cell && String(cell.groupKey) === String(groupKey) && String(cell.date) === String(date)) {
                 delete bulkSelection.cells[key];
             }
         });
         if (bulkSelection.rosters) {
-            delete bulkSelection.rosters[String(date)];
+            delete bulkSelection.rosters[bulkRosterKey(groupKey, date)];
         }
         if (!Object.keys(bulkSelection.cells).length) {
             bulkSelection = null;
@@ -3656,27 +3704,23 @@ document.addEventListener('DOMContentLoaded', function () {
             bulkToast('В этот день некого выбрать.');
             return;
         }
-        if (bulkSelection && String(bulkSelection.groupKey) !== String(groupKey)) {
-            bulkToast(bulkLockMessage());
-            return;
-        }
-        if (!ensureBulkLock(groupKey, teamId)) {
+        if (!ensureBulkLock()) {
             return;
         }
         var allBatchOn = true;
         users.forEach(function (user) {
-            if (!bulkSelection.cells[bulkCellKey(user.id, date)]) {
+            if (!bulkSelection.cells[bulkCellKey(user.id, date, groupKey)]) {
                 allBatchOn = false;
             }
         });
         if (allBatchOn) {
-            bulkClearDate(date);
+            bulkClearGroupDate(groupKey, date);
             paintBulkSelection();
             return;
         }
         var adding = 0;
         users.forEach(function (user) {
-            if (!bulkSelection.cells[bulkCellKey(user.id, date)]) {
+            if (!bulkSelection.cells[bulkCellKey(user.id, date, groupKey)]) {
                 adding++;
             }
         });
@@ -3687,13 +3731,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             return;
         }
-        bulkSelection.rosters[String(date)] = {ids: [], total: total};
+        var rosterKey = bulkRosterKey(groupKey, date);
+        bulkSelection.rosters[rosterKey] = {ids: [], total: total};
         users.forEach(function (user) {
             var id = String(user.id);
-            bulkSelection.rosters[String(date)].ids.push(id);
-            bulkSelection.cells[bulkCellKey(id, date)] = {
+            bulkSelection.rosters[rosterKey].ids.push(id);
+            bulkSelection.cells[bulkCellKey(id, date, groupKey)] = {
                 id: id,
                 date: String(date),
+                groupKey: String(groupKey),
+                teamId: String(teamId || ''),
+                groupTitle: bulkGroupTitle(groupKey),
                 name: user.name || 'Без имени',
                 billing: user.billing || '',
                 abonementName: user.abonement_name || '',
@@ -3718,8 +3766,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!groupKey || !date) {
             return;
         }
-        if (bulkSelection && String(bulkSelection.groupKey) !== groupKey) {
-            bulkToast(bulkLockMessage());
+        if (!teamId) {
+            bulkToast('В этот день некого выбрать.');
             return;
         }
         var url = $('#schedule-table').attr('data-group-bulk-url');
@@ -3772,12 +3820,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!count) {
             var block = String($(this).attr('data-bulk-block') || 'no_abonement');
-            var groupKey = String($(this).closest('tr').attr('data-group-key') || '');
-            var dateStr = String($(this).attr('data-date') || '');
-            if (bulkSelection && String(bulkSelection.groupKey) !== groupKey) {
-                bulkToast(bulkLockMessage());
-                return;
-            }
             if (block === 'eligible') {
                 bulkToggleUser($(this));
                 return;

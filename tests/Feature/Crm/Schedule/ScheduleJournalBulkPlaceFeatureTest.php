@@ -6,17 +6,19 @@ namespace Tests\Feature\Crm\Schedule;
 
 use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
+use App\Models\Team;
 use App\Models\User;
 use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\Schedule\ScheduleJournalGroupBoardService;
+use App\Services\Schedule\ScheduleJournalPageLength;
 use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Массовая постановка занятий в пустые ячейки одной группы, в том числе на несколько дат.
+ * Массовая постановка занятий в пустые ячейки нескольких групп и дат.
  */
 final class ScheduleJournalBulkPlaceFeatureTest extends ScheduleJournalTestCase
 {
@@ -190,7 +192,7 @@ final class ScheduleJournalBulkPlaceFeatureTest extends ScheduleJournalTestCase
             'lessons' => $tooManyOnOneDay,
         ], $this->ajaxHeaders())
             ->assertStatus(422)
-            ->assertJsonPath('errors.lessons.0', 'На одну дату можно поставить занятие не больше чем 100 ученикам.');
+            ->assertJsonPath('errors.lessons.0', 'В одной группе на одну дату можно поставить занятие не больше чем 100 ученикам.');
 
         $tooManyTotal = [];
         for ($i = 1; $i <= 401; $i++) {
@@ -209,6 +211,93 @@ final class ScheduleJournalBulkPlaceFeatureTest extends ScheduleJournalTestCase
             ->assertJsonPath('errors.lessons.0', 'За один раз можно поставить не больше 400 занятий.');
 
         $this->assertSame(0, UserTeamScheduleSlot::query()->where('user_id', $student->id)->count());
+    }
+
+    public function test_bulk_place_limit_counts_one_hundred_inside_each_group(): void
+    {
+        [$student, $teamA] = $this->makeStudentWithTeam();
+        $teamB = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $statusId = (int) LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id);
+
+        $lessons = [];
+        for ($i = 1; $i <= 100; $i++) {
+            $lessons[] = [
+                'user_id' => 900000 + $i,
+                'occurrence_date' => '2026-10-05',
+                'team_id' => $teamA->id,
+            ];
+        }
+        $lessons[] = [
+            'user_id' => $student->id,
+            'occurrence_date' => '2026-10-05',
+            'team_id' => $teamB->id,
+        ];
+
+        $this->postJson(route('schedule.bulk-place'), [
+            'lesson_occurrence_status_id' => $statusId,
+            'lessons' => $lessons,
+        ], $this->ajaxHeaders())->assertOk();
+    }
+
+    public function test_bulk_place_same_student_same_day_in_two_groups_keeps_each_billing_and_one_trainer(): void
+    {
+        [$student, $teamA, $trainer] = $this->makeStudentTeamAndTrainer();
+        $teamB = Team::factory()->create(['partner_id' => $this->partner->id]);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $teamA->id, (int) $teamB->id]);
+        $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $teamA->id, '2026-10-01', lessons: 4);
+        $this->attachPostpay((int) $student->id, (int) $teamB->id, '2026-10-01');
+        $statusId = (int) LessonOccurrenceStatus::attendedIdForPartner((int) $this->partner->id);
+
+        $response = $this->postJson(route('schedule.bulk-place'), [
+            'lesson_occurrence_status_id' => $statusId,
+            'trainer_profile_ids' => [$trainer->id],
+            'lessons' => [
+                [
+                    'user_id' => $student->id,
+                    'occurrence_date' => '2026-10-05',
+                    'team_id' => $teamB->id,
+                ],
+                [
+                    'user_id' => $student->id,
+                    'occurrence_date' => '2026-10-05',
+                    'team_id' => $teamA->id,
+                ],
+            ],
+        ], $this->ajaxHeaders());
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('result.failed', []);
+        $this->assertSame(3, (int) $ulp->fresh()->lessons_remaining);
+
+        $placed = collect($response->json('result.placed'))->keyBy('team_id');
+        $this->assertSame('prepaid', $placed[(int) $teamA->id]['billing']);
+        $this->assertSame('postpay', $placed[(int) $teamB->id]['billing']);
+        $this->assertSame((int) $student->id, (int) $placed[(int) $teamA->id]['user_id']);
+        $this->assertSame((int) $student->id, (int) $placed[(int) $teamB->id]['user_id']);
+
+        $this->assertSame(1, UserTeamScheduleSlot::query()
+            ->where('user_id', $student->id)
+            ->whereDate('starts_at', '2026-10-05')
+            ->where('user_lesson_package_id', $ulp->id)
+            ->whereHas('slot', static fn ($query) => $query->where('team_id', $teamA->id))
+            ->count());
+        $this->assertSame(1, UserTeamScheduleSlot::query()
+            ->where('user_id', $student->id)
+            ->whereDate('starts_at', '2026-10-05')
+            ->whereNull('user_lesson_package_id')
+            ->whereHas('slot', static fn ($query) => $query->where('team_id', $teamB->id))
+            ->count());
+
+        $events = UserLessonOccurrenceStatusEvent::query()
+            ->where('user_id', $student->id)
+            ->whereDate('occurrence_date', '2026-10-05')
+            ->get();
+        $this->assertCount(2, $events);
+        foreach ($events as $event) {
+            $this->assertSame((int) $trainer->id, (int) $event->trainer_profile_id);
+            $this->assertTrue($event->trainerProfiles()->whereKey($trainer->id)->exists());
+        }
     }
 
     public function test_bulk_place_skips_empty_prepaid_and_newcomer_and_saves_postpay(): void
@@ -363,6 +452,22 @@ final class ScheduleJournalBulkPlaceFeatureTest extends ScheduleJournalTestCase
         app(TeamUserSyncService::class)->syncTeamsForStudent($hidden, [(int) $team->id]);
         $this->makeMonthlyFlexibleAssignment($hidden, (int) $team->id, '2026-10-01', lessons: 2);
 
+        $namedBeforeTail = 6;
+        $fillers = User::factory()
+            ->count(ScheduleJournalPageLength::DEFAULT - $namedBeforeTail)
+            ->sequence(fn ($sequence) => [
+                'lastname' => sprintf('МммНаполн%03d', $sequence->index),
+                'name' => 'Без',
+                'partner_id' => $this->partner->id,
+                'role_id' => $this->studentRoleId(),
+                'is_enabled' => 1,
+                'team_id' => null,
+            ])
+            ->create();
+        foreach ($fillers as $filler) {
+            app(TeamUserSyncService::class)->syncTeamsForStudent($filler, [(int) $team->id]);
+        }
+
         $response = $this->getJson(route('schedule.group-bulk-candidates', [
             'year' => 2026,
             'month' => '10',
@@ -410,6 +515,8 @@ final class ScheduleJournalBulkPlaceFeatureTest extends ScheduleJournalTestCase
         $this->assertStringContainsString('schedule-group-pager-cell', $html);
         $this->assertStringContainsString('colspan="36"', $html);
         $this->assertStringNotContainsString('schedule-group-pager-host', $html);
+        $this->assertNotNull($this->journalStudentRowHtml($html, (int) $first->id));
+        $this->assertNull($this->journalStudentRowHtml($html, (int) $last->id));
     }
 
     public function test_group_bulk_candidates_cap_at_one_hundred(): void

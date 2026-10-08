@@ -53,6 +53,7 @@ final class SchoolLeadsTableColumnsFeatureTest extends CrmTestCase
             '<th>UTM / источник</th>',
             '<th>Страница</th>',
             '<th>Комментарий</th>',
+            '<th>Дата создания</th>',
         ], 'thead таблицы заявок');
 
         $this->assertSequentialFragments($html, [
@@ -70,9 +71,10 @@ final class SchoolLeadsTableColumnsFeatureTest extends CrmTestCase
             'data-column-key="utm"',
             'data-column-key="page_url"',
             'data-column-key="comment"',
+            'data-column-key="created_at"',
         ], 'меню «Колонки»');
 
-        $this->assertSequentialFragments($html, [
+        $this->assertSequentialFragments($this->leadsDataTableColumnsSource($html), [
             "key: 'child_full_name'",
             "key: 'name'",
             "key: 'status'",
@@ -87,6 +89,7 @@ final class SchoolLeadsTableColumnsFeatureTest extends CrmTestCase
             "key: 'utm'",
             "key: 'page_url'",
             "key: 'comment'",
+            "key: 'created_at'",
         ], 'массив DataTable columns');
 
         $this->assertTheadMatchesActiveDataTableColumns($html);
@@ -107,6 +110,7 @@ final class SchoolLeadsTableColumnsFeatureTest extends CrmTestCase
                 'UTM / источник',
                 'Страница',
                 'Комментарий',
+                'Дата создания',
             ],
             $this->leadsTheadLabels($html)
         );
@@ -145,6 +149,7 @@ final class SchoolLeadsTableColumnsFeatureTest extends CrmTestCase
                 'UTM / источник',
                 'Страница',
                 'Комментарий',
+                'Дата создания',
             ],
             $this->leadsTheadLabels($html)
         );
@@ -226,6 +231,7 @@ final class SchoolLeadsTableColumnsFeatureTest extends CrmTestCase
                 'UTM / источник',
                 'Страница',
                 'Комментарий',
+                'Дата создания',
             ],
             $this->leadsTheadLabels($html),
             'Сохранённая видимость не должна менять порядок thead — иначе после смены порядка чужие столбцы «уедут»'
@@ -274,6 +280,7 @@ final class SchoolLeadsTableColumnsFeatureTest extends CrmTestCase
         $this->assertSame('Иванов Пётр', $row['parent_full_name']);
         $this->assertSame('Иванов Семён', $row['child_full_name']);
         $this->assertSame('+7 900 850-50-01', $row['parent_phone'] ?? $row['phone']);
+        $this->assertMatchesRegularExpression('/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}$/', (string) ($row['created_at'] ?? ''));
         $this->assertArrayHasKey('status_label', $row);
         $this->assertArrayHasKey('team_title', $row);
     }
@@ -390,6 +397,18 @@ final class SchoolLeadsTableColumnsFeatureTest extends CrmTestCase
         return $actor;
     }
 
+    private function leadsDataTableColumnsSource(string $html): string
+    {
+        $createPos = strpos($html, "KidsCrmDataTable.create('#leads-table'");
+        $this->assertNotFalse($createPos, 'KidsCrmDataTable.create(#leads-table) не найден');
+        $columnsPos = strpos($html, 'columns: [', $createPos);
+        $this->assertNotFalse($columnsPos);
+        $afterColumns = strpos($html, 'var table = dtApi.table', $columnsPos);
+        $this->assertNotFalse($afterColumns);
+
+        return substr($html, $columnsPos, $afterColumns - $columnsPos);
+    }
+
     private function leadsThead(string $html): string
     {
         $tablePos = strpos($html, 'id="leads-table"');
@@ -435,7 +454,7 @@ final class SchoolLeadsTableColumnsFeatureTest extends CrmTestCase
         $this->assertNotFalse($createPos, 'KidsCrmDataTable.create(#leads-table) не найден');
         $columnsPos = strpos($html, 'columns: [', $createPos);
         $this->assertNotFalse($columnsPos);
-        $columnsEnd = strpos($html, "key: 'comment'", $columnsPos);
+        $columnsEnd = strpos($html, "key: 'created_at'", $columnsPos);
         $this->assertNotFalse($columnsEnd);
         $columnsSource = substr($html, $columnsPos, ($columnsEnd + 80) - $columnsPos);
 

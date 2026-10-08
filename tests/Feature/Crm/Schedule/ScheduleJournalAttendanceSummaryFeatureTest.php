@@ -11,6 +11,7 @@ use App\Models\Team;
 use App\Models\TeamScheduleSlot;
 use App\Models\User;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\Schedule\ScheduleJournalPageLength;
 use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\DB;
 
@@ -324,6 +325,7 @@ final class ScheduleJournalAttendanceSummaryFeatureTest extends ScheduleJournalT
             $this->createTrialUtss($student, $team, '2026-08-03'),
             (int) $this->visitedStatusId
         );
+        $this->seedStudentsInTeam($team, ScheduleJournalPageLength::DEFAULT, 'ЯяяПосещ');
 
         $html = $this->journalHtml([
             'year' => 2026,
@@ -524,6 +526,25 @@ final class ScheduleJournalAttendanceSummaryFeatureTest extends ScheduleJournalT
         app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $team->id]);
 
         return $student;
+    }
+
+    private function seedStudentsInTeam(Team $team, int $count, string $lastnamePrefix): void
+    {
+        $students = User::factory()
+            ->count($count)
+            ->sequence(fn ($sequence) => [
+                'lastname' => sprintf('%s%03d', $lastnamePrefix, $sequence->index),
+                'name' => 'Хвост',
+                'partner_id' => $this->partner->id,
+                'role_id' => $this->studentRoleId(),
+                'is_enabled' => 1,
+                'team_id' => null,
+            ])
+            ->create();
+
+        foreach ($students as $student) {
+            app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $team->id]);
+        }
     }
 
     /**

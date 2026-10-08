@@ -24,9 +24,10 @@ final class ScheduleJournalBulkSeveralDaysDocumentationContractTest extends Test
         $this->assertStringContainsString('/schedule', $chunk);
         $this->assertStringContainsString('#schedule-bulk-add', $chunk);
         $this->assertStringContainsString('#bulkPlaceModal', $chunk);
-        $this->assertStringContainsString('Можно выбрать только группу {название}.', $chunk);
+        $this->assertStringNotContainsString('Можно выбрать только группу {название}.', $chunk);
         $this->assertStringContainsString('bulkSelection.cells', $chunk);
-        $this->assertStringContainsString('userId|дата', $chunk);
+        $this->assertStringContainsString('userId|дата|группа', $chunk);
+        $this->assertStringContainsString('team_id', $chunk);
         $this->assertStringContainsString('За один раз можно поставить не больше 400 занятий.', $chunk);
         $this->assertStringContainsString('POST /schedule/bulk-place', $chunk);
         $this->assertStringContainsString('lessons[]', $chunk);
@@ -36,7 +37,7 @@ final class ScheduleJournalBulkSeveralDaysDocumentationContractTest extends Test
         $this->assertStringContainsString('Выберите занятия.', $chunk);
         $this->assertStringContainsString('errors.lessons.0.occurrence_date', $chunk);
         $this->assertStringContainsString('Некорректный формат даты занятия.', $chunk);
-        $this->assertStringContainsString('На одну дату можно поставить занятие не больше чем 100 ученикам.', $chunk);
+        $this->assertStringContainsString('В одной группе на одну дату можно поставить занятие не больше чем 100 ученикам.', $chunk);
         $this->assertStringContainsString('#bulk-status-error', $chunk);
         $this->assertStringContainsString('schedule-journal#bulk-empty-lessons', $chunk);
         $this->assertStringContainsString('ScheduleJournalBulkPlaceFeatureTest', $chunk);
@@ -64,11 +65,15 @@ final class ScheduleJournalBulkSeveralDaysDocumentationContractTest extends Test
         $chunk = substr($journal, $start, $end - $start);
 
         $this->assertStringContainsString('bulkSelection.cells', $chunk);
-        $this->assertStringContainsString('Можно выбрать только группу {название}.', $chunk);
+        $this->assertStringNotContainsString('Можно выбрать только группу {название}.', $chunk);
+        $this->assertStringContainsString('userId|дата|группа', $chunk);
         $this->assertStringContainsString('lessons[]', $chunk);
         $this->assertStringContainsString('Выберите занятия.', $chunk);
         $this->assertStringContainsString('Некорректный формат даты занятия.', $chunk);
-        $this->assertStringContainsString('На одну дату можно поставить занятие не больше чем 100 ученикам.', $chunk);
+        $this->assertStringContainsString('В одной группе на одну дату можно поставить занятие не больше чем 100 ученикам.', $chunk);
+        $this->assertStringContainsString('Тренеры запишутся во все выбранные группы.', $chunk);
+        $this->assertStringContainsString('consuming_count', $chunk);
+        $this->assertStringContainsString('payment_status', $chunk);
         $this->assertStringContainsString('За один раз можно поставить не больше 400 занятий.', $chunk);
         $this->assertStringContainsString('#bulk-status-error', $chunk);
         $this->assertStringContainsString('В абонементе не осталось занятий.', $chunk);
@@ -79,7 +84,7 @@ final class ScheduleJournalBulkSeveralDaysDocumentationContractTest extends Test
         $request = (string) file_get_contents($root.'/app/Http/Requests/Admin/PlaceScheduleJournalBulkLessonsRequest.php');
         $this->assertStringContainsString('Выберите занятия.', $request);
         $this->assertStringContainsString('Некорректный формат даты занятия.', $request);
-        $this->assertStringContainsString('На одну дату можно поставить занятие не больше чем 100 ученикам.', $request);
+        $this->assertStringContainsString('В одной группе на одну дату можно поставить занятие не больше чем 100 ученикам.', $request);
         $this->assertStringContainsString('За один раз можно поставить не больше 400 занятий.', $request);
         $this->assertStringContainsString("'max:400'", $request);
         $this->assertStringContainsString('function normalizedLessons', $request);
@@ -89,8 +94,9 @@ final class ScheduleJournalBulkSeveralDaysDocumentationContractTest extends Test
         $this->assertStringContainsString('normalizedLessons()', $controller);
 
         $js = (string) file_get_contents($root.'/resources/js/schedule.js');
-        $this->assertStringContainsString('Можно выбрать только группу ', $js);
-        $this->assertStringContainsString('function bulkClearDate', $js);
+        $this->assertStringNotContainsString('Можно выбрать только группу ', $js);
+        $this->assertStringContainsString('team_id: user.teamId', $js);
+        $this->assertStringContainsString('function bulkClearGroupDate', $js);
         $this->assertStringContainsString('bulk-student__date', $js);
         $this->assertStringContainsString('occurrence_date: user.date', $js);
     }

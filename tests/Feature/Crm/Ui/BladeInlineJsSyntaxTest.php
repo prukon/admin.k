@@ -1704,32 +1704,29 @@ JS;
             $this->assertStringContainsString('Нельзя выбрать: месяц уже оплачен.', $js, $label);
             $this->assertStringContainsString('Нельзя выбрать: дни фиксированного абонемента задаются кнопкой', $js, $label);
             $this->assertStringContainsString('Нельзя выбрать: на этот месяц не установлен абонемент.', $js, $label);
-            $this->assertStringContainsString('Можно выбрать только группу ', $js, $label);
+            $this->assertStringNotContainsString('Можно выбрать только группу ', $js, $label);
             $this->assertStringContainsString('За один раз можно поставить не больше 400 занятий.', $js, $label);
             $this->assertStringContainsString('bulk-student__date', $js, $label);
+            $this->assertStringContainsString('bulk-student-group', $js, $label);
+            $this->assertStringContainsString('Тренеры запишутся во все выбранные группы.', $js, $label);
             $this->assertStringContainsString('occurrence_date: user.date', $js, $label);
+            $this->assertStringContainsString('team_id: user.teamId', $js, $label);
             $this->assertStringContainsString("'Занятий: ' + users.length", $js, $label);
-            $this->assertStringContainsString('function bulkClearDate', $js, $label);
-            $lockFnPos = strpos($js, 'function bulkLockMessage');
-            $lockFnEnd = strpos($js, 'function bulkPlaceLimitMessage', (int) $lockFnPos);
-            $this->assertNotFalse($lockFnPos, $label);
-            $this->assertNotFalse($lockFnEnd, $label);
-            $lockFn = substr($js, (int) $lockFnPos, $lockFnEnd - $lockFnPos);
-            $this->assertStringContainsString('Можно выбрать только группу ', $lockFn, $label);
-            $this->assertStringNotContainsString('formatDateHumanYmd', $lockFn, $label);
+            $this->assertStringContainsString('function bulkClearGroupDate', $js, $label);
             $ensurePos = strpos($js, 'function ensureBulkLock');
             $ensureEnd = strpos($js, 'function bulkToggleUser', (int) $ensurePos);
             $this->assertNotFalse($ensurePos, $label);
             $this->assertNotFalse($ensureEnd, $label);
             $ensureFn = substr($js, (int) $ensurePos, $ensureEnd - $ensurePos);
-            $this->assertStringContainsString('bulkSelection.groupKey !== String(groupKey)', $ensureFn, $label);
+            $this->assertStringNotContainsString('bulkSelection.groupKey', $ensureFn, $label);
+            $this->assertStringContainsString('cells: {}', $ensureFn, $label);
             $this->assertStringNotContainsString('bulkSelection.date', $ensureFn, $label);
             $applyPos = strpos($js, 'function applyBulkGroupRoster');
             $applyEnd = strpos($js, "$(document).on('click', '.schedule-group-day'", (int) $applyPos);
             $this->assertNotFalse($applyPos, $label);
             $this->assertNotFalse($applyEnd, $label);
             $applyFn = substr($js, (int) $applyPos, $applyEnd - $applyPos);
-            $this->assertStringContainsString('bulkClearDate(date)', $applyFn, $label);
+            $this->assertStringContainsString('bulkClearGroupDate(groupKey, date)', $applyFn, $label);
             $this->assertStringNotContainsString('bulkSelection.date', $applyFn, $label);
             $this->assertStringContainsString('В этот день некого выбрать.', $js, $label);
             $this->assertStringContainsString("window.showToast(message, type || 'error')", $js, $label);
@@ -1817,6 +1814,100 @@ JS;
         $sourceEnd = strpos($source, "$('#cellEditForm').on('submit'", (int) $sourceClick);
         $this->assertNotFalse($sourceEnd);
         $this->assertStringContainsString('payload.trainer_profile_ids = trainerIds', substr($source, (int) $sourceClick, $sourceEnd - $sourceClick));
+    }
+
+    /**
+     * P1: набор из нескольких групп не схлопывает ячейки и не подменяет чужую строку.
+     * Один тренер на весь набор. Подсказка «во все группы» только когда групп больше одной.
+     */
+    public function test_bulk_selection_across_groups_keeps_each_cell_and_one_trainer(): void
+    {
+        $js = (string) file_get_contents(resource_path('js/schedule.js'));
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg(resource_path('js/schedule.js')).' 2>&1', $output, $exitCode);
+        $this->assertSame(0, $exitCode, implode("\n", $output));
+
+        $listPos = strpos($js, 'function bulkUsersList');
+        $listEnd = strpos($js, 'function bulkGroupsLabel', (int) $listPos);
+        $this->assertNotFalse($listPos);
+        $this->assertNotFalse($listEnd);
+        $list = substr($js, (int) $listPos, $listEnd - $listPos);
+        $titleSort = strpos($list, 'a.groupTitle !== b.groupTitle');
+        $keySort = strpos($list, 'a.groupKey !== b.groupKey');
+        $this->assertNotFalse($titleSort);
+        $this->assertNotFalse($keySort);
+        $this->assertLessThan($keySort, $titleSort);
+
+        $clearPos = strpos($js, 'function bulkClearGroupDate');
+        $clearEnd = strpos($js, 'function applyBulkGroupRoster', (int) $clearPos);
+        $this->assertNotFalse($clearPos);
+        $this->assertNotFalse($clearEnd);
+        $clear = substr($js, (int) $clearPos, $clearEnd - $clearPos);
+        $this->assertStringContainsString('String(cell.groupKey) === String(groupKey)', $clear);
+        $this->assertStringContainsString('String(cell.date) === String(date)', $clear);
+
+        $dayPos = strpos($js, "$(document).on('click', '.schedule-group-day'");
+        $cellPos = strpos($js, "$(document).on('click', '.schedule-cell'", (int) $dayPos);
+        $this->assertNotFalse($dayPos);
+        $this->assertNotFalse($cellPos);
+        $day = substr($js, (int) $dayPos, $cellPos - $dayPos);
+        $this->assertStringNotContainsString('bulkSelection.groupKey', $day);
+        $this->assertStringContainsString("bulkToast('В этот день некого выбрать.')", $day);
+        $noTeam = strpos($day, 'if (!teamId)');
+        $ajax = strpos($day, '$.ajax(');
+        $this->assertNotFalse($noTeam);
+        $this->assertNotFalse($ajax);
+        $this->assertLessThan($ajax, $noTeam);
+
+        $clickEnd = strpos($js, "$('#cellEditForm').on('submit'", (int) $cellPos);
+        $this->assertNotFalse($clickEnd);
+        $click = substr($js, (int) $cellPos, $clickEnd - $cellPos);
+        $this->assertStringNotContainsString('Можно выбрать только группу', $click);
+        $toggle = strpos($click, 'bulkToggleUser($(this))');
+        $refuse = strpos($click, 'bulkRefuseMessage');
+        $this->assertNotFalse($toggle);
+        $this->assertNotFalse($refuse);
+        $this->assertLessThan($refuse, $toggle);
+
+        $hintPos = strpos($js, 'function syncBulkTrainerHint');
+        $hintEnd = strpos($js, 'function syncBulkTrainerBlock', (int) $hintPos);
+        $this->assertNotFalse($hintPos);
+        $this->assertNotFalse($hintEnd);
+        $hint = substr($js, (int) $hintPos, $hintEnd - $hintPos);
+        $multiIf = strpos($hint, 'if (bulkSelectedGroupCount() > 1)');
+        $multiText = strpos($hint, 'Тренеры запишутся во все выбранные группы.');
+        $singleText = strpos($hint, 'По умолчанию — тренеры группы.');
+        $this->assertNotFalse($multiIf);
+        $this->assertNotFalse($multiText);
+        $this->assertNotFalse($singleText);
+        $this->assertLessThan($multiText, $multiIf);
+        $this->assertLessThan($singleText, $multiText);
+        $this->assertStringContainsString('return;', substr($hint, (int) $multiText, $singleText - $multiText));
+
+        $submitPos = strpos($js, "$('#bulkPlaceForm').on('submit'");
+        $submitEnd = strpos($js, 'function scheduleGroupPerPage', (int) $submitPos);
+        $this->assertNotFalse($submitPos);
+        $this->assertNotFalse($submitEnd);
+        $submit = substr($js, (int) $submitPos, $submitEnd - $submitPos);
+        $this->assertStringContainsString('team_id: user.teamId', $submit);
+        $this->assertStringNotContainsString('team_id: bulkSelection', $submit);
+        $this->assertSame(1, substr_count($submit, 'payload.trainer_profile_ids = trainerIds'));
+        $find = strpos($submit, 'bulkFindCell(row.user_id, date, groupKey)');
+        $render = strpos($submit, 'renderScheduleCellAfterStatusSave($cell, row)');
+        $this->assertNotFalse($find);
+        $this->assertNotFalse($render);
+        $this->assertLessThan($render, $find);
+        $this->assertStringContainsString('errorsByKey[bulkCellKey(row.user_id, row.occurrence_date, row.team_id)]', $submit);
+        $this->assertStringNotContainsString('window.location.reload()', $submit);
+
+        $errorPos = strpos($js, 'function showBulkFieldErrors');
+        $errorEnd = strpos($js, "$(document).on('change', '#bulkPlaceForm", (int) $errorPos);
+        $this->assertNotFalse($errorPos);
+        $this->assertNotFalse($errorEnd);
+        $errors = substr($js, (int) $errorPos, $errorEnd - $errorPos);
+        $this->assertStringContainsString("key.indexOf('lessons.') !== 0", $errors);
+        $this->assertStringContainsString("$('#bulk-status-error').text(list[0]).show()", $errors);
     }
 
     /**
@@ -7725,6 +7816,11 @@ JS;
         $this->assertNotFalse($columnsPos);
         $commentPos = strpos($content, "key: 'comment'", $columnsPos);
         $this->assertNotFalse($commentPos);
+        $createdAtPos = strpos($content, "key: 'created_at'", $commentPos);
+        $this->assertNotFalse($createdAtPos);
+        $this->assertStringContainsString('created_at: true', $content);
+        $this->assertStringContainsString('data-column-key="created_at"', $content);
+        $this->assertStringContainsString('<th>Дата создания</th>', $content);
         $columnsChunk = substr($content, $columnsPos, $commentPos - $columnsPos);
 
         $this->assertLessThan(

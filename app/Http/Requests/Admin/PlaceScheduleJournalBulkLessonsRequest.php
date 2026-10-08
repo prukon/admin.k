@@ -23,15 +23,15 @@ class PlaceScheduleJournalBulkLessonsRequest extends FormRequest
     {
         $partnerId = (int) app(PartnerContext::class)->partnerId();
 
+        $teamRules = [
+            'integer',
+            Rule::exists('teams', 'id')->where(
+                fn ($q) => $q->where('partner_id', $partnerId)->whereNull('deleted_at')
+            ),
+            new AllowedActorTeam($partnerId),
+        ];
+
         $rules = [
-            'team_id' => [
-                'required',
-                'integer',
-                Rule::exists('teams', 'id')->where(
-                    fn ($q) => $q->where('partner_id', $partnerId)->whereNull('deleted_at')
-                ),
-                new AllowedActorTeam($partnerId),
-            ],
             'lesson_occurrence_status_id' => [
                 'required',
                 'integer',
@@ -44,10 +44,13 @@ class PlaceScheduleJournalBulkLessonsRequest extends FormRequest
         ];
 
         if (is_array($this->input('lessons'))) {
+            $rules['team_id'] = array_merge(['nullable'], $teamRules);
             $rules['lessons'] = ['required', 'array', 'min:1', 'max:400'];
             $rules['lessons.*.user_id'] = ['required', 'integer', 'min:1'];
             $rules['lessons.*.occurrence_date'] = ['required', 'date_format:Y-m-d'];
+            $rules['lessons.*.team_id'] = array_merge(['nullable'], $teamRules);
         } else {
+            $rules['team_id'] = array_merge(['required'], $teamRules);
             $rules['occurrence_date'] = ['required', 'date_format:Y-m-d'];
             $rules['user_ids'] = ['required', 'array', 'min:1', 'max:100'];
             $rules['user_ids.*'] = ['integer', 'min:1'];
@@ -63,23 +66,34 @@ class PlaceScheduleJournalBulkLessonsRequest extends FormRequest
                 return;
             }
 
-            $perDate = [];
-            foreach ($this->input('lessons') as $lesson) {
+            $fallbackTeam = $this->input('team_id');
+            $perGroupDate = [];
+            foreach ($this->input('lessons') as $index => $lesson) {
                 if (! is_array($lesson)) {
+                    continue;
+                }
+                $teamId = $lesson['team_id'] ?? null;
+                if ($teamId === null || $teamId === '') {
+                    $teamId = $fallbackTeam;
+                }
+                if ($teamId === null || $teamId === '') {
+                    $validator->errors()->add('lessons.'.$index.'.team_id', 'Выберите группу.');
+
                     continue;
                 }
                 $date = trim((string) ($lesson['occurrence_date'] ?? ''));
                 if ($date === '') {
                     continue;
                 }
-                $perDate[$date] = ($perDate[$date] ?? 0) + 1;
+                $key = (string) $teamId.'|'.$date;
+                $perGroupDate[$key] = ($perGroupDate[$key] ?? 0) + 1;
             }
 
-            foreach ($perDate as $count) {
+            foreach ($perGroupDate as $count) {
                 if ($count > 100) {
                     $validator->errors()->add(
                         'lessons',
-                        'На одну дату можно поставить занятие не больше чем 100 ученикам.'
+                        'В одной группе на одну дату можно поставить занятие не больше чем 100 ученикам.'
                     );
 
                     return;
@@ -117,17 +131,19 @@ class PlaceScheduleJournalBulkLessonsRequest extends FormRequest
     /**
      * Пары «ученик + дата» из lessons[] либо из прежнего occurrence_date + user_ids[].
      *
-     * @return list<array{user_id: int, occurrence_date: string}>
+     * @return list<array{user_id: int, occurrence_date: string, team_id: int}>
      */
     public function normalizedLessons(): array
     {
         $validated = $this->validated();
         if (isset($validated['lessons']) && is_array($validated['lessons'])) {
+            $fallbackTeamId = (int) ($validated['team_id'] ?? 0);
             $rows = [];
             foreach ($validated['lessons'] as $lesson) {
                 $rows[] = [
                     'user_id' => (int) $lesson['user_id'],
                     'occurrence_date' => (string) $lesson['occurrence_date'],
+                    'team_id' => (int) ($lesson['team_id'] ?? $fallbackTeamId),
                 ];
             }
 
@@ -135,11 +151,13 @@ class PlaceScheduleJournalBulkLessonsRequest extends FormRequest
         }
 
         $date = (string) $validated['occurrence_date'];
+        $teamId = (int) $validated['team_id'];
         $rows = [];
         foreach ($validated['user_ids'] as $id) {
             $rows[] = [
                 'user_id' => (int) $id,
                 'occurrence_date' => $date,
+                'team_id' => $teamId,
             ];
         }
 
@@ -156,6 +174,7 @@ class PlaceScheduleJournalBulkLessonsRequest extends FormRequest
             'lessons' => 'занятия',
             'lessons.*.user_id' => 'ученик',
             'lessons.*.occurrence_date' => 'дата занятия',
+            'lessons.*.team_id' => 'группа',
             'lesson_occurrence_status_id' => 'статус',
         ], $this->trainerProfileIdsAttributes());
     }
@@ -183,6 +202,8 @@ class PlaceScheduleJournalBulkLessonsRequest extends FormRequest
             'lessons.*.user_id.min' => 'Ученик не найден.',
             'lessons.*.occurrence_date.required' => 'Укажите дату занятия.',
             'lessons.*.occurrence_date.date_format' => 'Некорректный формат даты занятия.',
+            'lessons.*.team_id.integer' => 'Выберите группу.',
+            'lessons.*.team_id.exists' => 'Группа не найдена.',
             'lesson_occurrence_status_id.required' => 'Выберите статус.',
             'lesson_occurrence_status_id.integer' => 'Выберите статус.',
             'lesson_occurrence_status_id.exists' => 'Выбранный статус не найден или неактивен.',
@@ -206,15 +227,20 @@ class PlaceScheduleJournalBulkLessonsRequest extends FormRequest
 
             $userId = $lesson['user_id'] ?? null;
             $date = $lesson['occurrence_date'] ?? null;
-            $key = (string) $userId.'|'.(string) $date;
+            $teamId = $lesson['team_id'] ?? $this->input('team_id');
+            $key = (string) $userId.'|'.(string) $date.'|'.(string) $teamId;
             if (isset($seen[$key])) {
                 continue;
             }
             $seen[$key] = true;
-            $clean[] = [
+            $row = [
                 'user_id' => $userId,
                 'occurrence_date' => $date,
             ];
+            if (array_key_exists('team_id', $lesson) && $lesson['team_id'] !== null && $lesson['team_id'] !== '') {
+                $row['team_id'] = $lesson['team_id'];
+            }
+            $clean[] = $row;
         }
 
         return $clean;

@@ -1114,25 +1114,34 @@ class ScheduleController extends AdminBaseController
     }
 
     /**
-     * Массовая постановка занятий в пустые ячейки одной группы.
-     * Несколько дат — один статус и один набор тренеров. Даты ставятся по порядку,
-     * чтобы остаток предоплаты перечитывался между днями.
+     * Массовая постановка занятий в пустые ячейки.
+     * Несколько групп и дат — один статус и один набор тренеров.
+     * Внутри группы даты ставятся по порядку, чтобы остаток предоплаты перечитывался между днями.
+     * У каждой пары своя группа: предоплата и постоплата списываются с неё.
      */
     public function bulkPlaceEmptyLessons(PlaceScheduleJournalBulkLessonsRequest $request): JsonResponse|RedirectResponse
     {
         $partnerId = $this->requirePartnerId();
         $data = $request->validated();
 
-        $team = Team::query()
+        $lessons = $request->normalizedLessons();
+        $teamIds = array_values(array_unique(array_map(
+            static fn (array $lesson): int => (int) $lesson['team_id'],
+            $lessons
+        )));
+        $teams = Team::query()
             ->where('partner_id', $partnerId)
-            ->whereKey((int) $data['team_id'])
-            ->first();
-        if (! $team) {
-            return $this->journalMutationResponse(
-                $request,
-                'Группа не найдена.',
-                ['team_id' => ['Группа не найдена.']],
-            );
+            ->whereIn('id', $teamIds)
+            ->get()
+            ->keyBy(fn (Team $team) => (int) $team->id);
+        foreach ($teamIds as $teamId) {
+            if (! $teams->has($teamId)) {
+                return $this->journalMutationResponse(
+                    $request,
+                    'Группа не найдена.',
+                    ['team_id' => ['Группа не найдена.']],
+                );
+            }
         }
 
         try {
@@ -1168,32 +1177,38 @@ class ScheduleController extends AdminBaseController
             $trainerProfileIds = $validIds;
         }
 
-        $byDate = [];
-        foreach ($request->normalizedLessons() as $lesson) {
-            $byDate[$lesson['occurrence_date']][] = $lesson['user_id'];
+        $byTeam = [];
+        foreach ($lessons as $lesson) {
+            $byTeam[(int) $lesson['team_id']][$lesson['occurrence_date']][] = (int) $lesson['user_id'];
         }
-        ksort($byDate);
+        ksort($byTeam);
 
         $placed = [];
         $failed = [];
         $authorId = auth()->id() !== null ? (int) auth()->id() : null;
-        foreach ($byDate as $occurrenceDate => $userIds) {
-            $outcome = $this->bulkEmptyLessonPlacementService->place(
-                $partnerId,
-                $team,
-                $occurrenceDate,
-                $userIds,
-                $status,
-                $trainerProfileIds,
-                $authorId,
-            );
-            foreach ($outcome['placed'] as $row) {
-                $row['occurrence_date'] = (string) ($row['occurrence_date'] ?? $occurrenceDate);
-                $placed[] = $row;
-            }
-            foreach ($outcome['failed'] as $row) {
-                $row['occurrence_date'] = $occurrenceDate;
-                $failed[] = $row;
+        foreach ($byTeam as $teamId => $byDate) {
+            ksort($byDate);
+            $team = $teams->get($teamId);
+            foreach ($byDate as $occurrenceDate => $userIds) {
+                $outcome = $this->bulkEmptyLessonPlacementService->place(
+                    $partnerId,
+                    $team,
+                    (string) $occurrenceDate,
+                    $userIds,
+                    $status,
+                    $trainerProfileIds,
+                    $authorId,
+                );
+                foreach ($outcome['placed'] as $row) {
+                    $row['occurrence_date'] = (string) ($row['occurrence_date'] ?? $occurrenceDate);
+                    $row['team_id'] = $teamId;
+                    $placed[] = $row;
+                }
+                foreach ($outcome['failed'] as $row) {
+                    $row['occurrence_date'] = $occurrenceDate;
+                    $row['team_id'] = $teamId;
+                    $failed[] = $row;
+                }
             }
         }
 
@@ -1244,39 +1259,73 @@ class ScheduleController extends AdminBaseController
             return [];
         }
 
-        $userIds = array_values(array_map(static fn (array $row) => (int) $row['user_id'], $placed));
+        $userIds = array_values(array_unique(array_map(static fn (array $row) => (int) $row['user_id'], $placed)));
         $start = Carbon::parse($occurrenceDateYmd)->startOfMonth();
         $end = $start->copy()->endOfMonth();
-        $teamFilter = $this->journalTeamFilterFromRequest($request);
-        $counts = $this->journalMonthService->consumingCountsByUser(
-            $this->journalMonthService->occurrencesByUserDate($partnerId, $userIds, $start, $end, $teamFilter)
-        );
-        $payments = $this->journalMonthlyPaymentStatus->statusesByUser(
+        $pageFilter = $this->journalTeamFilterFromRequest($request);
+        $actor = $request->user();
+        $allowedTeamIds = $this->ownTeams->allowedTeamIds($actor, $partnerId);
+        $teamIds = [];
+        foreach ($placed as $row) {
+            $teamId = (int) ($row['team_id'] ?? 0);
+            if ($teamId > 0) {
+                $teamIds[$teamId] = $teamId;
+            }
+        }
+        $lessonFilter = $teamIds === []
+            ? $pageFilter
+            : new ScheduleJournalTeamFilter(false, array_values($teamIds));
+        $countsByUserTeam = [];
+        foreach ($this->journalMonthService->occurrencesByUserDate(
             $partnerId,
             $userIds,
-            $start->format('Y-m-d'),
-            $teamFilter,
-        );
-        $actor = $request->user();
-        $attendance = $this->journalMonthService->attendanceSummary(
-            $partnerId,
-            $this->journalAttendanceStudentIds($actor, $partnerId, $teamFilter),
             $start,
             $end,
-            $teamFilter,
-            $this->ownTeams->allowedTeamIds($actor, $partnerId),
+            $lessonFilter,
+            $allowedTeamIds,
+        ) as $items) {
+            foreach ($items as $item) {
+                if (empty($item['consumes_lesson'])) {
+                    continue;
+                }
+                $userId = (int) ($item['user_id'] ?? 0);
+                $teamId = (int) ($item['team_id'] ?? 0);
+                if ($userId < 1 || $teamId < 1) {
+                    continue;
+                }
+                $countsByUserTeam[$teamId][$userId] = ($countsByUserTeam[$teamId][$userId] ?? 0) + 1;
+            }
+        }
+        $paymentsByTeam = [];
+        foreach ($teamIds as $teamId) {
+            $paymentsByTeam[$teamId] = $this->journalMonthlyPaymentStatus->statusesByUser(
+                $partnerId,
+                $userIds,
+                $start->format('Y-m-d'),
+                new ScheduleJournalTeamFilter(false, [$teamId]),
+            );
+        }
+        $attendance = $this->journalMonthService->attendanceSummary(
+            $partnerId,
+            $this->journalAttendanceStudentIds($actor, $partnerId, $pageFilter),
+            $start,
+            $end,
+            $pageFilter,
+            $allowedTeamIds,
         );
+        $emptyPayment = [
+            'state' => JournalMonthlyPaymentStatusService::STATE_NONE,
+            'icon_class' => '',
+            'hover' => '',
+            'amount_cents' => 0,
+            'amount_label' => '',
+        ];
 
         foreach ($placed as $index => $row) {
             $userId = (int) $row['user_id'];
-            $placed[$index]['consuming_count'] = (int) ($counts[$userId] ?? 0);
-            $placed[$index]['payment_status'] = $payments[$userId] ?? [
-                'state' => JournalMonthlyPaymentStatusService::STATE_NONE,
-                'icon_class' => '',
-                'hover' => '',
-                'amount_cents' => 0,
-                'amount_label' => '',
-            ];
+            $teamId = (int) ($row['team_id'] ?? 0);
+            $placed[$index]['consuming_count'] = (int) ($countsByUserTeam[$teamId][$userId] ?? 0);
+            $placed[$index]['payment_status'] = $paymentsByTeam[$teamId][$userId] ?? $emptyPayment;
             $placed[$index]['attendance'] = $attendance;
         }
 

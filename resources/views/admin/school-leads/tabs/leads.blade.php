@@ -182,6 +182,10 @@
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="comment" id="slColComment" checked>
                                     <label class="form-check-label" for="slColComment">Комментарий</label>
                                 </div>
+                                <div class="form-check">
+                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="created_at" id="slColCreatedAt" checked>
+                                    <label class="form-check-label" for="slColCreatedAt">Дата создания</label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -288,6 +292,7 @@
                 <th>UTM / источник</th>
                 <th>Страница</th>
                 <th>Комментарий</th>
+                <th>Дата создания</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -871,6 +876,7 @@
                         page_url: true,
                         status: true,
                         comment: true,
+                        created_at: true,
                         contract: canShowLeadClientColumn,
                     },
                     toggleSelector: '.school-leads-column-toggle',
@@ -1161,6 +1167,20 @@
                             }
 
                             return window.KidsCrmTooltip.renderText(data);
+                        },
+                    },
+                    {
+                        key: 'created_at',
+                        type: 'text',
+                        data: 'created_at',
+                        name: 'created_at',
+                        className: 'dt-col-text text-nowrap',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data != null ? data : '';
+                            }
+
+                            return renderOptionalText(data);
                         },
                     },
                 ],

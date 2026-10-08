@@ -8,13 +8,17 @@ use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
 use App\Models\Partner;
 use App\Models\Team;
+use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserPrice;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\Postpay\PostpayJournalService;
+use App\Services\Schedule\JournalMonthlyPaymentStatusService;
+use App\Services\TeamTrainerSyncService;
 use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 /**
  * P1: доступ, поля ошибок, non-AJAX safety-net и разметка массовой постановки.
@@ -462,6 +466,246 @@ final class ScheduleJournalBulkPlaceContractsFeatureTest extends ScheduleJournal
         $this->assertSame(['eligible', 'prepaid'], $this->cellFlags($html, (int) $student->id, '2026-10-06'));
     }
 
+    public function test_same_student_stays_selectable_in_the_other_group_after_one_group_is_filled(): void
+    {
+        [$student, $teamA, $teamB] = $this->studentInTwoGroups();
+        $this->makeMonthlyFlexibleAssignment($student, (int) $teamA->id, '2026-10-01', lessons: 4);
+        $this->attachPostpay((int) $student->id, (int) $teamB->id, '2026-10-01', paid: false);
+
+        $before = $this->journalIndex(['year' => 2026, 'month' => '10'])->assertOk()->getContent();
+        $this->assertSame(
+            ['eligible', 'prepaid'],
+            $this->cellFlagsInTeam($before, (int) $student->id, '2026-10-05', (int) $teamA->id)
+        );
+        $this->assertSame(
+            ['eligible', 'postpay'],
+            $this->cellFlagsInTeam($before, (int) $student->id, '2026-10-05', (int) $teamB->id)
+        );
+        $modal = $this->bulkModalHtml($before);
+        $this->assertSame(1, substr_count($modal, 'id="bulk-trainer-profile-ids"'));
+        $this->assertStringNotContainsString('modal-fullscreen', $modal);
+        $this->assertStringNotContainsString('modal-xl', $modal);
+
+        $this->postJson(route('schedule.bulk-place'), [
+            'lesson_occurrence_status_id' => $this->scheduledStatusId(),
+            'lessons' => [[
+                'user_id' => $student->id,
+                'occurrence_date' => '2026-10-05',
+                'team_id' => $teamA->id,
+            ]],
+        ], $this->ajaxHeaders())->assertOk();
+
+        $after = $this->journalIndex(['year' => 2026, 'month' => '10'])->assertOk()->getContent();
+        $this->assertSame(
+            ['occupied', ''],
+            $this->cellFlagsInTeam($after, (int) $student->id, '2026-10-05', (int) $teamA->id)
+        );
+        $this->assertSame(
+            ['eligible', 'postpay'],
+            $this->cellFlagsInTeam($after, (int) $student->id, '2026-10-05', (int) $teamB->id)
+        );
+        $this->assertSame(
+            ['eligible', 'prepaid'],
+            $this->cellFlagsInTeam($after, (int) $student->id, '2026-10-06', (int) $teamA->id)
+        );
+    }
+
+    public function test_two_groups_keep_their_own_training_count_and_payment_after_one_save(): void
+    {
+        [$student, $teamA, $teamB] = $this->studentInTwoGroups();
+        $this->makeMonthlyFlexibleAssignment($student, (int) $teamA->id, '2026-10-01', lessons: 4);
+        $this->attachPostpay((int) $student->id, (int) $teamB->id, '2026-10-01', paid: false);
+
+        $response = $this->postJson(route('schedule.bulk-place'), [
+            'lesson_occurrence_status_id' => (int) $this->visitedStatusId,
+            'lessons' => [
+                [
+                    'user_id' => $student->id,
+                    'occurrence_date' => '2026-10-05',
+                    'team_id' => $teamA->id,
+                ],
+                [
+                    'user_id' => $student->id,
+                    'occurrence_date' => '2026-10-05',
+                    'team_id' => $teamB->id,
+                ],
+            ],
+        ], $this->ajaxHeaders());
+
+        $response->assertOk()->assertJsonPath('success', true)->assertJsonPath('result.failed', []);
+        $placed = collect($response->json('result.placed'))->keyBy('team_id');
+        $this->assertSame(1, (int) $placed[(int) $teamA->id]['consuming_count']);
+        $this->assertSame(1, (int) $placed[(int) $teamB->id]['consuming_count']);
+        $this->assertSame(
+            JournalMonthlyPaymentStatusService::STATE_NONE,
+            $placed[(int) $teamA->id]['payment_status']['state']
+        );
+        $this->assertSame('due', $placed[(int) $teamB->id]['payment_status']['state']);
+        $this->assertSame(50000, (int) $placed[(int) $teamB->id]['payment_status']['amount_cents']);
+        $this->assertNotSame(
+            $placed[(int) $teamA->id]['payment_status']['state'],
+            $placed[(int) $teamB->id]['payment_status']['state']
+        );
+    }
+
+    public function test_group_on_the_lesson_is_not_replaced_by_the_single_team_of_the_request(): void
+    {
+        [$student, $teamA, $teamB] = $this->studentInTwoGroups();
+        $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $teamA->id, '2026-10-01', lessons: 4);
+        $this->attachPostpay((int) $student->id, (int) $teamB->id, '2026-10-01', paid: false);
+
+        $response = $this->postJson(route('schedule.bulk-place'), [
+            'team_id' => $teamA->id,
+            'lesson_occurrence_status_id' => $this->scheduledStatusId(),
+            'lessons' => [[
+                'user_id' => $student->id,
+                'occurrence_date' => '2026-10-05',
+                'team_id' => $teamB->id,
+            ]],
+        ], $this->ajaxHeaders());
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('result.placed.0.team_id', (int) $teamB->id)
+            ->assertJsonPath('result.placed.0.billing', 'postpay');
+        $this->assertSame(4, (int) $ulp->fresh()->lessons_remaining);
+        $this->assertSame(0, $this->slotsOnTeam((int) $student->id, (int) $teamA->id, '2026-10-05'));
+        $this->assertSame(1, $this->slotsOnTeam((int) $student->id, (int) $teamB->id, '2026-10-05'));
+    }
+
+    public function test_same_student_same_day_is_saved_once_per_group(): void
+    {
+        [$student, $teamA, $teamB] = $this->studentInTwoGroups();
+        $this->makeMonthlyFlexibleAssignment($student, (int) $teamA->id, '2026-10-01', lessons: 4);
+        $this->attachPostpay((int) $student->id, (int) $teamB->id, '2026-10-01', paid: false);
+
+        $response = $this->postJson(route('schedule.bulk-place'), [
+            'lesson_occurrence_status_id' => $this->scheduledStatusId(),
+            'lessons' => [
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-05', 'team_id' => $teamA->id],
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-05', 'team_id' => $teamA->id],
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-05', 'team_id' => $teamB->id],
+            ],
+        ], $this->ajaxHeaders());
+
+        $response->assertOk()->assertJsonPath('result.failed', []);
+        $this->assertCount(2, $response->json('result.placed'));
+        $this->assertSame(1, $this->slotsOnTeam((int) $student->id, (int) $teamA->id, '2026-10-05'));
+        $this->assertSame(1, $this->slotsOnTeam((int) $student->id, (int) $teamB->id, '2026-10-05'));
+    }
+
+    public function test_lesson_without_a_group_returns_422_under_that_lesson_and_saves_nothing(): void
+    {
+        [$student, $teamA, $teamB] = $this->studentInTwoGroups();
+        $this->makeMonthlyFlexibleAssignment($student, (int) $teamA->id, '2026-10-01', lessons: 2);
+        $this->attachPostpay((int) $student->id, (int) $teamB->id, '2026-10-01', paid: false);
+        $body = [
+            'lesson_occurrence_status_id' => $this->scheduledStatusId(),
+            'lessons' => [[
+                'user_id' => $student->id,
+                'occurrence_date' => '2026-10-05',
+            ]],
+        ];
+
+        $missingGroup = $this->postJson(route('schedule.bulk-place'), $body, $this->ajaxHeaders())
+            ->assertStatus(422);
+        $this->assertSame('Выберите группу.', $missingGroup->json('errors')['lessons.0.team_id'][0] ?? null);
+
+        $this->from(route('schedule.index'))
+            ->post(route('schedule.bulk-place'), $body)
+            ->assertRedirect(route('schedule.index'))
+            ->assertSessionHasErrors(['lessons.0.team_id' => 'Выберите группу.']);
+
+        $this->assertSame(0, UserTeamScheduleSlot::query()->where('user_id', $student->id)->count());
+    }
+
+    public function test_foreign_group_on_one_lesson_rejects_the_whole_batch(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-10-01', lessons: 2);
+        $foreignTeam = Team::factory()->create([
+            'partner_id' => Partner::factory()->create()->id,
+        ]);
+
+        $foreign = $this->postJson(route('schedule.bulk-place'), [
+            'lesson_occurrence_status_id' => $this->scheduledStatusId(),
+            'lessons' => [
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-05', 'team_id' => $team->id],
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-06', 'team_id' => $foreignTeam->id],
+            ],
+        ], $this->ajaxHeaders())->assertStatus(422);
+        $this->assertSame('Группа не найдена.', $foreign->json('errors')['lessons.1.team_id'][0] ?? null);
+
+        $this->assertSame(0, UserTeamScheduleSlot::query()->where('user_id', $student->id)->count());
+    }
+
+    public function test_trainer_of_one_group_cannot_place_a_lesson_into_another_group(): void
+    {
+        [$student, $ownTeam, $otherTeam] = $this->studentInTwoGroups();
+        $this->makeMonthlyFlexibleAssignment($student, (int) $ownTeam->id, '2026-10-01', lessons: 2);
+        $this->attachPostpay((int) $student->id, (int) $otherTeam->id, '2026-10-01', paid: false);
+        $this->actAsTrainerOf($ownTeam);
+
+        $otherGroup = $this->postJson(route('schedule.bulk-place'), [
+            'lesson_occurrence_status_id' => $this->scheduledStatusId(),
+            'lessons' => [
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-05', 'team_id' => $ownTeam->id],
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-06', 'team_id' => $otherTeam->id],
+            ],
+        ], $this->ajaxHeaders())->assertStatus(422);
+        $this->assertSame('Выберите группу из списка.', $otherGroup->json('errors')['lessons.1.team_id'][0] ?? null);
+
+        $this->assertSame(0, UserTeamScheduleSlot::query()->where('user_id', $student->id)->count());
+    }
+
+    public function test_plain_post_of_two_groups_redirects_to_the_journal_and_saves_both(): void
+    {
+        [$student, $teamA, $teamB] = $this->studentInTwoGroups();
+        $this->makeMonthlyFlexibleAssignment($student, (int) $teamA->id, '2026-10-01', lessons: 2);
+        $this->attachPostpay((int) $student->id, (int) $teamB->id, '2026-10-01', paid: false);
+
+        $this->post(route('schedule.bulk-place'), [
+            'lesson_occurrence_status_id' => $this->scheduledStatusId(),
+            'lessons' => [
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-03', 'team_id' => $teamA->id],
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-04', 'team_id' => $teamB->id],
+            ],
+        ])->assertRedirect(route('schedule.index'))
+            ->assertSessionHas('status', 'Занятие поставлено выбранным ученикам.');
+
+        $this->assertSame(1, $this->slotsOnTeam((int) $student->id, (int) $teamA->id, '2026-10-03'));
+        $this->assertSame(1, $this->slotsOnTeam((int) $student->id, (int) $teamB->id, '2026-10-04'));
+    }
+
+    public function test_the_other_group_is_saved_when_one_group_runs_out_of_lessons(): void
+    {
+        [$student, $teamA, $teamB] = $this->studentInTwoGroups();
+        $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $teamA->id, '2026-10-01', lessons: 1);
+        $this->attachPostpay((int) $student->id, (int) $teamB->id, '2026-10-01', paid: false);
+
+        $response = $this->postJson(route('schedule.bulk-place'), [
+            'lesson_occurrence_status_id' => (int) $this->visitedStatusId,
+            'lessons' => [
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-04', 'team_id' => $teamA->id],
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-03', 'team_id' => $teamA->id],
+                ['user_id' => $student->id, 'occurrence_date' => '2026-10-04', 'team_id' => $teamB->id],
+            ],
+        ], $this->ajaxHeaders());
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Занятие поставлено не всем ученикам.');
+        $failed = collect($response->json('result.failed'));
+        $this->assertCount(1, $failed);
+        $this->assertSame((int) $teamA->id, (int) $failed[0]['team_id']);
+        $this->assertSame('2026-10-04', $failed[0]['occurrence_date']);
+        $this->assertSame('В абонементе не осталось занятий.', $failed[0]['message']);
+        $this->assertSame(0, (int) $ulp->fresh()->lessons_remaining);
+        $this->assertSame(1, $this->slotsOnTeam((int) $student->id, (int) $teamA->id, '2026-10-03'));
+        $this->assertSame(0, $this->slotsOnTeam((int) $student->id, (int) $teamA->id, '2026-10-04'));
+        $this->assertSame(1, $this->slotsOnTeam((int) $student->id, (int) $teamB->id, '2026-10-04'));
+    }
+
     /**
      * @param  list<int>  $userIds
      * @param  array<string, mixed>  $extra
@@ -535,5 +779,80 @@ final class ScheduleJournalBulkPlaceContractsFeatureTest extends ScheduleJournal
         }
 
         return $tag[0];
+    }
+
+    /**
+     * @return array{0: User, 1: Team, 2: Team}
+     */
+    private function studentInTwoGroups(): array
+    {
+        [$student, $teamA] = $this->makeStudentWithTeam();
+        $teamB = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Вторая группа '.uniqid(),
+        ]);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $teamA->id, (int) $teamB->id]);
+
+        return [$student, $teamA, $teamB];
+    }
+
+    private function slotsOnTeam(int $userId, int $teamId, string $date): int
+    {
+        return UserTeamScheduleSlot::query()
+            ->where('user_id', $userId)
+            ->whereDate('starts_at', $date)
+            ->whereHas('slot', static fn ($query) => $query->where('team_id', $teamId))
+            ->count();
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function cellFlagsInTeam(string $html, int $userId, string $date, int $teamId): array
+    {
+        $pattern = '/<td\b(?=[^>]*\bdata-user-id="'.$userId.'")(?=[^>]*\bdata-date="'.preg_quote($date, '/').'")(?=[^>]*\bdata-context-team-id="'.$teamId.'")[^>]*>/';
+        $this->assertSame(1, preg_match($pattern, $html, $tag), 'Нет ячейки ученика '.$userId.' группы '.$teamId.' на '.$date);
+
+        preg_match('/data-bulk-block="([^"]*)"/', $tag[0], $block);
+        preg_match('/data-bulk-billing="([^"]*)"/', $tag[0], $billing);
+
+        return [$block[1] ?? '', $billing[1] ?? ''];
+    }
+
+    private function bulkModalHtml(string $html): string
+    {
+        $start = strpos($html, 'id="bulkPlaceModal"');
+        $end = strpos($html, 'id="cellEditModal"');
+        $this->assertNotFalse($start);
+        $this->assertNotFalse($end);
+
+        return substr($html, (int) $start, $end - $start);
+    }
+
+    private function actAsTrainerOf(Team $team): void
+    {
+        $trainer = $this->createUserWithRole('trainer', $this->partner, [
+            'name' => 'Тренер',
+            'lastname' => 'СвоихГрупп',
+            'is_enabled' => 1,
+        ]);
+        $profile = TrainerProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $trainer->id,
+        ]);
+        foreach (['schedule.view', 'groups.own'] as $permission) {
+            DB::table('permission_role')->insertOrIgnore([
+                'partner_id' => $this->partner->id,
+                'role_id' => $trainer->role_id,
+                'permission_id' => $this->permissionId($permission),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+        app(TeamTrainerSyncService::class)->attachTrainerToTeam($team, (int) $profile->id);
+        $this->actingAs($trainer)->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed' => true,
+        ]);
     }
 }
