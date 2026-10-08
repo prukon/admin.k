@@ -48,6 +48,11 @@
     При готовом T‑Bank в письмо попадает ссылка СБП <code>/pm/{code}</code>
     (или автоблок «Оплатить через СБП», если в шаблоне нет <code>{{pay_url}}</code>) —
     <a href="#sbp-pay-link">§6.1</a>, <a href="/doc#payment-notifications-sbp-link-index">анонс на /doc</a>.
+    Ручной счёт из строки месяца на «По месяцам» / «По ученикам» использует тот же
+    <code>{{pay_url}}</code> и системный шаблон по умолчанию, но это отдельное скрытое право
+    <code>setPrices.invoiceEmail.send</code>
+    (<a href="/docs/documentation/setting-prices-monthly-users#invoice-email">setting-prices-monthly-users</a>,
+    <a href="/doc#setting-prices-invoice-email-index">анонс</a>).
     Cron: ежедневно <b>10:00 Europe/Moscow</b>.
     Журнал писем — отчёт
     <a href="/docs/documentation/reports-admin#reports-outgoing-emails">«Исходящие письма»</a>

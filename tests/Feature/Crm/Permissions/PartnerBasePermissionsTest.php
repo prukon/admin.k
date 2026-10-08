@@ -84,6 +84,10 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('setPrices.paymentNotifications.manage', $adminPerms);
         $this->assertNotContains('setPrices.paymentNotifications.manage', $trainerPerms);
 
+        $this->assertNotContains('setPrices.invoiceEmail.send', $userPerms);
+        $this->assertContains('setPrices.invoiceEmail.send', $adminPerms);
+        $this->assertNotContains('setPrices.invoiceEmail.send', $trainerPerms);
+
         $this->assertNotContains('setPrices.applyAllTeams.manage', $userPerms);
         $this->assertNotContains('setPrices.applyAllTeams.manage', $adminPerms);
         $this->assertNotContains('setPrices.applyAllTeams.manage', $trainerPerms);

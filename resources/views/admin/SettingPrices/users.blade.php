@@ -214,6 +214,8 @@
     @include('partials.ui.discount-percent-badge-styles')
 @endpush
 
+@include('admin.SettingPrices.partials.invoice-email-modal')
+
 {{-- Toast Bootstrap 5 для "Сохранено / Ошибка" --}}
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
     <div id="priceToast" class="toast align-items-center text-white bg-success border-0" role="alert"
@@ -256,6 +258,11 @@
 
             function escapeHtml(s) {
                 return escapeAttr(s).replace(/'/g, '&#39;');
+            }
+
+            function chargeAmountIsPositive(price) {
+                const n = Number(price);
+                return Number.isFinite(n) && n > 0;
             }
 
             function yearUserDiscountPercent() {
@@ -537,6 +544,7 @@
                 };
                 const isFormer = !!response.is_former_member;
                 const canManual = !isFormer && !!response.can_manage_manual_paid;
+                const canInvoice = !!response.can_send_invoice_email;
 
                 let html = '<div class="user-prices-year-table' + (isFormer ? ' user-prices-year-table--former' : '') + '">';
                 html += '<div class="user-prices-year-header d-flex align-items-center gap-1 flex-nowrap w-100 min-w-0 mb-2 pb-2 border-bottom small text-muted">';
@@ -583,11 +591,24 @@
                             'aria-label="Комментарий к ручной отметке оплаты"></i>';
                     }
 
-                    let pencilHtml = '';
+                    let editItemHtml = '';
                     if (canManual && hasRow && hasAbon && !acquiringPaid) {
-                        pencilHtml = '<button type="button" class="btn btn-link btn-sm p-0 user-price-manual-edit setting-prices-monthly-edit-btn" ' +
-                            'data-new-month="' + item.new_month + '" title="Изменить статус и сумму">' +
-                            '<i class="fa fa-edit" aria-hidden="true"></i></button>';
+                        editItemHtml = '<li><button type="button" class="dropdown-item user-price-manual-edit" ' +
+                            'data-new-month="' + escapeAttr(item.new_month) + '">Изменить статус и сумму</button></li>';
+                    }
+                    let invoiceItemHtml = '';
+                    if (canInvoice && hasRow && hasAbon && !effectivePaid && !acquiringPaid && chargeAmountIsPositive(item.price)) {
+                        invoiceItemHtml = '<li><button type="button" class="dropdown-item setting-prices-invoice-email" ' +
+                            'data-user-id="' + escapeAttr(String(currentUserId)) + '" ' +
+                            'data-team-id="' + escapeAttr(String(currentTeamId)) + '" ' +
+                            'data-new-month="' + escapeAttr(item.new_month) + '">Отправить счёт на email</button></li>';
+                    }
+                    let pencilHtml = '';
+                    if (editItemHtml || invoiceItemHtml) {
+                        pencilHtml = '<div class="dropdown setting-prices-row-actions">' +
+                            '<button type="button" class="btn btn-link btn-sm p-0 setting-prices-row-actions-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Действия" aria-label="Действия">' +
+                            '<i class="fa fa-cog" aria-hidden="true"></i></button>' +
+                            '<ul class="dropdown-menu dropdown-menu-end">' + editItemHtml + invoiceItemHtml + '</ul></div>';
                     }
 
                     const monthTitle = escapeAttr(item.month_label);

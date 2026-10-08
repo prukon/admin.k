@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let usersPrice = [];
     let lastCanManageManualPaid = false;
+    let lastCanSendInvoiceEmail = false;
     let lastUsersTeam = [];
     let lastTeamId = null;
     /** @type {Array<{id:number,name:string,price:number}>} */
@@ -391,6 +392,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     ? response.lessonPackages
                     : [];
                 lastTeamId = String(teamId);
+                lastCanSendInvoiceEmail = !!response.can_send_invoice_email;
                 applyTeamRowActive(teamId);
                 if (response.success) {
                     usersPrice = response.usersPrice;
@@ -847,6 +849,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function billingMonthKey(value) {
+        const match = String(value || '').match(/^(\d{4}-\d{2}-\d{2})/);
+        return match ? match[1] : '';
+    }
+
+    function chargeAmountIsPositive(price) {
+        const n = Number(price);
+        return Number.isFinite(n) && n > 0;
+    }
+
     function renderUsersRightColumn(usersTeam, usersPriceList, canManage) {
         lastCanManageManualPaid = !!canManage;
         lastUsersTeam = usersTeam || [];
@@ -904,14 +916,25 @@ document.addEventListener('DOMContentLoaded', function () {
                     + 'aria-label="Комментарий к ручной отметке оплаты"></i>';
             }
 
-            // Бывшие участники — только просмотр (без карандаша и режима редактирования).
-            // Карандаш — только после фактической установки абонемента.
+            // Бывшие участники — только просмотр статуса (без пункта изменения).
+            // Пункт изменения — только после фактической установки абонемента.
             const packageId = up.lesson_package_id != null ? up.lesson_package_id : '';
             const hasAbon = packageId !== '';
-            let pencilHtml = '';
+            let editItemHtml = '';
             if (!isFormer && canManage && uid && hasAbon && !acquiringPaid) {
-                pencilHtml = '<button type="button" class="btn btn-link btn-sm p-0 user-price-manual-edit setting-prices-monthly-edit-btn" data-user-id="' + uid + '" title="Изменить статус и сумму">' +
-                    '<i class="fa fa-edit" aria-hidden="true"></i></button>';
+                editItemHtml = '<li><button type="button" class="dropdown-item user-price-manual-edit" data-user-id="' + uid + '">Изменить статус и сумму</button></li>';
+            }
+            let invoiceItemHtml = '';
+            const monthKey = billingMonthKey(up.new_month);
+            if (lastCanSendInvoiceEmail && uid && hasAbon && !eff && !acquiringPaid && chargeAmountIsPositive(up.price) && monthKey) {
+                invoiceItemHtml = '<li><button type="button" class="dropdown-item setting-prices-invoice-email" data-user-id="' + uid + '" data-team-id="' + escapeAttr(String(up.team_id || lastTeamId || '')) + '" data-new-month="' + escapeAttr(monthKey) + '">Отправить счёт на email</button></li>';
+            }
+            let pencilHtml = '';
+            if (editItemHtml || invoiceItemHtml) {
+                pencilHtml = '<div class="dropdown setting-prices-row-actions">' +
+                    '<button type="button" class="btn btn-link btn-sm p-0 setting-prices-row-actions-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Действия" aria-label="Действия">' +
+                    '<i class="fa fa-cog" aria-hidden="true"></i></button>' +
+                    '<ul class="dropdown-menu dropdown-menu-end">' + editItemHtml + invoiceItemHtml + '</ul></div>';
             }
 
             let trashHtml = '';

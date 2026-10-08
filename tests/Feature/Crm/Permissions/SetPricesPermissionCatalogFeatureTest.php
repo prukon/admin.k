@@ -37,6 +37,7 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
             'setPrices.cabinetPackages.flexible.view' => 'Консоль: абонемент предоплаты',
             'setPrices.cabinetPackages.single.view' => 'Консоль: разовое занятие',
             'setPrices.cabinetPackages.postpay.view' => 'Консоль: постоплата',
+            'setPrices.invoiceEmail.send' => 'Установка цен: отправить счёт на email',
         ];
     }
 
@@ -75,6 +76,7 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
             'setPrices.cabinetPackages.flexible.view',
             'setPrices.cabinetPackages.single.view',
             'setPrices.cabinetPackages.postpay.view',
+            'setPrices.invoiceEmail.send',
         ], $rows);
 
         $applyAllTeamsSort = (int) DB::table('permissions')->where('name', 'setPrices.applyAllTeams.manage')->value('sort_order');
@@ -87,6 +89,7 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
         $this->assertSame(26, (int) DB::table('permissions')->where('name', 'setPrices.cabinetPackages.flexible.view')->value('sort_order'));
         $this->assertSame(27, (int) DB::table('permissions')->where('name', 'setPrices.cabinetPackages.single.view')->value('sort_order'));
         $this->assertSame(28, (int) DB::table('permissions')->where('name', 'setPrices.cabinetPackages.postpay.view')->value('sort_order'));
+        $this->assertSame(29, (int) DB::table('permissions')->where('name', 'setPrices.invoiceEmail.send')->value('sort_order'));
     }
 
     public function test_payment_clubfee_is_not_in_misc_group(): void

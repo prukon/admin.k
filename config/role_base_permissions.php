@@ -57,6 +57,7 @@ return [
             // 'reports.payments.commission_total.view',
             'reports.payments.payout_amount.column.view',
             'setPrices.view',
+            'setPrices.invoiceEmail.send',
             'setPrices.cabinetSeasons.view',
             // 'setPrices.applyAllTeams.manage',
             // 'setPrices.customPayments.view',

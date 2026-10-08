@@ -202,6 +202,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('setPrices.paymentNotifications.manage');
         });
 
+        // Ручная отправка счёта на email со ссылкой СБП (скрытый пермишн)
+        Gate::define('setPrices.invoiceEmail.send', function (User $user) {
+            return $user->hasPermission('setPrices.invoiceEmail.send');
+        });
+
         // Журнал расписания
         Gate::define('schedule.view', function (User $user) {
             return $user->hasPermission('schedule.view');

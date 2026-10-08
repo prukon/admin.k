@@ -563,4 +563,6 @@
         });
     </script>
 
+    @include('admin.SettingPrices.partials.invoice-email-modal')
+
 @endsection

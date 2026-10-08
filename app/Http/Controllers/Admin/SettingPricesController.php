@@ -1159,6 +1159,7 @@ class SettingPricesController extends AdminBaseController
                 'usersPrice'               => $usersPrice,
                 'lessonPackages'           => $lessonPackages,
                 'can_manage_manual_paid'   => $request->user()->can('setPrices.manualPaid.manage'),
+                'can_send_invoice_email'   => $request->user()->can('setPrices.invoiceEmail.send'),
             ]);
         }
 
@@ -2660,6 +2661,7 @@ class SettingPricesController extends AdminBaseController
             'can_manage_manual_paid' => $isFormer
                 ? false
                 : $request->user()->can('setPrices.manualPaid.manage'),
+            'can_send_invoice_email' => $request->user()->can('setPrices.invoiceEmail.send'),
             'user'    => [
                 'id'        => $user->id,
                 'name'      => $user->name,

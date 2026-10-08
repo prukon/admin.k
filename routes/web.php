@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\Setting\SettingController;
 use App\Http\Controllers\Admin\Setting\TbankCommissionsController;
 use App\Http\Controllers\Admin\PaymentNotificationRuleController;
 use App\Http\Controllers\Admin\SettingPricesController;
+use App\Http\Controllers\Admin\SettingPricesInvoiceEmailController;
 use App\Http\Controllers\Admin\TeamColumnsSettingsController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\TinkoffPayoutTableSettingsController;
@@ -483,6 +484,13 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/setting-prices/manual-paid', [SettingPricesController::class, 'setManualPaid'])
             ->middleware('can:setPrices.manualPaid.manage')
             ->name('setting-prices.manual-paid');
+
+        Route::post('admin/setting-prices/invoice-email/preview', [SettingPricesInvoiceEmailController::class, 'preview'])
+            ->middleware('can:setPrices.invoiceEmail.send')
+            ->name('setting-prices.invoice-email.preview');
+        Route::post('admin/setting-prices/invoice-email/send', [SettingPricesInvoiceEmailController::class, 'send'])
+            ->middleware('can:setPrices.invoiceEmail.send')
+            ->name('setting-prices.invoice-email.send');
 
         Route::post('admin/setting-prices/custom-payments/{id}/manual-paid', [SettingPricesController::class, 'setManualPaidCustomPayment'])
             ->middleware('can:setPrices.manualPaid.manage')

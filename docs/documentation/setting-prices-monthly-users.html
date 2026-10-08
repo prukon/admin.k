@@ -206,6 +206,64 @@
     Анонс: <a href="/doc#setting-prices-apply-all-teams-index">/doc#setting-prices-apply-all-teams-index</a>.
   </p>
 
+  <h2 id="invoice-email">Счёт на email из строки месяца</h2>
+  <p>
+    На вкладках «По месяцам» и «По ученикам» вместо карандаша — шестерёнка
+    (<code>fa-cog</code>, <code>.setting-prices-row-actions</code>).
+    Меню: «Изменить статус и сумму» (та же логика, что у карандаша,
+    класс <code>user-price-manual-edit</code>, право <code>setPrices.manualPaid.manage</code>)
+    и «Отправить счёт на email».
+    Шестерёнка есть, только если хотя бы один из пунктов показан.
+  </p>
+  <ul>
+    <li>Пункт изменения при 0 ₽ с абонементом остаётся
+      (<a href="#manual-paid-zero-price">§4.0.1</a>).
+      При <code>is_paid = 1</code> его нет (<a href="#acquiring-amount-lock">§4.0.2</a>).
+      У бывшего на «По месяцам» его нет; корзина §<a href="#former-charge-clear">3.2.1</a> не заменяется счётом.</li>
+    <li>Пункт счёта виден при праве <code>setPrices.invoiceEmail.send</code>, выбранном абонементе,
+      неоплаченной строке (<code>effective_is_paid</code> и <code>is_paid</code> ложны) и сумме больше нуля.
+      Оплаченную строку и сумму 0 пункт не показывает.
+      Флаг <code>can_send_invoice_email</code> у бывшего не сбрасывается: такое начисление можно отправить
+      и после ухода из группы.</li>
+    <li>Модалка <code>#setting-prices-invoice-email-modal</code> стандартной ширины,
+      тело прокручивается (<code>modal-dialog-scrollable</code>).
+      Карточка: ученик, группа, месяц, сумма. Ниже абонемент, родитель и email.
+      Строки «Оплата» и подписи про шаблон нет. Письмо (<code>email_html</code>)
+      сразу видно в iframe, кнопки «Превью» нет. Ошибки — под соответствующим полем
+      (<code>data-error-for</code>), включая <code>pay_url</code>.</li>
+    <li><code>POST /admin/setting-prices/invoice-email/preview</code> и
+      <code>POST /admin/setting-prices/invoice-email/send</code>.
+      Текст — системный шаблон уведомлений (<code>Оплата за {{month_year}}</code> и тело по умолчанию).
+      Правило клуба со вкладки «Уведомления» его не подменяет.
+      Класс письма <code>PaymentNotificationMail</code> (отчёт «Исходящие письма», категория уведомлений об оплате).
+      Ссылка — та же публичная СБП <code>/pm/{code}</code>, что у вкладки «Уведомления»
+      (<code>shareUrlForNotification</code>). Если в шаблоне нет <code>{{pay_url}}</code>,
+      в конец добавляется кнопка «Оплатить через СБП».</li>
+    <li>Адрес: <code>parents.email</code>, иначе <code>users.email</code>.
+      Нет почты, нет T‑Bank, сумма вне 10–1&nbsp;000&nbsp;000&nbsp;₽ или постоплата ещё закрыта —
+      превью <b>200</b> с <code>can_send: false</code> и <code>errors</code>, отправка <b>422</b>
+      с теми же <code>errors</code>. В JSON <code>facts.pay_url</code> по-прежнему
+      «кнопка «Оплатить через СБП»», если ссылка собрана, иначе «недоступна»;
+      в модалке этой строки нет, причина видна в <code>errors.pay_url</code>.
+      Чужое начисление — JSON <b>404</b> «Начисление не найдено.»</li>
+    <li>AJAX (<code>X-Requested-With</code> или <code>Accept: application/json</code>) — JSON,
+      не пустой 200. Обычный POST без этих заголовков — <b>302</b> назад на вкладку,
+      с которой ушла форма: успех отправки кладёт текст в <code>status</code>,
+      ошибка — в сессию под тем же полем. Превью письмо не отправляет.
+      Без права — <b>403</b>, даже если есть только <code>setPrices.invoiceEmail.send</code>
+      без <code>setPrices.view</code>. Гость — 302/401/403. GET/PATCH/DELETE — 404/405.
+      Флаг <code>can_send_invoice_email</code> приходит в JSON месяца и года ученика
+      и у бывшего участника не сбрасывается (в отличие от ручной оплаты).</li>
+  </ul>
+  <p class="small">
+    Тесты: <code>SettingPricesInvoiceEmailAccessFeatureTest</code>,
+    <code>SettingPricesInvoiceEmailAjaxContractFeatureTest</code>,
+    <code>SettingPricesInvoiceEmailNonAjaxSafetyNetFeatureTest</code>,
+    <code>SettingPricesInvoiceEmailMarkupFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_invoice_email_gear_and_modal_keep_the_agreed_defaults</code>.
+    Анонс: <a href="/doc#setting-prices-invoice-email-index">/doc#setting-prices-invoice-email-index</a>.
+  </p>
+
   <h2 id="permissions">1) Права</h2>
   <table>
     <thead><tr><th>Permission</th><th>Назначение</th></tr></thead>
@@ -218,7 +276,8 @@
         <a href="/docs/documentation/lesson-packages-type-permissions">lesson-packages-type-permissions</a>,
         <a href="/doc#lesson-packages-type-permissions-index">анонс</a>,
         postpay — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a></td></tr>
-      <tr><td><code>setPrices.manualPaid.manage</code></td><td>Карандаш ручной оплаты месяца (<code>POST …/manual-paid</code>). У бывших участников UI скрывает карандаш; API всё равно требует текущее членство → <b>422</b>. На «По месяцам» unpaid→paid ещё apply абонемента/суммы из карточки — <a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>, <a href="#manual-paid-card">§4.0</a>. На вкладке доп. платежей то же право скрывает только селект статуса, не кнопку «Редактировать» — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>, <a href="/doc#custom-payments-edit-permission-index">/doc</a></td></tr>
+      <tr><td><code>setPrices.manualPaid.manage</code></td><td>Карандаш ручной оплаты месяца теперь пункт «Изменить статус и сумму» в меню шестерёнки (<code>POST …/manual-paid</code>). У бывших участников UI скрывает этот пункт; API всё равно требует текущее членство → <b>422</b>. На «По месяцам» unpaid→paid ещё apply абонемента/суммы из карточки — <a href="/doc#setting-prices-monthly-manual-paid-card-index">анонс</a>, <a href="#manual-paid-card">§4.0</a>. На вкладке доп. платежей то же право скрывает только селект статуса, не кнопку «Редактировать» — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>, <a href="/doc#custom-payments-edit-permission-index">/doc</a></td></tr>
+      <tr><td><code>setPrices.invoiceEmail.send</code></td><td>Скрытое (<code>is_visible = 0</code>), у роли <code>admin</code> включено по умолчанию (и у новых школ через <code>role_base_permissions</code>). Пункт «Отправить счёт на email» в меню шестерёнки на «По месяцам» и «По ученикам». <a href="#invoice-email">§invoice-email</a>, <a href="/doc#setting-prices-invoice-email-index">анонс</a></td></tr>
       <tr><td><code>setPrices.customPayments.view</code></td><td>Не относится к этим вкладкам — см. <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a></td></tr>
     </tbody>
   </table>
@@ -422,7 +481,10 @@
     У бывшего вместо карандаша — корзина, если месяц <b>не</b> оплачен
     (<code>effective_is_paid</code> = нет, ни авто <code>is_paid</code>, ни
     <code>is_manual_paid</code>). Оплаченное — <b>без</b> корзины (не disabled).
-    Карандаш у бывшего не рисуется. Право — <code>setPrices.view</code>
+    Карандаш у бывшего не рисуется. Пункт «Отправить счёт на email» при этом может быть
+    у неоплаченного начисления с абонементом и суммой больше нуля
+    (<a href="#invoice-email">§invoice-email</a>) — корзину он не заменяет.
+    Право корзины — <code>setPrices.view</code>
     (как у раздела), не <code>manualPaid.manage</code>.
     Вкладка «По ученикам» корзины <b>не</b> показывает
     (<code>users.blade.php</code> без monthly Vite-модуля;
@@ -690,6 +752,8 @@
     <code>is_paid = 1</code> ставит webhook месячного платежа. Карандаш
     <code>user-price-manual-edit</code> при этом не рисуется: ручной статус через интерфейс
     не ставится, автофлаг не снимается.
+    Пункт «Отправить счёт на email» при <code>is_paid = 1</code> тоже скрыт
+    (<a href="#invoice-email">§invoice-email</a>).
     Если <code>is_manual_paid</code> уже «не оплачено», месяц для экрана и задолженностей снова неоплаченный,
     но <code>price_cents</code> остаётся суммой эквайринга.
     Поле цены на «По месяцам» и «По ученикам» закрыто
@@ -722,6 +786,8 @@
     toast не показывается. Если в поле 9800 ₽ — оплата проходит (apply пишет сумму, затем флажок).
     <code>mode=unpaid</code> при 0 ₽ можно (снять ошибочную отметку).
     Карандаш при 0 ₽ с абонементом остаётся (<code>hasAbon</code>, не «цена &gt; 0») — иначе нельзя снять флажок.
+    Пункт «Отправить счёт на email» при сумме 0 не показывается
+    (<a href="#invoice-email">§invoice-email</a>).
     Журнал по-прежнему не рисует галочку на нулевой сумме
     (<a href="/docs/documentation/schedule-journal#payment-column">§5.2</a>).
     Задолженности тоже берут только <code>price_cents &gt; 0</code>.

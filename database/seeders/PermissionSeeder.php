@@ -101,6 +101,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'setPrices.cabinetPackages.flexible.view', 'description' => 'Консоль: абонемент предоплаты', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 26],
             ['name' => 'setPrices.cabinetPackages.single.view', 'description' => 'Консоль: разовое занятие', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 27],
             ['name' => 'setPrices.cabinetPackages.postpay.view', 'description' => 'Консоль: постоплата', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 28],
+            ['name' => 'setPrices.invoiceEmail.send', 'description' => 'Установка цен: отправить счёт на email', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 29],
 
             // group_slug contracts
             ['name' => 'contracts.sync',                 'description' => 'Договоры: синхронизация статуса с Подпислон',   'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 52],

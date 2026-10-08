@@ -6909,6 +6909,100 @@ JS;
     }
 
     /**
+     * Счёт на email: оба пути шестерёнки и скрипт модалки.
+     * Пункт «Отправить» только у неоплаченной строки с суммой больше нуля.
+     * Письмо показывается сразу, без кнопки «Превью», и этот запрос не шлёт письмо.
+     * Успех не перезагружает страницу.
+     */
+    public function test_invoice_email_gear_and_modal_keep_the_agreed_defaults(): void
+    {
+        $monthly = (string) file_get_contents(resource_path('js/settings-prices.js'));
+        $users = (string) file_get_contents(resource_path('views/admin/SettingPrices/users.blade.php'));
+        $modal = (string) file_get_contents(resource_path('views/admin/SettingPrices/partials/invoice-email-modal.blade.php'));
+
+        foreach ([$monthly, $users] as $source) {
+            $this->assertStringContainsString('fa-cog', $source);
+            $this->assertStringNotContainsString('fa-edit', $source);
+            $this->assertStringContainsString('Изменить статус и сумму', $source);
+            $this->assertStringContainsString('data-user-id=', $source);
+            $this->assertStringContainsString('data-team-id=', $source);
+            $this->assertStringContainsString('data-new-month=', $source);
+        }
+
+        $monthlyGuard = 'lastCanSendInvoiceEmail && uid && hasAbon && !eff && !acquiringPaid && chargeAmountIsPositive(up.price) && monthKey';
+        $monthlyInvoiceAt = strpos($monthly, 'Отправить счёт на email');
+        $this->assertNotFalse($monthlyInvoiceAt);
+        $this->assertLessThan($monthlyInvoiceAt, strpos($monthly, $monthlyGuard));
+        $monthlyEdit = $this->sliceBetween($monthly, "let editItemHtml = '';", "let invoiceItemHtml = '';");
+        $this->assertStringContainsString('if (!isFormer && canManage && uid && hasAbon && !acquiringPaid)', $monthlyEdit);
+        $this->assertStringNotContainsString('chargeAmountIsPositive', $monthlyEdit);
+        $this->assertStringContainsString('lastCanSendInvoiceEmail = !!response.can_send_invoice_email;', $monthly);
+
+        $usersGuard = 'canInvoice && hasRow && hasAbon && !effectivePaid && !acquiringPaid && chargeAmountIsPositive(item.price)';
+        $usersInvoiceAt = strpos($users, 'Отправить счёт на email');
+        $this->assertNotFalse($usersInvoiceAt);
+        $this->assertLessThan($usersInvoiceAt, strpos($users, $usersGuard));
+        $usersEdit = $this->sliceBetween($users, "let editItemHtml = '';", "let invoiceItemHtml = '';");
+        $this->assertStringContainsString('if (canManual && hasRow && hasAbon && !acquiringPaid)', $usersEdit);
+        $this->assertStringNotContainsString('chargeAmountIsPositive', $usersEdit);
+        $this->assertStringContainsString('const canInvoice = !!response.can_send_invoice_email;', $users);
+        $this->assertStringNotContainsString('const canInvoice = !isFormer', $users);
+
+        $this->assertStringContainsString("if (!userId || !teamId || !newMonth)", $modal);
+        $this->assertStringContainsString('previewHtml = \'\';', $modal);
+        $this->assertStringNotContainsString('setting-prices-invoice-email-preview-btn', $modal);
+        $this->assertStringNotContainsString('showPreview(!previewVisible)', $modal);
+        $loadedPreview = $this->sliceBetween($modal, 'success: function (response)', 'error: function (xhr)');
+        $this->assertStringNotContainsString('/invoice-email/send', $loadedPreview);
+        $this->assertStringContainsString('showPreview();', $loadedPreview);
+        $this->assertStringContainsString(".prop('disabled', !response.can_send);", $modal);
+        $this->assertStringContainsString("data-error-for", $modal);
+        $this->assertStringContainsString('data-error-for="email"', $modal);
+        $this->assertStringContainsString('closeModal();', $modal);
+        $this->assertStringContainsString('window.showToast', $modal);
+        $this->assertStringNotContainsString('location.reload', $modal);
+        $this->assertStringContainsString('pending = null;', $modal);
+        $this->assertStringContainsString("event.target.id !== 'setting-prices-invoice-email-modal'", $modal);
+        $this->assertStringNotContainsString('Оплатить через СБП', $modal);
+
+        $loadPreview = $this->sliceBetween($modal, 'function loadPreview', '$(document).on(\'click\', \'.setting-prices-invoice-email\'');
+        $ajaxAt = strpos($loadPreview, '$.ajax');
+        $this->assertNotFalse($ajaxAt);
+        $this->assertLessThan($ajaxAt, strpos($loadPreview, 'previewHtml = \'\';'));
+        $this->assertLessThan($ajaxAt, strpos($loadPreview, "#setting-prices-invoice-email-preview').hide()"));
+
+        $scripts = [];
+        preg_match_all('/<script\b[^>]*>(.*?)<\/script>/is', $modal, $scripts);
+        $this->assertNotEmpty($scripts[1]);
+        foreach ($scripts[1] as $index => $rawScript) {
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $tempFile = sys_get_temp_dir().'/blade-js-invoice-email-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(0, $exitCode, implode("\n", $output).' block '.$index);
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        exec('node --check '.escapeshellarg(resource_path('js/settings-prices.js')).' 2>&1', $monthlyOut, $monthlyCode);
+        $this->assertSame(0, $monthlyCode, implode("\n", $monthlyOut ?? []));
+    }
+
+    private function sliceBetween(string $source, string $start, string $end): string
+    {
+        $from = strpos($source, $start);
+        $this->assertNotFalse($from, $start);
+        $to = strpos($source, $end, $from + strlen($start));
+        $this->assertNotFalse($to, $end);
+
+        return substr($source, $from, $to - $from);
+    }
+
+    /**
      * /partner-wallet: один AJAX-submit, ошибки под полями, не alert, история через DataTables.
      */
     public function test_partner_wallet_topup_ajax_prevents_native_submit_and_shows_field_errors(): void
